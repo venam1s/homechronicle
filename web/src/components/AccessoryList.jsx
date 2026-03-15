@@ -209,7 +209,7 @@ export default function AccessoryList({ onSelectAccessory }) {
                 return (
                   <div
                     key={`bridge:${row.bridgeId}`}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-gray-50/80"
+                    className="flex items-center gap-2 px-4 py-1.5 bg-gray-50"
                   >
                     <Network size={12} className="text-gray-400" />
                     <span className="text-[11px] font-medium text-gray-400 tracking-wide">{row.bridgeName}</span>

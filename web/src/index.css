@@ -343,7 +343,8 @@ html.hc-standalone .hc-fab {
     border-color: var(--hc-panel-border) !important;
   }
 
-  html.theme-dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  html.theme-dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  html.theme-dark .divide-gray-100\/80 > :not([hidden]) ~ :not([hidden]) {
     border-color: var(--hc-panel-border) !important;
   }
 
@@ -575,8 +576,12 @@ html.hc-standalone .hc-fab {
 
   /* ── Amber badges & panels ── */
   html.theme-dark .bg-amber-50,
-  html.theme-dark .bg-amber-50\/70 {
+  html.theme-dark .bg-amber-50\/70,
+  html.theme-dark .bg-amber-50\/20 {
     background-color: rgba(180, 83, 9, 0.15) !important;
+  }
+  html.theme-dark .bg-amber-100 {
+    background-color: rgba(180, 83, 9, 0.25) !important;
   }
   html.theme-dark .border-amber-100,
   html.theme-dark .border-amber-200 {
