@@ -1,6 +1,6 @@
 # Device Setup
 
-homechronicle supports two protocols for device communication: **HomeKit** (HAP) and **Matter** (alpha).
+homechronicle supports two protocols for device communication: **HomeKit** (HAP) and **Matter** (beta).
 
 ## HomeKit Devices
 
@@ -79,7 +79,7 @@ curl -X PATCH http://localhost:3001/api/setup/room \
 
 Room assignments are stored in `listener/data/rooms.json`.
 
-## Matter Devices (Alpha)
+## Matter Devices (Beta)
 
 Matter support is built into the listener image.
 
