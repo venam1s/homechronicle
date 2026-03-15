@@ -152,7 +152,9 @@ function normalizeRetentionSettings(input = {}) {
   const quietHoursStart = Number.isFinite(qhStart) && qhStart >= 0 && qhStart <= 23 ? qhStart : 23;
   const qhEnd = Number.parseInt(String(input.quietHoursEnd ?? ''), 10);
   const quietHoursEnd = Number.isFinite(qhEnd) && qhEnd >= 0 && qhEnd <= 23 ? qhEnd : 6;
-  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd };
+  const ewm = Number.parseInt(String(input.episodeWindowMinutes ?? ''), 10);
+  const episodeWindowMinutes = Number.isFinite(ewm) && ewm >= 1 && ewm <= 30 ? ewm : 3;
+  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, episodeWindowMinutes };
 }
 
 function isLoopbackHostname(hostname) {
@@ -818,6 +820,7 @@ app.get('/api/setup/retention', (_req, res) => {
     quietHoursEnabled: retentionSettings.quietHoursEnabled,
     quietHoursStart: retentionSettings.quietHoursStart,
     quietHoursEnd: retentionSettings.quietHoursEnd,
+    episodeWindowMinutes: retentionSettings.episodeWindowMinutes,
     sweepMs: RETENTION_SWEEP_MS,
   });
 });
@@ -876,6 +879,14 @@ app.patch('/api/setup/retention', async (req, res) => {
     updates.quietHoursEnd = h;
   }
 
+  if (body.episodeWindowMinutes !== undefined) {
+    const ewm = Number.parseInt(String(body.episodeWindowMinutes), 10);
+    if (!Number.isFinite(ewm) || ewm < 1 || ewm > 30) {
+      return res.status(400).json({ error: 'episodeWindowMinutes must be an integer between 1 and 30.' });
+    }
+    updates.episodeWindowMinutes = ewm;
+  }
+
   if (!Object.keys(updates).length) {
     return res.status(400).json({ error: 'No supported settings provided.' });
   }
@@ -895,6 +906,7 @@ app.patch('/api/setup/retention', async (req, res) => {
     quietHoursEnabled: retentionSettings.quietHoursEnabled,
     quietHoursStart: retentionSettings.quietHoursStart,
     quietHoursEnd: retentionSettings.quietHoursEnd,
+    episodeWindowMinutes: retentionSettings.episodeWindowMinutes,
     sweepMs: RETENTION_SWEEP_MS,
   });
 });

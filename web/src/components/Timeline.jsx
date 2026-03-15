@@ -2,9 +2,10 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { format, startOfDay } from 'date-fns';
 import { ChevronLeft, ChevronRight, VolumeX, X, Loader2 } from 'lucide-react';
 
+import { useQuery } from '@tanstack/react-query';
 import { useEvents, useAnomalies } from '../hooks/useEvents.js';
 import { useMutedDevices } from '../hooks/useMutedDevices.js';
-import { API_BASE, withApiAuthHeaders } from '../lib/api.js';
+import { API_BASE, withApiAuthHeaders, fetchJson } from '../lib/api.js';
 import { groupIntoScenes, groupScenesIntoEpisodes } from '../lib/episodes.js';
 import { formatGap } from '../lib/icons.js';
 import EpisodeGroup from './EpisodeGroup.jsx';
@@ -50,6 +51,12 @@ export default function Timeline() {
   const { data, isLoading, isError } = useEvents(filters, page);
   const { data: anomalies }          = useAnomalies();
   const { muted, mute, unmute }      = useMutedDevices();
+  const { data: retentionConfig }    = useQuery({
+    queryKey: ['retention-config'],
+    queryFn: () => fetchJson('/api/setup/retention'),
+    staleTime: 5 * 60_000,
+  });
+  const episodeWindowMs = (retentionConfig?.episodeWindowMinutes ?? 3) * 60_000;
 
   const anomalyMap = useMemo(() => {
     const byDeviceHour = new Map();
@@ -387,7 +394,7 @@ export default function Timeline() {
                   {format(new Date(day), 'EEEE, MMMM d')}
                 </h2>
                 <div className="bg-white rounded-xl shadow-sm divide-y divide-gray-100">
-                  {groupScenesIntoEpisodes(groupIntoScenes(events)).map((entry) => (
+                  {groupScenesIntoEpisodes(groupIntoScenes(events), { episodeWindowMs }).map((entry) => (
                     entry.kind === 'episode' ? (
                       <EpisodeGroup
                         key={entry.scenes[0][0].id}

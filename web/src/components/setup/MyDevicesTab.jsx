@@ -45,7 +45,7 @@ export default function MyDevicesTab({ setup }) {
   const accessories = Array.isArray(dbAccessories) ? dbAccessories : [];
 
   const devicesWithoutRoom = [
-    ...paired.filter((acc) => !savedRooms[acc.id]?.trim()),
+    ...paired.filter((acc) => acc.category !== 2 && !savedRooms[acc.id]?.trim()),
     ...matterPairings.filter((p) => !savedRooms[p.nodeId ?? p.id]?.trim()),
   ];
 

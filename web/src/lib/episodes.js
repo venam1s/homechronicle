@@ -1,5 +1,5 @@
 const SCENE_WINDOW_MS = 5_000;
-const EPISODE_WINDOW_MS = 3 * 60_000;
+const DEFAULT_EPISODE_WINDOW_MS = 3 * 60_000;
 const EPISODE_MIN_EVENT_COUNT = 3;
 
 function asTimestamp(value) {
@@ -156,7 +156,7 @@ function shouldPromoteEpisode(scenes) {
   return events.length >= EPISODE_MIN_EVENT_COUNT && (scenes.length > 1 || accessories.size > 1);
 }
 
-export function groupScenesIntoEpisodes(scenes) {
+export function groupScenesIntoEpisodes(scenes, { episodeWindowMs = DEFAULT_EPISODE_WINDOW_MS } = {}) {
   if (!scenes.length) return [];
 
   const output = [];
@@ -171,7 +171,7 @@ export function groupScenesIntoEpisodes(scenes) {
       continue;
     }
 
-    if (prevStart - nextStart <= EPISODE_WINDOW_MS) {
+    if (prevStart - nextStart <= episodeWindowMs) {
       current.push(scenes[i]);
     } else {
       output.push(

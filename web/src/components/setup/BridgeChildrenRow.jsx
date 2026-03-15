@@ -53,11 +53,13 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
         const childRoom = roomInputs[child.childId] ?? savedRooms[child.childId] ?? '';
         const isInheriting = !childRoom && !!bridgeRoom;
         return (
-          <div key={child.childId} className="space-y-0.5">
+          <div key={child.childId} className="space-y-1">
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
               <span className="text-xs text-gray-700 flex-1 truncate min-w-0">{child.name}</span>
-              <div className="flex items-center gap-1 flex-shrink-0">
+            </div>
+            <div className="flex flex-col gap-1 ml-3.5">
+              <div className="flex items-center gap-1">
                 <MapPin size={9} className={isInheriting ? 'text-blue-300' : 'text-gray-300'} />
                 <input
                   type="text"
@@ -72,18 +74,18 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                   )}
                 />
               </div>
-            </div>
-            <div className="flex items-center gap-1 ml-3.5">
-              <FileText size={9} className="text-gray-300 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Add note..."
-                value={noteInputs[child.childId] ?? savedNotes[child.childId] ?? ''}
-                onChange={(e) => onNoteChange?.(child.childId, e.target.value)}
-                onBlur={() => onNoteBlur?.(child.childId)}
-                onKeyDown={(e) => e.key === 'Enter' && onNoteBlur?.(child.childId)}
-                className="text-xs border border-gray-200 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
-              />
+              <div className="flex items-center gap-1">
+                <FileText size={9} className="text-gray-300 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Add note..."
+                  value={noteInputs[child.childId] ?? savedNotes[child.childId] ?? ''}
+                  onChange={(e) => onNoteChange?.(child.childId, e.target.value)}
+                  onBlur={() => onNoteBlur?.(child.childId)}
+                  onKeyDown={(e) => e.key === 'Enter' && onNoteBlur?.(child.childId)}
+                  className="text-xs border border-gray-200 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
+                />
+              </div>
             </div>
           </div>
         );

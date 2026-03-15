@@ -42,6 +42,7 @@ export default function SettingsTab({ setup }) {
   const [quietHoursEnabledInput, setQuietHoursEnabledInput] = useState(false);
   const [quietHoursStartInput, setQuietHoursStartInput] = useState(22);
   const [quietHoursEndInput, setQuietHoursEndInput] = useState(6);
+  const [episodeWindowInput, setEpisodeWindowInput] = useState('');
   const [logLevelInput, setLogLevelInput] = useState('info');
   const [dangerOpen, setDangerOpen] = useState(false);
   const [dangerPairFilter, setDangerPairFilter] = useState('all');
@@ -57,6 +58,7 @@ export default function SettingsTab({ setup }) {
   const quietHoursEnabledCurrent = Boolean(retentionConfig?.quietHoursEnabled ?? false);
   const quietHoursStartCurrent = retentionConfig?.quietHoursStart != null ? utcHourToLocal(retentionConfig.quietHoursStart) : 22;
   const quietHoursEndCurrent = retentionConfig?.quietHoursEnd != null ? utcHourToLocal(retentionConfig.quietHoursEnd) : 6;
+  const episodeWindowCurrent = retentionConfig?.episodeWindowMinutes ?? 3;
   const logLevelCurrent = logLevelConfig?.level ?? 'info';
   const dangerPairedCount = dbAccessories.filter((a) => Boolean(a.paired_at)).length;
   const dangerUnpairedCount = dbAccessories.length - dangerPairedCount;
@@ -92,17 +94,24 @@ export default function SettingsTab({ setup }) {
   }, [quietHoursEnabledCurrent, quietHoursStartCurrent, quietHoursEndCurrent]);
 
   useEffect(() => {
+    setEpisodeWindowInput((prev) => (prev.trim() ? prev : String(episodeWindowCurrent)));
+  }, [episodeWindowCurrent]);
+
+  useEffect(() => {
     setLogLevelInput(logLevelCurrent);
   }, [logLevelCurrent]);
 
   const parsedRetentionDays = Number.parseInt(retentionDaysInput, 10);
   const parsedStaleThresholdHours = Number.parseInt(staleThresholdHoursInput, 10);
+  const parsedEpisodeWindow = Number.parseInt(episodeWindowInput, 10);
   const retentionDaysValid = Number.isFinite(parsedRetentionDays) && parsedRetentionDays >= 1 && parsedRetentionDays <= 3650;
   const staleThresholdValid = Number.isFinite(parsedStaleThresholdHours) && parsedStaleThresholdHours >= 1 && parsedStaleThresholdHours <= 720;
-  const inputsReady = retentionDaysInput.trim() && staleThresholdHoursInput.trim();
+  const episodeWindowValid = Number.isFinite(parsedEpisodeWindow) && parsedEpisodeWindow >= 1 && parsedEpisodeWindow <= 30;
+  const inputsReady = retentionDaysInput.trim() && staleThresholdHoursInput.trim() && episodeWindowInput.trim();
   const savePending = saveRetentionMutation.isPending || saveLogLevelMutation.isPending;
   const isDirty = retentionDaysValid
     && staleThresholdValid
+    && episodeWindowValid
     && (
       parsedRetentionDays !== retentionDaysCurrent
       || parsedStaleThresholdHours !== staleThresholdHoursCurrent
@@ -111,6 +120,7 @@ export default function SettingsTab({ setup }) {
       || quietHoursEnabledInput !== quietHoursEnabledCurrent
       || quietHoursStartInput !== quietHoursStartCurrent
       || quietHoursEndInput !== quietHoursEndCurrent
+      || parsedEpisodeWindow !== episodeWindowCurrent
       || logLevelInput !== logLevelCurrent
     );
 
@@ -127,6 +137,7 @@ export default function SettingsTab({ setup }) {
           quietHoursEnabled: quietHoursEnabledInput,
           quietHoursStart: localHourToUtc(quietHoursStartInput),
           quietHoursEnd: localHourToUtc(quietHoursEndInput),
+          episodeWindowMinutes: parsedEpisodeWindow,
         }),
         saveLogLevelMutation.mutateAsync(logLevelInput),
       ]);
@@ -137,6 +148,7 @@ export default function SettingsTab({ setup }) {
       setQuietHoursEnabledInput(Boolean(nextRetention.quietHoursEnabled ?? false));
       if (nextRetention.quietHoursStart != null) setQuietHoursStartInput(utcHourToLocal(nextRetention.quietHoursStart));
       if (nextRetention.quietHoursEnd != null) setQuietHoursEndInput(utcHourToLocal(nextRetention.quietHoursEnd));
+      if (nextRetention.episodeWindowMinutes != null) setEpisodeWindowInput(String(nextRetention.episodeWindowMinutes));
       setSaveFeedback('saved');
     } catch {
       setSaveFeedback('error');
@@ -308,6 +320,30 @@ export default function SettingsTab({ setup }) {
         </div>
       </div>
 
+      {/* Episode capture interval */}
+      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Episode capture interval</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Events within this window are grouped into timeline episodes.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              max="30"
+              step="1"
+              value={episodeWindowInput}
+              onChange={(e) => { setEpisodeWindowInput(e.target.value); setSaveFeedback(null); }}
+              className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-xs text-gray-500">min</span>
+          </div>
+        </div>
+      </div>
+
       {/* Log level */}
       <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -340,10 +376,7 @@ export default function SettingsTab({ setup }) {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-xs text-gray-500">
-            Save all changes to retention, archival, stale threshold, auto-scan, quiet hours, and log level.
-          </p>
+        <div className="flex items-center justify-end gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             {saveFeedback === 'saved' && (
               <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">

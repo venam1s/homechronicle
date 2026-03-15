@@ -45,6 +45,19 @@ vi.mock('../hooks/useMutedDevices.js', () => ({
   })(),
 }));
 
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual('@tanstack/react-query');
+  return {
+    ...actual,
+    useQuery: (options) => {
+      if (options.queryKey?.[0] === 'retention-config') {
+        return { data: { episodeWindowMinutes: 3 } };
+      }
+      return actual.useQuery(options);
+    },
+  };
+});
+
 vi.mock('./FilterBar.jsx', () => ({ default: () => null }));
 vi.mock('./TimelineHeatmap.jsx', () => ({ default: () => null }));
 
