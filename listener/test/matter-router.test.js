@@ -38,6 +38,8 @@ test('/api/setup/matter/pair stores Matter pairing metadata', async () => {
     savePairings: async (next) => { pairings = next; },
     loadRooms: () => ({}),
     saveRooms: async () => {},
+    loadNotes: () => ({}),
+    saveNotes: async () => {},
     matterRuntime: null,
   });
   const handler = getRouteHandler(router, 'POST', '/setup/matter/pair');
@@ -52,12 +54,13 @@ test('/api/setup/matter/pair stores Matter pairing metadata', async () => {
     },
   });
 
+  const nodeKey = '305441741';
   assert.equal(response.statusCode, 200);
   assert.equal(response.jsonBody.success, true);
-  assert.equal(pairings['0X1234ABCD'].protocol, 'matter');
-  assert.equal(pairings['0X1234ABCD'].name, 'Porch Sensor');
-  assert.equal(pairings['0X1234ABCD'].transport, 'thread');
-  assert.equal(pairings['0X1234ABCD'].manualImport, true);
+  assert.equal(pairings[nodeKey].protocol, 'matter');
+  assert.equal(pairings[nodeKey].name, 'Porch Sensor');
+  assert.equal(pairings[nodeKey].transport, 'thread');
+  assert.equal(pairings[nodeKey].manualImport, true);
 });
 
 test('/api/setup/matter/pair generates nodeId when missing', async () => {
@@ -129,7 +132,7 @@ test('/api/matter/events inserts normalized Matter events', async () => {
       return { id: inserted.length, timestamp: new Date().toISOString() };
     },
     loadPairings: () => ({
-      '0X1A2B': {
+      '6699': {
         protocol: 'matter',
         name: 'Kitchen Contact',
         transport: 'thread',
@@ -137,8 +140,10 @@ test('/api/matter/events inserts normalized Matter events', async () => {
       },
     }),
     savePairings: async () => {},
-    loadRooms: () => ({ '0X1A2B:1': 'Kitchen' }),
+    loadRooms: () => ({ '6699:1': 'Kitchen' }),
     saveRooms: async () => {},
+    loadNotes: () => ({}),
+    saveNotes: async () => {},
     matterRuntime: null,
   });
   const handler = getRouteHandler(router, 'POST', '/matter/events');
@@ -160,7 +165,7 @@ test('/api/matter/events inserts normalized Matter events', async () => {
   assert.equal(inserted.length, 1);
   assert.equal(inserted[0].protocol, 'matter');
   assert.equal(inserted[0].transport, 'thread');
-  assert.equal(inserted[0].accessoryId, '0X1A2B:1');
+  assert.equal(inserted[0].accessoryId, '6699:1');
   assert.equal(inserted[0].roomName, 'Kitchen');
   assert.equal(inserted[0].characteristic, 'cluster:29/attribute:0');
 });
@@ -214,7 +219,7 @@ test('/api/setup/matter/commission calls matter runtime', async () => {
   assert.equal(response.statusCode, 200);
   assert.equal(response.jsonBody.success, true);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].nodeId, '0XABC');
+  assert.equal(calls[0].nodeId, '2748');
   assert.equal(calls[0].setupCode, 'MT:1234');
 });
 
@@ -236,6 +241,8 @@ test('/api/setup/matter/pair commissions when setupCode is provided', async () =
     savePairings: async (next) => { pairings = next; },
     loadRooms: () => ({}),
     saveRooms: async () => {},
+    loadNotes: () => ({}),
+    saveNotes: async () => {},
     matterRuntime: runtime,
   });
   const handler = getRouteHandler(router, 'POST', '/setup/matter/pair');
@@ -252,6 +259,6 @@ test('/api/setup/matter/pair commissions when setupCode is provided', async () =
   assert.equal(response.statusCode, 200);
   assert.equal(response.jsonBody.success, true);
   assert.equal(calls.length, 1);
-  assert.equal(pairings['0X2A'].protocol, 'matter');
-  assert.equal(pairings['0X2A'].manualImport, undefined);
+  assert.equal(pairings['42'].protocol, 'matter');
+  assert.equal(pairings['42'].manualImport, undefined);
 });
