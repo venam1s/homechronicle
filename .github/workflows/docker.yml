@@ -175,6 +175,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ matrix.service }}:scan
+          version: "v0.64.1"
           format: sarif
           output: trivy-${{ matrix.service }}.sarif
           severity: CRITICAL,HIGH
