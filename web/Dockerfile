@@ -15,7 +15,7 @@ ENV VITE_BUILD_VERSION=$VITE_BUILD_VERSION
 RUN npm run build
 
 # Production image: serve the built files with nginx
-FROM nginx:alpine
+FROM nginx:alpine3.21
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
