@@ -172,7 +172,7 @@ jobs:
             ${{ matrix.context }}
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: ${{ matrix.service }}:scan
           format: sarif
