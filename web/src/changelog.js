@@ -11,6 +11,31 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.1.4-beta',
+    title: 'Scene & episode tuning, accent-themed heatmap',
+    items: [
+      'Settings: scene grouping window (seconds) \u2014 control how tightly events are clustered into scenes',
+      'Settings: episode minimum event count \u2014 set the threshold for promoting scene clusters to episodes',
+      'Heatmap: cells now use the accent color instead of hardcoded emerald',
+      'Room color palette reordered for better visual distinction',
+      'Fix: placeholder text contrast on room/note inputs',
+    ],
+  },
+  {
+    version: 'v0.1.3',
+    title: 'Dark mode, episodes, quiet hours, device notes & docs site',
+    items: [
+      'Dark mode polish across all components',
+      'Timeline: related events grouped into collapsible episodes',
+      'Quiet hours: suppress alert notifications during configured time windows',
+      'Device notes via API and UI',
+      'Documentation site served at /guide/',
+      'Bridge device grouping in accessories list',
+      'Update available indicator in footer',
+      'Fix: stale web cache, accessories back navigation, modal close button',
+    ],
+  },
+  {
     version: 'v0.1.3-beta',
     title: 'Archive toggle, device notes backend & settings improvements',
     items: [
