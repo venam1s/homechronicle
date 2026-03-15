@@ -32,6 +32,7 @@ vi.mock('./components/AccessoryDetail.jsx', () => ({
   ),
 }));
 vi.mock('./components/Setup.jsx', () => ({ default: () => <div>Manage View</div> }));
+vi.mock('./hooks/useUpdateCheck.js', () => ({ useUpdateCheck: () => ({ updateAvailable: false }) }));
 
 describe('App smoke', () => {
   beforeEach(() => {
