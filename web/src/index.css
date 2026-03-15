@@ -403,29 +403,50 @@ html.hc-standalone .hc-fab {
     color: rgba(var(--hc-accent-rgb), 0.95) !important;
   }
 
+  .hc-episode {
+    background-color: rgba(var(--hc-accent-rgb), 0.08);
+  }
+
+  .hc-episode:hover {
+    background-color: rgba(var(--hc-accent-rgb), 0.13);
+  }
+
+  .hc-episode-icon {
+    background-color: rgba(var(--hc-accent-rgb), 0.15);
+  }
+
+  .hc-episode-icon-glyph {
+    color: rgba(var(--hc-accent-rgb), 1);
+  }
+
+  .hc-episode-label {
+    color: rgba(var(--hc-accent-rgb), 0.85);
+  }
+
+  .hc-episode-expanded {
+    background-color: rgba(var(--hc-accent-rgb), 0.04);
+    border-top: 1px solid rgba(var(--hc-accent-rgb), 0.15);
+  }
+
   html.theme-dark .hc-episode {
-    background-color: rgba(120, 83, 20, 0.25) !important;
+    background-color: rgba(var(--hc-accent-rgb), 0.14);
   }
 
   html.theme-dark .hc-episode:hover {
-    background-color: rgba(120, 83, 20, 0.35) !important;
+    background-color: rgba(var(--hc-accent-rgb), 0.22);
   }
 
   html.theme-dark .hc-episode-icon {
-    background-color: rgba(120, 83, 20, 0.45) !important;
-  }
-
-  html.theme-dark .hc-episode-icon .text-amber-700 {
-    color: #fbbf24 !important;
+    background-color: rgba(var(--hc-accent-rgb), 0.25);
   }
 
   html.theme-dark .hc-episode-label {
-    color: #fbbf24 !important;
+    color: rgba(var(--hc-accent-rgb), 0.95);
   }
 
   html.theme-dark .hc-episode-expanded {
-    background-color: rgba(120, 83, 20, 0.1) !important;
-    border-color: rgba(120, 83, 20, 0.3) !important;
+    background-color: rgba(var(--hc-accent-rgb), 0.06);
+    border-color: rgba(var(--hc-accent-rgb), 0.2);
   }
 
   /* ── Help modals (PinHelpModal, MatterHelpModal) ── */
