@@ -27,11 +27,11 @@ jobs:
             const caches = await github.paginate(
               github.rest.actions.getActionsCacheList,
               { owner, repo, per_page: 100 },
-              (response) => response.data.actions_caches
+              (response) => response.data.actions_caches ?? []
             );
 
             const staleCaches = caches.filter((cache) => {
-              if (!buildkitKeyPattern.test(cache.key)) return false;
+              if (!cache || !buildkitKeyPattern.test(cache.key)) return false;
               const lastAccessedAt = Date.parse(cache.last_accessed_at || cache.created_at);
               return Number.isFinite(lastAccessedAt) && (now - lastAccessedAt) > cutoffMs;
             });
