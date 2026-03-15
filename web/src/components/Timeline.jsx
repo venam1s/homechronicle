@@ -57,6 +57,8 @@ export default function Timeline() {
     staleTime: 5 * 60_000,
   });
   const episodeWindowMs = (retentionConfig?.episodeWindowMinutes ?? 3) * 60_000;
+  const sceneWindowMs = (retentionConfig?.sceneWindowSeconds ?? 5) * 1000;
+  const episodeMinEventCount = retentionConfig?.episodeMinEventCount ?? 3;
 
   const anomalyMap = useMemo(() => {
     const byDeviceHour = new Map();
@@ -394,7 +396,7 @@ export default function Timeline() {
                   {format(new Date(day), 'EEEE, MMMM d')}
                 </h2>
                 <div className="bg-white rounded-xl shadow-sm divide-y divide-gray-100">
-                  {groupScenesIntoEpisodes(groupIntoScenes(events), { episodeWindowMs }).map((entry) => (
+                  {groupScenesIntoEpisodes(groupIntoScenes(events, { sceneWindowMs }), { episodeWindowMs, episodeMinEventCount }).map((entry) => (
                     entry.kind === 'episode' ? (
                       <EpisodeGroup
                         key={entry.scenes[0][0].id}

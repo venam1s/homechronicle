@@ -1,4 +1,5 @@
 import { useHeatmap } from '../hooks/useEvents.js';
+import { useAccentRgb } from '../hooks/useAccentRgb.js';
 import { BarChart2, ChevronDown, ChevronUp } from 'lucide-react';
 
 const CELL  = 16; // px
@@ -6,12 +7,9 @@ const GAP   = 2;  // px
 const LABEL = 128;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-function cellBg(intensity) {
+function cellBg(intensity, accent) {
   if (intensity === 0) return 'rgba(226,232,240,0.5)';
-  const r = Math.round(191 - intensity * 162);
-  const g = Math.round(219 - intensity * 90);
-  const b = Math.round(254 - intensity * 82);
-  return `rgb(${r},${g},${b})`;
+  return `rgba(${accent[0]},${accent[1]},${accent[2]},${0.15 + intensity * 0.85})`;
 }
 
 /**
@@ -38,6 +36,7 @@ export default function TimelineHeatmap({
   lockedCell = null,
 }) {
   const { data = [], isLoading } = useHeatmap();
+  const accent = useAccentRgb();
   const hasData = !isLoading && data.length > 0;
 
   return (
@@ -49,12 +48,12 @@ export default function TimelineHeatmap({
         className="w-full py-2.5 text-left hover:bg-emerald-50/60 transition-colors disabled:cursor-default"
       >
         <div className="max-w-2xl mx-auto px-4 flex items-center gap-2">
-          <BarChart2 size={13} className={hasData ? 'text-emerald-600' : 'text-gray-300'} />
-          <span className={`text-xs font-semibold ${hasData ? 'text-emerald-800' : 'text-gray-300'}`}>
+          <BarChart2 size={13} style={hasData ? { color: 'var(--hc-accent-strong)' } : undefined} className={hasData ? '' : 'text-gray-300'} />
+          <span className={`text-xs font-semibold ${hasData ? '' : 'text-gray-300'}`} style={hasData ? { color: 'var(--hc-accent-stronger)' } : undefined}>
             Activity heatmap
           </span>
           {hasData && (
-            <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ color: 'var(--hc-accent-strong)', backgroundColor: 'var(--hc-accent-soft)' }}>
               Jump view
             </span>
           )}
@@ -62,8 +61,8 @@ export default function TimelineHeatmap({
           {!isLoading && !hasData && <span className="text-[10px] text-gray-300 ml-auto">No data yet</span>}
           {hasData && (
             open
-              ? <ChevronUp size={12} className="text-emerald-700 ml-auto" />
-              : <ChevronDown size={12} className="text-emerald-700 ml-auto" />
+              ? <ChevronUp size={12} style={{ color: 'var(--hc-accent-strong)' }} className="ml-auto" />
+              : <ChevronDown size={12} style={{ color: 'var(--hc-accent-strong)' }} className="ml-auto" />
           )}
         </div>
       </button>
@@ -71,6 +70,7 @@ export default function TimelineHeatmap({
       {open && hasData && (
         <HeatmapGrid
           data={data}
+          accent={accent}
           onHoverCell={onHoverCell}
           onHoverEnd={onHoverEnd}
           onClickCell={onClickCell}
@@ -81,7 +81,7 @@ export default function TimelineHeatmap({
   );
 }
 
-function HeatmapGrid({ data, onHoverCell, onHoverEnd, onClickCell, lockedCell }) {
+function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onClickCell, lockedCell }) {
   const deviceMap = {};
   for (const row of data) {
     if (!deviceMap[row.accessory_name]) deviceMap[row.accessory_name] = new Array(24).fill(0);
@@ -122,7 +122,7 @@ function HeatmapGrid({ data, onHoverCell, onHoverEnd, onClickCell, lockedCell })
                       marginRight: GAP,
                       flexShrink: 0,
                       borderRadius: 2,
-                      backgroundColor: cellBg(count / maxCount),
+                      backgroundColor: cellBg(count / maxCount, accent),
                       cursor: count > 0 ? 'pointer' : 'default',
                       transition: 'transform 0.1s, box-shadow 0.1s',
                       // Locked cells get an orange ring instead of blue

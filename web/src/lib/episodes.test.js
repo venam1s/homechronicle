@@ -60,6 +60,55 @@ describe('episodes', () => {
     expect(episodes[0].episode.title).toBe('Arrival activity');
   });
 
+  it('respects custom sceneWindowMs', () => {
+    const events = [
+      makeEvent('1', '2026-03-11T12:03:00.000Z'),
+      makeEvent('2', '2026-03-11T12:02:57.000Z'), // 3s apart
+      makeEvent('3', '2026-03-11T12:02:55.000Z'), // 2s apart
+    ];
+
+    // Default 5s window: all in one scene
+    expect(groupIntoScenes(events)).toHaveLength(1);
+
+    // 1s window: each event is its own scene
+    const scenes = groupIntoScenes(events, { sceneWindowMs: 1000 });
+    expect(scenes).toHaveLength(3);
+  });
+
+  it('respects custom episodeMinEventCount', () => {
+    const scenes = groupIntoScenes([
+      makeEvent('1', '2026-03-11T18:04:00.000Z', {
+        accessory_name: 'Front Door',
+        room_name: 'Entryway',
+        service_type: 'ContactSensor',
+        characteristic: 'ContactSensorState',
+        new_value: '1',
+      }),
+      makeEvent('2', '2026-03-11T18:03:10.000Z', {
+        accessory_name: 'Hall Motion',
+        room_name: 'Hallway',
+        service_type: 'MotionSensor',
+        characteristic: 'MotionDetected',
+        new_value: '1',
+      }),
+      makeEvent('3', '2026-03-11T18:02:20.000Z', {
+        accessory_name: 'Kitchen Light',
+        room_name: 'Kitchen',
+        service_type: 'Lightbulb',
+        characteristic: 'On',
+        new_value: '1',
+      }),
+    ]);
+
+    // Default min 3: promoted to episode
+    const episodes = groupScenesIntoEpisodes(scenes);
+    expect(episodes[0].kind).toBe('episode');
+
+    // Min 10: not enough events, stays as scenes
+    const noPromo = groupScenesIntoEpisodes(scenes, { episodeMinEventCount: 10 });
+    expect(noPromo[0].kind).toBe('scenes');
+  });
+
   it('falls back to a room activity summary when no heuristic matches', () => {
     const summary = summarizeEpisode([
       makeEvent('1', '2026-03-11T20:00:00.000Z', { accessory_name: 'Lamp 1' }),

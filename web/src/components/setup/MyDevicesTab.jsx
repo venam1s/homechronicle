@@ -120,8 +120,8 @@ export default function MyDevicesTab({ setup }) {
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [acc.id]: e.target.value }))}
                       onBlur={() => handleRoomBlur(acc.id)}
                       onKeyDown={(e) => e.key === 'Enter' && handleRoomBlur(acc.id)}
-                      className="text-xs border border-gray-200 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
-                    />
+                      className="text-xs border border-gray-200 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                 />
                   </div>
                   {acc.category !== 2 && (
                     <div className="flex items-center gap-1 mt-1">
@@ -133,8 +133,8 @@ export default function MyDevicesTab({ setup }) {
                         onChange={(e) => setNoteInputs((n) => ({ ...n, [acc.id]: e.target.value }))}
                         onBlur={() => handleNoteBlur(acc.id)}
                         onKeyDown={(e) => e.key === 'Enter' && handleNoteBlur(acc.id)}
-                        className="text-xs border border-gray-200 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
-                      />
+                        className="text-xs border border-gray-200 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                   />
                     </div>
                   )}
                   {acc.category === 2 && roomVal && (
@@ -265,8 +265,8 @@ export default function MyDevicesTab({ setup }) {
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [nodeId]: e.target.value }))}
                       onBlur={() => handleRoomBlur(nodeId)}
                       onKeyDown={(e) => e.key === 'Enter' && handleRoomBlur(nodeId)}
-                      className="text-xs border border-gray-200 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
-                    />
+                      className="text-xs border border-gray-200 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                 />
                   </div>
                   {endpointCount === 0 && (
                     <div className="flex items-center gap-1 mt-1">
@@ -278,8 +278,8 @@ export default function MyDevicesTab({ setup }) {
                         onChange={(e) => setNoteInputs((n) => ({ ...n, [nodeId]: e.target.value }))}
                         onBlur={() => handleNoteBlur(nodeId)}
                         onKeyDown={(e) => e.key === 'Enter' && handleNoteBlur(nodeId)}
-                        className="text-xs border border-gray-200 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
-                      />
+                        className="text-xs border border-gray-200 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                   />
                     </div>
                   )}
                   {nodeStatus && (
@@ -405,8 +405,8 @@ export default function MyDevicesTab({ setup }) {
                               onChange={(e) => setRoomInputs((r) => ({ ...r, [endpointId]: e.target.value }))}
                               onBlur={() => handleRoomBlur(endpointId)}
                               onKeyDown={(e) => e.key === 'Enter' && handleRoomBlur(endpointId)}
-                              className="text-xs border border-gray-200 rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
-                            />
+                              className="text-xs border border-gray-200 rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                         />
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-[7.5rem]">
@@ -418,8 +418,8 @@ export default function MyDevicesTab({ setup }) {
                             onChange={(e) => setNoteInputs((n) => ({ ...n, [endpointId]: e.target.value }))}
                             onBlur={() => handleNoteBlur(endpointId)}
                             onKeyDown={(e) => e.key === 'Enter' && handleNoteBlur(endpointId)}
-                            className="text-xs border border-gray-200 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
-                          />
+                            className="text-xs border border-gray-200 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                       />
                         </div>
                       </div>
                     );

@@ -154,7 +154,11 @@ function normalizeRetentionSettings(input = {}) {
   const quietHoursEnd = Number.isFinite(qhEnd) && qhEnd >= 0 && qhEnd <= 23 ? qhEnd : 6;
   const ewm = Number.parseInt(String(input.episodeWindowMinutes ?? ''), 10);
   const episodeWindowMinutes = Number.isFinite(ewm) && ewm >= 1 && ewm <= 30 ? ewm : 3;
-  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, episodeWindowMinutes };
+  const sws = Number.parseInt(String(input.sceneWindowSeconds ?? ''), 10);
+  const sceneWindowSeconds = Number.isFinite(sws) && sws >= 1 && sws <= 30 ? sws : 5;
+  const emc = Number.parseInt(String(input.episodeMinEventCount ?? ''), 10);
+  const episodeMinEventCount = Number.isFinite(emc) && emc >= 1 && emc <= 20 ? emc : 3;
+  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, episodeWindowMinutes, sceneWindowSeconds, episodeMinEventCount };
 }
 
 function isLoopbackHostname(hostname) {
@@ -718,10 +722,10 @@ app.get('/api/accessories/:accessoryId/capabilities', async (req, res) => {
 });
 
 app.get('/api/setup/pairings', (_req, res) => {
-  const currentPairings = loadPairings();
+  const currentPairings = getHomeKitPairings(loadPairings());
   const list = Object.entries(currentPairings).map(([id, p]) => ({
     id,
-    protocol: p.protocol ?? 'homekit',
+    protocol: 'homekit',
     name: p.name,
     address: p.address,
     port: p.port,
@@ -821,6 +825,8 @@ app.get('/api/setup/retention', (_req, res) => {
     quietHoursStart: retentionSettings.quietHoursStart,
     quietHoursEnd: retentionSettings.quietHoursEnd,
     episodeWindowMinutes: retentionSettings.episodeWindowMinutes,
+    sceneWindowSeconds: retentionSettings.sceneWindowSeconds,
+    episodeMinEventCount: retentionSettings.episodeMinEventCount,
     sweepMs: RETENTION_SWEEP_MS,
   });
 });
@@ -887,6 +893,22 @@ app.patch('/api/setup/retention', async (req, res) => {
     updates.episodeWindowMinutes = ewm;
   }
 
+  if (body.sceneWindowSeconds !== undefined) {
+    const sws = Number.parseInt(String(body.sceneWindowSeconds), 10);
+    if (!Number.isFinite(sws) || sws < 1 || sws > 30) {
+      return res.status(400).json({ error: 'sceneWindowSeconds must be an integer between 1 and 30.' });
+    }
+    updates.sceneWindowSeconds = sws;
+  }
+
+  if (body.episodeMinEventCount !== undefined) {
+    const emc = Number.parseInt(String(body.episodeMinEventCount), 10);
+    if (!Number.isFinite(emc) || emc < 1 || emc > 20) {
+      return res.status(400).json({ error: 'episodeMinEventCount must be an integer between 1 and 20.' });
+    }
+    updates.episodeMinEventCount = emc;
+  }
+
   if (!Object.keys(updates).length) {
     return res.status(400).json({ error: 'No supported settings provided.' });
   }
@@ -907,6 +929,8 @@ app.patch('/api/setup/retention', async (req, res) => {
     quietHoursStart: retentionSettings.quietHoursStart,
     quietHoursEnd: retentionSettings.quietHoursEnd,
     episodeWindowMinutes: retentionSettings.episodeWindowMinutes,
+    sceneWindowSeconds: retentionSettings.sceneWindowSeconds,
+    episodeMinEventCount: retentionSettings.episodeMinEventCount,
     sweepMs: RETENTION_SWEEP_MS,
   });
 });

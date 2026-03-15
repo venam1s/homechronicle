@@ -43,6 +43,8 @@ export default function SettingsTab({ setup }) {
   const [quietHoursStartInput, setQuietHoursStartInput] = useState(22);
   const [quietHoursEndInput, setQuietHoursEndInput] = useState(6);
   const [episodeWindowInput, setEpisodeWindowInput] = useState('');
+  const [sceneWindowInput, setSceneWindowInput] = useState('');
+  const [episodeMinEventInput, setEpisodeMinEventInput] = useState('');
   const [logLevelInput, setLogLevelInput] = useState('info');
   const [dangerOpen, setDangerOpen] = useState(false);
   const [dangerPairFilter, setDangerPairFilter] = useState('all');
@@ -59,6 +61,8 @@ export default function SettingsTab({ setup }) {
   const quietHoursStartCurrent = retentionConfig?.quietHoursStart != null ? utcHourToLocal(retentionConfig.quietHoursStart) : 22;
   const quietHoursEndCurrent = retentionConfig?.quietHoursEnd != null ? utcHourToLocal(retentionConfig.quietHoursEnd) : 6;
   const episodeWindowCurrent = retentionConfig?.episodeWindowMinutes ?? 3;
+  const sceneWindowCurrent = retentionConfig?.sceneWindowSeconds ?? 5;
+  const episodeMinEventCurrent = retentionConfig?.episodeMinEventCount ?? 3;
   const logLevelCurrent = logLevelConfig?.level ?? 'info';
   const dangerPairedCount = dbAccessories.filter((a) => Boolean(a.paired_at)).length;
   const dangerUnpairedCount = dbAccessories.length - dangerPairedCount;
@@ -98,20 +102,34 @@ export default function SettingsTab({ setup }) {
   }, [episodeWindowCurrent]);
 
   useEffect(() => {
+    setSceneWindowInput((prev) => (prev.trim() ? prev : String(sceneWindowCurrent)));
+  }, [sceneWindowCurrent]);
+
+  useEffect(() => {
+    setEpisodeMinEventInput((prev) => (prev.trim() ? prev : String(episodeMinEventCurrent)));
+  }, [episodeMinEventCurrent]);
+
+  useEffect(() => {
     setLogLevelInput(logLevelCurrent);
   }, [logLevelCurrent]);
 
   const parsedRetentionDays = Number.parseInt(retentionDaysInput, 10);
   const parsedStaleThresholdHours = Number.parseInt(staleThresholdHoursInput, 10);
   const parsedEpisodeWindow = Number.parseInt(episodeWindowInput, 10);
+  const parsedSceneWindow = Number.parseInt(sceneWindowInput, 10);
+  const parsedEpisodeMinEvent = Number.parseInt(episodeMinEventInput, 10);
   const retentionDaysValid = Number.isFinite(parsedRetentionDays) && parsedRetentionDays >= 1 && parsedRetentionDays <= 3650;
   const staleThresholdValid = Number.isFinite(parsedStaleThresholdHours) && parsedStaleThresholdHours >= 1 && parsedStaleThresholdHours <= 720;
   const episodeWindowValid = Number.isFinite(parsedEpisodeWindow) && parsedEpisodeWindow >= 1 && parsedEpisodeWindow <= 30;
-  const inputsReady = retentionDaysInput.trim() && staleThresholdHoursInput.trim() && episodeWindowInput.trim();
+  const sceneWindowValid = Number.isFinite(parsedSceneWindow) && parsedSceneWindow >= 1 && parsedSceneWindow <= 30;
+  const episodeMinEventValid = Number.isFinite(parsedEpisodeMinEvent) && parsedEpisodeMinEvent >= 1 && parsedEpisodeMinEvent <= 20;
+  const inputsReady = retentionDaysInput.trim() && staleThresholdHoursInput.trim() && episodeWindowInput.trim() && sceneWindowInput.trim() && episodeMinEventInput.trim();
   const savePending = saveRetentionMutation.isPending || saveLogLevelMutation.isPending;
   const isDirty = retentionDaysValid
     && staleThresholdValid
     && episodeWindowValid
+    && sceneWindowValid
+    && episodeMinEventValid
     && (
       parsedRetentionDays !== retentionDaysCurrent
       || parsedStaleThresholdHours !== staleThresholdHoursCurrent
@@ -121,6 +139,8 @@ export default function SettingsTab({ setup }) {
       || quietHoursStartInput !== quietHoursStartCurrent
       || quietHoursEndInput !== quietHoursEndCurrent
       || parsedEpisodeWindow !== episodeWindowCurrent
+      || parsedSceneWindow !== sceneWindowCurrent
+      || parsedEpisodeMinEvent !== episodeMinEventCurrent
       || logLevelInput !== logLevelCurrent
     );
 
@@ -138,6 +158,8 @@ export default function SettingsTab({ setup }) {
           quietHoursStart: localHourToUtc(quietHoursStartInput),
           quietHoursEnd: localHourToUtc(quietHoursEndInput),
           episodeWindowMinutes: parsedEpisodeWindow,
+          sceneWindowSeconds: parsedSceneWindow,
+          episodeMinEventCount: parsedEpisodeMinEvent,
         }),
         saveLogLevelMutation.mutateAsync(logLevelInput),
       ]);
@@ -149,6 +171,8 @@ export default function SettingsTab({ setup }) {
       if (nextRetention.quietHoursStart != null) setQuietHoursStartInput(utcHourToLocal(nextRetention.quietHoursStart));
       if (nextRetention.quietHoursEnd != null) setQuietHoursEndInput(utcHourToLocal(nextRetention.quietHoursEnd));
       if (nextRetention.episodeWindowMinutes != null) setEpisodeWindowInput(String(nextRetention.episodeWindowMinutes));
+      if (nextRetention.sceneWindowSeconds != null) setSceneWindowInput(String(nextRetention.sceneWindowSeconds));
+      if (nextRetention.episodeMinEventCount != null) setEpisodeMinEventInput(String(nextRetention.episodeMinEventCount));
       setSaveFeedback('saved');
     } catch {
       setSaveFeedback('error');
@@ -340,6 +364,54 @@ export default function SettingsTab({ setup }) {
               className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <span className="text-xs text-gray-500">min</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Scene grouping window */}
+      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Scene grouping window</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Events within this many seconds are clustered into a single scene.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              max="30"
+              step="1"
+              value={sceneWindowInput}
+              onChange={(e) => { setSceneWindowInput(e.target.value); setSaveFeedback(null); }}
+              className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-xs text-gray-500">sec</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Episode minimum events */}
+      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Episode minimum events</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              A scene cluster needs at least this many events to be promoted to an episode.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              max="20"
+              step="1"
+              value={episodeMinEventInput}
+              onChange={(e) => { setEpisodeMinEventInput(e.target.value); setSaveFeedback(null); }}
+              className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-xs text-gray-500">events</span>
           </div>
         </div>
       </div>

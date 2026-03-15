@@ -21,7 +21,7 @@ function isTruthyOff(value) {
   return normalized === '0' || normalized === 'false';
 }
 
-export function groupIntoScenes(events) {
+export function groupIntoScenes(events, { sceneWindowMs = SCENE_WINDOW_MS } = {}) {
   if (!events.length) return [];
 
   const groups = [];
@@ -32,7 +32,7 @@ export function groupIntoScenes(events) {
     const nextTs = asTimestamp(events[i].timestamp);
     if (prevTs == null || nextTs == null) continue;
 
-    if (prevTs - nextTs <= SCENE_WINDOW_MS) {
+    if (prevTs - nextTs <= sceneWindowMs) {
       current.push(events[i]);
     } else {
       groups.push(current);
@@ -150,13 +150,13 @@ export function summarizeEpisode(events) {
   };
 }
 
-function shouldPromoteEpisode(scenes) {
+function shouldPromoteEpisode(scenes, { episodeMinEventCount = EPISODE_MIN_EVENT_COUNT } = {}) {
   const events = scenes.flat();
   const accessories = new Set(events.map((event) => event.accessory_name).filter(Boolean));
-  return events.length >= EPISODE_MIN_EVENT_COUNT && (scenes.length > 1 || accessories.size > 1);
+  return events.length >= episodeMinEventCount && (scenes.length > 1 || accessories.size > 1);
 }
 
-export function groupScenesIntoEpisodes(scenes, { episodeWindowMs = DEFAULT_EPISODE_WINDOW_MS } = {}) {
+export function groupScenesIntoEpisodes(scenes, { episodeWindowMs = DEFAULT_EPISODE_WINDOW_MS, episodeMinEventCount = EPISODE_MIN_EVENT_COUNT } = {}) {
   if (!scenes.length) return [];
 
   const output = [];
@@ -175,7 +175,7 @@ export function groupScenesIntoEpisodes(scenes, { episodeWindowMs = DEFAULT_EPIS
       current.push(scenes[i]);
     } else {
       output.push(
-        shouldPromoteEpisode(current)
+        shouldPromoteEpisode(current, { episodeMinEventCount })
           ? { kind: 'episode', scenes: current, episode: summarizeEpisode(current.flat()) }
           : { kind: 'scenes', scenes: current }
       );
@@ -184,7 +184,7 @@ export function groupScenesIntoEpisodes(scenes, { episodeWindowMs = DEFAULT_EPIS
   }
 
   output.push(
-    shouldPromoteEpisode(current)
+    shouldPromoteEpisode(current, { episodeMinEventCount })
       ? { kind: 'episode', scenes: current, episode: summarizeEpisode(current.flat()) }
       : { kind: 'scenes', scenes: current }
   );
