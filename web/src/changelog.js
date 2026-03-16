@@ -12,13 +12,16 @@
 const CHANGELOG = [
   {
     version: 'v0.1.4-beta',
-    title: 'Scene & episode tuning, accent-themed heatmap',
+    title: 'New themes, settings sections, terminology & UX polish',
     items: [
-      'Settings: scene grouping window (seconds) \u2014 control how tightly events are clustered into scenes',
-      'Settings: episode minimum event count \u2014 set the threshold for promoting scene clusters to episodes',
-      'Heatmap: cells now use the accent color instead of hardcoded emerald',
-      'Room color palette reordered for better visual distinction',
-      'Fix: placeholder text contrast on room/note inputs',
+      'Themes: new Bubblegum, Coral, Golden, Violet, and Teal skins replace old palette',
+      'Settings: organized into Data, Alerts, Timeline, and Advanced sections',
+      'Terminology: "devices" renamed to "accessories" throughout the UI',
+      'Matter help modal: "See supported accessories" now opens directly to the supported devices section',
+      'Room chart bars now use the accent color',
+      'Listener: child accessories inherit bridge room when no room is set',
+      'Dark mode: improved panel colors, dividers, and accent-soft overrides',
+      'Scene & episode tuning settings and accent-themed heatmap (from earlier beta)',
     ],
   },
   {

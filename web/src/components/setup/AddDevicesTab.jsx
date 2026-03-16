@@ -84,7 +84,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
     const pin = localResolvePin(id);
     if (!pin) {
       setPairingStatus((s) => ({
-        ...s, [id]: { state: 'error', message: 'No PIN \u2014 enter a PIN above or set one for this device' },
+        ...s, [id]: { state: 'error', message: 'No PIN \u2014 enter a PIN above or set one for this accessory' },
       }));
       return;
     }
@@ -95,7 +95,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
     event.preventDefault();
     const name = matterForm.name.trim();
     if (!name) {
-      setMatterFeedback({ type: 'error', message: 'Device label is required.' });
+      setMatterFeedback({ type: 'error', message: 'Accessory label is required.' });
       return;
     }
     const setupCode = matterForm.setupCode.trim();
@@ -136,11 +136,11 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
       onSuccess: (result) => {
         const id = result?.pairing?.nodeId ?? result?.pairing?.id ?? 'device';
         const pollHint = '';
-        setMatterFeedback({ type: 'success', message: `Matter device "${name}" added (${id}).${pollHint}` });
+        setMatterFeedback({ type: 'success', message: `Matter accessory "${name}" added (${id}).${pollHint}` });
         setMatterForm((prev) => ({ ...prev, nodeId: '', name: '', setupCode: '', address: '', port: '' }));
       },
       onError: (err) => {
-        setMatterFeedback({ type: 'error', message: err.message ?? 'Could not add Matter device.' });
+        setMatterFeedback({ type: 'error', message: err.message ?? 'Could not add Matter accessory.' });
       },
     });
   }
@@ -157,7 +157,10 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
         />
       )}
       {matterHelpOpen && (
-        <MatterHelpModal onClose={() => setMatterHelpOpen(false)} />
+        <MatterHelpModal
+          initialSection={typeof matterHelpOpen === 'string' ? matterHelpOpen : undefined}
+          onClose={() => setMatterHelpOpen(false)}
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -170,7 +173,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
               <span className="text-[10px] font-medium text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-1.5 py-0.5">HAP</span>
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              Scan your network to find devices and start logging their events.
+              Scan your network to find accessories and start logging their events.
             </p>
             <button
               onClick={() => setHelpDevice({ name: null, category: null })}
@@ -216,7 +219,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
           {unpaired.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
               <p className="text-xs text-blue-700">
-                Select devices and enter a shared PIN, or set PINs individually.
+                Select accessories and enter a shared PIN, or set PINs individually.
               </p>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -357,7 +360,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                               onClick={() => onSwitchTab('devices')}
                               className="text-blue-600 hover:underline"
                             >
-                              My Devices
+                              My Accessories
                             </button>
                           </p>
                         </div>
@@ -397,7 +400,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
           matterAdvancedOpen={matterAdvancedOpen}
           setMatterAdvancedOpen={setMatterAdvancedOpen}
           handleMatterSubmit={handleMatterSubmit}
-          onOpenHelp={() => setMatterHelpOpen(true)}
+          onOpenHelp={(section) => setMatterHelpOpen(section || true)}
           onSwitchTab={onSwitchTab}
         />
       </div>
@@ -440,7 +443,7 @@ function MatterCard({
     const setupCode = matterForm[`code_${device.id}`]?.trim();
     if (!name) {
       setMatterPairingStatus((s) => ({
-        ...s, [device.id]: { state: 'error', message: 'Enter a device name.' },
+        ...s, [device.id]: { state: 'error', message: 'Enter an accessory name.' },
       }));
       return;
     }
@@ -486,14 +489,14 @@ function MatterCard({
           <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5">Matter</span>
         </div>
         <p className="text-xs text-gray-500 mt-0.5">
-          Pair Matter devices using a setup code from Apple Home.
+          Pair Matter accessories using a setup code from Apple Home.
         </p>
         <button
           onClick={onOpenHelp}
           className="flex items-center gap-1 mt-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors"
         >
           <HelpCircle size={12} />
-          How do I pair a Matter device?
+          How do I pair a Matter accessory?
         </button>
       </div>
 
@@ -577,7 +580,7 @@ function MatterCard({
                     <div className="ml-6 space-y-1.5">
                       <input
                         type="text"
-                        placeholder="Device name (e.g. Office Plug)"
+                        placeholder="Accessory name (e.g. Office Plug)"
                         value={matterForm[`name_${device.id}`] ?? ''}
                         onChange={(e) => setMatterForm((f) => ({ ...f, [`name_${device.id}`]: e.target.value }))}
                         disabled={isPairing}
@@ -632,8 +635,8 @@ function MatterCard({
       {!matterDiscoveredLoading && matterDiscoveredData && matterDevices.length === 0 && (
         <div className="flex flex-col items-center justify-center py-4 text-gray-400 text-center">
           <Wifi size={20} className="mb-1.5 opacity-40" />
-          <p className="text-xs font-medium">No commissionable devices found</p>
-          <p className="text-[11px] mt-0.5">Put a device in pairing mode from Apple Home, then scan again.</p>
+          <p className="text-xs font-medium">No commissionable accessories found</p>
+          <p className="text-[11px] mt-0.5">Put an accessory in pairing mode from Apple Home, then scan again.</p>
         </div>
       )}
 
@@ -672,20 +675,20 @@ function MatterCard({
 
       <p className="text-[11px] text-gray-400 italic">
         Supports on/off, level control, boolean state, temperature, humidity, and occupancy clusters.
-        Devices using other clusters will pair but won't produce events.{' '}
-        <button onClick={onOpenHelp} className="underline hover:text-gray-600 transition-colors">See supported devices</button>
+        Accessories using other clusters will pair but won't produce events.{' '}
+        <button onClick={() => onOpenHelp('clusters')} className="underline hover:text-gray-600 transition-colors">See supported accessories</button>
       </p>
 
       {matterAdvancedOpen && (
         <form onSubmit={handleMatterSubmit} className="space-y-2 bg-gray-50 rounded-lg p-2.5">
           <p className="text-[11px] text-gray-400">
-            Add a device without scanning. Use this if the scan doesn't find your device.
+            Add an accessory without scanning. Use this if the scan doesn't find your accessory.
           </p>
           <input
             type="text"
             value={matterForm.name}
             onChange={(e) => setMatterForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="Device name (e.g. Office Plug)"
+            placeholder="Accessory name (e.g. Office Plug)"
             className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <div className="inline-flex items-center gap-1 rounded-lg bg-white p-1 border border-gray-200">
@@ -757,7 +760,7 @@ function MatterCard({
             className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {pairMatterMutation.isPending && <Loader size={12} className="animate-spin" />}
-            {pairMatterMutation.isPending ? 'Adding\u2026' : 'Add Device'}
+            {pairMatterMutation.isPending ? 'Adding\u2026' : 'Add Accessory'}
           </button>
         </form>
       )}

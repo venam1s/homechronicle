@@ -58,7 +58,7 @@ input[type="checkbox"] {
     --hc-bg: #020617;
     --hc-fg: #e2e8f0;
     --hc-muted: #94a3b8;
-    --hc-panel: #0f172a;
+    --hc-panel: #131c2e;
     --hc-panel-soft: #111827;
     --hc-panel-border: #1e293b;
     --hc-shadow: 0 12px 24px -16px rgba(2, 6, 23, 0.75);
@@ -74,82 +74,98 @@ input[type="checkbox"] {
   }
 
   html[data-skin='ocean'] {
-    --hc-accent-rgb: 37, 99, 235;
-    --hc-accent-soft: #dbeafe;
-    --hc-accent-strong: #1d4ed8;
-    --hc-accent-stronger: #1e40af;
-    --hc-glow-1: rgba(59, 130, 246, 0.16);
-    --hc-glow-2: rgba(6, 182, 212, 0.12);
+    --hc-accent-rgb: 17, 138, 178;
+    --hc-accent-soft: #c5edfa;
+    --hc-accent-strong: #0d6e8e;
+    --hc-accent-stronger: #0a526a;
+    --hc-glow-1: rgba(17, 138, 178, 0.16);
+    --hc-glow-2: rgba(7, 59, 76, 0.11);
   }
 
-  html[data-skin='graphite'] {
-    --hc-accent-rgb: 20, 184, 166;
-    --hc-accent-soft: #ccfbf1;
-    --hc-accent-strong: #0f766e;
-    --hc-accent-stronger: #115e59;
-    --hc-glow-1: rgba(15, 118, 110, 0.12);
-    --hc-glow-2: rgba(51, 65, 85, 0.2);
+  html[data-skin='bubblegum'] {
+    --hc-accent-rgb: 239, 71, 111;
+    --hc-accent-soft: #fcdae2;
+    --hc-accent-strong: #e51445;
+    --hc-accent-stronger: #ac0f34;
+    --hc-glow-1: rgba(239, 71, 111, 0.16);
+    --hc-glow-2: rgba(247, 140, 107, 0.11);
   }
 
-  html[data-skin='sunrise'] {
-    --hc-accent-rgb: 234, 88, 12;
-    --hc-accent-soft: #ffedd5;
-    --hc-accent-strong: #c2410c;
-    --hc-accent-stronger: #9a3412;
-    --hc-glow-1: rgba(249, 115, 22, 0.16);
-    --hc-glow-2: rgba(236, 72, 153, 0.11);
+  html[data-skin='coral'] {
+    --hc-accent-rgb: 247, 140, 107;
+    --hc-accent-soft: #fde8e1;
+    --hc-accent-strong: #c9370b;
+    --hc-accent-stronger: #862507;
+    --hc-glow-1: rgba(247, 140, 107, 0.16);
+    --hc-glow-2: rgba(255, 209, 102, 0.11);
   }
 
-  html[data-skin='red'] {
-    --hc-accent-rgb: 220, 38, 38;
-    --hc-accent-soft: #fee2e2;
-    --hc-accent-strong: #b91c1c;
-    --hc-accent-stronger: #991b1b;
-    --hc-glow-1: rgba(239, 68, 68, 0.16);
-    --hc-glow-2: rgba(251, 113, 133, 0.11);
+  html[data-skin='golden'] {
+    --hc-accent-rgb: 143, 100, 0;
+    --hc-accent-soft: #fff6e0;
+    --hc-accent-strong: #8f6400;
+    --hc-accent-stronger: #473200;
+    --hc-glow-1: rgba(255, 209, 102, 0.16);
+    --hc-glow-2: rgba(6, 214, 160, 0.11);
   }
 
-  html[data-skin='yellow'] {
-    --hc-accent-rgb: 202, 138, 4;
-    --hc-accent-soft: #fef9c3;
-    --hc-accent-strong: #a16207;
-    --hc-accent-stronger: #854d0e;
-    --hc-glow-1: rgba(245, 158, 11, 0.16);
-    --hc-glow-2: rgba(234, 179, 8, 0.11);
+  html[data-skin='violet'] {
+    --hc-accent-rgb: 100, 52, 233;
+    --hc-accent-soft: #ede5fd;
+    --hc-accent-strong: #5228c8;
+    --hc-accent-stronger: #3c1a9e;
+    --hc-glow-1: rgba(100, 52, 233, 0.16);
+    --hc-glow-2: rgba(147, 100, 255, 0.11);
   }
 
-  html[data-skin='purple'] {
-    --hc-accent-rgb: 147, 51, 234;
-    --hc-accent-soft: #ede9fe;
-    --hc-accent-strong: #7e22ce;
-    --hc-accent-stronger: #6b21a8;
-    --hc-glow-1: rgba(168, 85, 247, 0.16);
-    --hc-glow-2: rgba(129, 140, 248, 0.11);
+  html[data-skin='teal'] {
+    --hc-accent-rgb: 14, 118, 153;
+    --hc-accent-soft: #b1e6f8;
+    --hc-accent-strong: #0e7699;
+    --hc-accent-stronger: #062e3c;
+    --hc-glow-1: rgba(7, 59, 76, 0.16);
+    --hc-glow-2: rgba(17, 138, 178, 0.12);
   }
 
-  html.theme-dark[data-skin='graphite'] {
-    --hc-glow-1: rgba(20, 184, 166, 0.09);
-    --hc-glow-2: rgba(100, 116, 139, 0.12);
+  html.theme-dark[data-skin='ocean'] {
+    --hc-glow-1: rgba(17, 138, 178, 0.1);
+    --hc-glow-2: rgba(7, 59, 76, 0.08);
   }
 
-  html.theme-dark[data-skin='sunrise'] {
-    --hc-glow-1: rgba(249, 115, 22, 0.11);
-    --hc-glow-2: rgba(244, 63, 94, 0.08);
+  html.theme-dark[data-skin='bubblegum'] {
+    --hc-accent-soft: #3d0c1a;
+    --hc-glow-1: rgba(239, 71, 111, 0.1);
+    --hc-glow-2: rgba(247, 140, 107, 0.08);
   }
 
-  html.theme-dark[data-skin='red'] {
-    --hc-glow-1: rgba(248, 113, 113, 0.1);
-    --hc-glow-2: rgba(251, 113, 133, 0.08);
+  html.theme-dark[data-skin='coral'] {
+    --hc-accent-soft: #3b1710;
+    --hc-glow-1: rgba(247, 140, 107, 0.1);
+    --hc-glow-2: rgba(255, 209, 102, 0.08);
   }
 
-  html.theme-dark[data-skin='yellow'] {
-    --hc-glow-1: rgba(250, 204, 21, 0.1);
-    --hc-glow-2: rgba(234, 179, 8, 0.08);
+  html.theme-dark[data-skin='golden'] {
+    --hc-accent-rgb: 202, 150, 20;
+    --hc-accent-soft: #3a2a00;
+    --hc-accent-strong: #d69600;
+    --hc-accent-stronger: #8f6400;
+    --hc-glow-1: rgba(255, 209, 102, 0.1);
+    --hc-glow-2: rgba(6, 214, 160, 0.08);
   }
 
-  html.theme-dark[data-skin='purple'] {
-    --hc-glow-1: rgba(196, 181, 253, 0.1);
-    --hc-glow-2: rgba(167, 139, 250, 0.08);
+  html.theme-dark[data-skin='violet'] {
+    --hc-accent-soft: #1a0f3a;
+    --hc-glow-1: rgba(100, 52, 233, 0.1);
+    --hc-glow-2: rgba(147, 100, 255, 0.08);
+  }
+
+  html.theme-dark[data-skin='teal'] {
+    --hc-accent-rgb: 22, 179, 231;
+    --hc-accent-soft: #041820;
+    --hc-accent-strong: #18b5e9;
+    --hc-accent-stronger: #0e7699;
+    --hc-glow-1: rgba(7, 59, 76, 0.1);
+    --hc-glow-2: rgba(17, 138, 178, 0.08);
   }
 }
 
@@ -344,7 +360,9 @@ html.hc-standalone .hc-fab {
   }
 
   html.theme-dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-  html.theme-dark .divide-gray-100\/80 > :not([hidden]) ~ :not([hidden]) {
+  html.theme-dark .divide-gray-100\/80 > :not([hidden]) ~ :not([hidden]),
+  html.theme-dark .divide-gray-100 > :not(:last-child),
+  html.theme-dark .divide-gray-100\/80 > :not(:last-child) {
     border-color: var(--hc-panel-border) !important;
   }
 
@@ -385,6 +403,10 @@ html.hc-standalone .hc-fab {
   html.theme-dark .bg-blue-50,
   html.theme-dark .bg-blue-100 {
     background-color: rgba(var(--hc-accent-rgb), 0.22) !important;
+  }
+
+  html.theme-dark .bg-blue-50\/40 {
+    background-color: rgba(var(--hc-accent-rgb), 0.12) !important;
   }
 
   html.theme-dark .add-device-row-selected {
@@ -580,7 +602,8 @@ html.hc-standalone .hc-fab {
     background-color: rgba(30, 41, 59, 0.6) !important;
     border-color: #334155 !important;
   }
-  html.theme-dark .hc-modal tbody .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  html.theme-dark .hc-modal tbody .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  html.theme-dark .hc-modal tbody .divide-gray-100 > :not(:last-child) {
     border-color: #1e293b !important;
   }
 

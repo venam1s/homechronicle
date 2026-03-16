@@ -7,7 +7,7 @@ export const CATEGORY_LABELS = {
 };
 
 export const SETUP_TABS = [
-  { id: 'add', label: 'Add Devices' },
-  { id: 'devices', label: 'My Devices' },
+  { id: 'add', label: 'Add Accessories' },
+  { id: 'devices', label: 'My Accessories' },
   { id: 'settings', label: 'Settings' },
 ];

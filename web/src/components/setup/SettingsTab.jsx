@@ -196,6 +196,9 @@ export default function SettingsTab({ setup }) {
   return (
     <div className="space-y-4">
 
+      {/* — Data — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-1">Data</h3>
+
       {/* Retention cutoff */}
       <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -247,13 +250,13 @@ export default function SettingsTab({ setup }) {
         </p>
       </div>
 
-      {/* Stale device threshold */}
+      {/* Stale accessory threshold */}
       <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Stale device threshold</p>
+            <p className="text-sm font-medium text-gray-800">Stale accessory threshold</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              A device is marked stale after this many hours with no events.
+              An accessory is marked stale after this many hours with no events.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -277,7 +280,7 @@ export default function SettingsTab({ setup }) {
           <div>
             <p className="text-sm font-medium text-gray-800">HomeKit auto-scan</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Automatically scan for HomeKit devices every hour in the background.
+              Automatically scan for HomeKit accessories every hour in the background.
             </p>
           </div>
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
@@ -291,9 +294,12 @@ export default function SettingsTab({ setup }) {
           </label>
         </div>
         <p className="text-[11px] text-gray-400 mt-2">
-          Manual scans from Add Devices still work when this is off.
+          Manual scans from Add Accessories still work when this is off.
         </p>
       </div>
+
+      {/* — Alerts — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-3">Alerts</h3>
 
       {/* Quiet hours */}
       <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
@@ -301,7 +307,7 @@ export default function SettingsTab({ setup }) {
           <div>
             <p className="text-sm font-medium text-gray-800">Quiet hours</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Flag device activity during this window as unexpected on the dashboard.
+              Flag accessory activity during this window as unexpected on the dashboard.
             </p>
           </div>
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
@@ -343,6 +349,9 @@ export default function SettingsTab({ setup }) {
           </div>
         </div>
       </div>
+
+      {/* — Timeline — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-3">Timeline</h3>
 
       {/* Episode capture interval */}
       <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
@@ -415,6 +424,9 @@ export default function SettingsTab({ setup }) {
           </div>
         </div>
       </div>
+
+      {/* — Advanced — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-3">Advanced</h3>
 
       {/* Log level */}
       <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
@@ -493,7 +505,7 @@ export default function SettingsTab({ setup }) {
           <div className="bg-white">
             <p className="px-4 py-3 text-xs text-gray-500 border-b border-gray-100">
               Delete stored event history for individual accessories, or wipe everything.
-              This only removes logged data — it does not unpair devices.
+              This only removes logged data — it does not unpair accessories.
             </p>
 
             {dbAccessories.length > 0 && (

@@ -53,9 +53,9 @@ export default function MyDevicesTab({ setup }) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-400 text-center">
         <CheckCircle size={32} className="mb-3 opacity-40" />
-        <p className="font-medium">No devices yet</p>
+        <p className="font-medium">No accessories yet</p>
         <p className="text-sm mt-1 max-w-xs">
-          Go to the Add Devices tab to scan for HomeKit accessories or add a Matter device.
+          Go to the Add Accessories tab to scan for HomeKit accessories or add a Matter accessory.
         </p>
       </div>
     );
@@ -64,7 +64,7 @@ export default function MyDevicesTab({ setup }) {
   return (
     <div className="space-y-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-        {totalCount} device{totalCount !== 1 ? 's' : ''}
+        {totalCount} accessor{totalCount !== 1 ? 'ies' : 'y'}
       </p>
 
       {devicesWithoutRoom.length > 0 && (
@@ -72,8 +72,8 @@ export default function MyDevicesTab({ setup }) {
           <AlertCircle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-amber-800">
             {devicesWithoutRoom.length === 1
-              ? '1 device doesn\u2019t have a room assigned yet.'
-              : `${devicesWithoutRoom.length} devices don\u2019t have rooms assigned yet.`}{' '}
+              ? '1 accessory doesn\u2019t have a room assigned yet.'
+              : `${devicesWithoutRoom.length} accessories don\u2019t have rooms assigned yet.`}{' '}
             Set a room name below so events are grouped correctly.
           </p>
         </div>
@@ -81,7 +81,7 @@ export default function MyDevicesTab({ setup }) {
 
       <div className="bg-white rounded-xl shadow-sm divide-y divide-gray-100">
 
-        {/* HomeKit paired devices */}
+        {/* HomeKit paired accessories */}
         {paired.map((acc) => {
           const isConfirming = confirmDelete === acc.id;
           const isDeleting = deletePairingMutation.isPending && confirmDelete === acc.id;
@@ -139,7 +139,7 @@ export default function MyDevicesTab({ setup }) {
                   )}
                   {acc.category === 2 && roomVal && (
                     <p className="text-[10px] text-gray-400 mt-0.5 ml-3.5">
-                      Children without their own room inherit this.
+                      Child accessories without their own room inherit this.
                     </p>
                   )}
                   {acc.category === 2 && (
@@ -155,7 +155,7 @@ export default function MyDevicesTab({ setup }) {
                         size={11}
                         className={clsx('transition-transform duration-200', expandedBridges.has(acc.id) && 'rotate-180')}
                       />
-                      {expandedBridges.has(acc.id) ? 'Hide' : 'Show'} child devices
+                      {expandedBridges.has(acc.id) ? 'Hide' : 'Show'} child accessories
                     </button>
                   )}
                 </div>
@@ -213,7 +213,7 @@ export default function MyDevicesTab({ setup }) {
           );
         })}
 
-        {/* Matter paired devices */}
+        {/* Matter paired accessories */}
         {matterPairings.map((pairing) => {
           const nodeId = pairing.nodeId ?? pairing.id;
           const isConfirming = confirmDeleteMatter === nodeId;
@@ -350,7 +350,7 @@ export default function MyDevicesTab({ setup }) {
                           onSuccess: () => setConfirmDeleteMatter(null),
                           onError: (err) => {
                             setConfirmDeleteMatter(null);
-                            setMatterDeleteError((s) => ({ ...s, [nodeId]: err.message ?? 'Could not remove device.' }));
+                            setMatterDeleteError((s) => ({ ...s, [nodeId]: err.message ?? 'Could not remove accessory.' }));
                           },
                         });
                       }}

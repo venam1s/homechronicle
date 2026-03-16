@@ -42,29 +42,29 @@ const DASHBOARD_SYNC_STORAGE_KEY = 'hc_dashboard_sync_ranges';
 
 const STYLES = [
   { id: 'ocean', label: 'Ocean' },
-  { id: 'graphite', label: 'Graphite' },
-  { id: 'sunrise', label: 'Sunrise' },
-  { id: 'red', label: 'Red' },
-  { id: 'yellow', label: 'Yellow' },
-  { id: 'purple', label: 'Purple' },
+  { id: 'bubblegum', label: 'Bubblegum' },
+  { id: 'coral', label: 'Coral' },
+  { id: 'golden', label: 'Golden' },
+  { id: 'violet', label: 'Violet' },
+  { id: 'teal', label: 'Teal' },
 ];
 
 const SKIN_SWATCH = {
-  ocean: 'from-blue-500 to-cyan-400',
-  graphite: 'from-slate-700 to-slate-500',
-  sunrise: 'from-orange-400 to-rose-400',
-  red: 'from-red-500 to-rose-500',
-  yellow: 'from-yellow-400 to-amber-500',
-  purple: 'from-violet-500 to-fuchsia-500',
+  ocean: 'from-sky-500 to-cyan-600',
+  bubblegum: 'from-pink-400 to-rose-500',
+  coral: 'from-orange-300 to-red-400',
+  golden: 'from-yellow-400 to-amber-500',
+  violet: 'from-violet-500 to-indigo-500',
+  teal: 'from-teal-600 to-cyan-800',
 };
 
 const SKIN_SWATCH_DARK = {
-  ocean: 'from-blue-400 to-cyan-300',
-  graphite: 'from-slate-300 to-teal-300',
-  sunrise: 'from-orange-300 to-pink-300',
-  red: 'from-rose-300 to-red-300',
-  yellow: 'from-amber-300 to-yellow-300',
-  purple: 'from-violet-300 to-fuchsia-300',
+  ocean: 'from-sky-400 to-cyan-300',
+  bubblegum: 'from-pink-300 to-rose-400',
+  coral: 'from-orange-300 to-red-300',
+  golden: 'from-amber-300 to-yellow-300',
+  violet: 'from-violet-300 to-indigo-300',
+  teal: 'from-teal-300 to-cyan-400',
 };
 
 export default function App() {

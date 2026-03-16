@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Wifi, Smartphone, Zap, AlertTriangle, List } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -195,8 +195,20 @@ const COLOR_MAP = {
   red:    'bg-red-100 text-red-700',
 };
 
-export default function MatterHelpModal({ onClose }) {
-  const [open, setOpen] = useState(new Set(['commission']));
+export default function MatterHelpModal({ onClose, initialSection }) {
+  const [open, setOpen] = useState(() => {
+    const initial = new Set(['commission']);
+    if (initialSection) initial.add(initialSection);
+    return initial;
+  });
+  const scrollRef = useRef(null);
+  const sectionRefs = useRef({});
+
+  useEffect(() => {
+    if (initialSection && sectionRefs.current[initialSection]) {
+      sectionRefs.current[initialSection].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [initialSection]);
 
   function toggle(id) {
     setOpen((prev) => {
@@ -227,12 +239,12 @@ export default function MatterHelpModal({ onClose }) {
         </div>
 
         {/* Scrollable steps */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-2">
+        <div ref={scrollRef} className="overflow-y-auto flex-1 px-5 py-4 space-y-2">
           {STEPS.map(({ id, icon: Icon, title, color }) => {
             const isOpen = open.has(id);
             const step = STEPS.find((s) => s.id === id);
             return (
-              <div key={id} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div key={id} ref={(el) => { sectionRefs.current[id] = el; }} className="border border-gray-200 rounded-xl overflow-hidden">
                 <button
                   onClick={() => toggle(id)}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"

@@ -109,7 +109,7 @@ export default function RoomChart({ forcedDays = null, onDaysChange = null }) {
                   className="h-2 rounded-full transition-all"
                   style={{
                     width: `${pct}%`,
-                    backgroundColor: roomColor?.dot ?? '#60a5fa',
+                    backgroundColor: `rgb(var(--hc-accent-rgb))`,
                   }}
                 />
               </div>

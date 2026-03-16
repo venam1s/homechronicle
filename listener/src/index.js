@@ -1103,7 +1103,7 @@ app.get('/api/accessories', apiStatsReadLimiter, async (_req, res) => {
       return {
         ...r,
         protocol,
-        room_name: rooms[r.accessory_id] ?? r.room_name,
+        room_name: rooms[r.accessory_id] ?? rooms[bridgeId] ?? r.room_name,
         address: bridgePairing?.address ?? null,
         paired_at: bridgePairing?.pairedAt ?? null,
         manufacturer: identity?.manufacturer ?? null,
@@ -1120,7 +1120,16 @@ app.get('/api/accessories', apiStatsReadLimiter, async (_req, res) => {
     const seenIds = new Set(dbRows.map((r) => r.accessory_id));
 
     const neverSeen = Object.entries(currentPairings)
-      .filter(([id]) => !seenIds.has(id))
+      .filter(([id, p]) => {
+        if (seenIds.has(id)) return false;
+        // For Matter nodes, also exclude if any endpoint (nodeId:N) has been seen
+        if (String(p.protocol ?? '').toLowerCase() === 'matter') {
+          for (const seen of seenIds) {
+            if (seen.startsWith(`${id}:`)) return false;
+          }
+        }
+        return true;
+      })
       .map(([id, p]) => {
         const identity = getAccessoryIdentity(id);
         const reliability = getSubscriberStats(id);
@@ -1128,7 +1137,7 @@ app.get('/api/accessories', apiStatsReadLimiter, async (_req, res) => {
           accessory_id: id,
           accessory_name: p.name,
           protocol: p.protocol ?? 'homekit',
-          room_name: rooms[id] ?? null,
+          room_name: rooms[id] ?? rooms[parentBridgeId(id)] ?? null,
           service_type: null,
           category: p.category ?? null,
           last_seen: null,

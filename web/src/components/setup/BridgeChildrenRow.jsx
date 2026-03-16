@@ -23,14 +23,14 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
   if (isError) {
     return (
       <div className="ml-9 mt-2 pb-2 text-xs text-red-400">
-        Could not load child devices — is the bridge reachable?
+        Could not load child accessories — is the bridge reachable?
       </div>
     );
   }
   if (children.length === 0) {
     return (
       <div className="ml-9 mt-2 pb-2 space-y-1.5">
-        <p className="text-xs text-gray-400 italic">No child devices found on this bridge.</p>
+        <p className="text-xs text-gray-400 italic">No child accessories found on this bridge.</p>
         <div className="flex items-center gap-1">
           <FileText size={10} className="text-gray-300 flex-shrink-0" />
           <input
@@ -69,8 +69,10 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                   onBlur={() => onRoomBlur(child.childId)}
                   onKeyDown={(e) => e.key === 'Enter' && onRoomBlur(child.childId)}
                   className={clsx(
-                    'text-xs border rounded px-2 py-0.5 w-32 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300',
-                    isInheriting ? 'border-blue-200 bg-blue-50/40 placeholder-blue-300' : 'border-gray-200',
+                    'text-xs border rounded px-2 py-0.5 w-32 focus:outline-none focus:ring-1 focus:ring-blue-400',
+                    isInheriting
+                      ? 'border-blue-200 bg-blue-50/40 placeholder-blue-300 text-blue-700'
+                      : 'border-gray-200 bg-white placeholder-gray-300',
                   )}
                 />
               </div>
@@ -93,7 +95,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
 
       {bridgeRoom && (
         <p className="text-[10px] text-gray-400 pt-0.5">
-          Children with no room set inherit the bridge room automatically.
+          Child accessories with no room set inherit the bridge room automatically.
         </p>
       )}
     </div>
