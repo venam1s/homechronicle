@@ -55,7 +55,7 @@ const SKIN_SWATCH = {
   coral: 'from-orange-300 to-red-400',
   golden: 'from-yellow-400 to-amber-500',
   violet: 'from-violet-500 to-indigo-500',
-  teal: 'from-teal-600 to-cyan-800',
+  teal: 'from-teal-500 to-emerald-700',
 };
 
 const SKIN_SWATCH_DARK = {

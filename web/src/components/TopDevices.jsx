@@ -69,7 +69,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
                 className={clsx(
                   'text-xs px-2 py-0.5 rounded-md transition-colors',
                   days === d
-                    ? 'bg-blue-100 text-blue-700 font-medium'
+                    ? 'bg-[rgba(var(--hc-accent-rgb),0.13)] text-[rgb(var(--hc-accent-rgb))] font-medium'
                     : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                 )}
               >
@@ -89,8 +89,8 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
           return (
             <div key={device.accessory_name} className="flex items-center gap-2.5">
               {/* Service icon */}
-              <div className="flex-shrink-0 w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center">
-                <Icon size={13} className="text-blue-500" />
+              <div className="flex-shrink-0 w-6 h-6 rounded-md bg-[rgba(var(--hc-accent-rgb),0.1)] flex items-center justify-center">
+                <Icon size={13} className="text-[rgb(var(--hc-accent-rgb))]" />
               </div>
 
               {/* Name + room */}
@@ -111,8 +111,8 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
               {/* Bar */}
               <div className="flex-1 bg-gray-100 rounded-full h-1.5">
                 <div
-                  className="bg-blue-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${pct}%` }}
+                  className="h-1.5 rounded-full transition-all"
+                  style={{ width: `${pct}%`, backgroundColor: `rgb(var(--hc-accent-rgb))` }}
                 />
               </div>
 
