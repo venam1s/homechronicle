@@ -164,7 +164,7 @@ export function createMatterRuntime({
       session.subscriptionRestartTimer = null;
     }
     if (session.subscription) {
-      try { session.subscription.stop(); } catch { /* ignore */ }
+      try { session.subscription.stop(); } catch (err) { log.debug('[matter-runtime] subscription stop error:', err.message); }
       session.subscription = null;
     }
     sessions.delete(nodeId);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ChevronDown, ChevronRight, Home, Moon, LogIn, LogOut } from 'lucide-react';
 import SceneGroup from './SceneGroup.jsx';
 
@@ -15,7 +15,7 @@ function getEpisodeIcon(kind) {
   }
 }
 
-export default function EpisodeGroup({ episode, scenes, eventMetaMap, hoveredCell, onMute }) {
+export default memo(function EpisodeGroup({ episode, scenes, eventMetaMap, hoveredCell, onMute }) {
   const [expanded, setExpanded] = useState(false);
   const events = scenes.flat();
   const Icon = getEpisodeIcon(episode.kind);
@@ -73,4 +73,4 @@ export default function EpisodeGroup({ episode, scenes, eventMetaMap, hoveredCel
       )}
     </div>
   );
-}
+})

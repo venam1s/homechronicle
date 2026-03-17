@@ -34,16 +34,26 @@ server {
     # LISTENER_HOST is injected at container start via envsubst:
     #   - local dev (bridge network): "listener"  (Docker DNS)
     #   - NAS (host network):         "127.0.0.1"
-    location /api/ {
+
+    # Matter commissioning endpoints need extended timeout (2+ minutes).
+    location ~ ^/api/setup/(pair|matter/pair) {
         proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
-        # Keep a valid two-argument directive even when API_TOKEN is empty.
         proxy_set_header X-API-Token "${API_TOKEN}";
-        # Preserve Nginx runtime variables through envsubst.
         proxy_set_header Host ${DOLLAR}host;
         proxy_set_header X-Real-IP ${DOLLAR}remote_addr;
         proxy_set_header X-Forwarded-For ${DOLLAR}proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto ${DOLLAR}scheme;
-        # Matter commissioning can take 2+ minutes; default 60s is too short.
         proxy_read_timeout 300s;
+    }
+
+    # All other API routes use a shorter timeout.
+    location /api/ {
+        proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
+        proxy_set_header X-API-Token "${API_TOKEN}";
+        proxy_set_header Host ${DOLLAR}host;
+        proxy_set_header X-Real-IP ${DOLLAR}remote_addr;
+        proxy_set_header X-Forwarded-For ${DOLLAR}proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto ${DOLLAR}scheme;
+        proxy_read_timeout 30s;
     }
 }

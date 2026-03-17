@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react';
 import { format, formatDistanceToNow, subDays } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip,
-  LineChart, Line,
+  LineChart, Line, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import {
   ArrowLeft, Activity, Clock3, ShieldCheck, AlertTriangle,
-  Info, Wifi, WifiOff, ChevronDown, ChevronUp,
+  Info, Wifi, WifiOff, ChevronDown, ChevronUp, BarChart3, PieChartIcon, Grid3x3,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { useAccessoryDetail, useAccessoryAnomalies, useCharacteristicTrend } from '../hooks/useEvents.js';
+import { useAccessoryDetail, useAccessoryAnomalies, useCharacteristicTrend, useAccessoryHeatmap, useAccessoryStateDuration, useAccessoryCharSummary } from '../hooks/useEvents.js';
 import { describeChange, getServiceIcon } from '../lib/icons.js';
 
 const WINDOWS = [
@@ -109,6 +109,254 @@ function CharacteristicTrend({ accessoryId, characteristic, days }) {
 }
 
 // ---------------------------------------------------------------------------
+// Donut colors for state duration
+// ---------------------------------------------------------------------------
+const DONUT_COLORS = [
+  '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
+  '#06b6d4', '#f97316', '#6366f1', '#84cc16', '#ef4444',
+];
+
+function stateLabel(characteristic, value) {
+  const v = String(value ?? '').toLowerCase();
+  if (v === 'true' || v === '1') return 'On';
+  if (v === 'false' || v === '0') return 'Off';
+  return String(value);
+}
+
+// ---------------------------------------------------------------------------
+// State Duration Donut
+// ---------------------------------------------------------------------------
+function StateDurationDonut({ accessoryId, days }) {
+  const { data, isLoading } = useAccessoryStateDuration(accessoryId, days);
+
+  const grouped = useMemo(() => {
+    const durations = data?.durations ?? [];
+    if (!durations.length) return [];
+
+    // Group by characteristic, pick the one with most distinct states (binary preferred)
+    const byChar = new Map();
+    for (const d of durations) {
+      if (!byChar.has(d.characteristic)) byChar.set(d.characteristic, []);
+      byChar.get(d.characteristic).push(d);
+    }
+
+    // Rank: prefer binary (2 states), then fewer states, then by total duration
+    return Array.from(byChar.entries())
+      .map(([char, states]) => ({
+        characteristic: char,
+        states: states.map((s) => ({
+          name: stateLabel(char, s.new_value),
+          value: Math.round(s.duration_seconds),
+          raw: s.new_value,
+        })),
+        total: states.reduce((sum, s) => sum + s.duration_seconds, 0),
+      }))
+      .sort((a, b) => {
+        // prefer 2-state characteristics (binary on/off)
+        const aDist = Math.abs(a.states.length - 2);
+        const bDist = Math.abs(b.states.length - 2);
+        if (aDist !== bDist) return aDist - bDist;
+        return b.total - a.total;
+      });
+  }, [data?.durations]);
+
+  if (isLoading) return <div className="text-xs text-gray-400 py-3">Loading…</div>;
+  if (!grouped.length) return null;
+
+  // Show up to 2 donuts
+  const show = grouped.slice(0, 2);
+
+  return (
+    <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
+      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+        <PieChartIcon size={14} className="text-gray-400" />
+        State Duration
+      </h3>
+      <div className={clsx('grid gap-4', show.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1')}>
+        {show.map((group) => {
+          const totalSec = group.total;
+          return (
+            <div key={group.characteristic}>
+              <p className="text-xs text-gray-500 text-center mb-1">{group.characteristic}</p>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie
+                    data={group.states}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={65}
+                    paddingAngle={2}
+                    strokeWidth={0}
+                  >
+                    {group.states.map((state, i) => (
+                      <Cell key={state.name} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Legend
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: 11 }}
+                    formatter={(value, entry) => {
+                      const pct = totalSec > 0 ? Math.round((entry.payload.value / totalSec) * 100) : 0;
+                      return `${value} (${pct}%)`;
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value) => {
+                      const h = Math.floor(value / 3600);
+                      const m = Math.floor((value % 3600) / 60);
+                      return [h > 0 ? `${h}h ${m}m` : `${m}m`, 'Duration'];
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Hourly Activity Heatmap
+// ---------------------------------------------------------------------------
+const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function ActivityHeatmap({ accessoryId, days }) {
+  const { data, isLoading } = useAccessoryHeatmap(accessoryId, days);
+
+  const { grid, maxCount } = useMemo(() => {
+    const cells = data?.cells ?? [];
+    // 7 rows (dow) × 24 cols (hour)
+    const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+    let maxCount = 0;
+    for (const c of cells) {
+      grid[c.dow][c.hour] = c.count;
+      if (c.count > maxCount) maxCount = c.count;
+    }
+    return { grid, maxCount };
+  }, [data?.cells]);
+
+  if (isLoading) return <div className="text-xs text-gray-400 py-3">Loading…</div>;
+  if (maxCount === 0) return null;
+
+  function cellColor(count) {
+    if (count === 0) return 'var(--hc-heatmap-empty, #f3f4f6)';
+    const ratio = count / maxCount;
+    // 4-stop blue scale
+    if (ratio < 0.25) return '#bfdbfe';
+    if (ratio < 0.5) return '#60a5fa';
+    if (ratio < 0.75) return '#3b82f6';
+    return '#1d4ed8';
+  }
+
+  return (
+    <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
+      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+        <Grid3x3 size={14} className="text-gray-400" />
+        Activity Heatmap
+      </h3>
+      <div className="overflow-x-auto">
+        <div className="min-w-[420px]">
+          {/* Hour labels */}
+          <div className="flex ml-10 mb-1">
+            {Array.from({ length: 24 }, (_, h) => (
+              <div key={h} className="flex-1 text-center text-[9px] text-gray-400">
+                {h % 3 === 0 ? `${h}` : ''}
+              </div>
+            ))}
+          </div>
+          {/* Grid rows */}
+          {grid.map((row, dow) => (
+            <div key={dow} className="flex items-center gap-1 mb-0.5">
+              <span className="w-9 text-right text-[10px] text-gray-400 pr-1">{DOW_LABELS[dow]}</span>
+              <div className="flex flex-1 gap-px">
+                {row.map((count, hour) => (
+                  <div
+                    key={hour}
+                    className="flex-1 aspect-square rounded-sm"
+                    style={{ backgroundColor: cellColor(count), minHeight: 12 }}
+                    title={`${DOW_LABELS[dow]} ${hour}:00 — ${count} events`}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {/* Legend */}
+          <div className="flex items-center justify-end gap-1 mt-2">
+            <span className="text-[9px] text-gray-400">Less</span>
+            {['#f3f4f6', '#bfdbfe', '#60a5fa', '#3b82f6', '#1d4ed8'].map((c) => (
+              <div key={c} className="w-3 h-3 rounded-sm" style={{ backgroundColor: c }} />
+            ))}
+            <span className="text-[9px] text-gray-400">More</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Characteristic Change Summary Table
+// ---------------------------------------------------------------------------
+function CharSummaryTable({ accessoryId, days }) {
+  const { data, isLoading } = useAccessoryCharSummary(accessoryId, days);
+
+  const chars = data?.characteristics ?? [];
+
+  if (isLoading) return <div className="text-xs text-gray-400 py-3">Loading…</div>;
+  if (!chars.length) return null;
+
+  return (
+    <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
+      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+        <BarChart3 size={14} className="text-gray-400" />
+        Characteristic Summary
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-gray-400 border-b border-gray-100">
+              <th className="text-left font-medium py-1.5 pr-3">Characteristic</th>
+              <th className="text-right font-medium py-1.5 px-2">Changes</th>
+              <th className="text-right font-medium py-1.5 px-2">Min</th>
+              <th className="text-right font-medium py-1.5 px-2">Avg</th>
+              <th className="text-right font-medium py-1.5 px-2">Max</th>
+              <th className="text-right font-medium py-1.5 pl-2">Values</th>
+            </tr>
+          </thead>
+          <tbody>
+            {chars.map((c) => {
+              const isNumeric = c.numeric_count > 0;
+              return (
+                <tr key={c.characteristic} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="py-1.5 pr-3 text-gray-700 font-medium">{c.characteristic}</td>
+                  <td className="py-1.5 px-2 text-right text-gray-600">{c.change_count}</td>
+                  <td className="py-1.5 px-2 text-right text-gray-500">
+                    {isNumeric ? formatNumber(c.min_val, 1) : '—'}
+                  </td>
+                  <td className="py-1.5 px-2 text-right text-gray-500">
+                    {isNumeric ? formatNumber(c.avg_val, 1) : '—'}
+                  </td>
+                  <td className="py-1.5 px-2 text-right text-gray-500">
+                    {isNumeric ? formatNumber(c.max_val, 1) : '—'}
+                  </td>
+                  <td className="py-1.5 pl-2 text-right text-gray-400">{c.distinct_values}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 export default function AccessoryDetail({ accessoryId, onBack }) {
@@ -160,6 +408,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
       <div className="flex items-center gap-2">
         <button
           onClick={onBack}
+          aria-label="Back to accessories list"
           className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
         >
           <ArrowLeft size={13} />
@@ -183,7 +432,14 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 <Icon size={20} className="text-blue-600" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg font-semibold text-gray-900 truncate">{accessory.accessory_name}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-gray-900 truncate">{accessory.accessory_name}</h2>
+                  {accessory.protocol && (
+                    <span className="inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 whitespace-nowrap">
+                      {accessory.protocol === 'matter' ? 'Matter' : 'HomeKit'}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 mt-0.5 break-all">{accessory.accessory_id}</p>
                 {accessory.device_note && (
                   <p className="text-xs text-gray-500 mt-1 italic">{accessory.device_note}</p>
@@ -433,6 +689,15 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
             </ResponsiveContainer>
           </section>
 
+          {/* State Duration Donut */}
+          <StateDurationDonut accessoryId={accessoryId} days={days} />
+
+          {/* Hourly Activity Heatmap */}
+          <ActivityHeatmap accessoryId={accessoryId} days={days} />
+
+          {/* Characteristic Change Summary */}
+          <CharSummaryTable accessoryId={accessoryId} days={days} />
+
           {/* Current State with Features 6 (protocol details) and 5 (characteristic trends) */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Current State</h3>
@@ -450,6 +715,8 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                       <button
                         type="button"
                         onClick={() => setSelectedChar(isSelected ? null : state.characteristic)}
+                        aria-label={`${isSelected ? 'Hide' : 'Show'} trend for ${state.characteristic}`}
+                        aria-expanded={isSelected}
                         className={clsx(
                           'rounded-lg border px-3 py-2 text-left transition-colors',
                           isSelected
@@ -529,6 +796,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
               <button
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
                 disabled={(history?.page ?? 1) <= 1}
+                aria-label="Previous page"
                 className="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-500 disabled:opacity-40"
               >
                 Previous
@@ -536,6 +804,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
               <button
                 onClick={() => setPage((current) => current + 1)}
                 disabled={(history?.page ?? 1) >= (history?.pages ?? 1)}
+                aria-label="Next page"
                 className="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-500 disabled:opacity-40"
               >
                 Next

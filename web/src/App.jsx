@@ -18,6 +18,7 @@ import Setup from './components/Setup.jsx';
 import Alerts from './components/Alerts.jsx';
 import BrandLogo from './components/BrandLogo.jsx';
 import ChangelogModal from './components/ChangelogModal.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { useTheme } from './hooks/useTheme.js';
 import { useSkin } from './hooks/useSkin.js';
 import { useUpdateCheck } from './hooks/useUpdateCheck.js';
@@ -47,6 +48,8 @@ const STYLES = [
   { id: 'golden', label: 'Golden' },
   { id: 'violet', label: 'Violet' },
   { id: 'teal', label: 'Teal' },
+  { id: 'slate', label: 'Slate Grey' },
+  { id: 'alabaster', label: 'Alabaster' },
 ];
 
 const SKIN_SWATCH = {
@@ -56,6 +59,8 @@ const SKIN_SWATCH = {
   golden: 'from-yellow-400 to-amber-500',
   violet: 'from-violet-500 to-indigo-500',
   teal: 'from-teal-500 to-emerald-700',
+  slate: 'from-slate-400 to-slate-600',
+  alabaster: 'from-stone-300 to-stone-400',
 };
 
 const SKIN_SWATCH_DARK = {
@@ -65,6 +70,8 @@ const SKIN_SWATCH_DARK = {
   golden: 'from-amber-300 to-yellow-300',
   violet: 'from-violet-300 to-indigo-300',
   teal: 'from-teal-300 to-cyan-400',
+  slate: 'from-slate-300 to-slate-400',
+  alabaster: 'from-stone-200 to-stone-300',
 };
 
 export default function App() {
@@ -253,9 +260,9 @@ export default function App() {
 
       {/* Content */}
       <main className={clsx('flex-1 overflow-hidden', isStandalonePwa && 'hc-pwa-main')}>
-        {tab === 'timeline' && <Timeline onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} />}
+        {tab === 'timeline' && <ErrorBoundary key="timeline"><Timeline onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} /></ErrorBoundary>}
 
-        {tab === 'dashboard' && (
+        {tab === 'dashboard' && (<ErrorBoundary key="dashboard">
           <div className="max-w-5xl mx-auto py-4 sm:py-6 px-3 sm:px-4 space-y-4">
 
             {/* KPI cards row */}
@@ -349,15 +356,16 @@ export default function App() {
             </div>
 
           </div>
-        )}
+        </ErrorBoundary>)}
 
-        {tab === 'accessories' && (
-          selectedAccessoryId
+        {tab === 'accessories' && (<ErrorBoundary key="accessories">
+          {selectedAccessoryId
             ? <AccessoryDetail accessoryId={selectedAccessoryId} onBack={handleAccessoryBack} />
             : <AccessoryList onSelectAccessory={handleSelectAccessory} />
-        )}
-        {tab === 'alerts' && <Alerts />}
-        {tab === 'setup' && <Setup />}
+          }
+        </ErrorBoundary>)}
+        {tab === 'alerts' && <ErrorBoundary key="alerts"><Alerts /></ErrorBoundary>}
+        {tab === 'setup' && <ErrorBoundary key="setup"><Setup /></ErrorBoundary>}
       </main>
 
       {/* Footer */}

@@ -123,7 +123,7 @@ If `docker compose pull` fails:
 ### Webhook delivery fails
 
 - Check the `error` field in the delivery log
-- By default, private IP targets are allowed (`ALERTS_ALLOW_PRIVATE_TARGETS=true`), but loopback and link-local are always blocked
+- By default, private IP targets are blocked (`ALERTS_ALLOW_PRIVATE_TARGETS=false`). Set to `true` if your webhooks target LAN services. Loopback and link-local are always blocked
 - Timeout defaults to 5 seconds (`ALERTS_WEBHOOK_TIMEOUT_MS`)
 
 ## Performance

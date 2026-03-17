@@ -92,6 +92,10 @@ CREATE INDEX IF NOT EXISTS idx_event_logs_char_ts        ON event_logs (characte
 -- date_trunc(timestamptz) is not immutable; convert to UTC timestamp first.
 CREATE INDEX IF NOT EXISTS idx_event_logs_timestamp_trunc ON event_logs (date_trunc('hour', timestamp AT TIME ZONE 'UTC'));
 
+-- Composite index for accessory_id-scoped queries (detail, heatmap, char-summary, state-duration)
+CREATE INDEX IF NOT EXISTS idx_event_logs_accessory_id_ts
+  ON event_logs (accessory_id, timestamp DESC, id DESC);
+
 CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled
   ON alert_rules (enabled);
 CREATE INDEX IF NOT EXISTS idx_alert_rules_updated

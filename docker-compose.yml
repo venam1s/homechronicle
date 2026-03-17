@@ -15,6 +15,11 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -43,6 +48,11 @@ services:
       # improves reboot reliability for HomeKit/Matter discovery on Linux.
       # DO NOT EDIT: required for host mDNS discovery integration.
       - ${HOST_DBUS_SOCKET:-/run/dbus/system_bus_socket}:/run/dbus/system_bus_socket:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,6 +72,11 @@ services:
   web:
     image: ${WEB_IMAGE:-ghcr.io/havuq/homechronicle/web:latest}
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     env_file:
       - .env
     ports:

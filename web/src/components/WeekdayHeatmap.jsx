@@ -187,9 +187,9 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
         }}
       >
         <div />
-        {AXIS_LABELS.map((label, i) => (
+        {AXIS_LABELS.map((label) => (
           <div
-            key={i}
+            key={label || 'end'}
             style={{
               gridColumn: 'span 6',
               fontSize:   10,

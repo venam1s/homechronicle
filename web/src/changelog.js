@@ -12,8 +12,32 @@
 const CHANGELOG = [
   {
     version: 'v0.1.4-beta',
+    title: 'Performance, security hardening & accessibility',
+    items: [
+      'Performance: server-side TTL cache for stats endpoints (stale-while-revalidate)',
+      'Performance: batch alert suppression checks into a single query',
+      'Performance: new composite index on (accessory_id, timestamp) for detail views',
+      'Performance: vendor chunk splitting for faster repeat page loads',
+      'Performance: React.memo on timeline components, useMemo on chart data',
+      'Performance: reduced accessory list polling interval',
+      'Security: container resource limits (CPU/memory) on all services',
+      'Security: non-root user in listener container',
+      'Security: private webhook targets blocked by default (set ALERTS_ALLOW_PRIVATE_TARGETS=true to allow)',
+      'Security: configurable API bind address (API_BIND_ADDRESS)',
+      'Security: segmented nginx proxy timeouts (30s normal, 300s for pairing)',
+      'Security: audit logging for all mutating API requests',
+      'Reliability: write lock on JSON file stores to prevent race conditions',
+      'Reliability: React error boundaries on all tab views',
+      'Accessibility: aria-labels on icon buttons, form inputs, and pagination controls',
+      'Fix: cleanup errors now logged at debug level instead of silently swallowed',
+      'Fix: stable React keys replace index-based keys in charts and heatmaps',
+    ],
+  },
+  {
+    version: 'v0.1.4-beta',
     title: 'New themes, settings sections, terminology & UX polish',
     items: [
+      'Themes: added Slate Grey and Alabaster skins',
       'Themes: new Bubblegum, Coral, Golden, Violet, and Teal skins replace old palette',
       'Settings: organized into Data, Alerts, Timeline, and Advanced sections',
       'Terminology: "devices" renamed to "accessories" throughout the UI',

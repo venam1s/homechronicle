@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts';
@@ -29,8 +30,8 @@ export default function ActivityChart() {
   const accent = useAccentRgb();
   const { data, isLoading, isError } = useHourlyStats();
 
-  const chartData = utcHoursToLocal(data ?? []);
-  const maxCount  = Math.max(...chartData.map((d) => d.count), 1);
+  const chartData = useMemo(() => utcHoursToLocal(data ?? []), [data]);
+  const maxCount  = useMemo(() => Math.max(...chartData.map((d) => d.count), 1), [chartData]);
 
   if (isLoading) {
     return <div className="h-48 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;

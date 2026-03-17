@@ -39,7 +39,7 @@ test('processAlertsForEvent records sent delivery for matching rule', async () =
   const pool = {
     async query(sql, params = []) {
       if (sql.includes('FROM alert_rules')) return { rows: [makeRule()] };
-      if (sql.includes('status = \'sent\'')) return { rows: [] };
+      if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
         deliveries.push({ ruleId: params[0], eventId: params[1], status: params[2], responseCode: params[4] });
         return { rowCount: 1 };
@@ -65,8 +65,8 @@ test('processAlertsForEvent records suppressed delivery when within quiet period
   const pool = {
     async query(sql, params = []) {
       if (sql.includes('FROM alert_rules')) return { rows: [makeRule({ quiet_minutes: 10 })] };
-      if (sql.includes('status = \'sent\'')) {
-        return { rows: [{ sent_at: new Date().toISOString() }] };
+      if (sql.includes('DISTINCT ON (rule_id)')) {
+        return { rows: [{ rule_id: 1, sent_at: new Date().toISOString() }] };
       }
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
         deliveries.push({ status: params[2], error: params[5] });
@@ -97,7 +97,7 @@ test('processAlertsForEvent records failed delivery for non-2xx response', async
   const pool = {
     async query(sql, params = []) {
       if (sql.includes('FROM alert_rules')) return { rows: [makeRule()] };
-      if (sql.includes('status = \'sent\'')) return { rows: [] };
+      if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
         deliveries.push({ status: params[2], responseCode: params[4], error: params[5] });
         return { rowCount: 1 };
@@ -129,7 +129,7 @@ test('processAlertsForEvent blocks localhost webhook targets', async () => {
       if (sql.includes('FROM alert_rules')) {
         return { rows: [makeRule({ target_url: 'http://127.0.0.1:8080/hook' })] };
       }
-      if (sql.includes('status = \'sent\'')) return { rows: [] };
+      if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
         deliveries.push({ status: params[2], error: params[5] });
         return { rowCount: 1 };

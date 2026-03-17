@@ -51,15 +51,17 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
     onDaysChange?.(next);
   }
 
-  const chartData = Array.from({ length: days }, (_, i) => {
-    const day  = subDays(new Date(), days - 1 - i);
-    const key  = format(day, 'yyyy-MM-dd');
-    const found = data?.find((d) => d.day?.startsWith(key));
-    return {
-      day:   days <= 14 ? format(day, 'MMM d') : i % 7 === 0 ? format(day, 'MMM d') : format(day, 'd'),
-      count: found ? Number.parseInt(found.count, 10) : 0,
-    };
-  });
+  const chartData = useMemo(() => {
+    const dayMap = new Map((data ?? []).map((d) => [String(d.day).slice(0, 10), Number.parseInt(d.count, 10)]));
+    return Array.from({ length: days }, (_, i) => {
+      const day = subDays(new Date(), days - 1 - i);
+      const key = format(day, 'yyyy-MM-dd');
+      return {
+        day: days <= 14 ? format(day, 'MMM d') : i % 7 === 0 ? format(day, 'MMM d') : format(day, 'd'),
+        count: dayMap.get(key) ?? 0,
+      };
+    });
+  }, [data, days]);
 
   if (isLoading) {
     return <div className="h-48 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;

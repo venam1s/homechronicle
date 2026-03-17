@@ -103,7 +103,7 @@ Keep `API_PORT` and `LISTENER_PORT` aligned (default `3001`) or `/api` requests 
 |---|---|---|
 | `ALERTS_ENABLED` | `false` | Enable alert rule processing |
 | `ALERTS_WEBHOOK_TIMEOUT_MS` | `5000` | Webhook delivery timeout |
-| `ALERTS_ALLOW_PRIVATE_TARGETS` | `true` | Allow RFC1918 webhook targets |
+| `ALERTS_ALLOW_PRIVATE_TARGETS` | `false` | Allow RFC1918 webhook targets (set `true` for LAN webhooks) |
 | `RECONNECT_BASE_MS` | `5000` | Initial reconnect delay |
 | `RECONNECT_MAX_MS` | `60000` | Max reconnect delay |
 

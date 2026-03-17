@@ -288,7 +288,7 @@ export async function subscribe(nodeId, callback) {
       try {
         node.events.attributeChanged.off(handler);
         node.events.stateChanged.off(stateHandler);
-      } catch { /* ignore cleanup errors */ }
+      } catch (err) { log.debug('[matter-controller] cleanup error:', err.message); }
     },
   };
 }

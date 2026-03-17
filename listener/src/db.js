@@ -188,6 +188,9 @@ export async function migrateDb() {
     CREATE INDEX IF NOT EXISTS idx_event_logs_timestamp_trunc
       ON event_logs (date_trunc('hour', timestamp AT TIME ZONE 'UTC'));
 
+    CREATE INDEX IF NOT EXISTS idx_event_logs_accessory_id_ts
+      ON event_logs (accessory_id, timestamp DESC, id DESC);
+
     CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled
       ON alert_rules (enabled);
 

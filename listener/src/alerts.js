@@ -6,7 +6,7 @@ const ALERTS_WEBHOOK_TIMEOUT_MS = (() => {
   return parsed;
 })();
 const ALERTS_ALLOW_PRIVATE_TARGETS = /^(1|true|yes|on)$/i.test(
-  process.env.ALERTS_ALLOW_PRIVATE_TARGETS ?? 'true'
+  process.env.ALERTS_ALLOW_PRIVATE_TARGETS ?? 'false'
 );
 
 function normalizeString(value) {
@@ -99,26 +99,6 @@ async function createDelivery(pool, data) {
   );
 }
 
-async function isSuppressed(pool, ruleId, quietMinutes) {
-  const minutes = Number.parseInt(String(quietMinutes ?? 0), 10);
-  if (!Number.isFinite(minutes) || minutes <= 0) return false;
-
-  const result = await pool.query(
-    `SELECT sent_at
-     FROM alert_deliveries
-     WHERE rule_id = $1
-       AND status = 'sent'
-     ORDER BY sent_at DESC
-     LIMIT 1`,
-    [ruleId]
-  );
-  if (!result.rows.length) return false;
-
-  const lastSentAt = new Date(result.rows[0].sent_at).getTime();
-  if (!Number.isFinite(lastSentAt)) return false;
-  return Date.now() - lastSentAt < minutes * 60_000;
-}
-
 async function sendWebhook(rule, event) {
   const target = await resolveAndValidateWebhookTarget(rule.target_url, {
     allowPrivateTargets: ALERTS_ALLOW_PRIVATE_TARGETS,
@@ -177,12 +157,37 @@ export async function processAlertsForEvent(pool, event) {
   );
   if (!rulesResult.rows.length) return;
 
-  for (const rule of rulesResult.rows) {
-    if (!eventMatchesScope(rule, event)) continue;
-    if (!eventMatchesCharacteristic(rule, event)) continue;
-    if (!eventMatchesOperator(rule, event)) continue;
+  // Filter to matching rules first
+  const matchingRules = rulesResult.rows.filter(
+    (rule) =>
+      eventMatchesScope(rule, event) &&
+      eventMatchesCharacteristic(rule, event) &&
+      eventMatchesOperator(rule, event)
+  );
+  if (!matchingRules.length) return;
 
-    const suppressed = await isSuppressed(pool, rule.id, rule.quiet_minutes);
+  // Batch-load last delivery times for all matching rules in one query
+  const ruleIds = matchingRules.map((r) => r.id);
+  const suppressionResult = await pool.query(
+    `SELECT DISTINCT ON (rule_id) rule_id, sent_at
+     FROM alert_deliveries
+     WHERE rule_id = ANY($1)
+       AND status = 'sent'
+     ORDER BY rule_id, sent_at DESC`,
+    [ruleIds]
+  );
+  const lastSentByRule = new Map(
+    suppressionResult.rows.map((r) => [r.rule_id, new Date(r.sent_at).getTime()])
+  );
+
+  const now = Date.now();
+
+  for (const rule of matchingRules) {
+    // Check suppression using batch-loaded data
+    const quietMs = (Number.parseInt(String(rule.quiet_minutes ?? 0), 10) || 0) * 60_000;
+    const lastSent = lastSentByRule.get(rule.id);
+    const suppressed = quietMs > 0 && Number.isFinite(lastSent) && (now - lastSent) < quietMs;
+
     if (suppressed) {
       await createDelivery(pool, {
         ruleId: rule.id,

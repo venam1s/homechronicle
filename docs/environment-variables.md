@@ -45,6 +45,7 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 | Variable | Default | Used by | Description |
 |---|---|---|---|
 | `API_PORT` | `3001` | listener, web proxy | Listener API listen port. |
+| `API_BIND_ADDRESS` | `0.0.0.0` | listener | Bind address for the listener API. Set to `127.0.0.1` to restrict access to localhost. |
 | `NODE_ENV` | `production` | listener | Runtime mode. |
 | `API_TOKEN` | empty | listener + web proxy | Write-route auth token. Required when `NODE_ENV=production` (listener exits if empty). |
 | `API_TOKEN_READS_ENABLED` | `false` | listener | When `true`, `GET`/`HEAD` API routes also require `API_TOKEN`. |
@@ -93,7 +94,7 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 |---|---|---|---|
 | `ALERTS_ENABLED` | `false` | listener | Enable alert rule processing. |
 | `ALERTS_WEBHOOK_TIMEOUT_MS` | `5000` | listener | Timeout for alert webhook delivery. |
-| `ALERTS_ALLOW_PRIVATE_TARGETS` | `true` | listener | Allow webhook targets on RFC1918/private ranges. Loopback/link-local targets are always blocked. |
+| `ALERTS_ALLOW_PRIVATE_TARGETS` | `false` | listener | Allow webhook targets on RFC1918/private ranges. Set to `true` for self-hosted setups where webhooks target LAN services. Loopback/link-local targets are always blocked. |
 | `RUN_CYCLE_OFF_DELAY_MS` | `900000` | listener | Delay synthetic OFF for run-cycle switches. |
 | `RECONNECT_BASE_MS` | `5000` | listener | Initial reconnect delay for HomeKit subscribers. |
 | `RECONNECT_MAX_MS` | `60000` | listener | Max reconnect delay for HomeKit subscribers. |

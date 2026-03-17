@@ -1,0 +1,21 @@
+export const queryKeys = {
+  events: (filters, page) => ['events', filters, page],
+  accessories: () => ['accessories'],
+  accessoryDetail: (id, days, page, limit) => ['accessory-detail', id, days, page, limit],
+  accessoryAnomalies: (id) => ['accessory-anomalies', id],
+  characteristicTrend: (id, char, days) => ['characteristic-trend', id, char, days],
+  accessoryHeatmap: (id, days) => ['accessory-heatmap', id, days],
+  accessoryStateDuration: (id, days) => ['accessory-state-duration', id, days],
+  accessoryCharSummary: (id, days) => ['accessory-char-summary', id, days],
+  stats: {
+    hourly: () => ['stats', 'hourly'],
+    daily: (days) => ['stats', 'daily', days],
+    topDevices: (days) => ['stats', 'top-devices', days],
+    rooms: (days) => ['stats', 'rooms', days],
+    weekday: (days) => ['stats', 'weekday', days],
+    heatmap: () => ['stats', 'heatmap'],
+    devicePatterns: () => ['stats', 'device-patterns'],
+    anomalies: () => ['stats', 'anomalies'],
+    quietHours: () => ['stats', 'quiet-hours'],
+  },
+};

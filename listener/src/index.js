@@ -20,6 +20,7 @@ import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { deriveDeviceHealth } from './device-health.js';
 import { detectOutliers } from './anomaly-detection.js';
+import { cached } from './query-cache.js';
 import { log, getLevel, setLevel } from './logger.js';
 import { secureTokenEquals } from './security.js';
 import {
@@ -379,7 +380,7 @@ function runDiscoveryScan() {
     function fail(err) {
       if (settled) return;
       settled = true;
-      try { discovery?.stop?.(); } catch { /* ignore */ }
+      try { discovery?.stop?.(); } catch (err) { log.debug('[discovery] stop error:', err.message); }
       reject(err instanceof Error ? err : new Error(String(err)));
     }
 
@@ -412,7 +413,7 @@ function runDiscoveryScan() {
       void (async () => {
         if (settled) return;
         try {
-          try { discovery.stop(); } catch { /* ignore stop errors */ }
+          try { discovery.stop(); } catch (err) { log.debug('[discovery] stop error:', err.message); }
           await pairingsStore.refresh();
           const allPairings = loadPairings();
           const currentPairings = getHomeKitPairings(allPairings);
@@ -549,6 +550,18 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
+// Audit logging for mutating requests
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+    const start = Date.now();
+    res.on('finish', () => {
+      log.info(
+        `[audit] ${req.method} ${req.originalUrl} → ${res.statusCode} (${Date.now() - start}ms)`
+      );
+    });
+  }
   next();
 });
 app.use((req, res, next) => {
@@ -1345,14 +1358,129 @@ app.get('/api/accessories/:accessoryId/detail', apiStatsReadLimiter, async (req,
   }
 });
 
+app.get('/api/accessories/:accessoryId/characteristics/:characteristic/trend', apiStatsReadLimiter, async (req, res) => {
+  const accessoryId = String(req.params.accessoryId ?? '').trim();
+  const characteristic = String(req.params.characteristic ?? '').trim();
+  const days = parseIntInRange(req.query.days, 30, 1, 365);
+  if (!accessoryId || !characteristic) {
+    return res.status(400).json({ error: 'accessoryId and characteristic are required' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT timestamp, new_value
+       FROM event_logs
+       WHERE accessory_id = $1
+         AND characteristic = $2
+         AND timestamp >= NOW() - ($3::int * INTERVAL '1 day')
+       ORDER BY timestamp ASC
+       LIMIT 2000`,
+      [accessoryId, characteristic, days]
+    );
+    res.json({ points: result.rows });
+  } catch (err) {
+    log.error('[api] /api/accessories/:accessoryId/characteristics/:characteristic/trend error:', err.message ?? err.stack ?? err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Accessory heatmap: event counts by day-of-week × hour-of-day
+// ---------------------------------------------------------------------------
+app.get('/api/accessories/:accessoryId/heatmap', apiStatsReadLimiter, async (req, res) => {
+  const accessoryId = String(req.params.accessoryId ?? '').trim();
+  if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
+  const days = parseIntInRange(req.query.days, 90, 7, 365);
+  try {
+    const result = await pool.query(
+      `SELECT
+         EXTRACT(DOW FROM timestamp AT TIME ZONE 'UTC')::int AS dow,
+         EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
+         COUNT(*)::int AS count
+       FROM event_logs
+       WHERE accessory_id = $1
+         AND timestamp >= NOW() - ($2::int * INTERVAL '1 day')
+       GROUP BY dow, hour
+       ORDER BY dow, hour`,
+      [accessoryId, days]
+    );
+    res.json({ days, cells: result.rows });
+  } catch (err) {
+    log.error('[api] /api/accessories/:accessoryId/heatmap error:', err.message ?? err.stack ?? err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Accessory state duration: time spent in each state per characteristic
+// ---------------------------------------------------------------------------
+app.get('/api/accessories/:accessoryId/state-duration', apiStatsReadLimiter, async (req, res) => {
+  const accessoryId = String(req.params.accessoryId ?? '').trim();
+  if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
+  const days = parseIntInRange(req.query.days, 30, 1, 365);
+  try {
+    const result = await pool.query(
+      `WITH ordered AS (
+         SELECT characteristic, new_value, timestamp,
+           LEAD(timestamp) OVER (PARTITION BY characteristic ORDER BY timestamp) AS next_ts
+         FROM event_logs
+         WHERE accessory_id = $1
+           AND timestamp >= NOW() - ($2::int * INTERVAL '1 day')
+       )
+       SELECT characteristic, new_value,
+         SUM(EXTRACT(EPOCH FROM (COALESCE(next_ts, NOW()) - timestamp)))::float AS duration_seconds
+       FROM ordered
+       GROUP BY characteristic, new_value
+       ORDER BY characteristic, duration_seconds DESC`,
+      [accessoryId, days]
+    );
+    res.json({ days, durations: result.rows });
+  } catch (err) {
+    log.error('[api] /api/accessories/:accessoryId/state-duration error:', err.message ?? err.stack ?? err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Accessory characteristic summary: min/max/avg/count per characteristic
+// ---------------------------------------------------------------------------
+app.get('/api/accessories/:accessoryId/char-summary', apiStatsReadLimiter, async (req, res) => {
+  const accessoryId = String(req.params.accessoryId ?? '').trim();
+  if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
+  const days = parseIntInRange(req.query.days, 30, 1, 365);
+  try {
+    const result = await pool.query(
+      `SELECT characteristic,
+         COUNT(*)::int AS change_count,
+         MIN(CASE WHEN new_value ~ '^-?[0-9]+\\.?[0-9]*$' THEN new_value::float END) AS min_val,
+         MAX(CASE WHEN new_value ~ '^-?[0-9]+\\.?[0-9]*$' THEN new_value::float END) AS max_val,
+         AVG(CASE WHEN new_value ~ '^-?[0-9]+\\.?[0-9]*$' THEN new_value::float END) AS avg_val,
+         COUNT(CASE WHEN new_value ~ '^-?[0-9]+\\.?[0-9]*$' THEN 1 END)::int AS numeric_count,
+         COUNT(DISTINCT new_value)::int AS distinct_values
+       FROM event_logs
+       WHERE accessory_id = $1
+         AND timestamp >= NOW() - ($2::int * INTERVAL '1 day')
+       GROUP BY characteristic
+       ORDER BY change_count DESC`,
+      [accessoryId, days]
+    );
+    res.json({ days, characteristics: result.rows });
+  } catch (err) {
+    log.error('[api] /api/accessories/:accessoryId/char-summary error:', err.message ?? err.stack ?? err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/stats/hourly', apiStatsReadLimiter, async (_req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC') AS hour, COUNT(*) AS count
-      FROM event_logs WHERE timestamp >= NOW() - INTERVAL '30 days'
-      GROUP BY hour ORDER BY hour
-    `);
-    res.json(result.rows);
+    const rows = await cached('stats:hourly', async () => {
+      const result = await pool.query(`
+        SELECT EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC') AS hour, COUNT(*) AS count
+        FROM event_logs WHERE timestamp >= NOW() - INTERVAL '30 days'
+        GROUP BY hour ORDER BY hour
+      `);
+      return result.rows;
+    }, 60_000);
+    res.json(rows);
   } catch (err) {
     log.error('[api] /api/stats/hourly error:', err.message ?? err.stack ?? err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1362,12 +1490,15 @@ app.get('/api/stats/hourly', apiStatsReadLimiter, async (_req, res) => {
 app.get('/api/stats/daily', apiStatsReadLimiter, async (req, res) => {
   const days = parseIntInRange(req.query.days, 30, 7, 365);
   try {
-    const result = await pool.query(`
-      SELECT DATE(timestamp AT TIME ZONE 'UTC') AS day, COUNT(*) AS count
-      FROM event_logs WHERE timestamp >= NOW() - ($1::int * INTERVAL '1 day')
-      GROUP BY day ORDER BY day
-    `, [days]);
-    res.json(result.rows);
+    const rows = await cached(`stats:daily:${days}`, async () => {
+      const result = await pool.query(`
+        SELECT DATE(timestamp AT TIME ZONE 'UTC') AS day, COUNT(*) AS count
+        FROM event_logs WHERE timestamp >= NOW() - ($1::int * INTERVAL '1 day')
+        GROUP BY day ORDER BY day
+      `, [days]);
+      return result.rows;
+    }, 60_000);
+    res.json(rows);
   } catch (err) {
     log.error('[api] /api/stats/daily error:', err.message ?? err.stack ?? err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1444,17 +1575,20 @@ app.get('/api/stats/rooms', apiStatsReadLimiter, async (req, res) => {
 app.get('/api/stats/weekday', apiStatsReadLimiter, async (req, res) => {
   const days = parseIntInRange(req.query.days, 90, 7, 365);
   try {
-    const result = await pool.query(`
-      SELECT
-        EXTRACT(DOW  FROM timestamp AT TIME ZONE 'UTC')::int AS day_of_week,
-        EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
-        COUNT(*)::int AS count
-      FROM event_logs
-      WHERE timestamp >= NOW() - ($1::int * INTERVAL '1 day')
-      GROUP BY day_of_week, hour
-      ORDER BY day_of_week, hour
-    `, [days]);
-    res.json(result.rows);
+    const rows = await cached(`stats:weekday:${days}`, async () => {
+      const result = await pool.query(`
+        SELECT
+          EXTRACT(DOW  FROM timestamp AT TIME ZONE 'UTC')::int AS day_of_week,
+          EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
+          COUNT(*)::int AS count
+        FROM event_logs
+        WHERE timestamp >= NOW() - ($1::int * INTERVAL '1 day')
+        GROUP BY day_of_week, hour
+        ORDER BY day_of_week, hour
+      `, [days]);
+      return result.rows;
+    }, 120_000);
+    res.json(rows);
   } catch (err) {
     log.error('[api] /api/stats/weekday error:', err.message ?? err.stack ?? err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1463,16 +1597,19 @@ app.get('/api/stats/weekday', apiStatsReadLimiter, async (req, res) => {
 
 app.get('/api/stats/heatmap', apiStatsReadLimiter, async (_req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT accessory_name,
-             EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
-             COUNT(*)::int AS count
-      FROM event_logs
-      WHERE timestamp >= NOW() - INTERVAL '7 days'
-      GROUP BY accessory_name, hour
-      ORDER BY accessory_name, hour
-    `);
-    res.json(result.rows);
+    const rows = await cached('stats:heatmap', async () => {
+      const result = await pool.query(`
+        SELECT accessory_name,
+               EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
+               COUNT(*)::int AS count
+        FROM event_logs
+        WHERE timestamp >= NOW() - INTERVAL '7 days'
+        GROUP BY accessory_name, hour
+        ORDER BY accessory_name, hour
+      `);
+      return result.rows;
+    }, 60_000);
+    res.json(rows);
   } catch (err) {
     log.error('[api] /api/stats/heatmap error:', err.message ?? err.stack ?? err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1481,16 +1618,19 @@ app.get('/api/stats/heatmap', apiStatsReadLimiter, async (_req, res) => {
 
 app.get('/api/stats/device-patterns', apiStatsReadLimiter, async (_req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT accessory_name,
-             EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
-             COUNT(*)::int AS total_count
-      FROM event_logs
-      WHERE timestamp >= NOW() - INTERVAL '30 days'
-      GROUP BY accessory_name, hour
-      ORDER BY accessory_name, hour
-    `);
-    res.json(result.rows);
+    const rows = await cached('stats:device-patterns', async () => {
+      const result = await pool.query(`
+        SELECT accessory_name,
+               EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
+               COUNT(*)::int AS total_count
+        FROM event_logs
+        WHERE timestamp >= NOW() - INTERVAL '30 days'
+        GROUP BY accessory_name, hour
+        ORDER BY accessory_name, hour
+      `);
+      return result.rows;
+    }, 120_000);
+    res.json(rows);
   } catch (err) {
     log.error('[api] /api/stats/device-patterns error:', err.message ?? err.stack ?? err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1499,7 +1639,7 @@ app.get('/api/stats/device-patterns', apiStatsReadLimiter, async (_req, res) => 
 
 app.get('/api/stats/anomalies', apiStatsReadLimiter, async (_req, res) => {
   try {
-    const [deviceRows, roomRows] = await Promise.all([
+    const [deviceRows, roomRows] = await cached('stats:anomalies', () => Promise.all([
       pool.query(`
         WITH scope_set AS (
           SELECT DISTINCT accessory_name AS scope_name
@@ -1618,7 +1758,7 @@ app.get('/api/stats/anomalies', apiStatsReadLimiter, async (_req, res) => {
          AND current_window.hour = baseline.hour
         WHERE baseline.baseline_days > 0
       `),
-    ]);
+    ]), 120_000);
 
     const deviceOutliers = detectOutliers(deviceRows.rows, 'device').slice(0, 50);
     const roomOutliers = detectOutliers(roomRows.rows, 'room').slice(0, 50);
@@ -1649,8 +1789,10 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  log.info(`[api] Listening on port ${PORT}`);
+const API_BIND_ADDRESS = (process.env.API_BIND_ADDRESS ?? '').trim() || '0.0.0.0';
+
+app.listen(PORT, API_BIND_ADDRESS, () => {
+  log.info(`[api] Listening on ${API_BIND_ADDRESS}:${PORT}`);
   if (API_TOKEN) {
     log.info('[api] Write auth enabled for POST/PATCH/DELETE routes');
     if (API_TOKEN_READS_ENABLED) {

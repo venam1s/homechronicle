@@ -128,6 +128,7 @@ export default function Alerts() {
             value={form.name}
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
             placeholder="Rule name"
+            aria-label="Rule name"
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
             required
           />
@@ -136,12 +137,14 @@ export default function Alerts() {
             value={form.targetUrl}
             onChange={(e) => setForm((prev) => ({ ...prev, targetUrl: e.target.value }))}
             placeholder="Webhook URL (https://...)"
+            aria-label="Webhook URL"
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
             required
           />
           <select
             value={form.scopeType}
             onChange={(e) => setForm((prev) => ({ ...prev, scopeType: e.target.value }))}
+            aria-label="Scope type"
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
           >
             <option value="all">All events</option>
@@ -154,6 +157,7 @@ export default function Alerts() {
             value={form.scopeValue}
             onChange={(e) => setForm((prev) => ({ ...prev, scopeValue: e.target.value }))}
             placeholder="Scope value (optional for All)"
+            aria-label="Scope value"
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
           />
           <input
@@ -161,11 +165,13 @@ export default function Alerts() {
             value={form.characteristic}
             onChange={(e) => setForm((prev) => ({ ...prev, characteristic: e.target.value }))}
             placeholder="Characteristic filter (optional)"
+            aria-label="Characteristic filter"
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
           />
           <select
             value={form.operator}
             onChange={(e) => setForm((prev) => ({ ...prev, operator: e.target.value }))}
+            aria-label="Match operator"
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
           >
             <option value="equals">Equals</option>
@@ -177,6 +183,7 @@ export default function Alerts() {
             value={form.matchValue}
             onChange={(e) => setForm((prev) => ({ ...prev, matchValue: e.target.value }))}
             placeholder="Match value"
+            aria-label="Match value"
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
             required
           />
@@ -187,6 +194,7 @@ export default function Alerts() {
             value={form.quietMinutes}
             onChange={(e) => setForm((prev) => ({ ...prev, quietMinutes: e.target.value }))}
             placeholder="Quiet period (minutes)"
+            aria-label="Quiet period in minutes"
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
           />
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">

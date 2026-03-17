@@ -21,6 +21,18 @@ export default defineConfig({
     __BUILD_DATE__: JSON.stringify(buildDate),
   },
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'vendor-react';
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'vendor-charts';
+          if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
+          if (id.includes('node_modules/date-fns')) return 'vendor-dates';
+        },
+      },
+    },
+  },
   server: {
     host: true,
     // Proxy /api calls to the listener during local development

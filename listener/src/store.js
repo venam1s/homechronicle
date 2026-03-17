@@ -11,6 +11,7 @@ export class JsonObjectStore {
     this.defaultValue = clone(defaultValue);
     this.cache = clone(defaultValue);
     this.lastMtimeMs = 0;
+    this._writeLock = Promise.resolve();
   }
 
   async init() {
@@ -47,6 +48,20 @@ export class JsonObjectStore {
   }
 
   async write(nextValue) {
+    // Serialize writes to prevent concurrent read-modify-write races.
+    const prev = this._writeLock;
+    let releaseLock;
+    this._writeLock = new Promise((resolve) => { releaseLock = resolve; });
+
+    try {
+      await prev;
+      return await this._doWrite(nextValue);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async _doWrite(nextValue) {
     const normalized = (nextValue && typeof nextValue === 'object' && !Array.isArray(nextValue))
       ? nextValue
       : clone(this.defaultValue);

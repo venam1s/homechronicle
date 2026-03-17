@@ -124,9 +124,9 @@ export default function HeatmapLane() {
 
           {/* Bottom axis: midnight / 6 am / noon / 6 pm */}
           <div style={{ display: 'flex', marginLeft: LABEL, marginTop: 4 }}>
-            {AXIS_LABELS.map((label, i) => (
+            {AXIS_LABELS.map((label) => (
               <div
-                key={i}
+                key={label || 'end'}
                 style={{
                   width:      6 * (CELL + GAP),
                   flexShrink: 0,

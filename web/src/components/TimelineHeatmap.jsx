@@ -156,8 +156,8 @@ function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onClickCell, locke
 
           {/* Time-of-day axis */}
           <div style={{ display: 'flex', marginLeft: LABEL, marginTop: 3 }}>
-            {['midnight', '6 am', 'noon', '6 pm', ''].map((label, i) => (
-              <div key={i} style={{ width: 6 * (CELL + GAP), flexShrink: 0, fontSize: 9, color: 'var(--hc-chart-sublabel)' }}>
+            {['midnight', '6 am', 'noon', '6 pm', ''].map((label) => (
+              <div key={label || 'end'} style={{ width: 6 * (CELL + GAP), flexShrink: 0, fontSize: 9, color: 'var(--hc-chart-sublabel)' }}>
                 {label}
               </div>
             ))}

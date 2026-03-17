@@ -323,6 +323,7 @@ export default function Timeline() {
           {!isJumping && (
             <button
               onClick={() => setLockedCell(null)}
+              aria-label="Clear heatmap selection"
               className="text-[10px] text-gray-400 hover:text-gray-600 underline ml-auto flex-shrink-0"
             >
               clear
@@ -427,6 +428,7 @@ export default function Timeline() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
+                  aria-label="Previous page"
                   className="flex items-center gap-1 disabled:opacity-40"
                 >
                   <ChevronLeft size={16} /> Previous
@@ -435,6 +437,7 @@ export default function Timeline() {
                 <button
                   onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
                   disabled={page === data.pages}
+                  aria-label="Next page"
                   className="flex items-center gap-1 disabled:opacity-40"
                 >
                   Next <ChevronRight size={16} />

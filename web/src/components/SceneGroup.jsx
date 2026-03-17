@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ChevronDown, ChevronRight, Zap, AlertTriangle } from 'lucide-react';
 import EventRow from './EventRow.jsx';
 
@@ -12,7 +12,7 @@ import EventRow from './EventRow.jsx';
  *   hoveredCell   — { accessoryName, hour } | null from TimelineHeatmap hover
  *   onMute        — fn(accessoryName) — mute a device from the timeline
  */
-export default function SceneGroup({ events, eventMetaMap = {}, hoveredCell, onMute, onSelectAccessory }) {
+export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell, onMute, onSelectAccessory }) {
   const [expanded, setExpanded] = useState(false);
 
   // ── Single event — render a plain EventRow ──────────────────────────────
@@ -121,4 +121,4 @@ export default function SceneGroup({ events, eventMetaMap = {}, hoveredCell, onM
       )}
     </div>
   );
-}
+})
