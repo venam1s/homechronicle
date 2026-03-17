@@ -33,12 +33,11 @@ COPY src/ ./src/
 # Pairing keys and persistent data are volume-mounted at /app/data
 RUN mkdir -p /app/data
 
-# Run as non-root. The host volume for /app/data must be writable by uid 1000
+# Run as the built-in non-root `node` user (uid 1000).
+# The host volume for /app/data must be writable by uid 1000
 # (e.g. `chown 1000:1000 /path/to/listener/data` on the host).
-RUN groupadd -g 1000 appuser && \
-    useradd -u 1000 -g appuser -s /bin/sh appuser && \
-    chown -R appuser:appuser /app
+RUN chown -R node:node /app
 
-USER appuser
+USER node
 
 CMD ["node", "src/index.js"]
