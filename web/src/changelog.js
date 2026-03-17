@@ -12,6 +12,16 @@
 const CHANGELOG = [
   {
     version: 'v0.1.4-beta',
+    title: 'Protocol badges, license change & room color improvements',
+    items: [
+      'Accessories: protocol badge (Matter / HomeKit) on each accessory row',
+      'Room colors: improved hash function for more even color distribution',
+      'Room colors: reordered palette so adjacent rooms get more distinct colors',
+      'License changed from MIT to AGPL-3.0',
+    ],
+  },
+  {
+    version: 'v0.1.4-beta',
     title: 'Performance, security hardening & accessibility',
     items: [
       'Performance: server-side TTL cache for stats endpoints (stale-while-revalidate)',

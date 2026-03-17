@@ -1,5 +1,4 @@
 # HomeChronicle
-# HomeChronicle
 
 ![Release](https://img.shields.io/github/v/release/havuq/homechronicle)
 ![License](https://img.shields.io/github/license/havuq/homechronicle)
@@ -123,4 +122,4 @@ See [limitations.md](limitations.md) for current constraints, supported Matter c
 
 ## License
 
-[AGPL-3.0](LICENSE)
+MIT

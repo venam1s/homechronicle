@@ -250,7 +250,12 @@ export default function AccessoryList({ onSelectAccessory }) {
                   {/* Text */}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-900 truncate">{accessory.accessory_name}</div>
-                    <div className="text-xs text-gray-400 mt-0.5 flex flex-wrap gap-x-1.5">
+                    <div className="text-xs text-gray-400 mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                      {accessory.protocol && (
+                        <span className="inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1 py-px bg-gray-100 text-gray-500 border border-gray-200">
+                          {accessory.protocol === 'matter' ? 'Matter' : 'HomeKit'}
+                        </span>
+                      )}
                       {accessory.service_type
                         ? <span>{accessory.service_type}</span>
                         : <span className="italic">waiting for first event</span>
