@@ -122,4 +122,4 @@ See [limitations.md](limitations.md) for current constraints, supported Matter c
 
 ## License
 
-MIT
+[AGPL-3.0](LICENSE)
