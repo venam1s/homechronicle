@@ -1,4 +1,13 @@
 # HomeChronicle
+# HomeChronicle
+
+![Release](https://img.shields.io/github/v/release/havuq/homechronicle)
+![License](https://img.shields.io/github/license/havuq/homechronicle)
+![Last Commit](https://img.shields.io/github/last-commit/havuq/homechronicle)
+
+![Docker](https://img.shields.io/badge/docker-supported-blue?logo=docker)
+![Self Hosted](https://img.shields.io/badge/self--hosted-yes-purple)
+![HomeKit](https://img.shields.io/badge/apple-homekit-black?logo=apple)
 
 HomeChronicle is a self-hosted event log for Apple HomeKit.
 It shows what happened in your home over time, not just the current state.
@@ -114,4 +123,4 @@ See [limitations.md](limitations.md) for current constraints, supported Matter c
 
 ## License
 
-MIT
+[AGPL-3.0](LICENSE)
