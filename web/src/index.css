@@ -105,6 +105,24 @@
     --hc-glow-2: rgba(129, 140, 248, 0.11);
   }
 
+  html[data-skin='slate'] {
+    --hc-accent-rgb: 71, 85, 105;
+    --hc-accent-soft: #e2e8f0;
+    --hc-accent-strong: #475569;
+    --hc-accent-stronger: #1e293b;
+    --hc-glow-1: rgba(71, 85, 105, 0.16);
+    --hc-glow-2: rgba(100, 116, 139, 0.11);
+  }
+
+  html[data-skin='alabaster'] {
+    --hc-accent-rgb: 120, 113, 108;
+    --hc-accent-soft: #f5f5f4;
+    --hc-accent-strong: #78716c;
+    --hc-accent-stronger: #44403c;
+    --hc-glow-1: rgba(120, 113, 108, 0.16);
+    --hc-glow-2: rgba(168, 162, 158, 0.11);
+  }
+
   html.theme-dark[data-skin='graphite'] {
     --hc-glow-1: rgba(20, 184, 166, 0.09);
     --hc-glow-2: rgba(100, 116, 139, 0.12);
@@ -128,6 +146,24 @@
   html.theme-dark[data-skin='purple'] {
     --hc-glow-1: rgba(196, 181, 253, 0.1);
     --hc-glow-2: rgba(167, 139, 250, 0.08);
+  }
+
+  html.theme-dark[data-skin='slate'] {
+    --hc-accent-rgb: 148, 163, 184;
+    --hc-accent-soft: #1e293b;
+    --hc-accent-strong: #94a3b8;
+    --hc-accent-stronger: #cbd5e1;
+    --hc-glow-1: rgba(148, 163, 184, 0.1);
+    --hc-glow-2: rgba(112, 128, 144, 0.08);
+  }
+
+  html.theme-dark[data-skin='alabaster'] {
+    --hc-accent-rgb: 168, 162, 158;
+    --hc-accent-soft: #292524;
+    --hc-accent-strong: #a8a29e;
+    --hc-accent-stronger: #d6d3d1;
+    --hc-glow-1: rgba(168, 162, 158, 0.1);
+    --hc-glow-2: rgba(120, 113, 108, 0.08);
   }
 }
 

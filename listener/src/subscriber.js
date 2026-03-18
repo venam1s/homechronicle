@@ -302,16 +302,22 @@ function connectAccessory(session, pairing) {
       scheduleReconnect(session, pairing);
     }
 
-    // Poll current values so every watched accessory appears immediately,
-    // even if it never fires a change event.  Uses getCharacteristics() to
-    // read the current value for each watched aid.iid, then feeds them
-    // through the normal handleEvent path (which deduplicates via valueCache).
+    // Seed the valueCache with current values so the first real change event
+    // has a correct old_value.  We intentionally do NOT insert these into the
+    // DB — they aren't real activity and would flood the timeline with
+    // hundreds of simultaneous old_value=null entries on every restart.
     try {
       const result = await client.getCharacteristics(watchedKeys);
       const values = result?.characteristics ?? [];
+      for (const ch of values) {
+        const meta = iidMeta.get(`${ch.aid}.${ch.iid}`);
+        if (!meta) continue;
+        const effectiveId = ch.aid > 1 ? `${deviceId}:${ch.aid}` : deviceId;
+        const cacheKey = `${effectiveId}:${ch.aid}.${ch.iid}`;
+        valueCache.set(cacheKey, String(ch.value));
+      }
       if (values.length > 0) {
-        await handleEvent({ characteristics: values });
-        log.info(`[subscriber] ${accessoryName}: polled ${values.length} initial value(s)`);
+        log.info(`[subscriber] ${accessoryName}: seeded ${values.length} initial value(s)`);
       }
     } catch (err) {
       log.debug(`[subscriber] ${accessoryName}: initial poll failed: ${err.message ?? err}`);
