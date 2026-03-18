@@ -86,13 +86,14 @@ export default function Timeline() {
       if (!baseEvents.length) return;
 
       const baseVisibleCount = baseEvents.filter((e) => !muted.has(e.accessory_name)).length;
-      if (baseVisibleCount >= PAGE_SIZE || page >= (data?.pages ?? 1)) return;
+      const totalPages = data?.pages ?? 1;
+      if (baseVisibleCount >= PAGE_SIZE || page >= totalPages) return;
 
       const extras = [];
       let visibleCount = baseVisibleCount;
       let nextPage = page + 1;
 
-      while (visibleCount < PAGE_SIZE && nextPage <= data.pages) {
+      while (visibleCount < PAGE_SIZE && nextPage <= totalPages) {
         const qs = new URLSearchParams({ ...filters, page: String(nextPage), limit: String(PAGE_SIZE) });
         const res = await fetch(`${API_BASE}/events?${qs}`, { headers: withApiAuthHeaders() });
         if (!res.ok) break;
@@ -423,7 +424,7 @@ export default function Timeline() {
               </div>
             ))}
 
-            {data.pages > 1 && (
+            {(data?.pages ?? 1) > 1 && (
               <div className="flex items-center justify-between px-4 py-3 text-sm text-gray-600">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -433,10 +434,10 @@ export default function Timeline() {
                 >
                   <ChevronLeft size={16} /> Previous
                 </button>
-                <span>Page {page} of {data.pages}</span>
+                <span>Page {page} of {data?.pages ?? 1}</span>
                 <button
-                  onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
-                  disabled={page === data.pages}
+                  onClick={() => setPage((p) => Math.min(data?.pages ?? 1, p + 1))}
+                  disabled={page === (data?.pages ?? 1)}
                   aria-label="Next page"
                   className="flex items-center gap-1 disabled:opacity-40"
                 >

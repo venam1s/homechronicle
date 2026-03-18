@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useHeatmap } from '../hooks/useEvents.js';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
 import { BarChart2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -81,17 +82,25 @@ export default function TimelineHeatmap({
   );
 }
 
+const DEFAULT_VISIBLE_ROWS = 20;
+
 function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onClickCell, lockedCell }) {
+  const [expanded, setExpanded] = useState(false);
+
   const deviceMap = {};
   for (const row of data) {
     if (!deviceMap[row.accessory_name]) deviceMap[row.accessory_name] = new Array(24).fill(0);
     deviceMap[row.accessory_name][row.hour] = row.count;
   }
 
-  const devices = Object.entries(deviceMap).sort(
-    ([, a], [, b]) => b.reduce((s, v) => s + v, 0) - a.reduce((s, v) => s + v, 0)
-  );
-  const maxCount = Math.max(...devices.flatMap(([, h]) => h), 1);
+  // Filter out accessories with very low activity (≤1 event in 7 days) and sort by total
+  const allDevices = Object.entries(deviceMap)
+    .map(([name, hours]) => [name, hours, hours.reduce((s, v) => s + v, 0)])
+    .filter(([, , total]) => total > 1)
+    .sort(([, , a], [, , b]) => b - a);
+  const devices = expanded ? allDevices : allDevices.slice(0, DEFAULT_VISIBLE_ROWS);
+  const hasMore = allDevices.length > DEFAULT_VISIBLE_ROWS;
+  const maxCount = Math.max(...allDevices.flatMap(([, h]) => h), 1);
 
   return (
     <div className="max-w-2xl mx-auto px-4 pb-3">
@@ -102,7 +111,7 @@ function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onClickCell, locke
         <div style={{ minWidth: LABEL + 24 * (CELL + GAP) }}>
 
           {/* Device rows */}
-          {devices.map(([name, hours]) => (
+          {devices.map(([name, hours, _total]) => (
             <div key={name} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
               <div
                 style={{ width: LABEL, flexShrink: 0, paddingRight: 8, textAlign: 'right', fontSize: 10, color: 'var(--hc-chart-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: `${CELL}px` }}
@@ -165,6 +174,17 @@ function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onClickCell, locke
 
         </div>
       </div>
+      {hasMore && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="text-[10px] mt-1 hover:underline"
+          style={{ color: 'var(--hc-accent-strong)' }}
+        >
+          {expanded
+            ? 'Show less'
+            : `Show ${allDevices.length - DEFAULT_VISIBLE_ROWS} more accessories…`}
+        </button>
+      )}
     </div>
   );
 }
