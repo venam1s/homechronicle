@@ -4,26 +4,25 @@
  */
 
 const PALETTE = [
-  { bg: '#dbeafe', text: '#1e40af', dot: '#3b82f6' }, // blue
-  { bg: '#fee2e2', text: '#991b1b', dot: '#ef4444' }, // red
-  { bg: '#ccfbf1', text: '#115e59', dot: '#14b8a6' }, // teal
+  { bg: '#fee2e2', text: '#991b1b', dot: '#f87171' }, // red
+  { bg: '#dbeafe', text: '#1e40af', dot: '#60a5fa' }, // blue
   { bg: '#fef3c7', text: '#92400e', dot: '#f59e0b' }, // amber
-  { bg: '#ede9fe', text: '#5b21b6', dot: '#8b5cf6' }, // violet
-  { bg: '#fff7ed', text: '#7c2d12', dot: '#f97316' }, // orange
-  { bg: '#fce7f3', text: '#9d174d', dot: '#ec4899' }, // pink
-  { bg: '#d1fae5', text: '#065f46', dot: '#10b981' }, // emerald
-  { bg: '#fdf4ff', text: '#701a75', dot: '#d946ef' }, // fuchsia
-  { bg: '#e0e7ff', text: '#3730a3', dot: '#6366f1' }, // indigo
-  { bg: '#fef9c3', text: '#713f12', dot: '#eab308' }, // yellow
-  { bg: '#fecdd3', text: '#881337', dot: '#f43f5e' }, // rose
+  { bg: '#ede9fe', text: '#5b21b6', dot: '#a78bfa' }, // violet
+  { bg: '#d1fae5', text: '#065f46', dot: '#34d399' }, // emerald
+  { bg: '#fce7f3', text: '#9d174d', dot: '#f472b6' }, // pink
+  { bg: '#fff7ed', text: '#7c2d12', dot: '#fb923c' }, // orange
+  { bg: '#e0f2fe', text: '#075985', dot: '#38bdf8' }, // sky
+  { bg: '#f5f3ff', text: '#4c1d95', dot: '#8b5cf6' }, // purple
+  { bg: '#ecfdf5', text: '#064e3b', dot: '#6ee7b7' }, // teal
+  { bg: '#fdf4ff', text: '#701a75', dot: '#e879f9' }, // fuchsia
+  { bg: '#f0fdf4', text: '#14532d', dot: '#86efac' }, // green
 ];
 
 export function getRoomColor(roomName) {
   if (!roomName) return null;
   let hash = 0;
   for (let i = 0; i < roomName.length; i++) {
-    hash = Math.imul(hash ^ roomName.charCodeAt(i), 3266489917) >>> 0;
+    hash = (hash * 31 + roomName.charCodeAt(i)) >>> 0;
   }
-  hash = ((hash >>> 16) ^ hash) >>> 0;
   return PALETTE[hash % PALETTE.length];
 }
