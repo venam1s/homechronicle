@@ -93,10 +93,8 @@ function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onClickCell, locke
     deviceMap[row.accessory_name][row.hour] = row.count;
   }
 
-  // Filter out accessories with very low activity (≤1 event in 7 days) and sort by total
   const allDevices = Object.entries(deviceMap)
     .map(([name, hours]) => [name, hours, hours.reduce((s, v) => s + v, 0)])
-    .filter(([, , total]) => total > 1)
     .sort(([, , a], [, , b]) => b - a);
   const devices = expanded ? allDevices : allDevices.slice(0, DEFAULT_VISIBLE_ROWS);
   const hasMore = allDevices.length > DEFAULT_VISIBLE_ROWS;

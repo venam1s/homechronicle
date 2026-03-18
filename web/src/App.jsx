@@ -43,24 +43,20 @@ const DASHBOARD_SYNC_STORAGE_KEY = 'hc_dashboard_sync_ranges';
 
 const STYLES = [
   { id: 'ocean', label: 'Ocean' },
-  { id: 'bubblegum', label: 'Bubblegum' },
-  { id: 'coral', label: 'Coral' },
-  { id: 'golden', label: 'Golden' },
-  { id: 'violet', label: 'Violet' },
-  { id: 'teal', label: 'Teal' },
-  { id: 'slate', label: 'Slate Grey' },
-  { id: 'alabaster', label: 'Alabaster' },
+  { id: 'graphite', label: 'Graphite' },
+  { id: 'sunrise', label: 'Sunrise' },
+  { id: 'red', label: 'Red' },
+  { id: 'yellow', label: 'Yellow' },
+  { id: 'purple', label: 'Purple' },
 ];
 
 const SKIN_SWATCH = {
   ocean: 'from-sky-500 to-cyan-600',
-  bubblegum: 'from-pink-400 to-rose-500',
-  coral: 'from-orange-300 to-red-400',
-  golden: 'from-yellow-400 to-amber-500',
-  violet: 'from-violet-500 to-indigo-500',
-  teal: 'from-teal-500 to-emerald-700',
-  slate: 'from-slate-400 to-slate-600',
-  alabaster: 'from-stone-300 to-stone-400',
+  graphite: 'from-teal-500 to-slate-500',
+  sunrise: 'from-orange-400 to-pink-500',
+  red: 'from-red-500 to-rose-600',
+  yellow: 'from-yellow-400 to-amber-500',
+  purple: 'from-violet-500 to-purple-600',
 };
 
 const SKIN_SWATCH_DARK = {
