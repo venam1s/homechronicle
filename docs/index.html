@@ -784,7 +784,7 @@
         <div class="feature-card">
           <div class="feature-icon fi-blue">&#x1F433;</div>
           <h3>Docker Ready</h3>
-          <p>Single <code>docker compose up</code> deploys everything. PostgreSQL, listener, and web dashboard — no build steps required.</p>
+          <p>Single <code>docker run</code> deploys everything. Or use Docker Compose for fine-grained control. No build steps required.</p>
         </div>
       </div>
     </div>
@@ -993,28 +993,52 @@
       <div class="section-label">Quick Start</div>
       <div class="section-title">Up and running in minutes</div>
       <div class="section-desc">
-        Clone the repo, start Docker Compose, and open the browser. Pair your first device from the built-in setup wizard.
+        One command to deploy. Pair your first device from the built-in setup wizard.
       </div>
 
       <div class="code-tabs">
         <div class="code-tab-list" role="tablist" aria-label="Getting started examples">
-          <button type="button" class="code-tab" role="tab" aria-selected="true" aria-controls="tab-quickstart" id="tab-btn-quickstart">Clone + Run</button>
-          <button type="button" class="code-tab" role="tab" aria-selected="false" aria-controls="tab-compose" id="tab-btn-compose">docker-compose.yml</button>
+          <button type="button" class="code-tab" role="tab" aria-selected="true" aria-controls="tab-standalone" id="tab-btn-standalone">Docker Run</button>
+          <button type="button" class="code-tab" role="tab" aria-selected="false" aria-controls="tab-quickstart" id="tab-btn-quickstart">Docker Compose</button>
+          <button type="button" class="code-tab" role="tab" aria-selected="false" aria-controls="tab-compose" id="tab-btn-compose">Compose File</button>
         </div>
 
-        <div class="code-tab-panel" role="tabpanel" id="tab-quickstart" aria-labelledby="tab-btn-quickstart">
+        <div class="code-tab-panel" role="tabpanel" id="tab-standalone" aria-labelledby="tab-btn-standalone">
           <div class="code-block">
-            <span class="comment"># Requirements: Docker Engine + Docker Compose plugin</span><br>
-            <span class="cmd">docker --version</span><br>
-            <span class="cmd">docker compose version</span><br><br>
+            <div class="code-block-head">
+              <span class="code-caption">All-in-one &mdash; PostgreSQL, listener, and web UI in a single container</span>
+              <button type="button" class="copy-btn" data-copy-target="standalone-cmd">Copy</button>
+            </div>
+<pre id="standalone-cmd">docker run -d \
+  --name homechronicle \
+  --network host \
+  -e WEB_PORT=3000 \
+  -v hc-db:/var/lib/postgresql/data \
+  -v hc-data:/app/listener/data \
+  -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro \
+  ghcr.io/havuq/homechronicle/standalone</pre>
+            <br>
+            <span class="comment"># Open the dashboard</span><br>
+            <span class="cmd">open</span> http://localhost:3000<br><br>
+            <span class="comment"># No host networking? Use bridge mode instead:</span><br>
+            <span class="comment"># docker run -d --name homechronicle -p 3000:80 \</span><br>
+            <span class="comment">#   -v hc-db:/var/lib/postgresql/data \</span><br>
+            <span class="comment">#   -v hc-data:/app/listener/data \</span><br>
+            <span class="comment">#   ghcr.io/havuq/homechronicle/standalone</span>
+          </div>
+        </div>
+
+        <div class="code-tab-panel" role="tabpanel" id="tab-quickstart" aria-labelledby="tab-btn-quickstart" hidden>
+          <div class="code-block">
             <span class="comment"># Clone the repository</span><br>
             <span class="cmd">git clone</span> https://github.com/havuq/homechronicle.git<br>
             <span class="cmd">cd</span> homechronicle<br><br>
             <span class="comment"># Create persistent listener data directory</span><br>
             <span class="cmd">mkdir -p</span> listener/data<br><br>
-            <span class="comment"># Generate API token and paste it into docker-compose.yml</span><br>
-            <span class="cmd">openssl rand -hex 32</span><br><br>
-            <span class="comment"># Start all services</span><br>
+            <span class="comment"># Copy environment config and set your secrets</span><br>
+            <span class="cmd">cp</span> .env.example .env<br>
+            <span class="cmd">openssl rand -hex 32</span>  <span class="comment"># paste as API_TOKEN in .env</span><br><br>
+            <span class="comment"># Start all services (3 containers: postgres, listener, web)</span><br>
             <span class="cmd">docker compose up -d</span><br><br>
             <span class="comment"># Open the dashboard</span><br>
             <span class="cmd">open</span> http://localhost:3000
@@ -1095,7 +1119,7 @@ volumes:
         <div>
           <div class="step-number">1</div>
           <h3>Deploy</h3>
-          <p>Run Docker Compose on any machine &mdash; NAS, Raspberry Pi, or desktop.</p>
+          <p>One <code>docker run</code> on any machine &mdash; NAS, Raspberry Pi, or desktop.</p>
         </div>
         <div>
           <div class="step-number">2</div>

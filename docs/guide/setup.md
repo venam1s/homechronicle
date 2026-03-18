@@ -1,5 +1,9 @@
 # Setup Guide
 
+> **Looking for the simplest install?** The [Standalone Docker](standalone.md) image bundles everything into a single `docker run` command — no compose file needed.
+
+This guide covers the **Docker Compose** setup, which gives you separate containers and more control.
+
 ## Prerequisites
 
 - **Docker Engine** and **Docker Compose** plugin installed

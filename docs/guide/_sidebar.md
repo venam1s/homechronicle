@@ -10,4 +10,5 @@
 - **Help**
   - [Troubleshooting](troubleshooting.md)
   - [Mobile Install (PWA)](mobile-install.md)
+  - [Standalone Docker](standalone.md)
   - [Portainer Deployment](portainer.md)

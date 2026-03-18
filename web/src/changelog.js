@@ -18,6 +18,7 @@ const CHANGELOG = [
       'Room colors: improved hash function for more even color distribution',
       'Room colors: reordered palette so adjacent rooms get more distinct colors',
       'License changed from MIT to AGPL-3.0',
+      'Standalone Docker image: single container with PostgreSQL, listener, and web UI built in',
     ],
   },
   {

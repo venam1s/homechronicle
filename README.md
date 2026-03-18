@@ -20,52 +20,41 @@ It shows what happened in your home over time, not just the current state.
 - Works with Homebridge bridges and child devices
 - Runs 24/7 with Docker
 
-## Quick Start (Docker Compose)
+## Quick Start
 
-### 1. Install requirements
+The fastest way to get running — one command, everything included:
 
-- Docker
-- Docker Compose
+```bash
+docker run -d \
+  --name homechronicle \
+  --network host \
+  -e WEB_PORT=3000 \
+  -v hc-db:/var/lib/postgresql/data \
+  -v hc-data:/app/listener/data \
+  -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro \
+  ghcr.io/havuq/homechronicle/standalone
+```
 
-### 2. Download and configure
+Open `http://localhost:3000` (or `http://<your-server-ip>:3000` from another device).
+
+> **Bridge mode:** If you don't need HomeKit/Matter discovery, you can use `-p 3000:80` instead of `--network host`. See the [Standalone Docker docs](https://homechronicle.net/guide/#/standalone) for details.
+
+### Docker Compose (alternative)
+
+For more control (separate containers, external PostgreSQL access, per-service resource limits):
 
 ```bash
 git clone https://github.com/havuq/homechronicle.git
 cd homechronicle
 cp .env.example .env
+# Set POSTGRES_PASSWORD and API_TOKEN in .env
+docker compose up -d
 ```
-
-Open `.env` and set a strong `POSTGRES_PASSWORD` and `API_TOKEN`.
-
-Generate a secure API token (example):
-
-```bash
-openssl rand -hex 32
-```
-
-Then set it in `.env`:
-
-```bash
-API_TOKEN=<paste-generated-token>
-```
-
-Do not use a generic/shared token value.
 
 For a complete list of available settings:
 - Environment variables: [docs/environment-variables.md](docs/environment-variables.md)
 - Minimal compose example: [docs/docker-compose.example.yml](docs/docker-compose.example.yml)
 - Portainer stack example (`docker-compose.portainer.yml`): [docs/portainer.md](docs/portainer.md)
-
-### 3. Start HomeChronicle
-
-```bash
-docker compose up -d
-```
-
-Then open:
-
-- `http://localhost:3000` (same machine), or
-- `http://<your-server-ip>:3000` (another device on your network)
 
 ### 4. Pair your HomeKit devices
 
@@ -78,6 +67,11 @@ Events will begin showing in the Timeline once pairing succeeds.
 
 ## Daily Use
 
+**Standalone:**
+- `docker logs -f homechronicle` to view logs
+- `docker restart homechronicle` if you need to reconnect device subscriptions
+
+**Docker Compose:**
 - `docker compose ps` to check containers
 - `docker compose logs -f listener web postgres` to view logs
 - `docker compose restart listener` if you need to reconnect device subscriptions
@@ -100,6 +94,14 @@ If your Matter accessory is already in Apple Home, you can add it to HomeChronic
 
 ## Update HomeChronicle
 
+**Standalone:**
+```bash
+docker pull ghcr.io/havuq/homechronicle/standalone:latest
+docker stop homechronicle && docker rm homechronicle
+# Re-run your original docker run command
+```
+
+**Docker Compose:**
 ```bash
 git pull
 docker compose pull
