@@ -111,7 +111,8 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(val) => [val, 'events']}
-            labelStyle={{ fontWeight: 600, marginBottom: 2 }}
+            labelStyle={{ fontWeight: 600, marginBottom: 2, color: 'var(--hc-tooltip-text)' }}
+            itemStyle={{ color: 'var(--hc-tooltip-text)' }}
           />
           <Area
             type="monotone"

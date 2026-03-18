@@ -60,7 +60,8 @@ export default function ActivityChart() {
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(val) => [val, 'events']}
-            labelStyle={{ fontWeight: 600, marginBottom: 2 }}
+            labelStyle={{ fontWeight: 600, marginBottom: 2, color: 'var(--hc-tooltip-text)' }}
+            itemStyle={{ color: 'var(--hc-tooltip-text)' }}
           />
           <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={20}>
             {chartData.map((entry) => (

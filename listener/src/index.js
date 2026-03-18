@@ -1775,6 +1775,50 @@ app.get('/api/stats/anomalies', apiStatsReadLimiter, async (_req, res) => {
   }
 });
 
+app.get('/api/stats/quiet-hours', apiStatsReadLimiter, async (_req, res) => {
+  if (!retentionSettings.quietHoursEnabled) {
+    return res.json({ enabled: false });
+  }
+  const startHour = retentionSettings.quietHoursStart; // UTC hour
+  const endHour = retentionSettings.quietHoursEnd;     // UTC hour
+  try {
+    const hourCondition = startHour > endHour
+      ? '(EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int >= $1 OR EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int < $2)'
+      : 'EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int >= $1 AND EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int < $2';
+    const result = await pool.query(`
+      SELECT
+        accessory_id,
+        accessory_name,
+        room_name,
+        COUNT(*)::int AS count,
+        MAX(timestamp) AS last_seen_at
+      FROM event_logs
+      WHERE timestamp >= NOW() - INTERVAL '24 hours'
+        AND ${hourCondition}
+        AND accessory_name IS NOT NULL
+        AND accessory_name <> ''
+      GROUP BY accessory_id, accessory_name, room_name
+      ORDER BY count DESC
+      LIMIT 20
+    `, [startHour, endHour]);
+    res.json({
+      enabled: true,
+      quietHoursStart: startHour,
+      quietHoursEnd: endHour,
+      events: result.rows.map((r) => ({
+        accessoryId: r.accessory_id,
+        accessoryName: r.accessory_name,
+        room: r.room_name || null,
+        count: r.count,
+        lastSeenAt: r.last_seen_at,
+      })),
+    });
+  } catch (err) {
+    log.error('[api] /api/stats/quiet-hours error:', err.message ?? err.stack ?? err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/health', (_req, res) => {
   const runtimeStatus = matterRuntime?.getStatus?.() ?? null;
   res.json({

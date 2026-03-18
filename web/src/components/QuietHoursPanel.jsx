@@ -1,5 +1,8 @@
-import { Moon, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { Moon, CheckCircle2, X } from 'lucide-react';
 import { useQuietHours } from '../hooks/useEvents.js';
+
+const DISMISS_KEY = 'hc:quiet-hours-dismissed';
 
 function utcHourToLocal(utcHour) {
   return ((utcHour + new Date().getTimezoneOffset() / -60) % 24 + 24) % 24;
@@ -19,6 +22,22 @@ function formatLastSeen(ts) {
 
 export default function QuietHoursPanel() {
   const { data, isLoading, isError } = useQuietHours();
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === '1');
+
+  function dismiss() {
+    localStorage.setItem(DISMISS_KEY, '1');
+    setDismissed(true);
+  }
+
+  // If quiet hours becomes enabled later, clear the dismissal so the panel reappears
+  if (dismissed && data?.enabled) {
+    localStorage.removeItem(DISMISS_KEY);
+    setDismissed(false);
+  }
+
+  if (dismissed) return null;
+
+  const card = 'bg-white rounded-xl shadow-sm p-4 sm:p-5';
 
   const header = (
     <div className="flex items-center gap-2 mb-3">
@@ -28,16 +47,31 @@ export default function QuietHoursPanel() {
   );
 
   if (isLoading) {
-    return <div>{header}<p className="text-sm text-gray-400">Checking quiet hours…</p></div>;
+    return <div className={card}>{header}<p className="text-sm text-gray-400">Checking quiet hours…</p></div>;
   }
-  if (isError) {
-    return <div>{header}<p className="text-sm text-gray-400">Unable to load quiet hours data.</p></div>;
+  if (isError || (!isLoading && !data)) {
+    return (
+      <div className={card}>
+        {header}
+        <p className="text-sm text-gray-400">
+          No quiet hours data yet. Events will appear here once activity is recorded.
+        </p>
+      </div>
+    );
   }
 
   if (data?.enabled === false) {
     return (
-      <div>
-        {header}
+      <div className={card}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Moon size={14} className="text-indigo-400" />
+            <h3 className="text-sm font-semibold text-gray-700">Quiet Hours</h3>
+          </div>
+          <button onClick={dismiss} className="text-gray-400 hover:text-gray-600 p-0.5 rounded" title="Dismiss">
+            <X size={14} />
+          </button>
+        </div>
         <p className="text-sm text-gray-400">
           Configure quiet hours in Settings to flag unexpected nighttime activity.
         </p>
@@ -51,7 +85,7 @@ export default function QuietHoursPanel() {
 
   if (!events.length) {
     return (
-      <div>
+      <div className={card}>
         {header}
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
@@ -62,7 +96,7 @@ export default function QuietHoursPanel() {
   }
 
   return (
-    <div>
+    <div className={card}>
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <Moon size={14} className="text-indigo-400" />

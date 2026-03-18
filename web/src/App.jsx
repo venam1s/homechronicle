@@ -341,9 +341,7 @@ export default function App() {
             </div>
 
             {/* Quiet hours */}
-            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-              <QuietHoursPanel />
-            </div>
+            <QuietHoursPanel />
 
             {/* 2-col: active outliers + stale devices */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

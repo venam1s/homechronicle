@@ -7,6 +7,7 @@ import {
 import {
   ArrowLeft, Activity, Clock3, ShieldCheck, AlertTriangle,
   Info, Wifi, WifiOff, ChevronDown, ChevronUp, BarChart3, PieChartIcon, Grid3x3,
+  TrendingUp, Layers, ScrollText,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAccessoryDetail, useAccessoryAnomalies, useCharacteristicTrend, useAccessoryHeatmap, useAccessoryStateDuration, useAccessoryCharSummary } from '../hooks/useEvents.js';
@@ -93,7 +94,8 @@ function CharacteristicTrend({ accessoryId, characteristic, days }) {
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(value, _name, props) => [props.payload.raw, characteristic]}
-            labelStyle={{ fontWeight: 600, marginBottom: 2 }}
+            labelStyle={{ fontWeight: 600, marginBottom: 2, color: 'var(--hc-tooltip-text)' }}
+            itemStyle={{ color: 'var(--hc-tooltip-text)' }}
           />
           <Line
             type={chartData.isNumeric ? 'monotone' : 'stepAfter'}
@@ -197,7 +199,7 @@ function StateDurationDonut({ accessoryId, days }) {
                   </Pie>
                   <Legend
                     iconSize={8}
-                    wrapperStyle={{ fontSize: 11 }}
+                    wrapperStyle={{ fontSize: 11, color: 'var(--hc-fg)' }}
                     formatter={(value, entry) => {
                       const pct = totalSec > 0 ? Math.round((entry.payload.value / totalSec) * 100) : 0;
                       return `${value} (${pct}%)`;
@@ -289,7 +291,8 @@ function ActivityHeatmap({ accessoryId, days }) {
           {/* Legend */}
           <div className="flex items-center justify-end gap-1 mt-2">
             <span className="text-[9px] text-gray-400">Less</span>
-            {['#f3f4f6', '#bfdbfe', '#60a5fa', '#3b82f6', '#1d4ed8'].map((c) => (
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'var(--hc-heatmap-empty, #f3f4f6)' }} />
+            {['#bfdbfe', '#60a5fa', '#3b82f6', '#1d4ed8'].map((c) => (
               <div key={c} className="w-3 h-3 rounded-sm" style={{ backgroundColor: c }} />
             ))}
             <span className="text-[9px] text-gray-400">More</span>
@@ -320,20 +323,20 @@ function CharSummaryTable({ accessoryId, days }) {
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-gray-400 border-b border-gray-100">
+            <tr className="text-gray-400" style={{ borderBottom: '1px solid var(--hc-chart-grid)' }}>
               <th className="text-left font-medium py-1.5 pr-3">Characteristic</th>
               <th className="text-right font-medium py-1.5 px-2">Changes</th>
               <th className="text-right font-medium py-1.5 px-2">Min</th>
               <th className="text-right font-medium py-1.5 px-2">Avg</th>
               <th className="text-right font-medium py-1.5 px-2">Max</th>
-              <th className="text-right font-medium py-1.5 pl-2">Values</th>
+              <th className="text-right font-medium py-1.5 px-2">Values</th>
             </tr>
           </thead>
           <tbody>
             {chars.map((c) => {
               const isNumeric = c.numeric_count > 0;
               return (
-                <tr key={c.characteristic} className="border-b border-gray-50 hover:bg-gray-50/50">
+                <tr key={c.characteristic} className="hover:bg-gray-50/50" style={{ borderBottom: '1px solid var(--hc-chart-grid)' }}>
                   <td className="py-1.5 pr-3 text-gray-700 font-medium">{c.characteristic}</td>
                   <td className="py-1.5 px-2 text-right text-gray-600">{c.change_count}</td>
                   <td className="py-1.5 px-2 text-right text-gray-500">
@@ -345,7 +348,7 @@ function CharSummaryTable({ accessoryId, days }) {
                   <td className="py-1.5 px-2 text-right text-gray-500">
                     {isNumeric ? formatNumber(c.max_val, 1) : '—'}
                   </td>
-                  <td className="py-1.5 pl-2 text-right text-gray-400">{c.distinct_values}</td>
+                  <td className="py-1.5 px-2 text-right text-gray-400">{c.distinct_values}</td>
                 </tr>
               );
             })}
@@ -637,7 +640,10 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Activity Over Time chart */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700">Activity Over Time</h3>
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <TrendingUp size={14} className="text-gray-400" />
+                Activity Over Time
+              </h3>
               <div className="flex gap-1">
                 {WINDOWS.map((window) => (
                   <button
@@ -675,7 +681,8 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
                   formatter={(value) => [value, 'events']}
-                  labelStyle={{ fontWeight: 600, marginBottom: 2 }}
+                  labelStyle={{ fontWeight: 600, marginBottom: 2, color: 'var(--hc-tooltip-text)' }}
+            itemStyle={{ color: 'var(--hc-tooltip-text)' }}
                 />
                 <Area
                   type="monotone"
@@ -700,7 +707,10 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
 
           {/* Current State with Features 6 (protocol details) and 5 (characteristic trends) */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Current State</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Layers size={14} className="text-gray-400" />
+              Current State
+            </h3>
             {!currentState.length && <p className="text-sm text-gray-400">No current state yet.</p>}
             {currentState.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -720,9 +730,10 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                         className={clsx(
                           'rounded-lg border px-3 py-2 text-left transition-colors',
                           isSelected
-                            ? 'border-violet-200 bg-violet-50'
+                            ? 'border-gray-100 bg-gray-50'
                             : 'border-gray-100 bg-gray-50 hover:border-gray-200'
                         )}
+                        style={isSelected ? { borderColor: 'rgba(139,92,246,0.3)', backgroundColor: 'rgba(139,92,246,0.08)' } : undefined}
                       >
                         <div className="flex items-center justify-between">
                           <p className="text-[11px] text-gray-400">{state.characteristic}</p>
@@ -746,7 +757,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                       </button>
                       {/* Feature 6: Characteristic trend chart */}
                       {isSelected && (
-                        <div className="border border-t-0 border-gray-100 rounded-b-lg px-3 py-2 bg-white -mt-px">
+                        <div className="border border-t-0 border-gray-100 rounded-b-lg px-3 py-2 -mt-px" style={{ borderColor: 'rgba(139,92,246,0.3)', backgroundColor: 'var(--hc-panel)' }}>
                           <CharacteristicTrend
                             accessoryId={accessoryId}
                             characteristic={state.characteristic}
@@ -764,7 +775,10 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Full History */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700">Full History</h3>
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <ScrollText size={14} className="text-gray-400" />
+                Full History
+              </h3>
               <p className="text-xs text-gray-400">
                 Page {history?.page ?? 1} of {Math.max(history?.pages ?? 1, 1)}
               </p>

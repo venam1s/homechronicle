@@ -71,6 +71,7 @@ input[type="checkbox"] {
     --hc-tooltip-border: #334155;
     --hc-tooltip-text: #e2e8f0;
     --hc-room-fallback: #64748b;
+    --hc-heatmap-empty: #1e293b;
   }
 
   html[data-skin='ocean'] {

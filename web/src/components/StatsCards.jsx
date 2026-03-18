@@ -17,7 +17,7 @@ function Card({ icon: Icon, label, value, sub, bgClass, iconClass }) {
         <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">
           {label}
         </div>
-        <div className="text-2xl font-bold text-gray-800 leading-tight truncate">
+        <div className="text-2xl font-bold text-gray-800 leading-tight truncate" title={value ?? undefined}>
           {value ?? '—'}
         </div>
         {sub != null && (
@@ -52,7 +52,7 @@ export default function StatsCards() {
         icon={Zap}
         label="Today"
         value={daily ? eventsToday.toLocaleString() : '…'}
-        sub={eventsToday === 1 ? '1 event' : null}
+        sub="events"
         bgClass="bg-blue-50"
         iconClass="text-blue-500"
       />

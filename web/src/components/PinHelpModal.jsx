@@ -332,7 +332,8 @@ export default function PinHelpModal({ deviceName, category, onClose }) {
         <div className="px-5 py-3 border-t border-gray-100">
           <button
             onClick={onClose}
-            className="w-full py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-700 transition-colors"
+            className="w-full py-2 text-sm font-medium rounded-xl transition-colors"
+            style={{ backgroundColor: 'rgb(var(--hc-accent-rgb))', color: '#fff' }}
           >
             Close
           </button>
