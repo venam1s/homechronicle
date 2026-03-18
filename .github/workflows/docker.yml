@@ -167,6 +167,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}},enable=${{ github.event.release.prerelease == false }}
             type=semver,pattern={{major}},enable=${{ github.event.release.prerelease == false }}
+            type=raw,value=beta,enable=${{ github.event.release.prerelease == true }}
             type=raw,value=latest,enable=${{ github.event.release.prerelease == false && steps.latest_release.outputs.is_latest == 'true' }}
             type=raw,value=beta,enable=${{ github.event.release.prerelease == true }}
 
