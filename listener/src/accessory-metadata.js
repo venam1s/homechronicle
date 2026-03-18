@@ -31,6 +31,7 @@ const SERVICE_TYPE_LABELS = new Map([
   ['110', 'Camera'],
   ['121', 'Doorbell'],
   ['D8', 'Television'],
+  ['BA', 'FilterMaintenance'],
 ]);
 
 const WATCHED_CHARACTERISTICS = new Map([
@@ -58,6 +59,8 @@ const WATCHED_CHARACTERISTICS = new Map([
   ['64', 'CurrentAmbientLightLevel'],
   ['68', 'StatusLowBattery'],
   ['5B', 'BatteryLevel'],
+  ['70', 'LeakDetected'],
+  ['AC', 'FilterChangeIndication'],
 ]);
 
 const identityCache = new Map();

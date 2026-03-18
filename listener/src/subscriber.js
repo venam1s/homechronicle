@@ -302,6 +302,21 @@ function connectAccessory(session, pairing) {
       scheduleReconnect(session, pairing);
     }
 
+    // Poll current values so every watched accessory appears immediately,
+    // even if it never fires a change event.  Uses getCharacteristics() to
+    // read the current value for each watched aid.iid, then feeds them
+    // through the normal handleEvent path (which deduplicates via valueCache).
+    try {
+      const result = await client.getCharacteristics(watchedKeys);
+      const values = result?.characteristics ?? [];
+      if (values.length > 0) {
+        await handleEvent({ characteristics: values });
+        log.info(`[subscriber] ${accessoryName}: polled ${values.length} initial value(s)`);
+      }
+    } catch (err) {
+      log.debug(`[subscriber] ${accessoryName}: initial poll failed: ${err.message ?? err}`);
+    }
+
   }).catch((err) => {
     stats.accessoriesQueryFailures += 1;
     stats.lastError = err.message ?? String(err);
