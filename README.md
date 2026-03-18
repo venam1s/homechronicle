@@ -1,4 +1,4 @@
-# HomeChronicle
+# homechronicle
 
 ![Release](https://img.shields.io/github/v/release/havuq/homechronicle)
 ![License](https://img.shields.io/github/license/havuq/homechronicle)
@@ -8,7 +8,7 @@
 ![Self Hosted](https://img.shields.io/badge/self--hosted-yes-purple)
 ![HomeKit](https://img.shields.io/badge/apple-homekit-black?logo=apple)
 
-HomeChronicle is a self-hosted event log for Apple HomeKit.
+homechronicle is a self-hosted event log for Apple HomeKit.
 It shows what happened in your home over time, not just the current state.
 
 ## What You Get
@@ -82,17 +82,17 @@ Matter works out of the box — the listener uses matter.js (a pure TypeScript M
 
 ### Adding a Matter Device
 
-If your Matter accessory is already in Apple Home, you can add it to HomeChronicle:
+If your Matter accessory is already in Apple Home, you can add it to homechronicle:
 
 1. In Apple Home, open the accessory settings.
 2. Open Matter settings and generate a setup code for another controller (wording varies by device/app).
-3. In HomeChronicle Setup → Matter Devices, choose **Add From Apple Home**.
+3. In homechronicle Setup → Matter Devices, choose **Add From Apple Home**.
 4. Enter a label + the setup code from Apple Home.
-5. HomeChronicle commissions its own Matter controller entry and auto-allocates a `nodeId`.
+5. homechronicle commissions its own Matter controller entry and auto-allocates a `nodeId`.
 
 > **VLAN users:** Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your IoT devices are on a separate VLAN, you need a VLAN sub-interface on the host. See [VLAN / segregated IoT networks](limitations.md#platform-note-vlan--segregated-iot-networks).
 
-## Update HomeChronicle
+## Update homechronicle
 
 **Standalone:**
 ```bash
@@ -116,7 +116,7 @@ Detailed guides have been moved to the GitHub Wiki:
 - Install as Phone App (PWA): [PWA Install Wiki](https://github.com/havuq/homechronicle/wiki/Install-as-a-Phone-App-(PWA))
 - Project Structure: [Project Structure Wiki](https://github.com/havuq/homechronicle/wiki/Project-Structure)
 
-You can also browse all docs here: [HomeChronicle Wiki](https://github.com/havuq/homechronicle/wiki)
+You can also browse all docs here: [homechronicle Wiki](https://github.com/havuq/homechronicle/wiki)
 
 ## Limitations & Troubleshooting
 

@@ -1,6 +1,6 @@
 {
-  "name": "HomeChronicle",
-  "short_name": "HomeChronicle",
+  "name": "homechronicle",
+  "short_name": "homechronicle",
   "description": "A dashboard for HomeKit event activity, trends, alerts, and device health.",
   "start_url": "./",
   "scope": "./",

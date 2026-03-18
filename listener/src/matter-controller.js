@@ -110,7 +110,7 @@ export async function initController() {
       id: uniqueId,
     },
     autoConnect: false,
-    adminFabricLabel: 'HomeChronicle',
+    adminFabricLabel: 'homechronicle',
     subscribeMinIntervalFloorSeconds: Number.isFinite(SUBSCRIBE_MIN_INTERVAL_SEC) ? SUBSCRIBE_MIN_INTERVAL_SEC : 1,
     subscribeMaxIntervalCeilingSeconds: Number.isFinite(SUBSCRIBE_MAX_INTERVAL_SEC) ? SUBSCRIBE_MAX_INTERVAL_SEC : 30,
   });

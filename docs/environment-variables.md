@@ -1,6 +1,6 @@
 # Environment Variables
 
-This file documents all supported environment variables for HomeChronicle.
+This file documents all supported environment variables for homechronicle.
 
 Use `.env.example` for a minimal setup, then add only what you need from this reference.
 

@@ -30,7 +30,7 @@ const BRIDGE_STEP = {
   content: () => (
     <div className="space-y-3">
       <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-sm text-green-800">
-        Use the <span className="font-medium">bridge pairing code.</span> Pairing once gives HomeChronicle
+        Use the <span className="font-medium">bridge pairing code.</span> Pairing once gives homechronicle
         access to <em>all</em> the accessories connected through it — no individual device PINs needed.
       </div>
       <p className="text-sm text-gray-700 font-medium">Where to find the PIN by platform:</p>

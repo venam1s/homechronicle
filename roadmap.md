@@ -1,6 +1,6 @@
-# HomeChronicle Roadmap
+# homechronicle Roadmap
 
-This is a collection of potential features and improvements — not ordered by priority or timeline. It serves as a brainstorm of possibilities for where HomeChronicle could go next.
+This is a collection of potential features and improvements — not ordered by priority or timeline. It serves as a brainstorm of possibilities for where homechronicle could go next.
 
 ---
 
@@ -26,10 +26,10 @@ A horizontal timeline visualization showing on/off or open/closed state duration
 A daily or weekly summary delivered via the user's preferred transport covering top active devices, anomalies detected, stale devices, and retention statistics. This is the "set and forget" mode for users who don't want real-time alerts but still want to stay informed.
 
 ### PWA push notifications
-Use the Web Push API so the installed Progressive Web App can deliver native-feeling push notifications for alerts. This removes the need for an external transport for users who primarily interact with HomeChronicle on their phone or tablet.
+Use the Web Push API so the installed Progressive Web App can deliver native-feeling push notifications for alerts. This removes the need for an external transport for users who primarily interact with homechronicle on their phone or tablet.
 
 ### Uptime dashboard and gap detection
-Track HomeChronicle's own uptime and identify gaps where events may have been missed due to service restarts, network outages, or subscriber disconnections. Display these gaps visually on the timeline so users know when their data may be incomplete.
+Track homechronicle's own uptime and identify gaps where events may have been missed due to service restarts, network outages, or subscriber disconnections. Display these gaps visually on the timeline so users know when their data may be incomplete.
 
 ### Device grouping and tags
 User-defined tags (e.g., "security," "lighting," "climate," "outdoor") that work alongside rooms to provide cross-cutting views of device activity. A device can have multiple tags, and tags can be used as filters throughout the timeline and dashboard.
@@ -53,7 +53,7 @@ A web UI for creating and restoring database backups without needing to use the 
 Upload a floor plan image, place devices on it by dragging, and visualize activity as a heat overlay. Shows which areas of the home are most active and lets users spatially navigate to device details.
 
 ### Home Assistant and MQTT bridge
-Publish HomeChronicle events to an MQTT broker and/or expose an API that Home Assistant can poll or subscribe to. Allows HomeChronicle to feed data into the broader home automation ecosystem.
+Publish homechronicle events to an MQTT broker and/or expose an API that Home Assistant can poll or subscribe to. Allows homechronicle to feed data into the broader home automation ecosystem.
 
 ### Multi-user accounts
 Support multiple user accounts with separate alert preferences, dashboard layouts, and permission levels. Includes role-based access so household members can have read-only or full admin access.

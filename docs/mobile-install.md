@@ -1,22 +1,22 @@
 # Mobile Install Guide (PWA)
 
-HomeChronicle can be added to your home screen so it behaves like an app.
+homechronicle can be added to your home screen so it behaves like an app.
 
 ## Android (Chrome)
 
-1. Open HomeChronicle in Chrome (example: `http://<server-ip>:3000`).
+1. Open homechronicle in Chrome (example: `http://<server-ip>:3000`).
 2. Tap the three-dot menu (`⋮`) in the top-right.
 3. Tap **Install app** (or **Add to Home screen** on some versions).
 4. Confirm by tapping **Install**.
-5. Launch HomeChronicle from your home screen or app drawer.
+5. Launch homechronicle from your home screen or app drawer.
 
 ## iPhone / iPad (Safari)
 
-1. Open HomeChronicle in Safari (example: `http://<server-ip>:3000`).
+1. Open homechronicle in Safari (example: `http://<server-ip>:3000`).
 2. Tap the **Share** button (square with an up arrow).
 3. Scroll down and tap **Add to Home Screen**.
 4. Optionally rename it, then tap **Add**.
-5. Launch HomeChronicle from your home screen.
+5. Launch homechronicle from your home screen.
 
 ## Notes
 

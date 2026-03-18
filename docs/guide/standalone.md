@@ -1,6 +1,6 @@
 # Standalone Docker Deployment
 
-The standalone image bundles PostgreSQL, the listener, and the web UI into a single container. One command gets you a fully running HomeChronicle instance — no compose file, no multi-container networking, no external database.
+The standalone image bundles PostgreSQL, the listener, and the web UI into a single container. One command gets you a fully running homechronicle instance — no compose file, no multi-container networking, no external database.
 
 ## When to Use Standalone vs Docker Compose
 

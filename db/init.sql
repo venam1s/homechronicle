@@ -1,4 +1,4 @@
--- HomeChronicle — database schema
+-- homechronicle — database schema
 -- This file runs automatically when the postgres container first starts.
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;

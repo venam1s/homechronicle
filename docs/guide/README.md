@@ -1,4 +1,4 @@
-# homechronicle documentation
+# homechronicle Documentation
 
 homechronicle is a self-hosted event log for Apple HomeKit and Matter devices. It captures every state change from your accessories and presents them in a searchable timeline with activity analytics.
 
@@ -11,11 +11,23 @@ homechronicle is a self-hosted event log for Apple HomeKit and Matter devices. I
 - **Webhook alerts** — get notified when specific events occur (enable with `ALERTS_ENABLED=true`)
 - **Quiet hours** — flag unexpected activity during a defined time window
 - **Dark mode & accent themes** — system/light/dark toggle and six color themes ([details](appearance.md))
-- **Device notes** — attach free-text notes to any accessory
+
+## Quick Start
+
+```bash
+docker run -d \
+  --name homechronicle \
+  --network host \
+  -e WEB_PORT=3000 \
+  -v hc-db:/var/lib/postgresql/data \
+  -v hc-data:/app/listener/data \
+  -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro \
+  ghcr.io/havuq/homechronicle/standalone
+```
+
+Open `http://localhost:3000` in your browser. See [Standalone Docker](standalone.md) for full details, or [Docker Compose](docker-compose.md) for multi-container deployments.
 
 ## Architecture at a Glance
-
-Three Docker services work together:
 
 | Service | Role |
 |---------|------|
@@ -23,16 +35,32 @@ Three Docker services work together:
 | **Listener** (Node.js) | Subscribes to HomeKit/Matter devices, serves the REST API |
 | **Web** (React + Nginx) | Dashboard UI, proxies API requests to the listener |
 
-## Quick Links
+## Documentation
 
-- [Setup Guide](setup.md) — install and run homechronicle
-- [Device Setup](devices.md) — discover, pair, and configure accessories
+### Installation
+- [Standalone Docker](standalone.md) — one command, everything included (recommended)
+- [Docker Compose](docker-compose.md) — separate containers with full control
+- [Portainer](portainer.md) — deploy from Portainer's stack UI
+
+### Configuration
+- [Environment Variables](environment-variables.md) — complete variable reference
+- [Networking](networking.md) — host vs bridge mode, web-to-listener routing, VLANs
+- [Security](security.md) — API tokens, CORS, webhook validation, retention & quiet hours
+
+### Usage
+- [Device Setup](devices.md) — discover, pair, and manage HomeKit & Matter accessories
+- [Appearance](appearance.md) — dark mode, color themes
+- [Mobile Install (PWA)](mobile-install.md) — add to your home screen
+
+### Reference
 - [API Reference](api-reference.md) — all REST endpoints
-- [Architecture](architecture.md) — how the system works under the hood
+- [Architecture](architecture.md) — system diagram, modules, event flow, database schema
+
+### Help
 - [Troubleshooting](troubleshooting.md) — common issues and fixes
 
 ## Requirements
 
-- Docker Engine and Docker Compose plugin
+- Docker Engine (Docker Compose also needed for multi-container setup)
 - A machine on the same network as your HomeKit accessories (NAS, Raspberry Pi, desktop, etc.)
 - HomeKit accessory PINs (the 8-digit code from the device label or Apple Home)

@@ -21,7 +21,7 @@ const STEPS = [
     content: () => (
       <div className="space-y-3">
         <p className="text-sm text-gray-700">
-          Matter devices must be in commissioning mode before HomeChronicle can pair with them.
+          Matter devices must be in commissioning mode before homechronicle can pair with them.
           If your device is already set up in Apple Home, you can share it:
         </p>
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 text-sm text-blue-800">
@@ -31,7 +31,7 @@ const STEPS = [
               'Open the Home app and long-press the device tile',
               'Tap the gear icon to open device settings',
               'Scroll down and tap "Turn On Pairing Mode"',
-              'A setup code will appear — enter it in HomeChronicle',
+              'A setup code will appear — enter it in homechronicle',
             ].map((s, i) => (
               <li key={s} className="flex items-start gap-2">
                 <span className="mt-0.5 text-blue-500 text-xs font-medium">{i + 1}.</span>{s}
@@ -92,7 +92,7 @@ const STEPS = [
         </p>
         <ul className="text-sm text-gray-600 space-y-1.5 list-none">
           {[
-            'Device and HomeChronicle must be on the same LAN (or have Layer 2 connectivity)',
+            'Device and homechronicle must be on the same LAN (or have Layer 2 connectivity)',
             'IPv6 link-local must be available — this is the default on most networks',
             'If using Docker, host networking is strongly recommended',
             'Devices on a separate IoT VLAN need a VLAN interface on the Docker host',
@@ -119,7 +119,7 @@ const STEPS = [
     content: () => (
       <div className="space-y-3">
         <p className="text-sm text-gray-700">
-          Matter devices expose capabilities through clusters. HomeChronicle polls a fixed set of clusters —
+          Matter devices expose capabilities through clusters. homechronicle polls a fixed set of clusters —
           devices using only unsupported clusters will pair but won't produce timeline events.
         </p>
         <div className="border border-gray-200 rounded-lg overflow-hidden">

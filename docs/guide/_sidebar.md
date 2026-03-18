@@ -1,14 +1,18 @@
 - [Home](README.md)
-- **Getting Started**
-  - [Setup Guide](setup.md)
+- **Installation**
+  - [Standalone Docker](standalone.md)
+  - [Docker Compose](docker-compose.md)
+  - [Portainer](portainer.md)
+- **Configuration**
+  - [Environment Variables](environment-variables.md)
+  - [Networking](networking.md)
+  - [Security](security.md)
+- **Usage**
   - [Device Setup](devices.md)
+  - [Appearance](appearance.md)
+  - [Mobile Install (PWA)](mobile-install.md)
 - **Reference**
   - [API Reference](api-reference.md)
   - [Architecture](architecture.md)
-  - [Appearance](appearance.md)
-  - [Environment Variables](environment-variables.md)
 - **Help**
   - [Troubleshooting](troubleshooting.md)
-  - [Mobile Install (PWA)](mobile-install.md)
-  - [Standalone Docker](standalone.md)
-  - [Portainer Deployment](portainer.md)
