@@ -53,7 +53,7 @@ chown -R postgres:postgres "$PGDATA"
 
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
   echo "==> Initializing PostgreSQL database..."
-  su-exec postgres /usr/lib/postgresql/16/bin/initdb -D "$PGDATA" \
+  gosu postgres /usr/lib/postgresql/16/bin/initdb -D "$PGDATA" \
     --username="$POSTGRES_USER" --pwfile=<(echo "$POSTGRES_PASSWORD")
 
   # Configure: Unix socket only, no TCP listener
@@ -63,17 +63,17 @@ unix_socket_directories = '${PG_SOCKET_DIR}'
 PGCONF
 
   # Start postgres temporarily for schema init
-  su-exec postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$PGDATA" -w start
+  gosu postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$PGDATA" -w start
 
   # Create database if it doesn't exist
-  su-exec postgres psql -U "$POSTGRES_USER" -tc \
+  gosu postgres psql -U "$POSTGRES_USER" -tc \
     "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB}'" | grep -q 1 \
-    || su-exec postgres createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
+    || gosu postgres createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
 
   # Run schema
-  su-exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /docker-entrypoint-initdb.d/init.sql
+  gosu postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /docker-entrypoint-initdb.d/init.sql
 
-  su-exec postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$PGDATA" -w stop
+  gosu postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$PGDATA" -w stop
   echo "==> PostgreSQL initialized."
 else
   echo "==> PostgreSQL data directory already exists, skipping init."

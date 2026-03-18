@@ -42,22 +42,23 @@ LABEL org.opencontainers.image.title="homechronicle Standalone" \
       org.opencontainers.image.source="https://github.com/havuq/homechronicle"
 
 # ── Install PostgreSQL 16, Nginx, supervisord, and runtime libs ─────────────
+# PostgreSQL 16 is not in Debian Trixie's default repos — add the PGDG apt
+# repository so we get the exact major version we need.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # PostgreSQL
+    gnupg curl ca-certificates \
+  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+     | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg \
+  && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt trixie-pgdg main" \
+     > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update && apt-get install -y --no-install-recommends \
     postgresql-16 \
-    # Nginx
     nginx \
-    # Process manager
     supervisor \
-    # Runtime libs for listener native addons
     libavahi-compat-libdnssd1 dbus \
     libbluetooth3 \
-    # su-exec for dropping privileges
-    su-exec \
-    # openssl for API token auto-generation
+    gosu \
     openssl \
-    # Troubleshooting
-    dnsutils iputils-ping curl \
+    dnsutils iputils-ping \
   && rm -rf /var/lib/apt/lists/*
 
 # ── Listener ────────────────────────────────────────────────────────────────
