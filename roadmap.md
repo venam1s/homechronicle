@@ -1,6 +1,6 @@
-# homechronicle Roadmap
+# HomeChronicle Roadmap
 
-This is a collection of potential features and improvements — not ordered by priority or timeline. It serves as a brainstorm of possibilities for where homechronicle could go next.
+This is a collection of potential features and improvements — not ordered by priority or timeline. It serves as a brainstorm of possibilities for where HomeChronicle could go next.
 
 ---
 
@@ -9,9 +9,6 @@ Add support for ntfy, Pushover, MQTT publish, email, and Slack/Discord as alert 
 
 ### Export timeline as CSV/JSON
 Allow users to export filtered timeline data as CSV or JSON files. The export would respect the currently applied filters (date range, room, device, characteristic) so users can extract exactly the slice of data they need.
-
-### Export individual accessory details to CSV
-Add a CSV export button to the accessory detail page so users can download that specific device's event history, current state, and summary statistics as a CSV file. The export would respect the currently selected time window (7d/30d/90d) and include all characteristics.
 
 ### Subscription health alerts
 Proactively notify users when a HomeKit subscription drops and cannot reconnect after repeated retries. This builds on the existing reliability tracking to surface connection problems before the user notices gaps in their timeline.
@@ -29,10 +26,10 @@ A horizontal timeline visualization showing on/off or open/closed state duration
 A daily or weekly summary delivered via the user's preferred transport covering top active devices, anomalies detected, stale devices, and retention statistics. This is the "set and forget" mode for users who don't want real-time alerts but still want to stay informed.
 
 ### PWA push notifications
-Use the Web Push API so the installed Progressive Web App can deliver native-feeling push notifications for alerts. This removes the need for an external transport for users who primarily interact with homechronicle on their phone or tablet.
+Use the Web Push API so the installed Progressive Web App can deliver native-feeling push notifications for alerts. This removes the need for an external transport for users who primarily interact with HomeChronicle on their phone or tablet.
 
 ### Uptime dashboard and gap detection
-Track homechronicle's own uptime and identify gaps where events may have been missed due to service restarts, network outages, or subscriber disconnections. Display these gaps visually on the timeline so users know when their data may be incomplete.
+Track HomeChronicle's own uptime and identify gaps where events may have been missed due to service restarts, network outages, or subscriber disconnections. Display these gaps visually on the timeline so users know when their data may be incomplete.
 
 ### Device grouping and tags
 User-defined tags (e.g., "security," "lighting," "climate," "outdoor") that work alongside rooms to provide cross-cutting views of device activity. A device can have multiple tags, and tags can be used as filters throughout the timeline and dashboard.
@@ -56,7 +53,7 @@ A web UI for creating and restoring database backups without needing to use the 
 Upload a floor plan image, place devices on it by dragging, and visualize activity as a heat overlay. Shows which areas of the home are most active and lets users spatially navigate to device details.
 
 ### Home Assistant and MQTT bridge
-Publish homechronicle events to an MQTT broker and/or expose an API that Home Assistant can poll or subscribe to. Allows homechronicle to feed data into the broader home automation ecosystem.
+Publish HomeChronicle events to an MQTT broker and/or expose an API that Home Assistant can poll or subscribe to. Allows HomeChronicle to feed data into the broader home automation ecosystem.
 
 ### Multi-user accounts
 Support multiple user accounts with separate alert preferences, dashboard layouts, and permission levels. Includes role-based access so household members can have read-only or full admin access.
@@ -64,32 +61,8 @@ Support multiple user accounts with separate alert preferences, dashboard layout
 ### Correlation insights
 Automatically discover and surface correlations between devices — "When the front door opens, the hallway light turns on within 2 seconds 94% of the time." Requires sufficient historical data and careful filtering to avoid surfacing noise.
 
-### Helm chart
-A Helm chart for deploying homechronicle on Kubernetes (including lightweight distributions like k3s). Exposes all configuration via values.yaml, supports persistent volume claims for database and listener data, and includes liveness/readiness probes. Many home server enthusiasts run k3s, making this a natural distribution channel.
-
-### Home Assistant add-on
-Package homechronicle as a Home Assistant add-on so users can install it directly from the HA Supervisor add-on store. Leverages the existing standalone image and auto-configures networking since HA already has access to the host network and mDNS. The largest potential user overlap since homechronicle users almost certainly run Home Assistant.
-
-### Unraid community app template
-An Unraid template for the Community Applications plugin. Unraid is popular in the home server community and templates provide a one-click install experience with pre-configured volume mappings and environment variable descriptions in the Unraid UI.
-
-### Synology / QNAP packages
-Native packages for Synology (SPK) and QNAP (QPKG) NAS platforms. These would wrap the Docker deployment in a platform-native installer that appears in the NAS package manager, making it discoverable and installable without SSH or Docker CLI knowledge.
-
-### One-click cloud deploy buttons
-"Deploy to DigitalOcean / Railway / Render" buttons in the README and landing page for users who want to run homechronicle on a VPS rather than local hardware. Requires a cloud-friendly compose or Dockerfile configuration with external database support.
-
-### Ansible playbook
-An Ansible playbook for bare-metal or VM deployments without Docker. Installs PostgreSQL, Node.js, and Nginx directly on the host, configures systemd services, and manages upgrades. Useful for users who prefer traditional deployments or run on minimal hardware where Docker overhead is unwanted.
-
-### Docker Hub publishing
-Publish container images to Docker Hub in addition to GHCR. Docker Hub exposes public pull counts, enabling download badges in the README and giving better visibility into adoption. Would mirror all three images (listener, web, standalone) on each release.
-
-### Multi-admin commissioning for Matter devices
-Allow users to share Matter devices paired to homechronicle with other ecosystems (Apple Home, Google Home, etc.) by opening a commissioning window from the web UI. Since homechronicle is the first commissioner and holds admin privileges, it can generate a temporary pairing code that the user enters in another app to add the device to a second fabric. The device then operates on both fabrics simultaneously per the Matter multi-admin spec.
-
-### Customizable dashboard
-Let users choose which panels appear on the dashboard and rearrange their order. Panels like Quiet Hours, Anomalies, Stale Devices, Activity Chart, and Stats Cards could be toggled on or off and reordered via drag-and-drop. Layout preferences would persist in localStorage so each browser remembers the user's preferred setup.
+### Mute accessories during quiet time
+Allow users to define quiet-time windows (e.g., 11 PM – 7 AM) during which specific accessories are muted — meaning their events are still recorded but do not trigger alerts. This lets users avoid noisy overnight notifications from sensors like motion detectors or contact sensors while still capturing the data for later review.
 
 ### Thread network topology
 Display Thread border router health and mesh network topology for Matter-over-Thread devices. Show which border routers are active, which devices route through them, and signal quality metrics.
