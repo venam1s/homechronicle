@@ -50,24 +50,23 @@ const STYLES = [
   { id: 'purple', label: 'Purple' },
 ];
 
+// Inline gradients avoid Tailwind purge issues with dynamic class names
 const SKIN_SWATCH = {
-  ocean: 'from-sky-500 to-cyan-600',
-  graphite: 'from-teal-500 to-slate-500',
-  sunrise: 'from-orange-400 to-pink-500',
-  red: 'from-red-500 to-rose-600',
-  yellow: 'from-yellow-400 to-amber-500',
-  purple: 'from-violet-500 to-purple-600',
+  ocean:    'linear-gradient(135deg, #0ea5e9, #0891b2)',
+  graphite: 'linear-gradient(135deg, #14b8a6, #64748b)',
+  sunrise:  'linear-gradient(135deg, #fb923c, #ec4899)',
+  red:      'linear-gradient(135deg, #ef4444, #e11d48)',
+  yellow:   'linear-gradient(135deg, #facc15, #f59e0b)',
+  purple:   'linear-gradient(135deg, #8b5cf6, #9333ea)',
 };
 
 const SKIN_SWATCH_DARK = {
-  ocean: 'from-sky-400 to-cyan-300',
-  bubblegum: 'from-pink-300 to-rose-400',
-  coral: 'from-orange-300 to-red-300',
-  golden: 'from-amber-300 to-yellow-300',
-  violet: 'from-violet-300 to-indigo-300',
-  teal: 'from-teal-300 to-cyan-400',
-  slate: 'from-slate-300 to-slate-400',
-  alabaster: 'from-stone-200 to-stone-300',
+  ocean:    'linear-gradient(135deg, #38bdf8, #67e8f9)',
+  graphite: 'linear-gradient(135deg, #5eead4, #94a3b8)',
+  sunrise:  'linear-gradient(135deg, #fdba74, #f472b6)',
+  red:      'linear-gradient(135deg, #f87171, #fb7185)',
+  yellow:   'linear-gradient(135deg, #fde047, #fbbf24)',
+  purple:   'linear-gradient(135deg, #a78bfa, #c084fc)',
 };
 
 export default function App() {
@@ -438,11 +437,11 @@ export default function App() {
                 title={style.label}
               >
                 <span
-                  className={clsx(
-                    'block h-full w-full rounded-full bg-gradient-to-br',
-                    isDarkTheme ? SKIN_SWATCH_DARK[style.id] : SKIN_SWATCH[style.id]
-                  )}
-                  style={isDarkTheme ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : undefined}
+                  className="block h-full w-full rounded-full"
+                  style={{
+                    background: isDarkTheme ? SKIN_SWATCH_DARK[style.id] : SKIN_SWATCH[style.id],
+                    ...(isDarkTheme ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : {}),
+                  }}
                 />
               </button>
             ))}
