@@ -11,7 +11,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { IPDiscovery, HttpClient } from 'hap-controller';
 import { insertEvent, pool, migrateDb, runRetentionSweep } from './db.js';
-import { startSubscribers, stopSubscriber, getSubscriberStats } from './subscriber.js';
+import { startSubscribers, stopSubscriber, getSubscriberStats, getSubscriberHealth } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter, parentBridgeId, parseIntInRange } from './events-router.js';
 import { createAlertsRouter } from './alerts-router.js';
@@ -1819,10 +1819,23 @@ app.get('/api/stats/quiet-hours', apiStatsReadLimiter, async (_req, res) => {
   }
 });
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
+  // Verify DB connectivity with a lightweight query
+  let dbOk = false;
+  try {
+    await pool.query('SELECT 1');
+    dbOk = true;
+  } catch { /* leave dbOk false */ }
+
+  const subscribers = getSubscriberHealth();
   const runtimeStatus = matterRuntime?.getStatus?.() ?? null;
-  res.json({
-    status: 'ok',
+
+  const healthy = dbOk && (subscribers.total === 0 || subscribers.connected > 0);
+
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'unhealthy',
+    db: dbOk ? 'ok' : 'unreachable',
+    subscribers,
     paired: Object.keys(loadPairings()).length,
     alertsEnabled: ALERTS_ENABLED,
     matter: runtimeStatus ? {

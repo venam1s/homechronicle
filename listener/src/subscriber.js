@@ -358,6 +358,28 @@ export function getSubscriberStats(deviceId) {
   };
 }
 
+/**
+ * Return an aggregate health summary across all subscriber sessions.
+ */
+export function getSubscriberHealth() {
+  let total = 0;
+  let connected = 0;
+  let stale = 0;
+  const staleThresholdMs = 10 * 60_000; // 10 minutes with no subscribe success
+  const now = Date.now();
+
+  for (const [, session] of subscriberSessions) {
+    total += 1;
+    if (session.client) connected += 1;
+    const lastSub = session.stats.lastSubscribedAt;
+    if (!lastSub || now - new Date(lastSub).getTime() > staleThresholdMs) {
+      stale += 1;
+    }
+  }
+
+  return { total, connected, stale };
+}
+
 export const __testHooks = {
   scheduleReconnect,
   getSession(deviceId) {
