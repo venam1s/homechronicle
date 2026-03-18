@@ -12,6 +12,15 @@
 const CHANGELOG = [
   {
     version: 'v0.1.4-beta',
+    title: 'Poll initial values so all accessories appear immediately',
+    items: [
+      'Listener: poll current characteristic values on connect so idle accessories appear immediately',
+      'Listener: add LeakDetected, FilterChangeIndication, and FilterMaintenance to watched types',
+      'Dashboard: dark mode fixes for anomaly panel, quiet hours, and tooltips',
+    ],
+  },
+  {
+    version: 'v0.1.4-beta',
     title: 'Dashboard polish, quiet hours API, dark mode tooltip fixes',
     items: [
       'Dashboard: stat cards now show "events" label and tooltip on truncated text',
