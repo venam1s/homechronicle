@@ -18,8 +18,22 @@ chown postgres:postgres "$PG_SOCKET_DIR"
 export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@/${POSTGRES_DB}?host=${PG_SOCKET_DIR}"
 export NODE_ENV="${NODE_ENV:-production}"
 export API_PORT
-export API_TOKEN="${API_TOKEN:-}"
 export TZ
+
+# ── API token auto-generation ───────────────────────────────────────────────
+# If no API_TOKEN is provided, generate one on first run and persist it so
+# the same token survives container restarts.
+TOKEN_FILE="/app/listener/data/.api_token"
+if [ -z "${API_TOKEN:-}" ]; then
+  if [ -f "$TOKEN_FILE" ]; then
+    API_TOKEN="$(cat "$TOKEN_FILE")"
+  else
+    API_TOKEN="$(openssl rand -hex 32)"
+    # Write after listener data dir is created (below), so defer via a flag
+    _WRITE_TOKEN=1
+  fi
+fi
+export API_TOKEN
 
 # ── Nginx env substitution ──────────────────────────────────────────────────
 export LISTENER_HOST=127.0.0.1
@@ -80,6 +94,19 @@ EOF
 # ── Listener data dir ───────────────────────────────────────────────────────
 mkdir -p /app/listener/data
 chown -R node:node /app/listener/data
+
+# Persist auto-generated token (deferred from above so data dir exists)
+if [ "${_WRITE_TOKEN:-}" = "1" ]; then
+  echo -n "$API_TOKEN" > "$TOKEN_FILE"
+  chown node:node "$TOKEN_FILE"
+  chmod 600 "$TOKEN_FILE"
+  echo "============================================================"
+  echo "  AUTO-GENERATED API TOKEN (saved to $TOKEN_FILE):"
+  echo "  $API_TOKEN"
+  echo ""
+  echo "  Pass -e API_TOKEN=<token> to use your own token instead."
+  echo "============================================================"
+fi
 
 # ── Launch everything via supervisord ───────────────────────────────────────
 exec /usr/bin/supervisord -c /etc/supervisord.conf

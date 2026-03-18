@@ -54,6 +54,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libbluetooth3 \
     # su-exec for dropping privileges
     su-exec \
+    # openssl for API token auto-generation
+    openssl \
     # Troubleshooting
     dnsutils iputils-ping curl \
   && rm -rf /var/lib/apt/lists/*
