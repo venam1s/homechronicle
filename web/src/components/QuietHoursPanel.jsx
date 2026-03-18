@@ -37,23 +37,23 @@ export default function QuietHoursPanel() {
 
   if (dismissed) return null;
 
-  const card = 'bg-white rounded-xl shadow-sm p-4 sm:p-5';
+  const card = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5';
 
   const header = (
     <div className="flex items-center gap-2 mb-3">
       <Moon size={14} className="text-indigo-400" />
-      <h3 className="text-sm font-semibold text-gray-700">Quiet Hours</h3>
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Quiet Hours</h3>
     </div>
   );
 
   if (isLoading) {
-    return <div className={card}>{header}<p className="text-sm text-gray-400">Checking quiet hours…</p></div>;
+    return <div className={card}>{header}<p className="text-sm text-gray-400 dark:text-gray-500">Checking quiet hours…</p></div>;
   }
   if (isError || (!isLoading && !data)) {
     return (
       <div className={card}>
         {header}
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-gray-400 dark:text-gray-500">
           No quiet hours data yet. Events will appear here once activity is recorded.
         </p>
       </div>
@@ -66,13 +66,13 @@ export default function QuietHoursPanel() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Moon size={14} className="text-indigo-400" />
-            <h3 className="text-sm font-semibold text-gray-700">Quiet Hours</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Quiet Hours</h3>
           </div>
-          <button onClick={dismiss} className="text-gray-400 hover:text-gray-600 p-0.5 rounded" title="Dismiss">
+          <button onClick={dismiss} className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-0.5 rounded" title="Dismiss">
             <X size={14} />
           </button>
         </div>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-gray-400 dark:text-gray-500">
           Configure quiet hours in Settings to flag unexpected nighttime activity.
         </p>
       </div>
@@ -87,7 +87,7 @@ export default function QuietHoursPanel() {
     return (
       <div className={card}>
         {header}
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
           <span>No unexpected activity during quiet hours ({startLocal} – {endLocal})</span>
         </div>
@@ -100,21 +100,21 @@ export default function QuietHoursPanel() {
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <Moon size={14} className="text-indigo-400" />
-          <h3 className="text-sm font-semibold text-gray-700">Quiet Hours Activity</h3>
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Quiet Hours Activity</h3>
         </div>
-        <span className="text-xs text-gray-400">{startLocal} – {endLocal}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500">{startLocal} – {endLocal}</span>
       </div>
       <div className="space-y-2">
         {events.map((row) => (
-          <div key={`${row.accessoryId ?? row.accessoryName}:${row.lastSeenAt}`} className="rounded-lg border border-indigo-100 bg-indigo-50/70 px-3 py-2">
-            <div className="flex items-center gap-2 text-xs text-indigo-700">
+          <div key={`${row.accessoryId ?? row.accessoryName}:${row.lastSeenAt}`} className="rounded-lg border border-indigo-100 bg-indigo-50/70 dark:border-indigo-500/20 dark:bg-indigo-500/10 px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-300">
               <Moon size={12} />
               <span className="font-semibold truncate">{row.accessoryName}</span>
-              {row.room && <span className="text-indigo-400 truncate">{row.room}</span>}
+              {row.room && <span className="text-indigo-400 dark:text-indigo-400/70 truncate">{row.room}</span>}
               <span className="ml-auto whitespace-nowrap">{row.count} event{row.count !== 1 ? 's' : ''}</span>
             </div>
             {row.lastSeenAt && (
-              <div className="text-xs text-indigo-600 mt-0.5">
+              <div className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">
                 Last seen {formatLastSeen(row.lastSeenAt)}
               </div>
             )}

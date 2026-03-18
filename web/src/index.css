@@ -67,8 +67,8 @@ input[type="checkbox"] {
     --hc-chart-tick: #64748b;
     --hc-chart-label: #94a3b8;
     --hc-chart-sublabel: #64748b;
-    --hc-tooltip-bg: #1e293b;
-    --hc-tooltip-border: #334155;
+    --hc-tooltip-bg: #334155;
+    --hc-tooltip-border: #475569;
     --hc-tooltip-text: #e2e8f0;
     --hc-room-fallback: #64748b;
     --hc-heatmap-empty: #1e293b;

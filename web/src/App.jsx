@@ -345,10 +345,10 @@ export default function App() {
 
             {/* 2-col: active outliers + stale devices */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5">
                 <AnomalyPanel />
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5">
                 <StaleDevicesPanel />
               </div>
             </div>

@@ -97,6 +97,27 @@ The web frontend is a React single-page application built with Vite and styled w
 | **Manage** | Discovery, pairing, room assignment, retention settings, log level |
 | **Alerts** | Rule management and delivery log (visible when `ALERTS_ENABLED=true`) |
 
+### Anomaly Detection (Active Outliers)
+
+The dashboard's **Active Outliers** panel flags devices or rooms whose recent activity is unusually high or low compared to their historical baseline.
+
+**How baselines are built:**
+
+1. The API queries the last 31 days of events from `event_logs`.
+2. For each device (and separately each room), it calculates per-hour-of-day averages and standard deviations using days 2–31 (excluding the most recent 24 hours).
+3. A device/room-hour needs at least **7 days** of historical data to be eligible for comparison.
+
+**How outliers are detected:**
+
+The `anomaly-detection.js` module compares the last 24 hours against the baseline using z-scores:
+
+- **Spike**: flagged when the z-score ≥ 3 *and* the event count exceeds the baseline average by at least 3. The spread used in the z-score calculation is `max(stddev, √avg, 1)` to handle low-variance baselines.
+- **Drop-off**: flagged when the baseline average is ≥ 2 events but 0 events were observed in the last 24 hours.
+
+Each outlier is assigned a severity based on its score: **medium** (score 3–4), **high** (4–5), or **critical** (5+). Results are sorted by severity then score, and the panel shows up to 8.
+
+**Refresh cadence:** The API response is cached for 2 minutes server-side; the frontend refetches every 60 seconds.
+
 ### Appearance
 
 The UI supports light and dark modes (or follows system preference) and six color themes: Ocean, Graphite, Sunrise, Red, Yellow, and Purple. Preferences are stored in the browser's localStorage.
