@@ -17,6 +17,12 @@
 
     --hc-glow-1: rgba(37, 99, 235, 0.14);
     --hc-glow-2: rgba(14, 165, 233, 0.11);
+
+    --hc-chart-tick: #64748b;
+    --hc-chart-grid: #e2e8f0;
+    --hc-tooltip-bg: #ffffff;
+    --hc-tooltip-text: #1e293b;
+    --hc-tooltip-border: #e2e8f0;
   }
 
   html,
@@ -49,6 +55,12 @@
     --hc-panel-soft: #111827;
     --hc-panel-border: #1e293b;
     --hc-shadow: 0 12px 24px -16px rgba(2, 6, 23, 0.75);
+
+    --hc-chart-tick: #94a3b8;
+    --hc-chart-grid: #1e293b;
+    --hc-tooltip-bg: #1e293b;
+    --hc-tooltip-text: #e2e8f0;
+    --hc-tooltip-border: #334155;
   }
 
   html[data-skin='ocean'] {

@@ -57,7 +57,7 @@ export default function HeatmapLane() {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1">
-        <h3 className="text-sm font-semibold text-gray-700">Activity Heatmap</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Activity Heatmap</h3>
         <span className="text-xs text-gray-400">last 7 days · local time</span>
       </div>
       <p className="text-xs text-gray-400 mb-1">Events per device per hour</p>

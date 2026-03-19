@@ -170,7 +170,7 @@ function StateDurationDonut({ accessoryId, days }) {
 
   return (
     <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
         <PieChartIcon size={14} className="text-gray-400" />
         State Duration
       </h3>
@@ -258,7 +258,7 @@ function ActivityHeatmap({ accessoryId, days }) {
 
   return (
     <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
         <Grid3x3 size={14} className="text-gray-400" />
         Activity Heatmap
       </h3>
@@ -316,7 +316,7 @@ function CharSummaryTable({ accessoryId, days }) {
 
   return (
     <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
         <BarChart3 size={14} className="text-gray-400" />
         Characteristic Summary
       </h3>
@@ -505,7 +505,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Feature 2: Device Metadata */}
           {metadataFields.length > 0 && (
             <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
                 <Info size={14} className="text-gray-400" />
                 Device Info
               </h3>
@@ -531,7 +531,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
               'bg-white rounded-xl shadow-sm p-4 sm:p-5',
               (reliability.disconnects > 0 || reliability.resubscribe_failures > 0) && 'border border-amber-100'
             )}>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
                 {reliability.disconnects > 0 || reliability.resubscribe_failures > 0
                   ? <WifiOff size={14} className="text-amber-500" />
                   : <Wifi size={14} className="text-green-500" />
@@ -595,7 +595,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Feature 4: Anomaly Indicators */}
           {outliers.length > 0 && (
             <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
                 <AlertTriangle size={14} className="text-amber-500" />
                 Anomalies (last 24h)
               </h3>
@@ -640,7 +640,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Activity Over Time chart */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                 <TrendingUp size={14} className="text-gray-400" />
                 Activity Over Time
               </h3>
@@ -707,7 +707,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
 
           {/* Current State with Features 6 (protocol details) and 5 (characteristic trends) */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
               <Layers size={14} className="text-gray-400" />
               Current State
             </h3>
@@ -775,7 +775,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Full History */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                 <ScrollText size={14} className="text-gray-400" />
                 Full History
               </h3>
