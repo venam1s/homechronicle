@@ -181,7 +181,9 @@ export default function AccessoryList({ onSelectAccessory }) {
           const bridgeId = parentId(accessory.accessory_id);
           if (bridgeId && bridgeId !== lastBridgeId) {
             const bridge = bridgeMap[bridgeId];
-            rows.push({ type: 'bridge-banner', bridgeId, bridgeName: bridge?.accessory_name ?? bridgeId });
+            // Prefer bridge_name from child (pairing name), then bridge record's own name, then raw ID
+            const name = accessory.bridge_name || bridge?.accessory_name || bridgeId;
+            rows.push({ type: 'bridge-banner', bridgeId, bridgeName: name });
           }
           lastBridgeId = bridgeId;
           rows.push({ type: 'accessory', accessory });

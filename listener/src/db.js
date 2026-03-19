@@ -203,6 +203,30 @@ export async function migrateDb() {
     CREATE INDEX IF NOT EXISTS idx_alert_deliveries_event
       ON alert_deliveries (event_id);
   `);
+
+  // One-time cleanup: remove initial-poll events that were incorrectly
+  // inserted as real activity (old_value IS NULL in bursts of 5+ per second).
+  // These were caused by feeding getCharacteristics() results through
+  // handleEvent() instead of just seeding the valueCache.
+  const cleanup = await pool.query(`
+    DELETE FROM event_logs
+    WHERE id IN (
+      SELECT e.id
+      FROM event_logs e
+      JOIN (
+        SELECT date_trunc('second', timestamp) AS sec
+        FROM event_logs
+        WHERE old_value IS NULL
+        GROUP BY date_trunc('second', timestamp)
+        HAVING COUNT(*) >= 5
+      ) burst ON date_trunc('second', e.timestamp) = burst.sec
+      WHERE e.old_value IS NULL
+    )
+  `);
+  if (cleanup.rowCount > 0) {
+    log.info(`[db] Cleaned up ${cleanup.rowCount} initial-poll event(s).`);
+  }
+
   log.info('[db] Schema ready.');
 }
 

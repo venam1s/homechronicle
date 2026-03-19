@@ -31,7 +31,7 @@ export default function StaleDevicesPanel() {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">Stale Devices</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Stale Devices</h3>
         <span className="text-xs text-gray-400">heartbeat lagging</span>
       </div>
       <div className="space-y-2">

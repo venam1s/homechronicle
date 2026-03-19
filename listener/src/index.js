@@ -25,6 +25,7 @@ import { log, getLevel, setLevel } from './logger.js';
 import { secureTokenEquals } from './security.js';
 import {
   cacheAccessoryMetadata,
+  getAllDiscoveredAccessories,
   getAccessoryCapabilities,
   getAccessoryIdentity,
   shortUuid,
@@ -1116,6 +1117,8 @@ app.get('/api/accessories', apiStatsReadLimiter, async (_req, res) => {
       return {
         ...r,
         protocol,
+        category: bridgePairing?.category ?? null,
+        bridge_name: bridgePairing?.name ?? null,
         room_name: rooms[r.accessory_id] ?? rooms[bridgeId] ?? r.room_name,
         address: bridgePairing?.address ?? null,
         paired_at: bridgePairing?.pairedAt ?? null,
@@ -1153,6 +1156,7 @@ app.get('/api/accessories', apiStatsReadLimiter, async (_req, res) => {
           room_name: rooms[id] ?? rooms[parentBridgeId(id)] ?? null,
           service_type: null,
           category: p.category ?? null,
+          bridge_name: p.name ?? null,
           last_seen: null,
           event_count: 0,
           address: p.address ?? null,
@@ -1173,7 +1177,48 @@ app.get('/api/accessories', apiStatsReadLimiter, async (_req, res) => {
         };
       });
 
-    res.json([...dbRows, ...neverSeen]);
+    // Include bridge children discovered via getAccessories() that have
+    // no events yet and aren't in pairings (only the bridge itself is paired).
+    const allIds = new Set([...seenIds, ...neverSeen.map((r) => r.accessory_id)]);
+    const discovered = getAllDiscoveredAccessories()
+      .filter((d) => !allIds.has(d.accessory_id) && d.watched_characteristic_count > 0)
+      .map((d) => {
+        const bridgeId = parentBridgeId(d.accessory_id);
+        const bridgePairing = currentPairings[bridgeId] ?? currentPairings[d.accessory_id] ?? null;
+        const identity = getAccessoryIdentity(d.accessory_id) ?? getAccessoryIdentity(bridgeId);
+        const reliability = getSubscriberStats(bridgeId);
+        const serviceType = d.watched_service_types?.[0] ?? null;
+        return {
+          accessory_id: d.accessory_id,
+          accessory_name: d.accessory_name
+            ? (serviceType ? `${d.accessory_name} · ${serviceType}` : d.accessory_name)
+            : d.accessory_id,
+          protocol: bridgePairing?.protocol ?? 'homekit',
+          room_name: rooms[d.accessory_id] ?? rooms[bridgeId] ?? null,
+          service_type: serviceType,
+          category: bridgePairing?.category ?? null,
+          bridge_name: bridgePairing?.name ?? null,
+          last_seen: null,
+          event_count: 0,
+          address: bridgePairing?.address ?? null,
+          paired_at: bridgePairing?.pairedAt ?? null,
+          manufacturer: identity?.manufacturer ?? null,
+          model: identity?.model ?? null,
+          serial_number: identity?.serial_number ?? null,
+          firmware_revision: identity?.firmware_revision ?? null,
+          hardware_revision: identity?.hardware_revision ?? null,
+          metadata_updated_at: identity?.metadata_updated_at ?? null,
+          reliability: mapReliabilityStats(reliability),
+          health: deriveDeviceHealth({
+            lastSeen: null,
+            pairedAt: bridgePairing?.pairedAt ?? null,
+            staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
+            now,
+          }),
+        };
+      });
+
+    res.json([...dbRows, ...neverSeen, ...discovered]);
   } catch (err) {
     log.error('[api] /api/accessories error:', err.message ?? err.stack ?? err);
     res.status(500).json({ error: 'Internal server error' });

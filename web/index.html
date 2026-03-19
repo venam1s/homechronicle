@@ -24,7 +24,7 @@
           ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           : preference;
         const storedSkin = localStorage.getItem(skinKey);
-        const validSkins = ['ocean','graphite','sunrise','red','yellow','purple'];
+        const validSkins = ['ocean','graphite','sunrise','red','yellow','purple','slate','alabaster'];
         const skin = validSkins.includes(storedSkin) ? storedSkin : 'ocean';
         document.documentElement.dataset.theme = resolved;
         document.documentElement.dataset.skin = skin;
