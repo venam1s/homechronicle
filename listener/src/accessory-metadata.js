@@ -216,6 +216,10 @@ export function getAccessoryCapabilities(accessoryId) {
   return capabilitiesCache.get(accessoryId) ?? null;
 }
 
+export function getAllDiscoveredAccessories() {
+  return [...capabilitiesCache.values()];
+}
+
 export function clearAccessoryMetadata(deviceId) {
   for (const key of identityCache.keys()) {
     if (key === deviceId || key.startsWith(`${deviceId}:`)) identityCache.delete(key);

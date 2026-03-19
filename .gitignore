@@ -29,6 +29,11 @@ Thumbs.db
 postgres-data/
 docker-compose.override.yml
 
+# Test environment
+.env.test
+docker-compose.test.yml
+listener/data-test/
+
 # Local helper scripts
 scripts/dev-local.sh
 scripts/test-local.sh
