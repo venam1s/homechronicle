@@ -12,6 +12,19 @@
 const CHANGELOG = [
   {
     version: 'v0.1.4-beta',
+    title: 'Dark mode polish, bridge names & initial poll fix',
+    items: [
+      'Dark mode: replace 16 hardcoded colors with CSS variables for consistent theming',
+      'Dark mode: fix chart axes, titles, and tooltip text visibility',
+      'Accessories: show bridge names instead of MAC addresses in accessory list',
+      'Fix: bridge name now uses HAP Name characteristic instead of mDNS discovery name',
+      'Accessories: include all discovered accessories from bridge queries',
+      'Fix: initial poll no longer floods the timeline with duplicate events',
+      'Themes: restore Slate and Alabaster skin definitions',
+    ],
+  },
+  {
+    version: 'v0.1.4-beta',
     title: 'Poll initial values so all accessories appear immediately',
     items: [
       'Listener: poll current characteristic values on connect so idle accessories appear immediately',
