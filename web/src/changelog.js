@@ -12,6 +12,15 @@
 const CHANGELOG = [
   {
     version: 'v0.1.4-beta',
+    title: 'Show all bridge accessories (even without watched characteristics)',
+    items: [
+      'Accessories: show all discovered bridge children, not just those with standard HomeKit characteristics',
+      'Accessories: fall back to first service type label for accessories without watched characteristics',
+      'Fix: standalone devices with no events were incorrectly hidden as bridges',
+    ],
+  },
+  {
+    version: 'v0.1.4-beta',
     title: 'Dark mode polish, bridge names & initial poll fix',
     items: [
       'Dark mode: replace 16 hardcoded colors with CSS variables for consistent theming',

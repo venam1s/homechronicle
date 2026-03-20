@@ -81,7 +81,7 @@ export default function AccessoryList({ onSelectAccessory }) {
   const nonBridgeAccessories = [];
   for (const a of accessories) {
     const parts = a.accessory_id.split(':');
-    const isBridge = parts.length === 6 && (a.category === 2 || !a.last_seen);
+    const isBridge = parts.length === 6 && a.category === 2;
     if (isBridge) {
       bridgeMap[a.accessory_id] = a;
     } else {

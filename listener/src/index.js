@@ -1181,13 +1181,15 @@ app.get('/api/accessories', apiStatsReadLimiter, async (_req, res) => {
     // no events yet and aren't in pairings (only the bridge itself is paired).
     const allIds = new Set([...seenIds, ...neverSeen.map((r) => r.accessory_id)]);
     const discovered = getAllDiscoveredAccessories()
-      .filter((d) => !allIds.has(d.accessory_id) && d.watched_characteristic_count > 0)
+      .filter((d) => !allIds.has(d.accessory_id))
       .map((d) => {
         const bridgeId = parentBridgeId(d.accessory_id);
         const bridgePairing = currentPairings[bridgeId] ?? currentPairings[d.accessory_id] ?? null;
         const identity = getAccessoryIdentity(d.accessory_id) ?? getAccessoryIdentity(bridgeId);
         const reliability = getSubscriberStats(bridgeId);
-        const serviceType = d.watched_service_types?.[0] ?? null;
+        const serviceType = d.watched_service_types?.[0]
+          ?? d.services?.find((s) => s.label !== 'AccessoryInformation' && s.label !== '3E')?.label
+          ?? null;
         return {
           accessory_id: d.accessory_id,
           accessory_name: d.accessory_name
