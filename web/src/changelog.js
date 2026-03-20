@@ -11,69 +11,27 @@
  */
 const CHANGELOG = [
   {
-    version: 'v0.1.4-beta',
-    title: 'Show all bridge accessories (even without watched characteristics)',
-    items: [
-      'Accessories: show all discovered bridge children, not just those with standard HomeKit characteristics',
-      'Accessories: fall back to first service type label for accessories without watched characteristics',
-      'Fix: standalone devices with no events were incorrectly hidden as bridges',
-    ],
-  },
-  {
-    version: 'v0.1.4-beta',
-    title: 'Dark mode polish, bridge names & initial poll fix',
-    items: [
-      'Dark mode: replace 16 hardcoded colors with CSS variables for consistent theming',
-      'Dark mode: fix chart axes, titles, and tooltip text visibility',
-      'Accessories: show bridge names instead of MAC addresses in accessory list',
-      'Fix: bridge name now uses HAP Name characteristic instead of mDNS discovery name',
-      'Accessories: include all discovered accessories from bridge queries',
-      'Fix: initial poll no longer floods the timeline with duplicate events',
-      'Themes: restore Slate and Alabaster skin definitions',
-    ],
-  },
-  {
-    version: 'v0.1.4-beta',
-    title: 'Poll initial values so all accessories appear immediately',
-    items: [
-      'Listener: poll current characteristic values on connect so idle accessories appear immediately',
-      'Listener: add LeakDetected, FilterChangeIndication, and FilterMaintenance to watched types',
-      'Dashboard: dark mode fixes for anomaly panel, quiet hours, and tooltips',
-    ],
-  },
-  {
-    version: 'v0.1.4-beta',
-    title: 'Dashboard polish, quiet hours API, dark mode tooltip fixes',
-    items: [
-      'Dashboard: stat cards now show "events" label and tooltip on truncated text',
-      'Dashboard: quiet hours panel backed by real API endpoint',
-      'Dashboard: quiet hours panel is dismissable when not configured',
-      'Charts: tooltip text now visible in dark mode across all charts',
-    ],
-  },
-  {
-    version: 'v0.1.4-beta',
-    title: 'Themes, standalone image, protocol badges & UX overhaul',
+    version: 'v0.1.4',
+    title: 'Themes, dark mode, accessories overhaul & standalone Docker image',
     items: [
       'Standalone Docker image: single container with PostgreSQL, listener, and web UI',
-      'Accessories: protocol badge (Matter / HomeKit) on each row',
       'Themes: Slate Grey, Alabaster, Bubblegum, Coral, Golden, Violet, and Teal skins',
+      'Dark mode: consistent CSS variable theming, chart/tooltip visibility fixes',
+      'Accessories: show all discovered bridge children, including those without standard HomeKit characteristics',
+      'Accessories: show bridge names instead of MAC addresses, protocol badges (Matter / HomeKit)',
+      'Accessories: poll current values on connect so idle accessories appear immediately',
+      'Dashboard: stat card labels, quiet hours panel backed by real API, dark mode fixes',
       'Settings: reorganized into Data, Alerts, Timeline, and Advanced sections',
+      'Listener: add LeakDetected, FilterChangeIndication, and FilterMaintenance to watched types',
+      'Performance: server-side TTL cache, batch alert checks, composite indexes, vendor chunk splitting',
+      'Security: container resource limits, non-root listener, private webhook targets blocked, configurable API bind address',
+      'Reliability: write lock on JSON stores, React error boundaries on all tabs',
+      'Accessibility: aria-labels on icon buttons, form inputs, and pagination controls',
       'Terminology: "devices" renamed to "accessories" throughout the UI',
       'Room colors: improved hash for more even, distinct color distribution',
       'License changed from MIT to AGPL-3.0',
-    ],
-  },
-  {
-    version: 'v0.1.4-beta',
-    title: 'Performance, security & reliability',
-    items: [
-      'Performance: server-side TTL cache, batch alert checks, composite indexes, vendor chunk splitting',
-      'Security: container resource limits, non-root listener, private webhook targets blocked by default',
-      'Security: configurable API bind address, segmented nginx timeouts, audit logging',
-      'Reliability: write lock on JSON stores, React error boundaries on all tabs',
-      'Accessibility: aria-labels on icon buttons, form inputs, and pagination controls',
-      'Dark mode: improved panel colors, dividers, and accent-soft overrides',
+      'Fix: initial poll no longer floods timeline with duplicate events',
+      'Fix: standalone devices with no events were incorrectly hidden as bridges',
     ],
   },
   {
