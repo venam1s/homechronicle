@@ -262,3 +262,466 @@ test('/api/setup/matter/pair commissions when setupCode is provided', async () =
   assert.equal(pairings['42'].protocol, 'matter');
   assert.equal(pairings['42'].manualImport, undefined);
 });
+
+// --- Additional hardening tests ---
+
+function makeRouter(overrides = {}) {
+  const state = {
+    pairings: overrides.pairings ?? {},
+    rooms: overrides.rooms ?? {},
+    notes: overrides.notes ?? {},
+    inserted: [],
+    queries: [],
+  };
+  const router = createMatterRouter({
+    insertEvent: async (evt) => {
+      state.inserted.push(evt);
+      return { id: state.inserted.length, timestamp: new Date().toISOString() };
+    },
+    pool: overrides.pool ?? null,
+    loadPairings: () => state.pairings,
+    savePairings: async (next) => { state.pairings = next; },
+    loadRooms: () => state.rooms,
+    saveRooms: async (next) => { state.rooms = next; },
+    loadNotes: () => state.notes,
+    saveNotes: async (next) => { state.notes = next; },
+    matterRuntime: overrides.matterRuntime ?? null,
+    getMatterDiscoveryCache: overrides.getMatterDiscoveryCache ?? (() => []),
+    setMatterDiscoveryCache: overrides.setMatterDiscoveryCache ?? (() => {}),
+  });
+  return { router, state };
+}
+
+// --- DELETE pairing tests ---
+
+test('DELETE /setup/matter/pairing removes pairing, rooms, and notes', async () => {
+  const { router, state } = makeRouter({
+    pairings: {
+      '100': { protocol: 'matter', nodeId: '100', name: 'Sensor' },
+    },
+    rooms: { '100': 'Kitchen', '100:1': 'Kitchen', '200': 'Bedroom' },
+    notes: { '100': 'test note', '100:1': 'endpoint note', '200': 'other' },
+  });
+  const handler = getRouteHandler(router, 'DELETE', '/setup/matter/pairing/:nodeId');
+
+  const response = await invoke(handler, { params: { nodeId: '100' } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.success, true);
+  assert.equal(state.pairings['100'], undefined);
+  assert.equal(state.rooms['100'], undefined);
+  assert.equal(state.rooms['100:1'], undefined);
+  assert.equal(state.rooms['200'], 'Bedroom'); // should not be deleted
+  assert.equal(state.notes['100'], undefined);
+  assert.equal(state.notes['100:1'], undefined);
+  assert.equal(state.notes['200'], 'other');
+});
+
+test('DELETE /setup/matter/pairing returns 404 for non-existent pairing', async () => {
+  const { router } = makeRouter();
+  const handler = getRouteHandler(router, 'DELETE', '/setup/matter/pairing/:nodeId');
+
+  const response = await invoke(handler, { params: { nodeId: '999' } });
+  assert.equal(response.statusCode, 404);
+  assert.match(response.jsonBody.error, /not found/i);
+});
+
+test('DELETE /setup/matter/pairing returns 404 for homekit pairing', async () => {
+  const { router } = makeRouter({
+    pairings: { '100': { protocol: 'homekit', name: 'Bridge' } },
+  });
+  const handler = getRouteHandler(router, 'DELETE', '/setup/matter/pairing/:nodeId');
+
+  const response = await invoke(handler, { params: { nodeId: '100' } });
+  assert.equal(response.statusCode, 404);
+});
+
+test('DELETE /setup/matter/pairing returns 400 for empty nodeId', async () => {
+  const { router } = makeRouter();
+  const handler = getRouteHandler(router, 'DELETE', '/setup/matter/pairing/:nodeId');
+
+  const response = await invoke(handler, { params: { nodeId: '' } });
+  assert.equal(response.statusCode, 400);
+});
+
+test('DELETE /setup/matter/pairing purges events when pool is provided', async () => {
+  const deletedRows = [];
+  const mockPool = {
+    async query(sql, params) {
+      deletedRows.push({ sql, params });
+      return { rowCount: 5 };
+    },
+  };
+  const { router } = makeRouter({
+    pairings: { '100': { protocol: 'matter', nodeId: '100', name: 'Sensor' } },
+    pool: mockPool,
+  });
+  const handler = getRouteHandler(router, 'DELETE', '/setup/matter/pairing/:nodeId');
+
+  const response = await invoke(handler, { params: { nodeId: '100' } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.deletedEvents, 5);
+  assert.equal(deletedRows.length, 1);
+  assert.equal(deletedRows[0].params[0], '100');
+  assert.equal(deletedRows[0].params[1], '100:%');
+});
+
+// --- GET pairings tests ---
+
+test('GET /setup/matter/pairings returns only matter pairings', async () => {
+  const { router } = makeRouter({
+    pairings: {
+      '100': { protocol: 'matter', nodeId: '100', name: 'Matter Device', transport: 'ip' },
+      'abc-def': { protocol: 'homekit', name: 'HAP Bridge' },
+      '200': { protocol: 'matter', nodeId: '200', name: 'Thread Sensor', transport: 'thread' },
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/setup/matter/pairings');
+
+  const response = await invoke(handler);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.length, 2);
+  assert.ok(response.jsonBody.every((p) => p.protocol === 'matter'));
+});
+
+// --- GET runtime tests ---
+
+test('GET /setup/matter/runtime returns 503 when no runtime', async () => {
+  const { router } = makeRouter({ matterRuntime: null });
+  const handler = getRouteHandler(router, 'GET', '/setup/matter/runtime');
+
+  const response = await invoke(handler);
+  assert.equal(response.statusCode, 503);
+  assert.match(response.jsonBody.error, /unavailable/i);
+});
+
+test('GET /setup/matter/runtime returns status when runtime exists', async () => {
+  const { router } = makeRouter({
+    matterRuntime: {
+      getStatus: () => ({ controllerReady: true, nodes: [] }),
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/setup/matter/runtime');
+
+  const response = await invoke(handler);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.controllerReady, true);
+});
+
+// --- POST commission edge cases ---
+
+test('POST /setup/matter/commission returns 503 without runtime', async () => {
+  const { router } = makeRouter({ matterRuntime: null });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/commission');
+
+  const response = await invoke(handler, {
+    body: { setupCode: 'MT:1234' },
+  });
+  assert.equal(response.statusCode, 503);
+});
+
+test('POST /setup/matter/commission returns 400 without setupCode', async () => {
+  const { router } = makeRouter({
+    matterRuntime: { commission: async () => ({}) },
+  });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/commission');
+
+  const response = await invoke(handler, { body: {} });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.jsonBody.error, /setupCode/i);
+});
+
+test('POST /setup/matter/commission returns 400 on commission error', async () => {
+  const { router } = makeRouter({
+    matterRuntime: {
+      commission: async () => { throw new Error('Commissioning timed out'); },
+    },
+  });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/commission');
+
+  const response = await invoke(handler, {
+    body: { setupCode: 'MT:1234' },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.jsonBody.error, /timed out/i);
+});
+
+// --- POST /setup/matter/pair edge cases ---
+
+test('POST /setup/matter/pair requires name', async () => {
+  const { router } = makeRouter();
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/pair');
+
+  const response = await invoke(handler, {
+    body: { nodeId: '100' },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.jsonBody.error, /name is required/i);
+});
+
+test('POST /setup/matter/pair returns 503 with setupCode but no runtime', async () => {
+  const { router } = makeRouter({ matterRuntime: null });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/pair');
+
+  const response = await invoke(handler, {
+    body: { name: 'Test Device', setupCode: 'MT:1234' },
+  });
+  assert.equal(response.statusCode, 503);
+  assert.match(response.jsonBody.error, /not available/i);
+});
+
+test('POST /setup/matter/pair returns 400 when commissioning fails', async () => {
+  const { router } = makeRouter({
+    matterRuntime: {
+      commission: async () => { throw new Error('Network unreachable'); },
+    },
+  });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/pair');
+
+  const response = await invoke(handler, {
+    body: { nodeId: '100', name: 'Test Device', setupCode: 'MT:1234' },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.jsonBody.error, /network unreachable/i);
+});
+
+test('POST /setup/matter/pair uses actual nodeId from commissioning result', async () => {
+  let pairings = {};
+  const { router } = makeRouter({
+    pairings,
+    matterRuntime: {
+      commission: async () => ({ nodeId: '999' }),
+    },
+  });
+  // We need to access the state via the router's closure
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/pair');
+
+  const response = await invoke(handler, {
+    body: { nodeId: '100', name: 'Remapped Node', setupCode: 'MT:1234' },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.pairing.nodeId, '999');
+});
+
+// --- POST /matter/events edge cases ---
+
+test('POST /matter/events rejects empty events array', async () => {
+  const { router } = makeRouter();
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, { body: { events: [] } });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.jsonBody.error, /events array/i);
+});
+
+test('POST /matter/events rejects event without newValue', async () => {
+  const { router } = makeRouter();
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: { events: [{ nodeId: '100', characteristic: 'OnOff' }] },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.jsonBody.error, /newValue/i);
+});
+
+test('POST /matter/events rejects event without characteristic or clusterId+attributeId', async () => {
+  const { router } = makeRouter();
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: { events: [{ nodeId: '100', newValue: true }] },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.match(response.jsonBody.error, /characteristic/i);
+});
+
+test('POST /matter/events accepts single event object via event field', async () => {
+  const { router, state } = makeRouter({
+    pairings: { '100': { protocol: 'matter', name: 'Test' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: {
+      event: { nodeId: '100', characteristic: 'OnOff', newValue: true },
+    },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.inserted, 1);
+  assert.equal(state.inserted.length, 1);
+});
+
+test('POST /matter/events handles multiple events in batch', async () => {
+  const { router, state } = makeRouter({
+    pairings: { '100': { protocol: 'matter', name: 'Multi' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: {
+      events: [
+        { nodeId: '100', endpointId: 1, characteristic: 'OnOff', newValue: true },
+        { nodeId: '100', endpointId: 2, characteristic: 'OnOff', newValue: false },
+        { nodeId: '100', endpointId: 1, characteristic: 'CurrentLevel', newValue: 75 },
+      ],
+    },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.inserted, 3);
+  assert.equal(state.inserted.length, 3);
+  assert.equal(state.inserted[0].accessoryId, '100:1');
+  assert.equal(state.inserted[1].accessoryId, '100:2');
+});
+
+test('POST /matter/events uses deviceId/pairingId as fallback for nodeId', async () => {
+  const { router, state } = makeRouter({
+    pairings: { '100': { protocol: 'matter', name: 'Fallback' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: {
+      events: [{ deviceId: '100', characteristic: 'OnOff', newValue: true }],
+    },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(state.inserted[0].accessoryId, '100');
+});
+
+test('POST /matter/events constructs characteristic from clusterId+attributeId', async () => {
+  const { router, state } = makeRouter({
+    pairings: { '100': { protocol: 'matter', name: 'Cluster' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: {
+      events: [{
+        nodeId: '100', endpointId: 1,
+        clusterId: 6, attributeId: 0,
+        newValue: true,
+      }],
+    },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(state.inserted[0].characteristic, 'cluster:6/attribute:0');
+});
+
+test('POST /matter/events preserves oldValue as string', async () => {
+  const { router, state } = makeRouter({
+    pairings: { '100': { protocol: 'matter', name: 'OldVal' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: {
+      events: [{
+        nodeId: '100', characteristic: 'OnOff',
+        oldValue: false, newValue: true,
+      }],
+    },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(state.inserted[0].oldValue, 'false');
+});
+
+test('POST /matter/events sets null oldValue for missing/null oldValue', async () => {
+  const { router, state } = makeRouter({
+    pairings: { '100': { protocol: 'matter', name: 'NullOld' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  await invoke(handler, {
+    body: {
+      events: [
+        { nodeId: '100', characteristic: 'OnOff', newValue: true },
+        { nodeId: '100', characteristic: 'Level', oldValue: null, newValue: 50 },
+      ],
+    },
+  });
+  assert.equal(state.inserted[0].oldValue, null);
+  assert.equal(state.inserted[1].oldValue, null);
+});
+
+// --- GET /setup/matter/discovered tests ---
+
+test('GET /setup/matter/discovered returns cached devices with pairing status', async () => {
+  const cache = [
+    { id: 'dev1', instanceName: 'dev1', name: 'Device 1' },
+    { id: 'dev2', instanceName: 'dev2', name: 'Device 2' },
+  ];
+  const { router } = makeRouter({
+    pairings: { '100': { protocol: 'matter', nodeId: 'dev1', name: 'Paired' } },
+    getMatterDiscoveryCache: () => cache,
+  });
+  const handler = getRouteHandler(router, 'GET', '/setup/matter/discovered');
+
+  const response = await invoke(handler);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.devices.length, 2);
+  assert.equal(response.jsonBody.devices[0].alreadyPaired, true);
+  assert.equal(response.jsonBody.devices[1].alreadyPaired, false);
+  assert.ok(response.jsonBody.cachedAt);
+});
+
+// --- POST /setup/matter/scan tests ---
+
+test('POST /setup/matter/scan returns 503 without runtime', async () => {
+  const { router } = makeRouter({ matterRuntime: null });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/scan');
+
+  const response = await invoke(handler);
+  assert.equal(response.statusCode, 503);
+});
+
+test('POST /setup/matter/scan returns discovered devices', async () => {
+  let cachedDevices = [];
+  const { router } = makeRouter({
+    matterRuntime: {
+      scan: async () => [
+        { instanceName: 'sensor1', deviceName: 'Motion', discriminator: 1234, address: '192.168.1.50', addresses: ['192.168.1.50'], port: 5540 },
+      ],
+    },
+    setMatterDiscoveryCache: (d) => { cachedDevices = d; },
+  });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/scan');
+
+  const response = await invoke(handler);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.devices.length, 1);
+  assert.equal(response.jsonBody.devices[0].name, 'Motion');
+  assert.equal(cachedDevices.length, 1);
+});
+
+test('POST /setup/matter/scan returns cached devices on error', async () => {
+  const cachedDevices = [{ id: 'old', name: 'Cached' }];
+  const { router } = makeRouter({
+    matterRuntime: {
+      scan: async () => { throw new Error('mDNS failed'); },
+    },
+    getMatterDiscoveryCache: () => cachedDevices,
+  });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/scan');
+
+  const response = await invoke(handler);
+  // Returns 200 with warning, not 500
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.jsonBody.warning);
+  assert.match(response.jsonBody.warning, /mDNS failed/);
+  assert.equal(response.jsonBody.devices.length, 1);
+});
+
+// --- nodeId normalization tests ---
+
+test('nodeId normalization handles hex and decimal formats', async () => {
+  let pairings = {};
+  const { router } = makeRouter({ pairings });
+  const handler = getRouteHandler(router, 'POST', '/setup/matter/pair');
+
+  // Hex format
+  const r1 = await invoke(handler, {
+    body: { nodeId: '0xFF', name: 'Hex Device' },
+  });
+  assert.equal(r1.statusCode, 200);
+  assert.equal(r1.jsonBody.pairing.nodeId, '255');
+});

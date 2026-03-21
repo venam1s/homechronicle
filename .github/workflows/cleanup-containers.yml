@@ -1,0 +1,45 @@
+name: Cleanup Container Images
+
+on:
+  schedule:
+    - cron: '0 3 * * 0' # weekly, Sunday 3am UTC
+  workflow_dispatch:
+
+jobs:
+  cleanup-beta:
+    name: Prune old beta images (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        package: [listener, web, standalone]
+    steps:
+      - name: Delete old beta tags
+        uses: snok/container-retention-policy@v3
+        with:
+          account: ${{ github.repository_owner }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image-names: homechronicle/${{ matrix.package }}
+          tag-selection: both
+          cut-off: 30 days ago UTC
+          keep-n-most-recent: 5
+          filter-tags: '*-beta.*'
+
+  cleanup-untagged:
+    name: Prune untagged images (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        package: [listener, web, standalone]
+    steps:
+      - name: Delete untagged images
+        uses: snok/container-retention-policy@v3
+        with:
+          account: ${{ github.repository_owner }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          image-names: homechronicle/${{ matrix.package }}
+          tag-selection: untagged
+          cut-off: 7 days ago UTC

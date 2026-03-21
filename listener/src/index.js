@@ -160,7 +160,10 @@ function normalizeRetentionSettings(input = {}) {
   const sceneWindowSeconds = Number.isFinite(sws) && sws >= 1 && sws <= 30 ? sws : 5;
   const emc = Number.parseInt(String(input.episodeMinEventCount ?? ''), 10);
   const episodeMinEventCount = Number.isFinite(emc) && emc >= 1 && emc <= 20 ? emc : 3;
-  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, episodeWindowMinutes, sceneWindowSeconds, episodeMinEventCount };
+  const quietHoursExcludedAccessories = Array.isArray(input.quietHoursExcludedAccessories)
+    ? input.quietHoursExcludedAccessories.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim())
+    : [];
+  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, quietHoursExcludedAccessories, episodeWindowMinutes, sceneWindowSeconds, episodeMinEventCount };
 }
 
 function isLoopbackHostname(hostname) {
@@ -838,6 +841,7 @@ app.get('/api/setup/retention', (_req, res) => {
     quietHoursEnabled: retentionSettings.quietHoursEnabled,
     quietHoursStart: retentionSettings.quietHoursStart,
     quietHoursEnd: retentionSettings.quietHoursEnd,
+    quietHoursExcludedAccessories: retentionSettings.quietHoursExcludedAccessories,
     episodeWindowMinutes: retentionSettings.episodeWindowMinutes,
     sceneWindowSeconds: retentionSettings.sceneWindowSeconds,
     episodeMinEventCount: retentionSettings.episodeMinEventCount,
@@ -899,6 +903,16 @@ app.patch('/api/setup/retention', async (req, res) => {
     updates.quietHoursEnd = h;
   }
 
+  if (body.quietHoursExcludedAccessories !== undefined) {
+    if (!Array.isArray(body.quietHoursExcludedAccessories)) {
+      return res.status(400).json({ error: 'quietHoursExcludedAccessories must be an array of accessory ID strings.' });
+    }
+    if (body.quietHoursExcludedAccessories.some((v) => typeof v !== 'string' || !v.trim())) {
+      return res.status(400).json({ error: 'Each entry in quietHoursExcludedAccessories must be a non-empty string.' });
+    }
+    updates.quietHoursExcludedAccessories = body.quietHoursExcludedAccessories.map((v) => v.trim());
+  }
+
   if (body.episodeWindowMinutes !== undefined) {
     const ewm = Number.parseInt(String(body.episodeWindowMinutes), 10);
     if (!Number.isFinite(ewm) || ewm < 1 || ewm > 30) {
@@ -942,6 +956,7 @@ app.patch('/api/setup/retention', async (req, res) => {
     quietHoursEnabled: retentionSettings.quietHoursEnabled,
     quietHoursStart: retentionSettings.quietHoursStart,
     quietHoursEnd: retentionSettings.quietHoursEnd,
+    quietHoursExcludedAccessories: retentionSettings.quietHoursExcludedAccessories,
     episodeWindowMinutes: retentionSettings.episodeWindowMinutes,
     sceneWindowSeconds: retentionSettings.sceneWindowSeconds,
     episodeMinEventCount: retentionSettings.episodeMinEventCount,
@@ -1828,10 +1843,17 @@ app.get('/api/stats/quiet-hours', apiStatsReadLimiter, async (_req, res) => {
   }
   const startHour = retentionSettings.quietHoursStart; // UTC hour
   const endHour = retentionSettings.quietHoursEnd;     // UTC hour
+  const excluded = retentionSettings.quietHoursExcludedAccessories ?? [];
   try {
     const hourCondition = startHour > endHour
       ? '(EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int >= $1 OR EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int < $2)'
       : 'EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int >= $1 AND EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int < $2';
+    const params = [startHour, endHour];
+    let excludeCondition = '';
+    if (excluded.length) {
+      params.push(excluded);
+      excludeCondition = `AND accessory_id <> ALL($${params.length})`;
+    }
     const result = await pool.query(`
       SELECT
         accessory_id,
@@ -1844,14 +1866,16 @@ app.get('/api/stats/quiet-hours', apiStatsReadLimiter, async (_req, res) => {
         AND ${hourCondition}
         AND accessory_name IS NOT NULL
         AND accessory_name <> ''
+        ${excludeCondition}
       GROUP BY accessory_id, accessory_name, room_name
       ORDER BY count DESC
       LIMIT 20
-    `, [startHour, endHour]);
+    `, params);
     res.json({
       enabled: true,
       quietHoursStart: startHour,
       quietHoursEnd: endHour,
+      excludedAccessories: excluded,
       events: result.rows.map((r) => ({
         accessoryId: r.accessory_id,
         accessoryName: r.accessory_name,

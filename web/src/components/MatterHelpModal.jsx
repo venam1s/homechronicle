@@ -9,6 +9,15 @@ const SUPPORTED_CLUSTERS = [
   { name: 'Temperature', id: '0x0402', examples: 'Temperature sensors, thermostats' },
   { name: 'Relative Humidity', id: '0x0405', examples: 'Humidity sensors' },
   { name: 'Occupancy', id: '0x0406', examples: 'Motion/occupancy sensors' },
+  { name: 'Color Control', id: '0x0300', examples: 'Color-capable lights (hue, saturation, color temp)' },
+  { name: 'Door Lock', id: '0x0101', examples: 'Smart locks' },
+  { name: 'Window Covering', id: '0x0102', examples: 'Blinds, shades, shutters' },
+  { name: 'Fan Control', id: '0x0202', examples: 'Ceiling fans, ventilation' },
+  { name: 'Thermostat', id: '0x0201', examples: 'HVAC thermostats' },
+  { name: 'Pressure', id: '0x0403', examples: 'Barometric pressure sensors' },
+  { name: 'Illuminance', id: '0x0400', examples: 'Light level sensors' },
+  { name: 'Electrical Power', id: '0x0090', examples: 'Energy monitoring plugs, meters' },
+  { name: 'Smoke/CO Alarm', id: '0x005C', examples: 'Smoke detectors, CO alarms' },
 ];
 
 const STEPS = [
@@ -144,7 +153,7 @@ const STEPS = [
           </table>
         </div>
         <div className="bg-teal-50 border border-teal-200 rounded px-3 py-2 text-sm text-teal-800">
-          Devices outside this list (e.g. blinds, media players, air purifiers) can still be paired —
+          Devices outside this list (e.g. media players, air purifiers) can still be paired —
           they just won't generate events until cluster support is added.
         </div>
       </div>

@@ -49,6 +49,27 @@ export function createMatterRuntime({
 }) {
   const sessions = new Map();
   const valueCache = new Map();
+  const MAX_CACHE_SIZE = 10_000;
+
+  function pruneCache() {
+    if (valueCache.size <= MAX_CACHE_SIZE) return;
+    // Keep only entries for active sessions
+    const activePrefixes = new Set([...sessions.keys()].map((id) => `${id}:`));
+    for (const key of valueCache.keys()) {
+      const prefix = key.slice(0, key.indexOf(':') + 1);
+      if (!activePrefixes.has(prefix)) valueCache.delete(key);
+    }
+    // If still over limit, drop oldest entries (Map preserves insertion order)
+    if (valueCache.size > MAX_CACHE_SIZE) {
+      const excess = valueCache.size - MAX_CACHE_SIZE;
+      let removed = 0;
+      for (const key of valueCache.keys()) {
+        if (removed >= excess) break;
+        valueCache.delete(key);
+        removed += 1;
+      }
+    }
+  }
 
   function getStatus() {
     const controllerStatus = matterController.getStatus();
@@ -149,6 +170,8 @@ export function createMatterRuntime({
       await insertEvent(eventPayload);
       session.lastEventAt = nowIso();
     }
+
+    pruneCache();
   }
 
   function stopNode(nodeId) {
@@ -184,14 +207,20 @@ export function createMatterRuntime({
     }, delayMs);
   }
 
+  const MAX_SUBSCRIBE_BACKOFF_MS = 5 * 60_000; // 5 minutes
+
   function scheduleSubscriptionRestart(session) {
     if (session.stopped || !session.pollingEnabled) return;
     if (session.subscriptionRestartTimer) {
       clearTimeout(session.subscriptionRestartTimer);
     }
-    const delayMs = Number.isFinite(SUBSCRIBE_RESTART_DELAY_MS) && SUBSCRIBE_RESTART_DELAY_MS >= 250
+    const baseDelay = Number.isFinite(SUBSCRIBE_RESTART_DELAY_MS) && SUBSCRIBE_RESTART_DELAY_MS >= 250
       ? SUBSCRIBE_RESTART_DELAY_MS
       : 2_000;
+    const attempt = session.subscribeAttempts ?? 0;
+    session.subscribeAttempts = attempt + 1;
+    const delayMs = Math.min(baseDelay * 2 ** attempt, MAX_SUBSCRIBE_BACKOFF_MS);
+    log.debug(`[matter] Scheduling subscription restart for ${session.nodeId} in ${delayMs}ms (attempt ${attempt + 1})`);
     session.subscriptionRestartTimer = setTimeout(() => {
       session.subscriptionRestartTimer = null;
       void startSubscription(session);
@@ -226,6 +255,7 @@ export function createMatterRuntime({
         });
       });
       session.subscription = sub;
+      session.subscribeAttempts = 0;
     } catch (err) {
       setSessionError(session, nodeId, err, 'subscribe');
       scheduleSubscriptionRestart(session);

@@ -14,6 +14,15 @@ import {
   TemperatureMeasurement,
   RelativeHumidityMeasurement,
   OccupancySensing,
+  ColorControl,
+  DoorLock,
+  WindowCovering,
+  FanControl,
+  Thermostat,
+  PressureMeasurement,
+  IlluminanceMeasurement,
+  ElectricalPowerMeasurement,
+  SmokeCoAlarm,
   GeneralCommissioning,
 } from '@matter/main/clusters';
 import { ManualPairingCodeCodec, QrPairingCodeCodec } from '@matter/main/types';
@@ -30,6 +39,8 @@ const SUBSCRIBE_MIN_INTERVAL_SEC = Number.parseInt(
 const SUBSCRIBE_MAX_INTERVAL_SEC = Number.parseInt(
   process.env.MATTER_SUBSCRIBE_MAX_INTERVAL_SEC ?? '30', 10,
 );
+
+const COUNTRY_CODE = (process.env.MATTER_COUNTRY_CODE ?? 'XX').trim().toUpperCase().slice(0, 2);
 
 /** Clusters we read/subscribe — same set that chip-tool scripts supported. */
 const SUPPORTED_CLUSTERS = [
@@ -69,10 +80,85 @@ const SUPPORTED_CLUSTERS = [
     serviceType: 'OccupancySensing',
     attributes: [{ name: 'occupancy', characteristic: 'Occupancy', attributeId: 0 }],
   },
+  {
+    cluster: ColorControl.Complete,
+    id: 0x0300,
+    serviceType: 'ColorControl',
+    attributes: [
+      { name: 'currentHue', characteristic: 'CurrentHue', attributeId: 0 },
+      { name: 'currentSaturation', characteristic: 'CurrentSaturation', attributeId: 1 },
+      { name: 'colorTemperatureMireds', characteristic: 'ColorTemperatureMireds', attributeId: 7 },
+    ],
+  },
+  {
+    cluster: DoorLock.Complete,
+    id: 0x0101,
+    serviceType: 'DoorLock',
+    attributes: [{ name: 'lockState', characteristic: 'LockState', attributeId: 0 }],
+  },
+  {
+    cluster: WindowCovering.Complete,
+    id: 0x0102,
+    serviceType: 'WindowCovering',
+    attributes: [
+      { name: 'currentPositionLiftPercent100ths', characteristic: 'CurrentPosition', attributeId: 14 },
+      { name: 'operationalStatus', characteristic: 'OperationalStatus', attributeId: 10 },
+    ],
+  },
+  {
+    cluster: FanControl.Complete,
+    id: 0x0202,
+    serviceType: 'FanControl',
+    attributes: [
+      { name: 'fanMode', characteristic: 'FanMode', attributeId: 0 },
+      { name: 'percentCurrent', characteristic: 'PercentCurrent', attributeId: 6 },
+    ],
+  },
+  {
+    cluster: Thermostat.Complete,
+    id: 0x0201,
+    serviceType: 'Thermostat',
+    attributes: [
+      { name: 'localTemperature', characteristic: 'LocalTemperature', attributeId: 0 },
+      { name: 'systemMode', characteristic: 'SystemMode', attributeId: 28 },
+    ],
+  },
+  {
+    cluster: PressureMeasurement.Complete,
+    id: 0x0403,
+    serviceType: 'PressureMeasurement',
+    attributes: [{ name: 'measuredValue', characteristic: 'MeasuredValue', attributeId: 0 }],
+  },
+  {
+    cluster: IlluminanceMeasurement.Complete,
+    id: 0x0400,
+    serviceType: 'IlluminanceMeasurement',
+    attributes: [{ name: 'measuredValue', characteristic: 'MeasuredValue', attributeId: 0 }],
+  },
+  {
+    cluster: ElectricalPowerMeasurement.Complete,
+    id: 0x0090,
+    serviceType: 'ElectricalPowerMeasurement',
+    attributes: [{ name: 'activePower', characteristic: 'ActivePower', attributeId: 8 }],
+  },
+  {
+    cluster: SmokeCoAlarm.Complete,
+    id: 0x005c,
+    serviceType: 'SmokeCoAlarm',
+    attributes: [
+      { name: 'smokeState', characteristic: 'SmokeState', attributeId: 1 },
+      { name: 'coState', characteristic: 'COState', attributeId: 2 },
+      { name: 'batteryAlert', characteristic: 'BatteryAlert', attributeId: 3 },
+    ],
+  },
 ];
 
 const CLUSTER_LABELS = new Map(
-  SUPPORTED_CLUSTERS.map((c) => [c.id, { serviceType: c.serviceType, characteristic: c.attributes[0].characteristic }]),
+  SUPPORTED_CLUSTERS.map((c) => [c.id, {
+    serviceType: c.serviceType,
+    characteristic: c.attributes[0].characteristic,
+    attributeMap: new Map(c.attributes.map((a) => [a.name, a])),
+  }]),
 );
 
 let controller = null;
@@ -150,7 +236,7 @@ export async function commission(setupCode, opts = {}) {
   const commissioningOptions = {
     commissioning: {
       regulatoryLocation: GeneralCommissioning.RegulatoryLocationType.IndoorOutdoor,
-      regulatoryCountryCode: 'XX',
+      regulatoryCountryCode: COUNTRY_CODE,
     },
     discovery: {
       identifierData: discoveryData,
@@ -201,7 +287,8 @@ export async function poll(nodeId) {
       let clusterClient;
       try {
         clusterClient = device.getClusterClient(clusterDef.cluster);
-      } catch {
+      } catch (err) {
+        log.debug(`[matter-controller] Could not get ${clusterDef.serviceType} client on node ${nodeId} endpoint ${endpointId}: ${err.message}`);
         continue;
       }
       if (!clusterClient) continue;
@@ -210,7 +297,8 @@ export async function poll(nodeId) {
         let value;
         try {
           value = await clusterClient.attributes[attr.name]?.get();
-        } catch {
+        } catch (err) {
+          log.debug(`[matter-controller] Failed to read ${clusterDef.serviceType}.${attr.name} on node ${nodeId} endpoint ${endpointId}: ${err.message}`);
           continue;
         }
         if (value === undefined || value === null) continue;
@@ -257,13 +345,14 @@ export async function subscribe(nodeId, callback) {
     const labels = CLUSTER_LABELS.get(clusterId);
     if (!labels) return; // Not a cluster we track
 
+    const attrDef = labels.attributeMap.get(attributeName);
     const event = {
       nodeId,
       endpointId,
       clusterId,
-      attributeId: 0, // Primary attribute for each tracked cluster
+      attributeId: attrDef?.attributeId ?? 0,
       serviceType: labels.serviceType,
-      characteristic: labels.characteristic,
+      characteristic: attrDef?.characteristic ?? labels.characteristic,
       newValue: value,
     };
     callback([event]);

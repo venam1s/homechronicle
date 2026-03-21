@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Moon, CheckCircle2, X } from 'lucide-react';
+import { Moon, CheckCircle2, X, EyeOff } from 'lucide-react';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useQuietHours } from '../hooks/useEvents.js';
+import { fetchJson } from '../lib/api.js';
 
 const DISMISS_KEY = 'hc:quiet-hours-dismissed';
 
@@ -23,6 +25,26 @@ function formatLastSeen(ts) {
 export default function QuietHoursPanel() {
   const { data, isLoading, isError } = useQuietHours();
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === '1');
+  const queryClient = useQueryClient();
+
+  const excludeMutation = useMutation({
+    mutationFn: async (accessoryId) => {
+      const retention = queryClient.getQueryData(['setup', 'retention']) ?? {};
+      const current = Array.isArray(retention.quietHoursExcludedAccessories)
+        ? retention.quietHoursExcludedAccessories
+        : [];
+      if (current.includes(accessoryId)) return retention;
+      return fetchJson('/api/setup/retention', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quietHoursExcludedAccessories: [...current, accessoryId] }),
+      });
+    },
+    onSuccess: (next) => {
+      if (next) queryClient.setQueryData(['setup', 'retention'], next);
+      queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
+    },
+  });
 
   function dismiss() {
     localStorage.setItem(DISMISS_KEY, '1');
@@ -118,7 +140,19 @@ export default function QuietHoursPanel() {
               <Moon size={12} />
               <span className="font-semibold truncate">{row.accessoryName}</span>
               {row.room && <span className="truncate" style={{ color: 'rgb(var(--hc-accent-rgb))', opacity: 0.7 }}>{row.room}</span>}
-              <span className="ml-auto whitespace-nowrap">{row.count} event{row.count !== 1 ? 's' : ''}</span>
+              <span className="ml-auto whitespace-nowrap flex items-center gap-2">
+                {row.count} event{row.count !== 1 ? 's' : ''}
+                {row.accessoryId && (
+                  <button
+                    onClick={() => excludeMutation.mutate(row.accessoryId)}
+                    disabled={excludeMutation.isPending}
+                    className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                    title={`Exclude ${row.accessoryName} from quiet hours`}
+                  >
+                    <EyeOff size={12} />
+                  </button>
+                )}
+              </span>
             </div>
             {row.lastSeenAt && (
               <div className="text-xs mt-0.5" style={{ color: 'var(--hc-accent-strong)' }}>

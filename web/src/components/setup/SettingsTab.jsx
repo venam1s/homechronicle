@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Loader } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Loader, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, h) => {
@@ -35,6 +36,7 @@ export default function SettingsTab({ setup }) {
     deleteAccessoryMutation,
   } = setup;
 
+  const queryClient = useQueryClient();
   const [retentionDaysInput, setRetentionDaysInput] = useState('');
   const [staleThresholdHoursInput, setStaleThresholdHoursInput] = useState('');
   const [archiveBeforeDeleteInput, setArchiveBeforeDeleteInput] = useState(true);
@@ -348,6 +350,34 @@ export default function SettingsTab({ setup }) {
             </select>
           </div>
         </div>
+        {/* Excluded accessories */}
+        {(retentionConfig?.quietHoursExcludedAccessories ?? []).length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs text-gray-500 mb-2">Excluded from quiet hours:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {retentionConfig.quietHoursExcludedAccessories.map((id) => (
+                <span key={id} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 rounded-full px-2.5 py-1">
+                  <span className="truncate max-w-[180px]">{id}</span>
+                  <button
+                    onClick={async () => {
+                      const next = retentionConfig.quietHoursExcludedAccessories.filter((a) => a !== id);
+                      try {
+                        const result = await saveRetentionMutation.mutateAsync({ quietHoursExcludedAccessories: next });
+                        queryClient.setQueryData(['setup', 'retention'], result);
+                        queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
+                      } catch { /* handled by mutation */ }
+                    }}
+                    disabled={savePending}
+                    className="p-0.5 rounded-full hover:bg-gray-200 transition-colors"
+                    title={`Restore ${id} to quiet hours`}
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* — Timeline — */}
