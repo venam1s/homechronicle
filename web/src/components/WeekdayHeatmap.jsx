@@ -1,4 +1,5 @@
 import { useWeekdayStats } from '../hooks/useEvents.js';
+import { SkeletonBlock } from './Skeleton.jsx';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
@@ -62,7 +63,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
   }
 
   if (isLoading) {
-    return <div className="h-32 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;
+    return <SkeletonBlock className="h-32 w-full" />;
   }
   if (isError) {
     return <div className="h-32 flex items-center justify-center text-red-500 text-sm">Failed to load weekday stats.</div>;

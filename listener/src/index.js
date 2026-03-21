@@ -980,6 +980,68 @@ app.patch('/api/setup/log-level', (req, res) => {
   }
 });
 
+// Archive export (CSV download)
+app.get('/api/archive/export', async (_req, res) => {
+  const columns = [
+    'source_id', 'timestamp', 'accessory_id', 'accessory_name', 'room_name',
+    'service_type', 'characteristic', 'old_value', 'new_value',
+    'protocol', 'transport', 'endpoint_id', 'cluster_id', 'attribute_id', 'archived_at',
+  ];
+
+  function csvRow(row) {
+    return columns.map((col) => {
+      const val = row[col];
+      if (val == null) return '';
+      const str = val instanceof Date ? val.toISOString() : String(val);
+      return /[,"\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    }).join(',');
+  }
+
+  try {
+    const countResult = await pool.query('SELECT COUNT(*) AS cnt FROM event_logs_archive');
+    if (Number(countResult.rows[0].cnt) === 0) {
+      return res.status(404).json({ error: 'No archived events to export.' });
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="homechronicle-archive.csv"');
+    res.write(columns.join(',') + '\n');
+
+    const BATCH = 5000;
+    let offset = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const batch = await pool.query(
+        `SELECT ${columns.join(', ')} FROM event_logs_archive ORDER BY timestamp ASC LIMIT $1 OFFSET $2`,
+        [BATCH, offset]
+      );
+      for (const row of batch.rows) {
+        res.write(csvRow(row) + '\n');
+      }
+      offset += batch.rows.length;
+      hasMore = batch.rows.length === BATCH;
+    }
+    res.end();
+  } catch (err) {
+    log.error('[archive] /api/archive/export error:', err.message ?? err.stack ?? err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    } else {
+      res.end();
+    }
+  }
+});
+
+app.get('/api/archive/count', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) AS count FROM event_logs_archive');
+    res.json({ count: Number(result.rows[0].count) });
+  } catch (err) {
+    log.error('[archive] /api/archive/count error:', err.message ?? err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Data management
 app.delete('/api/data/accessory', apiWriteLimiter, async (req, res) => {
   const { accessoryId } = req.body ?? {};

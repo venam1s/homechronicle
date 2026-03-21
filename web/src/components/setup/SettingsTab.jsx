@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Loader, X } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, CheckCircle2, ChevronDown, Download, Loader, X } from 'lucide-react';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, h) => {
@@ -37,6 +38,33 @@ export default function SettingsTab({ setup }) {
   } = setup;
 
   const queryClient = useQueryClient();
+  const archiveCountQuery = useQuery({
+    queryKey: ['archive', 'count'],
+    queryFn: () => fetchJson(`${API_BASE}/archive/count`),
+    staleTime: 60_000,
+  });
+  const archiveCount = archiveCountQuery.data?.count ?? 0;
+  const [archiveDownloading, setArchiveDownloading] = useState(false);
+
+  async function handleDownloadArchive() {
+    setArchiveDownloading(true);
+    try {
+      const res = await fetch(`${API_BASE}/archive/export`, { headers: withApiAuthHeaders() });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'homechronicle-archive.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setArchiveDownloading(false);
+    }
+  }
+
   const [retentionDaysInput, setRetentionDaysInput] = useState('');
   const [staleThresholdHoursInput, setStaleThresholdHoursInput] = useState('');
   const [archiveBeforeDeleteInput, setArchiveBeforeDeleteInput] = useState(true);
@@ -199,14 +227,14 @@ export default function SettingsTab({ setup }) {
     <div className="space-y-4">
 
       {/* — Data — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-1">Data</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-1">Data</h3>
 
       {/* Retention cutoff */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Retention cutoff</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Retention cutoff</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Keep timeline data in the main table for this many days.
             </p>
           </div>
@@ -218,26 +246,26 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={retentionDaysInput}
               onChange={(e) => { setRetentionDaysInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
             />
-            <span className="text-xs text-gray-500">days</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">days</span>
           </div>
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">
           Changes apply without restart. Sweep interval is every 24 hours by default.
         </p>
       </div>
 
       {/* Archive before delete */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Archive before delete</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Archive before delete</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Copy expired events to the archive table before removing them from the main table.
             </p>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={archiveBeforeDeleteInput}
@@ -247,17 +275,29 @@ export default function SettingsTab({ setup }) {
             <span>{archiveBeforeDeleteInput ? 'On' : 'Off'}</span>
           </label>
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">
-          When off, expired events are permanently deleted during retention sweep.
-        </p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">
+            When off, expired events are permanently deleted during retention sweep.
+          </p>
+          {archiveCount > 0 && (
+            <button
+              onClick={handleDownloadArchive}
+              disabled={archiveDownloading}
+              className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 transition-colors flex-shrink-0 ml-3"
+            >
+              <Download size={12} />
+              {archiveDownloading ? 'Downloading\u2026' : `Download archive (${archiveCount.toLocaleString()} events)`}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stale accessory threshold */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Stale accessory threshold</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Stale accessory threshold</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               An accessory is marked stale after this many hours with no events.
             </p>
           </div>
@@ -269,23 +309,23 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={staleThresholdHoursInput}
               onChange={(e) => { setStaleThresholdHoursInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
             />
-            <span className="text-xs text-gray-500">hours</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">hours</span>
           </div>
         </div>
       </div>
 
       {/* HomeKit auto-scan */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">HomeKit auto-scan</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">HomeKit auto-scan</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Automatically scan for HomeKit accessories every hour in the background.
             </p>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={autoScanHomeKitInput}
@@ -295,24 +335,24 @@ export default function SettingsTab({ setup }) {
             <span>{autoScanHomeKitInput ? 'On' : 'Off'}</span>
           </label>
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">
           Manual scans from Add Accessories still work when this is off.
         </p>
       </div>
 
       {/* — Alerts — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-3">Alerts</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">Alerts</h3>
 
       {/* Quiet hours */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Quiet hours</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Quiet hours</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Flag accessory activity during this window as unexpected on the dashboard.
             </p>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={quietHoursEnabledInput}
@@ -324,12 +364,12 @@ export default function SettingsTab({ setup }) {
         </div>
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">From</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">From</span>
             <select
               value={quietHoursStartInput}
               onChange={(e) => { setQuietHoursStartInput(Number(e.target.value)); setSaveFeedback(null); }}
               disabled={savePending || !quietHoursEnabledInput}
-              className="text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -337,12 +377,12 @@ export default function SettingsTab({ setup }) {
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">to</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">to</span>
             <select
               value={quietHoursEndInput}
               onChange={(e) => { setQuietHoursEndInput(Number(e.target.value)); setSaveFeedback(null); }}
               disabled={savePending || !quietHoursEnabledInput}
-              className="text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -352,11 +392,11 @@ export default function SettingsTab({ setup }) {
         </div>
         {/* Excluded accessories */}
         {(retentionConfig?.quietHoursExcludedAccessories ?? []).length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500 mb-2">Excluded from quiet hours:</p>
+          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Excluded from quiet hours:</p>
             <div className="flex flex-wrap gap-1.5">
               {retentionConfig.quietHoursExcludedAccessories.map((id) => (
-                <span key={id} className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 rounded-full px-2.5 py-1">
+                <span key={id} className="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2.5 py-1">
                   <span className="truncate max-w-[180px]">{id}</span>
                   <button
                     onClick={async () => {
@@ -368,7 +408,7 @@ export default function SettingsTab({ setup }) {
                       } catch { /* handled by mutation */ }
                     }}
                     disabled={savePending}
-                    className="p-0.5 rounded-full hover:bg-gray-200 transition-colors"
+                    className="p-0.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     title={`Restore ${id} to quiet hours`}
                   >
                     <X size={10} />
@@ -381,14 +421,14 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* — Timeline — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-3">Timeline</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">Timeline</h3>
 
       {/* Episode capture interval */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Episode capture interval</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Episode capture interval</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Events within this window are grouped into timeline episodes.
             </p>
           </div>
@@ -400,19 +440,19 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={episodeWindowInput}
               onChange={(e) => { setEpisodeWindowInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
             />
-            <span className="text-xs text-gray-500">min</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">min</span>
           </div>
         </div>
       </div>
 
       {/* Scene grouping window */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Scene grouping window</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Scene grouping window</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Events within this many seconds are clustered into a single scene.
             </p>
           </div>
@@ -424,19 +464,19 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={sceneWindowInput}
               onChange={(e) => { setSceneWindowInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
             />
-            <span className="text-xs text-gray-500">sec</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">sec</span>
           </div>
         </div>
       </div>
 
       {/* Episode minimum events */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Episode minimum events</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Episode minimum events</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               A scene cluster needs at least this many events to be promoted to an episode.
             </p>
           </div>
@@ -448,22 +488,22 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={episodeMinEventInput}
               onChange={(e) => { setEpisodeMinEventInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
             />
-            <span className="text-xs text-gray-500">events</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">events</span>
           </div>
         </div>
       </div>
 
       {/* — Advanced — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-3">Advanced</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">Advanced</h3>
 
       {/* Log level */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-medium text-gray-800">Log level</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Log level</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Controls how much the listener logs to Docker output. Changes apply instantly — no restart needed.
             </p>
           </div>
@@ -472,7 +512,7 @@ export default function SettingsTab({ setup }) {
               value={logLevelInput}
               onChange={(e) => { setLogLevelInput(e.target.value); setSaveFeedback(null); }}
               disabled={savePending}
-              className="text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-gray-100"
             >
               {LOG_LEVELS.map(({ value, label, desc }) => (
                 <option key={value} value={value}>
@@ -483,43 +523,46 @@ export default function SettingsTab({ setup }) {
           </div>
         </div>
         {saveLogLevelMutation.isError && (
-          <p className="text-xs text-red-600 mt-2">
+          <p className="text-xs text-red-600 dark:text-red-400 mt-2">
             Could not update log level: {saveLogLevelMutation.error?.message}
           </p>
         )}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-        <div className="flex items-center justify-end gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            {saveFeedback === 'saved' && (
-              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700">
-                <CheckCircle2 size={14} />
-                Settings saved
-              </span>
-            )}
-            <button
-              onClick={handleSaveSettings}
-              disabled={savePending || !inputsReady || !isDirty}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {savePending ? 'Saving\u2026' : 'Save settings'}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {saveRetentionMutation.isError && (
-        <p className="text-xs text-red-600">
+        <p className="text-xs text-red-600 dark:text-red-400">
           Could not save settings: {saveRetentionMutation.error?.message}
         </p>
       )}
 
+      {/* Sticky save bar */}
+      <div
+        className={clsx(
+          'sticky bottom-0 z-30 transition-all duration-300 -mx-4 px-4 hc-standalone:bottom-16',
+          isDirty ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none',
+        )}
+      >
+        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 shadow-lg flex items-center justify-between gap-3">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {saveFeedback === 'saved'
+              ? <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"><CheckCircle2 size={14} /> Saved</span>
+              : 'You have unsaved changes'}
+          </span>
+          <button
+            onClick={handleSaveSettings}
+            disabled={savePending || !inputsReady || !isDirty}
+            className="px-4 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {savePending ? 'Saving\u2026' : 'Save settings'}
+          </button>
+        </div>
+      </div>
+
       {/* Danger Zone */}
-      <section className="border border-red-200 rounded-xl overflow-hidden">
+      <section className="border border-red-200 dark:border-red-800 rounded-xl overflow-hidden">
         <button
           onClick={() => setDangerOpen((o) => !o)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-red-50 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/20 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
         >
           <span className="flex items-center gap-2">
             <AlertTriangle size={14} />
@@ -532,19 +575,19 @@ export default function SettingsTab({ setup }) {
         </button>
 
         {dangerOpen && (
-          <div className="bg-white">
-            <p className="px-4 py-3 text-xs text-gray-500 border-b border-gray-100">
+          <div className="bg-white dark:bg-gray-800">
+            <p className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
               Delete stored event history for individual accessories, or wipe everything.
               This only removes logged data — it does not unpair accessories.
             </p>
 
             {dbAccessories.length > 0 && (
-              <div className="px-4 py-2 border-b border-gray-100">
-                <div className="inline-flex items-center gap-1 rounded-lg bg-gray-50 p-1">
+              <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                <div className="inline-flex items-center gap-1 rounded-lg bg-gray-50 dark:bg-gray-800/50 p-1">
                   {[
-                    { key: 'all', label: `All (${dbAccessories.length})`, color: 'text-gray-700' },
-                    { key: 'paired', label: `Paired (${dangerPairedCount})`, color: 'text-emerald-700' },
-                    { key: 'unpaired', label: `No longer paired (${dangerUnpairedCount})`, color: 'text-red-700' },
+                    { key: 'all', label: `All (${dbAccessories.length})`, color: 'text-gray-700 dark:text-gray-300' },
+                    { key: 'paired', label: `Paired (${dangerPairedCount})`, color: 'text-emerald-700 dark:text-emerald-400' },
+                    { key: 'unpaired', label: `No longer paired (${dangerUnpairedCount})`, color: 'text-red-700 dark:text-red-400' },
                   ].map(({ key, label, color }) => (
                     <button
                       key={key}
@@ -552,8 +595,8 @@ export default function SettingsTab({ setup }) {
                       className={clsx(
                         'px-2 py-1 text-xs rounded transition-colors',
                         dangerPairFilter === key
-                          ? `bg-white ${color} shadow-sm`
-                          : 'text-gray-500 hover:text-gray-700',
+                          ? `bg-white dark:bg-gray-700 ${color} shadow-sm`
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300',
                       )}
                     >
                       {label}
@@ -564,11 +607,11 @@ export default function SettingsTab({ setup }) {
             )}
 
             {dbAccessories.length === 0 ? (
-              <p className="px-4 py-4 text-xs text-gray-400 italic">No accessory data in the database.</p>
+              <p className="px-4 py-4 text-xs text-gray-400 dark:text-gray-500 italic">No accessory data in the database.</p>
             ) : visibleDangerAccessories.length === 0 ? (
-              <p className="px-4 py-4 text-xs text-gray-400 italic">No accessories match this filter.</p>
+              <p className="px-4 py-4 text-xs text-gray-400 dark:text-gray-500 italic">No accessories match this filter.</p>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {visibleDangerAccessories.map((acc) => {
                   const isConfirming = confirmDeleteAccessory === acc.accessory_id;
                   const isDeleting = deleteAccessoryMutation.isPending && isConfirming;
@@ -576,16 +619,16 @@ export default function SettingsTab({ setup }) {
                   return (
                     <div key={acc.accessory_id} className="flex items-center gap-3 px-4 py-2.5">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-800 truncate">{acc.accessory_name}</div>
-                        <div className="text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
+                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{acc.accessory_name}</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5 flex-wrap">
                           {acc.service_type ?? 'No events yet'}
                           {acc.room_name && <span className="ml-1">&middot; {acc.room_name}</span>}
                           <span
                             className={clsx(
                               'ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium border',
                               isCurrentlyPaired
-                                ? 'text-emerald-700 bg-emerald-50 border-emerald-100'
-                                : 'text-red-700 bg-red-50 border-red-100',
+                                ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800'
+                                : 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800',
                             )}
                           >
                             {isCurrentlyPaired ? 'Currently paired' : 'No longer paired'}
@@ -594,7 +637,7 @@ export default function SettingsTab({ setup }) {
                       </div>
                       {isConfirming ? (
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-xs text-gray-500">Delete history? This cannot be undone.</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Delete history? This cannot be undone.</span>
                           <button
                             onClick={() => deleteAccessoryMutation.mutate(acc.accessory_id, {
                               onSuccess: () => setConfirmDeleteAccessory(null),
@@ -607,7 +650,7 @@ export default function SettingsTab({ setup }) {
                           <button
                             onClick={() => setConfirmDeleteAccessory(null)}
                             disabled={isDeleting}
-                            className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                            className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                           >
                             Cancel
                           </button>
@@ -615,7 +658,7 @@ export default function SettingsTab({ setup }) {
                       ) : (
                         <button
                           onClick={() => setConfirmDeleteAccessory(acc.accessory_id)}
-                          className="flex-shrink-0 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                          className="flex-shrink-0 text-xs text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded transition-colors"
                         >
                           Delete history
                         </button>
@@ -627,9 +670,9 @@ export default function SettingsTab({ setup }) {
             )}
 
             {/* Wipe all */}
-            <div className="border-t border-red-100 bg-red-50/50 px-4 py-4">
-              <p className="text-xs font-medium text-red-700 mb-2">
-                Wipe all event data — type <code className="bg-red-100 px-1 rounded">DELETE</code> to confirm
+            <div className="border-t border-red-100 dark:border-red-800 bg-red-50/50 dark:bg-red-900/20 px-4 py-4">
+              <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-2">
+                Wipe all event data — type <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">DELETE</code> to confirm
               </p>
               <div className="flex gap-2">
                 <input
@@ -637,7 +680,7 @@ export default function SettingsTab({ setup }) {
                   placeholder="Type DELETE to confirm"
                   value={wipeConfirmText}
                   onChange={(e) => setWipeConfirmText(e.target.value)}
-                  className="flex-1 text-xs border border-red-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-red-400 bg-white placeholder-red-200"
+                  className="flex-1 text-xs border border-red-200 dark:border-red-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-red-400 bg-white dark:bg-gray-700 dark:text-gray-100 placeholder-red-200 dark:placeholder-red-600"
                 />
                 <button
                   onClick={handleWipeAll}

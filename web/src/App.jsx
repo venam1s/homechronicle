@@ -261,6 +261,7 @@ export default function App() {
 
       {/* Content */}
       <main className={clsx('flex-1 overflow-hidden', isStandalonePwa && 'hc-pwa-main')}>
+        <div key={tab} className="animate-tab-enter">
         {tab === 'timeline' && <ErrorBoundary key="timeline"><Timeline onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} /></ErrorBoundary>}
 
         {tab === 'dashboard' && (<ErrorBoundary key="dashboard">
@@ -365,6 +366,7 @@ export default function App() {
         </ErrorBoundary>)}
         {tab === 'alerts' && <ErrorBoundary key="alerts"><Alerts /></ErrorBoundary>}
         {tab === 'setup' && <ErrorBoundary key="setup"><Setup /></ErrorBoundary>}
+        </div>
       </main>
 
       {/* Footer */}

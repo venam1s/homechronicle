@@ -5,6 +5,7 @@ import {
 import { format, subDays } from 'date-fns';
 import { useDailyStats } from '../hooks/useEvents.js';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
+import { SkeletonChart } from './Skeleton.jsx';
 import clsx from 'clsx';
 
 const WINDOWS = [
@@ -64,7 +65,7 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
   }, [data, days]);
 
   if (isLoading) {
-    return <div className="h-48 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;
+    return <SkeletonChart className="h-48" />;
   }
   if (isError) {
     return <div className="h-48 flex items-center justify-center text-red-500 text-sm">Failed to load daily stats.</div>;

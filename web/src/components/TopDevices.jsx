@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTopDevices } from '../hooks/useEvents.js';
+import { SkeletonList } from './Skeleton.jsx';
 import { getServiceIcon } from '../lib/icons.js';
 import { getRoomColor } from '../lib/roomColors.js';
 import clsx from 'clsx';
@@ -44,7 +45,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
   }
 
   if (isLoading) {
-    return <div className="h-24 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;
+    return <SkeletonList rows={4} />;
   }
   if (isError) {
     return <div className="h-24 flex items-center justify-center text-red-500 text-sm">Failed to load device stats.</div>;

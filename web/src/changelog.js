@@ -11,6 +11,23 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.1.4-beta',
+    title: 'Manage tab polish, dark mode fixes & UI enhancements',
+    items: [
+      'Manage: full dark mode support across all sub-tabs (Settings, My Devices, Add Devices)',
+      'Manage: room name autocomplete suggests existing rooms as you type',
+      'Manage: inline save feedback — checkmark flash when room, name, or note saves',
+      'Manage: sticky save bar appears when settings are unsaved',
+      'Manage: default tab changed to My Devices instead of Add Devices',
+      'Dashboard/Accessories: skeleton shimmer loading screens replace plain "Loading…" text',
+      'Toast notification system for success/error feedback',
+      'Tab transition animations (subtle fade-in on tab switch)',
+      'Archive CSV export endpoint and download button in Settings',
+      'Matter controller improvements and quiet hours exclusions',
+      'API token auth passed to web container for nginx proxy',
+    ],
+  },
+  {
     version: 'v0.1.4',
     title: 'Themes, dark mode, accessories overhaul & standalone Docker image',
     items: [

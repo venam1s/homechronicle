@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useRoomStats } from '../hooks/useEvents.js';
+import { SkeletonList } from './Skeleton.jsx';
 import { getRoomColor } from '../lib/roomColors.js';
 
 const WINDOWS = [
@@ -48,7 +49,7 @@ export default function RoomChart({ forcedDays = null, onDaysChange = null }) {
   }
 
   if (isLoading) {
-    return <div className="h-32 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;
+    return <SkeletonList rows={4} />;
   }
   if (isError) {
     return <div className="h-32 flex items-center justify-center text-red-500 text-sm">Failed to load room stats.</div>;

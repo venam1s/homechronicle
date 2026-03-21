@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Check, CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { CATEGORY_LABELS } from './constants.js';
 import BridgeChildrenRow from './BridgeChildrenRow.jsx';
@@ -39,6 +39,32 @@ export default function MyDevicesTab({ setup }) {
   const [expandedBridges, setExpandedBridges] = useState(new Set());
   const [expandedMatterEndpoints, setExpandedMatterEndpoints] = useState(new Set());
   const [expandedMatterErrors, setExpandedMatterErrors] = useState(new Set());
+  const [savedFlash, setSavedFlash] = useState({});
+
+  const flashSave = useCallback((key) => {
+    setSavedFlash((prev) => ({ ...prev, [key]: true }));
+    setTimeout(() => setSavedFlash((prev) => { const next = { ...prev }; delete next[key]; return next; }), 1200);
+  }, []);
+
+  const onRoomBlurWithFlash = useCallback((id) => {
+    handleRoomBlur(id);
+    flashSave(`room-${id}`);
+  }, [handleRoomBlur, flashSave]);
+
+  const onNoteBlurWithFlash = useCallback((id) => {
+    handleNoteBlur(id);
+    flashSave(`note-${id}`);
+  }, [handleNoteBlur, flashSave]);
+
+  const onDisplayNameBlurWithFlash = useCallback((id) => {
+    handleDisplayNameBlur(id);
+    flashSave(`name-${id}`);
+  }, [handleDisplayNameBlur, flashSave]);
+
+  const uniqueRooms = useMemo(
+    () => [...new Set(Object.values(savedRooms).map((r) => r?.trim()).filter(Boolean))].sort(),
+    [savedRooms],
+  );
 
   const totalCount = paired.length + matterPairings.length;
   const matterNodes = Array.isArray(matterRuntime?.nodes) ? matterRuntime.nodes : [];
@@ -68,9 +94,9 @@ export default function MyDevicesTab({ setup }) {
       </p>
 
       {devicesWithoutRoom.length > 0 && (
-        <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
+        <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
           <AlertCircle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-800">
+          <p className="text-xs text-amber-800 dark:text-amber-300">
             {devicesWithoutRoom.length === 1
               ? '1 accessory doesn\u2019t have a room assigned yet.'
               : `${devicesWithoutRoom.length} accessories don\u2019t have rooms assigned yet.`}{' '}
@@ -79,7 +105,7 @@ export default function MyDevicesTab({ setup }) {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm divide-y divide-gray-100">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm divide-y divide-gray-100 dark:divide-gray-700">
 
         {/* HomeKit paired accessories */}
         {paired.map((acc) => {
@@ -93,18 +119,19 @@ export default function MyDevicesTab({ setup }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
-                      <Pencil size={10} className="text-gray-300 flex-shrink-0" />
+                      <Pencil size={10} className="text-gray-300 dark:text-gray-500 flex-shrink-0" />
                       <input
                         type="text"
                         placeholder={acc.name}
                         value={displayNameInputs[acc.id] ?? savedDisplayNames[acc.id] ?? ''}
                         onChange={(e) => setDisplayNameInputs((d) => ({ ...d, [acc.id]: e.target.value }))}
-                        onBlur={() => handleDisplayNameBlur(acc.id)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleDisplayNameBlur(acc.id)}
-                        className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none px-0 py-0 w-full truncate placeholder-gray-400"
+                        onBlur={() => onDisplayNameBlurWithFlash(acc.id)}
+                        onKeyDown={(e) => e.key === 'Enter' && onDisplayNameBlurWithFlash(acc.id)}
+                        className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-400 focus:outline-none px-0 py-0 w-full truncate placeholder-gray-400 dark:placeholder-gray-500"
                       />
+                      {savedFlash[`name-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 flex-shrink-0">
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 flex-shrink-0">
                       HomeKit
                     </span>
                   </div>
@@ -117,11 +144,13 @@ export default function MyDevicesTab({ setup }) {
                       type="text"
                       placeholder="Add room name..."
                       value={roomVal}
+                      list="hc-room-list"
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [acc.id]: e.target.value }))}
-                      onBlur={() => handleRoomBlur(acc.id)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleRoomBlur(acc.id)}
-                      className="text-xs border border-gray-200 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                      onBlur={() => onRoomBlurWithFlash(acc.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(acc.id)}
+                      className="text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                  />
+                    {savedFlash[`room-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                   </div>
                   {acc.category !== 2 && (
                     <div className="flex items-center gap-1 mt-1">
@@ -131,10 +160,11 @@ export default function MyDevicesTab({ setup }) {
                         placeholder="Add note..."
                         value={noteInputs[acc.id] ?? savedNotes[acc.id] ?? ''}
                         onChange={(e) => setNoteInputs((n) => ({ ...n, [acc.id]: e.target.value }))}
-                        onBlur={() => handleNoteBlur(acc.id)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleNoteBlur(acc.id)}
-                        className="text-xs border border-gray-200 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                        onBlur={() => onNoteBlurWithFlash(acc.id)}
+                        onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(acc.id)}
+                        className="text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                    />
+                      {savedFlash[`note-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
                   )}
                   {acc.category === 2 && roomVal && (
@@ -176,18 +206,18 @@ export default function MyDevicesTab({ setup }) {
                     <button
                       onClick={() => setConfirmDelete(null)}
                       disabled={isDeleting}
-                      className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                      className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
                     >
                       Cancel
                     </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">Logging</span>
+                    <span className="text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">Logging</span>
                     <button
                       onClick={() => setConfirmDelete(acc.id)}
                       title="Remove pairing"
-                      className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -236,18 +266,19 @@ export default function MyDevicesTab({ setup }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
-                      <Pencil size={10} className="text-gray-300 flex-shrink-0" />
+                      <Pencil size={10} className="text-gray-300 dark:text-gray-500 flex-shrink-0" />
                       <input
                         type="text"
                         placeholder={pairing.name ?? nodeId}
                         value={displayNameInputs[nodeId] ?? savedDisplayNames[nodeId] ?? ''}
                         onChange={(e) => setDisplayNameInputs((d) => ({ ...d, [nodeId]: e.target.value }))}
-                        onBlur={() => handleDisplayNameBlur(nodeId)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleDisplayNameBlur(nodeId)}
-                        className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none px-0 py-0 w-full truncate placeholder-gray-400"
+                        onBlur={() => onDisplayNameBlurWithFlash(nodeId)}
+                        onKeyDown={(e) => e.key === 'Enter' && onDisplayNameBlurWithFlash(nodeId)}
+                        className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-400 focus:outline-none px-0 py-0 w-full truncate placeholder-gray-400 dark:placeholder-gray-500"
                       />
+                      {savedFlash[`name-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex-shrink-0">
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex-shrink-0">
                       Matter
                     </span>
                   </div>
@@ -262,11 +293,13 @@ export default function MyDevicesTab({ setup }) {
                       type="text"
                       placeholder="Add room name..."
                       value={roomVal}
+                      list="hc-room-list"
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [nodeId]: e.target.value }))}
-                      onBlur={() => handleRoomBlur(nodeId)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleRoomBlur(nodeId)}
-                      className="text-xs border border-gray-200 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                      onBlur={() => onRoomBlurWithFlash(nodeId)}
+                      onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(nodeId)}
+                      className="text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                  />
+                    {savedFlash[`room-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                   </div>
                   {endpointCount === 0 && (
                     <div className="flex items-center gap-1 mt-1">
@@ -276,10 +309,11 @@ export default function MyDevicesTab({ setup }) {
                         placeholder="Add note..."
                         value={noteInputs[nodeId] ?? savedNotes[nodeId] ?? ''}
                         onChange={(e) => setNoteInputs((n) => ({ ...n, [nodeId]: e.target.value }))}
-                        onBlur={() => handleNoteBlur(nodeId)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleNoteBlur(nodeId)}
-                        className="text-xs border border-gray-200 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                        onBlur={() => onNoteBlurWithFlash(nodeId)}
+                        onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(nodeId)}
+                        className="text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                    />
+                      {savedFlash[`note-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
                   )}
                   {nodeStatus && (
@@ -317,7 +351,7 @@ export default function MyDevicesTab({ setup }) {
                         </button>
                       </div>
                       {isErrorExpanded && (
-                        <pre className="mt-1.5 p-2 rounded bg-red-50 border border-red-100 text-[11px] text-red-700 whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                        <pre className="mt-1.5 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-[11px] text-red-700 dark:text-red-400 whitespace-pre-wrap break-all max-h-40 overflow-auto">
                           {nodeStatus.lastError}
                         </pre>
                       )}
@@ -362,18 +396,18 @@ export default function MyDevicesTab({ setup }) {
                     <button
                       onClick={() => setConfirmDeleteMatter(null)}
                       disabled={isDeleting}
-                      className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                      className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     >
                       Cancel
                     </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">Logging</span>
+                    <span className="text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">Logging</span>
                     <button
                       onClick={() => setConfirmDeleteMatter(nodeId)}
                       title="Remove pairing"
-                      className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -381,8 +415,8 @@ export default function MyDevicesTab({ setup }) {
                 )}
               </div>
               {matterDeleteError[nodeId] && (
-                <div className="mt-1.5 ml-6 bg-red-50 border border-red-100 rounded px-2 py-1">
-                  <p className="text-xs text-red-700">{matterDeleteError[nodeId]}</p>
+                <div className="mt-1.5 ml-6 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded px-2 py-1">
+                  <p className="text-xs text-red-700 dark:text-red-400">{matterDeleteError[nodeId]}</p>
                 </div>
               )}
               {isEndpointsExpanded && endpointRows.length > 0 && (
@@ -402,10 +436,11 @@ export default function MyDevicesTab({ setup }) {
                               type="text"
                               placeholder="Add room name..."
                               value={endpointRoom}
+                              list="hc-room-list"
                               onChange={(e) => setRoomInputs((r) => ({ ...r, [endpointId]: e.target.value }))}
-                              onBlur={() => handleRoomBlur(endpointId)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleRoomBlur(endpointId)}
-                              className="text-xs border border-gray-200 rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                              onBlur={() => onRoomBlurWithFlash(endpointId)}
+                              onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(endpointId)}
+                              className="text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                          />
                           </div>
                         </div>
@@ -416,9 +451,9 @@ export default function MyDevicesTab({ setup }) {
                             placeholder="Add note..."
                             value={noteInputs[endpointId] ?? savedNotes[endpointId] ?? ''}
                             onChange={(e) => setNoteInputs((n) => ({ ...n, [endpointId]: e.target.value }))}
-                            onBlur={() => handleNoteBlur(endpointId)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleNoteBlur(endpointId)}
-                            className="text-xs border border-gray-200 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                            onBlur={() => onNoteBlurWithFlash(endpointId)}
+                            onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(endpointId)}
+                            className="text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                        />
                         </div>
                       </div>
@@ -430,6 +465,12 @@ export default function MyDevicesTab({ setup }) {
           );
         })}
       </div>
+
+      <datalist id="hc-room-list">
+        {uniqueRooms.map((room) => (
+          <option key={room} value={room} />
+        ))}
+      </datalist>
     </div>
   );
 }

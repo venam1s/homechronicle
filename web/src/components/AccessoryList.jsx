@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import { useAccessories } from '../hooks/useEvents.js';
+import { SkeletonList } from './Skeleton.jsx';
 import { getServiceIcon } from '../lib/icons.js';
 import { getRoomColor } from '../lib/roomColors.js';
 import { AlertTriangle, ChevronDown, ChevronRight, Network } from 'lucide-react';
@@ -64,7 +65,7 @@ export default function AccessoryList({ onSelectAccessory }) {
   const { data: accessories, isLoading } = useAccessories();
 
   if (isLoading) {
-    return <div className="flex justify-center py-12 text-gray-400">Loading…</div>;
+    return <SkeletonList rows={6} className="max-w-4xl mx-auto mt-6" />;
   }
 
   if (!accessories?.length) {

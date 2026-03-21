@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts';
 import { useHourlyStats } from '../hooks/useEvents.js';
+import { SkeletonChart } from './Skeleton.jsx';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
 
 // Convert the UTC-hour data from the API to local-time hours so the
@@ -34,7 +35,7 @@ export default function ActivityChart() {
   const maxCount  = useMemo(() => Math.max(...chartData.map((d) => d.count), 1), [chartData]);
 
   if (isLoading) {
-    return <div className="h-48 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;
+    return <SkeletonChart className="h-48" />;
   }
   if (isError) {
     return <div className="h-48 flex items-center justify-center text-red-500 text-sm">Failed to load hourly stats.</div>;

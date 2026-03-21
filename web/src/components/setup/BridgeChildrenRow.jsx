@@ -65,6 +65,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                   type="text"
                   placeholder={bridgeRoom ? `Inherits: ${bridgeRoom}` : 'Room…'}
                   value={childRoom}
+                  list="hc-room-list"
                   onChange={(e) => onRoomChange(child.childId, e.target.value)}
                   onBlur={() => onRoomBlur(child.childId)}
                   onKeyDown={(e) => e.key === 'Enter' && onRoomBlur(child.childId)}
