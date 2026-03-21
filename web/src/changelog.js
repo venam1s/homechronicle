@@ -11,6 +11,11 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.1.5-beta',
+    title: 'New beta series',
+    items: [],
+  },
+  {
     version: 'v0.1.4-beta',
     title: 'Manage tab polish, dark mode fixes & UI enhancements',
     items: [
