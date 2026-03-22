@@ -42,9 +42,11 @@ validate-release:
   image: node:${NODE_VERSION}-alpine
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_PIPELINE_SOURCE == "web" && $BUILD_TAG
+      when: manual
   script:
     - |
-      TAG="$CI_COMMIT_TAG"
+      TAG="${CI_COMMIT_TAG:-$BUILD_TAG}"
       BETA_RE='^v([0-9]+)\.([0-9]+)\.([0-9]+)-beta\.([0-9]+)$'
       STABLE_RE='^v([0-9]+)\.([0-9]+)\.([0-9]+)$'
 
@@ -72,9 +74,12 @@ validate-release:
     - docker:27-dind
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_PIPELINE_SOURCE == "web" && $BUILD_TAG
+      when: manual
   needs:
     - job: validate-release
       artifacts: true
+      optional: true
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
   before_script:
@@ -89,11 +94,12 @@ validate-release:
   script:
     - |
       IMAGE="${DOCKER_HUB_NAMESPACE}/homechronicle-${SERVICE}"
-      VERSION="${CI_COMMIT_TAG#v}"
+      EFFECTIVE_TAG="${CI_COMMIT_TAG:-$BUILD_TAG}"
+      VERSION="${EFFECTIVE_TAG#v}"
 
       echo "Building ${IMAGE}:${VERSION} from ${CONTEXT} (${DOCKERFILE})"
       docker build \
-        --build-arg VITE_BUILD_VERSION="${CI_COMMIT_TAG}" \
+        --build-arg VITE_BUILD_VERSION="${EFFECTIVE_TAG}" \
         -f "${DOCKERFILE}" \
         -t "${IMAGE}:${VERSION}" \
         "${CONTEXT}"
@@ -147,3 +153,5 @@ build-standalone:
   rules:
     # Only build standalone for stable releases (not betas)
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+    - if: $CI_PIPELINE_SOURCE == "web" && $BUILD_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      when: manual
