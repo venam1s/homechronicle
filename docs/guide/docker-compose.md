@@ -19,7 +19,7 @@ docker compose version
 
 ```bash
 # Clone the repository
-git clone https://github.com/havuq/homechronicle.git
+git clone https://gitlab.com/homechronicle/homechronicle.git
 cd homechronicle
 
 # Create the persistent data directory

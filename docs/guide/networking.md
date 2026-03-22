@@ -82,4 +82,4 @@ sudo systemctl enable --now avahi-daemon
 
 ## VLANs
 
-Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your IoT devices are on a separate VLAN, you need a VLAN sub-interface on the host. See [limitations.md](https://github.com/havuq/homechronicle/blob/main/limitations.md#platform-note-vlan--segregated-iot-networks) for details.
+Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your IoT devices are on a separate VLAN, you need a VLAN sub-interface on the host. See [limitations.md](https://gitlab.com/homechronicle/homechronicle/-/blob/main/limitations.md#platform-note-vlan--segregated-iot-networks) for details.

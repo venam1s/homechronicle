@@ -1,8 +1,8 @@
 # homechronicle
 
-![Release](https://img.shields.io/github/v/release/havuq/homechronicle)
-![License](https://img.shields.io/github/license/havuq/homechronicle)
-![Last Commit](https://img.shields.io/github/last-commit/havuq/homechronicle)
+![Release](https://img.shields.io/gitlab/v/release/homechronicle/homechronicle?gitlab_url=https://gitlab.com)
+![License](https://img.shields.io/gitlab/license/homechronicle/homechronicle?gitlab_url=https://gitlab.com)
+![Last Commit](https://img.shields.io/gitlab/last-commit/homechronicle/homechronicle?gitlab_url=https://gitlab.com)
 
 ![Docker](https://img.shields.io/badge/docker-supported-blue?logo=docker)
 ![Self Hosted](https://img.shields.io/badge/self--hosted-yes-purple)
@@ -44,7 +44,7 @@ Open `http://localhost:3000` (or `http://<your-server-ip>:3000` from another dev
 For more control (separate containers, external PostgreSQL access, per-service resource limits):
 
 ```bash
-git clone https://github.com/havuq/homechronicle.git
+git clone https://gitlab.com/homechronicle/homechronicle.git
 cd homechronicle
 cp .env.example .env
 # Set POSTGRES_PASSWORD and API_TOKEN in .env
@@ -108,15 +108,9 @@ docker compose pull
 docker compose up -d
 ```
 
-## GitHub Wiki
+## Documentation
 
-Detailed guides have been moved to the GitHub Wiki:
-
-- Troubleshooting: [Troubleshooting Wiki](https://github.com/havuq/homechronicle/wiki/Troubleshooting)
-- Install as Phone App (PWA): [PWA Install Wiki](https://github.com/havuq/homechronicle/wiki/Install-as-a-Phone-App-(PWA))
-- Project Structure: [Project Structure Wiki](https://github.com/havuq/homechronicle/wiki/Project-Structure)
-
-You can also browse all docs here: [homechronicle Wiki](https://github.com/havuq/homechronicle/wiki)
+Full documentation is available at [homechronicle.net/guide](https://homechronicle.net/guide/).
 
 ## Limitations & Troubleshooting
 

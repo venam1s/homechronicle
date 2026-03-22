@@ -11,7 +11,7 @@ This file does not use `env_file`, so it works with Portainer Stack environment 
 1. In Portainer, go to **Stacks** -> **Add stack**.
 2. Choose **Repository**.
 3. Set:
-   - Repository URL: `https://github.com/havuq/homechronicle.git` (repo root only; no `/tree/...` or `/blob/...`)
+   - Repository URL: `https://gitlab.com/homechronicle/homechronicle.git` (repo root only; no `/tree/...` or `/blob/...`)
    - Reference:
      - Newer Portainer (dropdown): select `main`
      - Some versions (text field): use `refs/heads/main`
@@ -29,7 +29,7 @@ This file does not use `env_file`, so it works with Portainer Stack environment 
 
 If you get `could not find ref "main"`:
 
-1. Confirm URL is exactly `https://github.com/havuq/homechronicle.git`.
+1. Confirm URL is exactly `https://gitlab.com/homechronicle/homechronicle.git`.
 2. Switch reference to `refs/heads/main`.
 3. If your Portainer auto-populates refs from the repo, pick `main` from that list instead of typing manually.
 

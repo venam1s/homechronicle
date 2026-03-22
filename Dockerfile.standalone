@@ -39,7 +39,7 @@ FROM node:22-trixie-slim
 
 LABEL org.opencontainers.image.title="homechronicle Standalone" \
       org.opencontainers.image.description="All-in-one homechronicle: PostgreSQL + Listener + Web UI" \
-      org.opencontainers.image.source="https://github.com/havuq/homechronicle"
+      org.opencontainers.image.source="https://gitlab.com/homechronicle/homechronicle"
 
 # ── Install PostgreSQL 16, Nginx, supervisord, and runtime libs ─────────────
 # PostgreSQL 16 is not in Debian Trixie's default repos — add the PGDG apt

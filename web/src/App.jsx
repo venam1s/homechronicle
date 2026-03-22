@@ -403,7 +403,7 @@ export default function App() {
         )}
         <span className="text-gray-300">·</span>
         <a
-          href="https://github.com/havuq/homechronicle/issues"
+          href="https://gitlab.com/homechronicle/homechronicle/-/issues"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors"
