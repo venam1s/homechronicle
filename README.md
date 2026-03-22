@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/gitlab/license/homechronicle/homechronicle?gitlab_url=https://gitlab.com)
 ![Last Commit](https://img.shields.io/gitlab/last-commit/homechronicle/homechronicle?gitlab_url=https://gitlab.com)
 
-![Docker](https://img.shields.io/badge/docker-supported-blue?logo=docker)
+![Docker Pulls](https://img.shields.io/docker/pulls/havuq/homechronicle-standalone?logo=docker)
 ![Self Hosted](https://img.shields.io/badge/self--hosted-yes-purple)
 ![HomeKit](https://img.shields.io/badge/apple-homekit-black?logo=apple)
 
