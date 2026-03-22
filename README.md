@@ -32,7 +32,7 @@ docker run -d \
   -v hc-db:/var/lib/postgresql/data \
   -v hc-data:/app/listener/data \
   -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro \
-  ghcr.io/havuq/homechronicle/standalone
+  havuq/homechronicle-standalone
 ```
 
 Open `http://localhost:3000` (or `http://<your-server-ip>:3000` from another device).
@@ -96,7 +96,7 @@ If your Matter accessory is already in Apple Home, you can add it to homechronic
 
 **Standalone:**
 ```bash
-docker pull ghcr.io/havuq/homechronicle/standalone:latest
+docker pull havuq/homechronicle-standalone:latest
 docker stop homechronicle && docker rm homechronicle
 # Re-run your original docker run command
 ```

@@ -1,0 +1,149 @@
+# GitLab CI — mirrors the GitHub Actions workflows in .github/workflows/
+# Keep both configs in the repo so switching back to GitHub is a one-line remote change.
+
+stages:
+  - test
+  - prepare
+  - build
+
+variables:
+  NODE_VERSION: "20"
+  DOCKER_HUB_NAMESPACE: "havuq"
+
+# ── Test (replaces .github/workflows/ci.yml) ────────────────────────────────
+# Runs on merge requests to main.
+test:
+  stage: test
+  image: node:${NODE_VERSION}-alpine
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  cache:
+    - key: listener-$CI_COMMIT_REF_SLUG
+      paths: [listener/node_modules/]
+    - key: web-$CI_COMMIT_REF_SLUG
+      paths: [web/node_modules/]
+  script:
+    - cd listener && npm ci && npm test && cd ..
+    - cd web && npm ci && npm test && cd ..
+
+# ── SAST (replaces .github/workflows/codeql.yml) ────────────────────────────
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+
+sast:
+  stage: test
+  variables:
+    SAST_EXCLUDED_ANALYZERS: "bandit, brakeman, flawfinder, gosec, kubesec, phpcs-security-audit, pmd-apex, security-code-scan, sobelow, spotbugs"
+
+# ── Release validation + matrix setup ────────────────────────────────────────
+# Only runs on version tags (v*).
+validate-release:
+  stage: prepare
+  image: node:${NODE_VERSION}-alpine
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  script:
+    - |
+      TAG="$CI_COMMIT_TAG"
+      BETA_RE='^v([0-9]+)\.([0-9]+)\.([0-9]+)-beta\.([0-9]+)$'
+      STABLE_RE='^v([0-9]+)\.([0-9]+)\.([0-9]+)$'
+
+      if echo "$TAG" | grep -qE "$BETA_RE"; then
+        echo "RELEASE_KIND=beta" >> release.env
+        echo "IS_PRERELEASE=true" >> release.env
+      elif echo "$TAG" | grep -qE "$STABLE_RE"; then
+        echo "RELEASE_KIND=stable" >> release.env
+        echo "IS_PRERELEASE=false" >> release.env
+      else
+        echo "ERROR: Tag '$TAG' does not match vX.Y.Z or vX.Y.Z-beta.N"
+        exit 1
+      fi
+
+      echo "Release tag $TAG validated ($(cat release.env | grep RELEASE_KIND))"
+  artifacts:
+    reports:
+      dotenv: release.env
+
+# ── Build + push to Docker Hub (replaces .github/workflows/docker.yml) ──────
+.build-base:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  needs:
+    - job: validate-release
+      artifacts: true
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - apk add --no-cache curl
+    - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USER" --password-stdin
+    # Install Trivy
+    - |
+      TRIVY_VERSION="0.69.3"
+      curl -sSfL -o /tmp/trivy.tar.gz \
+        "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+      tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy
+  script:
+    - |
+      IMAGE="${DOCKER_HUB_NAMESPACE}/homechronicle-${SERVICE}"
+      VERSION="${CI_COMMIT_TAG#v}"
+
+      echo "Building ${IMAGE}:${VERSION} from ${CONTEXT} (${DOCKERFILE})"
+      docker build \
+        --build-arg VITE_BUILD_VERSION="${CI_COMMIT_TAG}" \
+        -f "${DOCKERFILE}" \
+        -t "${IMAGE}:${VERSION}" \
+        "${CONTEXT}"
+
+      # Trivy scan
+      echo "Running Trivy vulnerability scan..."
+      trivy image --format table --severity CRITICAL,HIGH --ignore-unfixed "${IMAGE}:${VERSION}" || true
+
+      # Tag strategy
+      docker tag "${IMAGE}:${VERSION}" "${IMAGE}:${VERSION}"
+
+      if [ "$IS_PRERELEASE" = "true" ]; then
+        docker tag "${IMAGE}:${VERSION}" "${IMAGE}:beta"
+        docker push "${IMAGE}:${VERSION}"
+        docker push "${IMAGE}:beta"
+      else
+        # Extract major.minor and major from version
+        MAJOR_MINOR=$(echo "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+)\..*/\1/')
+        MAJOR=$(echo "$VERSION" | sed -E 's/^([0-9]+)\..*/\1/')
+        docker tag "${IMAGE}:${VERSION}" "${IMAGE}:${MAJOR_MINOR}"
+        docker tag "${IMAGE}:${VERSION}" "${IMAGE}:${MAJOR}"
+        docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
+        docker push "${IMAGE}:${VERSION}"
+        docker push "${IMAGE}:${MAJOR_MINOR}"
+        docker push "${IMAGE}:${MAJOR}"
+        docker push "${IMAGE}:latest"
+      fi
+
+      echo "Pushed ${IMAGE}:${VERSION}"
+
+build-listener:
+  extends: .build-base
+  variables:
+    SERVICE: listener
+    CONTEXT: ./listener
+    DOCKERFILE: ./listener/Dockerfile
+
+build-web:
+  extends: .build-base
+  variables:
+    SERVICE: web
+    CONTEXT: ./web
+    DOCKERFILE: ./web/Dockerfile
+
+build-standalone:
+  extends: .build-base
+  variables:
+    SERVICE: standalone
+    CONTEXT: "."
+    DOCKERFILE: ./Dockerfile.standalone
+  rules:
+    # Only build standalone for stable releases (not betas)
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/

@@ -86,9 +86,9 @@ The listener mounts the host's D-Bus socket for mDNS. If you see D-Bus errors:
 If `docker compose pull` fails:
 
 - Check your internet connection
-- The images are hosted on GitHub Container Registry (`ghcr.io`)
+- The images are hosted on Docker Hub
 - No authentication is required for public images
-- Try pulling manually: `docker pull ghcr.io/havuq/homechronicle/listener:latest`
+- Try pulling manually: `docker pull havuq/homechronicle-listener:latest`
 
 ## Matter
 

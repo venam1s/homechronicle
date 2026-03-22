@@ -1016,7 +1016,7 @@
   -v hc-db:/var/lib/postgresql/data \
   -v hc-data:/app/listener/data \
   -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro \
-  ghcr.io/havuq/homechronicle/standalone</pre>
+  havuq/homechronicle-standalone</pre>
             <br>
             <span class="comment"># Open the dashboard</span><br>
             <span class="cmd">open</span> http://localhost:3000<br><br>
@@ -1024,7 +1024,7 @@
             <span class="comment"># docker run -d --name homechronicle -p 3000:80 \</span><br>
             <span class="comment">#   -v hc-db:/var/lib/postgresql/data \</span><br>
             <span class="comment">#   -v hc-data:/app/listener/data \</span><br>
-            <span class="comment">#   ghcr.io/havuq/homechronicle/standalone</span>
+            <span class="comment">#   havuq/homechronicle-standalone</span>
           </div>
         </div>
 
@@ -1076,7 +1076,7 @@ services:
       start_period: 30s
 
   listener:
-    image: ghcr.io/havuq/homechronicle/listener:latest
+    image: havuq/homechronicle-listener:latest
     restart: unless-stopped
     network_mode: host
     environment:
@@ -1094,7 +1094,7 @@ services:
         condition: service_healthy
 
   web:
-    image: ghcr.io/havuq/homechronicle/web:latest
+    image: havuq/homechronicle-web:latest
     restart: unless-stopped
     ports:
       - "3000:80"

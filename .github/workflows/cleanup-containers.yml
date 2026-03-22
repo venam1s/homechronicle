@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  cleanup-beta:
-    name: Prune old beta images (${{ matrix.package }})
+  cleanup:
+    name: Prune old container images
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -26,15 +26,6 @@ jobs:
           keep-n-most-recent: 5
           filter-tags: '*-beta.*'
 
-  cleanup-untagged:
-    name: Prune untagged images (${{ matrix.package }})
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    strategy:
-      matrix:
-        package: [listener, web, standalone]
-    steps:
       - name: Delete untagged images
         uses: snok/container-retention-policy@v3
         with:

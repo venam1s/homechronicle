@@ -23,7 +23,7 @@ services:
       start_period: 30s
 
   listener:
-    image: ${LISTENER_IMAGE:-ghcr.io/havuq/homechronicle/listener:latest}
+    image: ${LISTENER_IMAGE:-havuq/homechronicle-listener:latest}
     restart: unless-stopped
     # Host networking is recommended for HomeKit/mDNS discovery on Linux hosts.
     network_mode: ${LISTENER_NETWORK_MODE:-host}
@@ -55,7 +55,7 @@ services:
       start_period: 30s
 
   web:
-    image: ${WEB_IMAGE:-ghcr.io/havuq/homechronicle/web:latest}
+    image: ${WEB_IMAGE:-havuq/homechronicle-web:latest}
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-3000}:80"

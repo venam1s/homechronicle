@@ -28,7 +28,7 @@ services:
       start_period: 30s
 
   listener:
-    image: ${LISTENER_IMAGE:-ghcr.io/havuq/homechronicle/listener:latest}
+    image: ${LISTENER_IMAGE:-havuq/homechronicle-listener:latest}
     restart: unless-stopped
     env_file:
       - .env
@@ -70,7 +70,7 @@ services:
       start_period: 30s
 
   web:
-    image: ${WEB_IMAGE:-ghcr.io/havuq/homechronicle/web:latest}
+    image: ${WEB_IMAGE:-havuq/homechronicle-web:latest}
     restart: unless-stopped
     deploy:
       resources:

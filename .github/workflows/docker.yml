@@ -8,8 +8,24 @@ on:
     types: [published, prereleased, released]
 
 jobs:
+  # Dynamic matrix: skip standalone image for prereleases to save build minutes.
+  matrix-setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - name: Build service matrix
+        id: set
+        run: |
+          if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+            echo 'matrix={"include":[{"service":"listener","context":"./listener","dockerfile":"./listener/Dockerfile"},{"service":"web","context":"./web","dockerfile":"./web/Dockerfile"}]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix={"include":[{"service":"listener","context":"./listener","dockerfile":"./listener/Dockerfile"},{"service":"web","context":"./web","dockerfile":"./web/Dockerfile"},{"service":"standalone","context":".","dockerfile":"./Dockerfile.standalone"}]}' >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build ${{ matrix.service }}
+    needs: matrix-setup
     runs-on: ubuntu-latest
     env:
       # Keep GA locked by default; set repository variable GA_RELEASES_ENABLED=true after GA sign-off.
@@ -20,28 +36,14 @@ jobs:
       packages: write
       security-events: write
 
-    # Build listener and web images in parallel.
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - service: listener
-            context: ./listener
-            dockerfile: ./listener/Dockerfile
-          - service: web
-            context: ./web
-            dockerfile: ./web/Dockerfile
-          - service: standalone
-            context: .
-            dockerfile: ./Dockerfile.standalone
+      matrix: ${{ fromJson(needs.matrix-setup.outputs.matrix) }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # Required for advanced build features (cache, multi-platform, etc.)
-      # Use docker-container driver for the push step (supports cache export),
-      # but the scan step uses a separate build with load: true (docker driver).
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -169,15 +171,20 @@ jobs:
             type=semver,pattern={{major}},enable=${{ github.event.release.prerelease == false }}
             type=raw,value=beta,enable=${{ github.event.release.prerelease == true }}
             type=raw,value=latest,enable=${{ github.event.release.prerelease == false && steps.latest_release.outputs.is_latest == 'true' }}
-            type=raw,value=beta,enable=${{ github.event.release.prerelease == true }}
 
-      - name: Build image for scanning
-        run: |
-          docker build \
-            --build-arg VITE_BUILD_VERSION=${{ github.event.release.tag_name }} \
-            -f ${{ matrix.dockerfile }} \
-            -t ${{ matrix.service }}:scan \
-            ${{ matrix.context }}
+      # Single build: load locally for scanning AND populate GHA cache.
+      # The push step reuses the cache so it doesn't rebuild.
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          load: true
+          tags: ${{ matrix.service }}:scan
+          build-args: |
+            VITE_BUILD_VERSION=${{ github.event.release.tag_name }}
+          cache-from: type=gha,scope=release-${{ matrix.service }}
+          cache-to: type=gha,mode=min,scope=release-${{ matrix.service }},ignore-error=true
 
       - name: Install Trivy
         run: |
@@ -201,13 +208,15 @@ jobs:
             --ignore-unfixed \
             ${{ matrix.service }}:scan
 
+      # Only upload SARIF for stable releases to conserve API usage.
       - name: Upload Trivy results to GitHub Security
-        if: always() && hashFiles(format('trivy-{0}.sarif', matrix.service)) != ''
+        if: always() && github.event.release.prerelease == false && hashFiles(format('trivy-{0}.sarif', matrix.service)) != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}
 
+      # Push reuses the GHA cache — near-instant, no rebuild.
       - name: Push image
         uses: docker/build-push-action@v7
         with:
@@ -219,4 +228,38 @@ jobs:
           build-args: |
             VITE_BUILD_VERSION=${{ github.event.release.tag_name }}
           cache-from: type=gha,scope=release-${{ matrix.service }}
-          cache-to: type=gha,mode=min,scope=release-${{ matrix.service }},ignore-error=true
+
+      # After pushing a new beta, delete prior beta image versions to keep GHCR storage low.
+      # Keeps only the version just pushed + the rolling "beta" tag.
+      - name: Prune prior beta images
+        if: github.event.release.prerelease == true
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const pkg = `homechronicle/${{ matrix.service }}`;
+            const currentTag = context.payload.release.tag_name;
+
+            // List all versions for this package
+            const versions = await github.paginate(
+              github.rest.packages.getAllPackageVersionsForPackageOwnedByUser,
+              { package_type: "container", package_name: pkg, username: owner, per_page: 100 }
+            );
+
+            for (const v of versions) {
+              const tags = v.metadata?.container?.tags ?? [];
+              // Skip if this version has the tag we just pushed or the rolling "beta" tag
+              if (tags.includes(currentTag.replace(/^v/, '')) || tags.length === 0) continue;
+              // Only delete versions tagged with a beta pattern
+              const isBeta = tags.some(t => /^\d+\.\d+\.\d+-beta\.\d+$/.test(t));
+              if (!isBeta) continue;
+
+              core.info(`Deleting ${pkg} version ${v.id} (tags: ${tags.join(', ')})`);
+              await github.rest.packages.deletePackageVersionForUser({
+                package_type: "container",
+                package_name: pkg,
+                username: owner,
+                package_version_id: v.id,
+              });
+            }
+            core.info("Beta image cleanup complete.");

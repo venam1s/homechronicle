@@ -10,8 +10,8 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 |---|---|---|---|
 | `TZ` | `UTC` | postgres, listener, web | Container timezone. |
 | `POSTGRES_IMAGE` | `postgres:16-alpine` | compose | Override Postgres image tag. |
-| `LISTENER_IMAGE` | `ghcr.io/havuq/homechronicle/listener:latest` | compose | Override listener image tag. |
-| `WEB_IMAGE` | `ghcr.io/havuq/homechronicle/web:latest` | compose | Override web image tag. |
+| `LISTENER_IMAGE` | `havuq/homechronicle-listener:latest` | compose | Override listener image tag. |
+| `WEB_IMAGE` | `havuq/homechronicle-web:latest` | compose | Override web image tag. |
 | `WEB_PORT` | `3000` | compose | Host port mapped to web container port 80. |
 | `POSTGRES_PORT` | `5432` | compose | Host port mapped to Postgres port 5432. |
 | `POSTGRES_DATA_SOURCE` | `postgres-data` | compose postgres volume | Source for `/var/lib/postgresql/data` mount. Can be a named volume or absolute host path. |

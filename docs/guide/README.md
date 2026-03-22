@@ -22,7 +22,7 @@ docker run -d \
   -v hc-db:/var/lib/postgresql/data \
   -v hc-data:/app/listener/data \
   -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro \
-  ghcr.io/havuq/homechronicle/standalone
+  havuq/homechronicle-standalone
 ```
 
 Open `http://localhost:3000` in your browser. See [Standalone Docker](standalone.md) for full details, or [Docker Compose](docker-compose.md) for multi-container deployments.

@@ -34,7 +34,7 @@ docker run -d \
   -p 3000:80 \
   -v hc-db:/var/lib/postgresql/data \
   -v hc-data:/app/listener/data \
-  ghcr.io/havuq/homechronicle/standalone
+  havuq/homechronicle-standalone
 ```
 
 Open `http://localhost:3000` in your browser.
@@ -53,7 +53,7 @@ docker run -d \
   -v hc-db:/var/lib/postgresql/data \
   -v hc-data:/app/listener/data \
   -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro \
-  ghcr.io/havuq/homechronicle/standalone
+  havuq/homechronicle-standalone
 ```
 
 Open `http://your-server-ip:3000` in your browser.
@@ -85,7 +85,7 @@ docker run -d \
   -v hc-db:/var/lib/postgresql/data \
   -v hc-data:/app/listener/data \
   -v /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro \
-  ghcr.io/havuq/homechronicle/standalone
+  havuq/homechronicle-standalone
 ```
 
 ### Environment Variables
@@ -135,7 +135,7 @@ docker start homechronicle
 ### Update to a new version
 
 ```bash
-docker pull ghcr.io/havuq/homechronicle/standalone:latest
+docker pull havuq/homechronicle-standalone:latest
 docker stop homechronicle
 docker rm homechronicle
 # Re-run your original docker run command
