@@ -39,7 +39,7 @@ Open `http://localhost:3000` (or `http://<your-server-ip>:3000` from another dev
 For more control (separate containers, external PostgreSQL access, per-service resource limits):
 
 ```bash
-git clone https://gitlab.com/homechronicle/homechronicle.git
+git clone https://gitlab.com/havuq/homechronicle.git
 cd homechronicle
 cp .env.example .env
 # Set POSTGRES_PASSWORD and API_TOKEN in .env
