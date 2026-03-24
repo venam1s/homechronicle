@@ -360,6 +360,9 @@ if (pairedCount > 0) {
     const pairing = pairingsStore.getByKey(id);
     if (!pairing || !isHomeKitPairing(pairing)) return null;
     return normalizePairingRecord(id, pairing);
+  }, {
+    discoverDevice: discoverDeviceForRepair,
+    savePairing: savePairingForRepair,
   });
 } else {
   log.warn('[init] No pairings found — use the Setup tab in the web UI to discover and pair accessories.');
@@ -467,6 +470,55 @@ function safeDiscoveryScan() {
     log.warn(`[discovery] Scan skipped: ${err.message}`);
     return [];
   });
+}
+
+async function discoverDeviceForRepair(deviceId) {
+  if (!DISCOVERY_SCAN_ENABLED) return null;
+
+  return new Promise((resolve) => {
+    let discovery;
+    let settled = false;
+
+    try {
+      discovery = new IPDiscovery(DISCOVER_IFACE);
+    } catch (err) {
+      log.debug(`[auto-repair] Discovery init failed: ${err.message}`);
+      return resolve(null);
+    }
+
+    discovery.on('serviceUp', (service) => {
+      if (service.id !== deviceId || settled) return;
+      settled = true;
+      try { discovery.stop(); } catch { /* ignore */ }
+      resolve({ address: service.address, port: service.port });
+    });
+
+    discovery.on('error', () => {
+      if (settled) return;
+      settled = true;
+      try { discovery.stop(); } catch { /* ignore */ }
+      resolve(null);
+    });
+
+    try {
+      discovery.start();
+    } catch {
+      return resolve(null);
+    }
+
+    setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try { discovery.stop(); } catch { /* ignore */ }
+      resolve(null);
+    }, 10_000);
+  });
+}
+
+async function savePairingForRepair(deviceId, updatedFields) {
+  const current = loadPairings();
+  current[deviceId] = { ...current[deviceId], ...updatedFields };
+  await savePairings(current);
 }
 
 function isAutoDiscoveryEnabled() {
@@ -641,6 +693,7 @@ app.post('/api/setup/pair', async (req, res) => {
       port: cached.port,
       category: cached.category,
       pairedAt: new Date().toISOString(),
+      pin,
       longTermData,
     };
     await savePairings(updatedPairings);
@@ -648,7 +701,10 @@ app.post('/api/setup/pair', async (req, res) => {
     const item = discoveryCache.find((s) => s.id === deviceId);
     if (item) { item.paired = true; item.alreadyPaired = true; }
 
-    startSubscribers({ [deviceId]: updatedPairings[deviceId] }, loadRooms(), (id) => pairingsStore.getByKey(id));
+    startSubscribers({ [deviceId]: updatedPairings[deviceId] }, loadRooms(), (id) => pairingsStore.getByKey(id), {
+      discoverDevice: discoverDeviceForRepair,
+      savePairing: savePairingForRepair,
+    });
 
     log.info(`[setup] Paired successfully: ${cached.name}`);
     res.json({ success: true, name: cached.name });
