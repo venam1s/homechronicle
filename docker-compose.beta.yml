@@ -16,7 +16,7 @@ services:
       POSTGRES_DB: homekit_events
       TZ: ${TZ:-America/Indianapolis}
     volumes:
-      - /mnt/Primary/apps/hc-beta/postgres:/var/lib/postgresql/data
+      - postgres-data-beta:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "127.0.0.1:5433:5432"
@@ -51,7 +51,7 @@ services:
       NODE_ENV: production
       TZ: ${TZ:-America/Indianapolis}
     volumes:
-      - /mnt/Primary/apps/hc-beta/listener:/app/data
+      - listener-data-beta:/app/data
       - ${HOST_DBUS_SOCKET:-/run/dbus/system_bus_socket}:/run/dbus/system_bus_socket:ro
     deploy:
       resources:
@@ -99,3 +99,7 @@ networks:
     external: true
   empire-network:
     external: true
+
+volumes:
+  postgres-data-beta:
+  listener-data-beta:
