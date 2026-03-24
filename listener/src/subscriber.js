@@ -38,6 +38,17 @@ const subscriberSessions = new Map();
 const subscriberStats = new Map();
 let connectAccessoryImpl = connectAccessory;
 
+function isAuthError(err) {
+  const msg = err?.message ?? String(err);
+  return /M[24]:\s*Error:\s*2\b/.test(msg)
+    || /M2:.*Signature verification/i.test(msg);
+}
+
+function isMaxPeersError(err) {
+  const msg = err?.message ?? String(err);
+  return /M\d:\s*Error:\s*4\b/.test(msg) || /maxpeers/i.test(msg);
+}
+
 async function processAlertsSafe(eventPayload, insertedRow) {
   if (!ALERTS_ENABLED) return;
   try {
@@ -388,6 +399,8 @@ export function getSubscriberHealth() {
 
 export const __testHooks = {
   scheduleReconnect,
+  isAuthError,
+  isMaxPeersError,
   getSession(deviceId) {
     return subscriberSessions.get(deviceId) ?? null;
   },

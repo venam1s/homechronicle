@@ -34,6 +34,24 @@ test('scheduleReconnect refreshes pairing before reconnecting', async () => {
   __testHooks.resetState();
 });
 
+test('isAuthError recognises M4: Error: 2', () => {
+  const { isAuthError } = __testHooks;
+  assert.equal(isAuthError(new Error('M4: Error: 2')), true);
+  assert.equal(isAuthError(new Error('M2: Error: 2')), true);
+  assert.equal(isAuthError(new Error('M2: Signature verification failed')), true);
+  assert.equal(isAuthError(new Error('Connection refused')), false);
+  assert.equal(isAuthError(new Error('M4: Error: 3')), false);
+  assert.equal(isAuthError(new Error('M4: Error: 4')), false);
+});
+
+test('isMaxPeersError recognises M4: Error: 4', () => {
+  const { isMaxPeersError } = __testHooks;
+  assert.equal(isMaxPeersError(new Error('M4: Error: 4')), true);
+  assert.equal(isMaxPeersError(new Error('maxpeers')), true);
+  assert.equal(isMaxPeersError(new Error('M4: Error: 2')), false);
+  assert.equal(isMaxPeersError(new Error('Connection refused')), false);
+});
+
 test('scheduleReconnect stops growth at max reconnect delay', () => {
   __testHooks.resetState();
   __testHooks.setReconnectWindow(5, 20);
