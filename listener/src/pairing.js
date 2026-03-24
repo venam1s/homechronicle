@@ -75,6 +75,7 @@ discovery.on('serviceUp', async (service) => {
       port: service.port,
       category: service.ci,
       pairedAt: new Date().toISOString(),
+      pin,
       longTermData,
     };
     savePairings(pairings);
