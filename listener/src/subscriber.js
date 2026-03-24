@@ -454,7 +454,10 @@ async function attemptAutoRepair(session, pairing) {
     if (!discovered) {
       stats.autoRepairLastError = 'Device not found on network';
       log.error(`[subscriber] ${accessoryName}: auto re-pair failed — device not found on network`);
-      if (stats.autoRepairAttempts >= 3) stats.needsRepair = true;
+      if (stats.autoRepairAttempts >= 3) {
+        stats.needsRepair = true;
+        log.warn(`[subscriber] ${accessoryName}: auto re-pair exhausted (3/3), manual re-pair required`);
+      }
       return;
     }
 
@@ -494,6 +497,15 @@ async function attemptAutoRepair(session, pairing) {
     }
   } finally {
     session.repairing = false;
+    // Schedule retry if under circuit breaker and not already marked terminal
+    if (!stats.needsRepair && stats.autoRepairAttempts < 3) {
+      log.info(`[subscriber] ${accessoryName}: retrying auto re-pair in 60s…`);
+      session.reconnectTimeout = setTimeout(() => {
+        if (session.stopped) return;
+        session.reconnectTimeout = null;
+        attemptAutoRepair(session, pairing);
+      }, 60_000);
+    }
   }
 }
 

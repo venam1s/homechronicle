@@ -224,6 +224,12 @@ function mapReliabilityStats(reliability) {
     last_subscribed_at: reliability.lastSubscribedAt,
     last_error: reliability.lastError,
     last_error_at: reliability.lastErrorAt,
+    auth_failures: reliability.authFailures,
+    auth_failed: reliability.authFailed,
+    needs_repair: reliability.needsRepair,
+    auto_repair_attempts: reliability.autoRepairAttempts,
+    auto_repair_last_error: reliability.autoRepairLastError,
+    auto_repaired_at: reliability.autoRepairedAt,
   };
 }
 
@@ -701,7 +707,11 @@ app.post('/api/setup/pair', async (req, res) => {
     const item = discoveryCache.find((s) => s.id === deviceId);
     if (item) { item.paired = true; item.alreadyPaired = true; }
 
-    startSubscribers({ [deviceId]: updatedPairings[deviceId] }, loadRooms(), (id) => pairingsStore.getByKey(id), {
+    startSubscribers({ [deviceId]: updatedPairings[deviceId] }, loadRooms(), (id) => {
+      const pairing = pairingsStore.getByKey(id);
+      if (!pairing || !isHomeKitPairing(pairing)) return null;
+      return normalizePairingRecord(id, pairing);
+    }, {
       discoverDevice: discoverDeviceForRepair,
       savePairing: savePairingForRepair,
     });
