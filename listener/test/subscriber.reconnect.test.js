@@ -322,3 +322,124 @@ test('getSubscriberHealth includes needsRepair count', async () => {
 
   __testHooks.resetState();
 });
+
+test('full flow: auth errors → no PIN → needsRepair', async () => {
+  __testHooks.resetState();
+  __testHooks.setReconnectWindow(5, 10);
+
+  let connectCount = 0;
+  __testHooks.setConnectAccessoryImpl((session, pairing) => {
+    connectCount += 1;
+    session.stats.accessoriesQueryFailures += 1;
+    session.stats.lastError = 'M4: Error: 2';
+    session.stats.lastErrorAt = new Date().toISOString();
+    session.stats.authFailures += 1;
+
+    if (session.stats.authFailures >= 3) {
+      session.stats.authFailed = true;
+      __testHooks.attemptAutoRepair(session, pairing);
+    } else {
+      __testHooks.scheduleReconnect(session, pairing);
+    }
+  });
+
+  const { startSubscriber, getSubscriberStats, getSubscriberHealth } = await import('../src/subscriber.js');
+  startSubscriber('e2e-1', {
+    name: 'E2E Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  await sleep(200);
+
+  const stats = getSubscriberStats('e2e-1');
+  assert.equal(stats.authFailed, true);
+  assert.equal(stats.needsRepair, true);
+  assert.equal(stats.autoRepairAttempts, 0, 'no attempts without PIN');
+  assert.ok(connectCount >= 3, 'should have retried 3 times');
+
+  const health = getSubscriberHealth();
+  assert.equal(health.needsRepair, 1);
+
+  __testHooks.resetState();
+});
+
+test('transient errors do NOT trigger auth failure path', async () => {
+  __testHooks.resetState();
+  __testHooks.setReconnectWindow(5, 10);
+
+  let connectCount = 0;
+  __testHooks.setConnectAccessoryImpl((session, pairing) => {
+    connectCount += 1;
+    session.stats.accessoriesQueryFailures += 1;
+    session.stats.lastError = 'Connection refused';
+
+    if (connectCount < 6) {
+      __testHooks.scheduleReconnect(session, pairing);
+    }
+  });
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('transient-1', {
+    name: 'Transient Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  await sleep(300);
+
+  const session = __testHooks.getSession('transient-1');
+  assert.equal(session.stats.authFailed, false);
+  assert.equal(session.stats.needsRepair, false);
+  assert.ok(connectCount >= 3, 'should have retried multiple times via backoff');
+
+  __testHooks.resetState();
+});
+
+test('full flow: auth errors → with PIN → discovery fails → circuit breaker → needsRepair', async () => {
+  __testHooks.resetState();
+  __testHooks.setReconnectWindow(5, 10);
+
+  let connectCount = 0;
+  __testHooks.setConnectAccessoryImpl((session, pairing) => {
+    connectCount += 1;
+    session.stats.accessoriesQueryFailures += 1;
+    session.stats.lastError = 'M4: Error: 2';
+    session.stats.lastErrorAt = new Date().toISOString();
+    session.stats.authFailures += 1;
+
+    if (session.stats.authFailures >= 3) {
+      session.stats.authFailed = true;
+      __testHooks.attemptAutoRepair(session, pairing);
+    } else {
+      __testHooks.scheduleReconnect(session, pairing);
+    }
+  });
+
+  const { startSubscriber, getSubscriberStats } = await import('../src/subscriber.js');
+  startSubscriber('e2e-pin-1', {
+    name: 'E2E Pin Device',
+    address: '10.0.0.1',
+    port: 1234,
+    pin: '111-22-333',
+    longTermData: {},
+  }, {}, null, {
+    discoverDevice: async () => null,
+    savePairing: async () => {},
+  });
+
+  await sleep(200);
+
+  const session = __testHooks.getSession('e2e-pin-1');
+  const pairing = { name: 'E2E Pin Device', pin: '111-22-333', longTermData: {} };
+  await __testHooks.attemptAutoRepair(session, pairing);
+  await __testHooks.attemptAutoRepair(session, pairing);
+
+  const stats = getSubscriberStats('e2e-pin-1');
+  assert.equal(stats.autoRepairAttempts, 3);
+  assert.equal(stats.needsRepair, true, 'circuit breaker should have tripped');
+
+  __testHooks.resetState();
+});
