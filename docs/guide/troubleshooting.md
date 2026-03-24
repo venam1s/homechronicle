@@ -25,6 +25,66 @@
 
 ## Connectivity
 
+### `M4: Error: 2` — pairing authentication failure
+
+**What it looks like:**
+
+```
+[subscriber] Levoit E860: getAccessories failed: M4: Error: 2
+[subscriber] Pet Feeder 052C: getAccessories failed: M4: Error: 2
+[subscriber] Homebridge BF97 A0DD: getAccessories failed: M4: Error: 2
+```
+
+Every paired device fails with `M4: Error: 2` on a loop, and no new events are recorded. The devices still work normally in Apple Home.
+
+**What's happening:**
+
+`M4: Error: 2` is a HAP (HomeKit Accessory Protocol) authentication failure during the pair-verify handshake. Error code 2 (`kTLVError_Authentication`) means the accessory no longer recognizes HomeChronicle as a paired controller. The long-term cryptographic keys stored in HomeChronicle's `pairings.json` are valid, but the accessory has lost or deleted its copy of the pairing record.
+
+This is a **permanent** error — retrying will not fix it. The pairing must be re-established.
+
+**Common causes:**
+
+- **Homebridge/hub restart with lost data** — if Homebridge's `persist/` directory is not properly volume-mounted, container recreation wipes all pairing records. This is the most common cause when all devices on the same bridge fail simultaneously.
+- **Bridge identity reset** — changing Homebridge's bridge `username` (MAC address) in config, or clicking "Reset" / "Unpair All" in the Homebridge UI.
+- **Pairing slot eviction** — HAP accessories support a limited number of paired controllers (typically 16). If the limit is reached and HomeChronicle's slot is removed, this error occurs.
+- **Factory reset** — the accessory was factory-reset, clearing all pairing data.
+
+> **Why does Apple Home still work?** HomeKit maintains its own pairing through iCloud, which automatically re-syncs. HomeChronicle's pairing is independent and has no such recovery mechanism.
+
+**Related error — `M2: Signature verification failed`:**
+
+This is a similar authentication failure at an earlier step in the pair-verify process. The cause and fix are the same as `M4: Error: 2`.
+
+**How to fix — re-pair the affected devices:**
+
+1. Open the HomeChronicle web UI and go to **Manage > Add Devices**
+2. Click **Scan** to discover devices on the network
+3. For each affected device, enter its PIN code and click **Pair**
+   - The PIN is the 8-digit code (format `111-22-333`) printed on the device label, packaging, or shown in the manufacturer's app
+   - For Homebridge, the PIN is in the Homebridge web UI under **Settings**
+4. HomeChronicle will automatically replace the old pairing with fresh keys and begin subscribing to events immediately
+
+You do **not** need to delete the old pairing first — pairing the same device again overwrites the existing entry.
+
+**What data is lost:**
+
+- **No event history is lost.** All previously recorded events remain in the database.
+- **No room assignments are lost.** Room names are stored separately from pairing data and are keyed by device ID, which doesn't change.
+- **No display names or notes are lost.** These are also stored independently.
+- The only thing that changes is the cryptographic keys in `pairings.json`. You will see a gap in the timeline for the period between when the pairing broke and when you re-paired.
+
+**Prevention:**
+
+If you use Homebridge, ensure its `persist/` directory is on a durable Docker volume that survives container restarts:
+
+```yaml
+volumes:
+  - homebridge_data:/homebridge
+```
+
+Avoid recreating the container with `docker compose up --force-recreate` unless necessary. A regular `docker compose restart` preserves volumes.
+
 ### Events stop arriving
 
 1. Check device health in the **Accessories** tab — look for `stale` or `unreachable` status

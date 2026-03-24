@@ -66,3 +66,6 @@ Allow users to define quiet-time windows (e.g., 11 PM – 7 AM) during which spe
 
 ### Thread network topology
 Display Thread border router health and mesh network topology for Matter-over-Thread devices. Show which border routers are active, which devices route through them, and signal quality metrics.
+
+### Devices table in PostgreSQL
+Consolidate device metadata (name, address, port, room, PIN, display name, notes, health status, pairedAt) into a `devices` table in the database. Currently this data is scattered across `pairings.json`, `rooms.json`, in-memory caches, and event history. A database table provides queryability (e.g., join events with rooms in SQL), atomic writes, and a single source of truth. Crypto-sensitive pairing keys (`longTermData`) would remain in `pairings.json` to keep them out of database backups. Requires a one-time migration to seed the table from existing JSON files.
