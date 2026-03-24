@@ -52,6 +52,63 @@ test('isMaxPeersError recognises M4: Error: 4', () => {
   assert.equal(isMaxPeersError(new Error('Connection refused')), false);
 });
 
+test('new stats fields are initialised', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('stats-init-1', {
+    name: 'Stats Test',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('stats-init-1');
+  assert.equal(session.stats.authFailures, 0);
+  assert.equal(session.stats.authFailed, false);
+  assert.equal(session.stats.needsRepair, false);
+  assert.equal(session.stats.autoRepairAttempts, 0);
+  assert.equal(session.stats.autoRepairLastError, null);
+  assert.equal(session.stats.autoRepairedAt, null);
+  assert.equal(session.repairing, false);
+
+  __testHooks.resetState();
+});
+
+test('connectAccessory skips when session.repairing is true', async () => {
+  __testHooks.resetState();
+  __testHooks.setReconnectWindow(5, 20);
+
+  let connectCount = 0;
+  __testHooks.setConnectAccessoryImpl((session) => {
+    connectCount += 1;
+  });
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('repair-guard-1', {
+    name: 'Guard Test',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  // First connect already happened
+  assert.equal(connectCount, 1);
+  const session = __testHooks.getSession('repair-guard-1');
+  session.repairing = true;
+
+  // Schedule a reconnect — should be blocked by repairing guard
+  connectCount = 0;
+  __testHooks.scheduleReconnect(session, { name: 'Guard Test', address: '10.0.0.1', port: 1234 });
+  await sleep(50);
+
+  assert.equal(connectCount, 0, 'connectAccessory should not fire while repairing');
+  session.repairing = false;
+
+  __testHooks.resetState();
+});
+
 test('scheduleReconnect stops growth at max reconnect delay', () => {
   __testHooks.resetState();
   __testHooks.setReconnectWindow(5, 20);

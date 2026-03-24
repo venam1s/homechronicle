@@ -72,13 +72,13 @@ async function processAlertsSafe(eventPayload, insertedRow) {
  *   Used so reconnects pick up a refreshed address/port if pairings.json
  *   was updated (e.g. by a discovery scan) while we were backing off.
  */
-export function startSubscribers(pairings, rooms = {}, getPairing = null) {
+export function startSubscribers(pairings, rooms = {}, getPairing = null, options = {}) {
   for (const [deviceId, pairing] of Object.entries(pairings)) {
-    startSubscriber(deviceId, pairing, rooms, getPairing);
+    startSubscriber(deviceId, pairing, rooms, getPairing, options);
   }
 }
 
-export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null) {
+export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null, options = {}) {
   stopSubscriber(deviceId);
   const stats = {
     connectAttempts: 0,
@@ -92,6 +92,13 @@ export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null
     lastSubscribedAt: null,
     lastError: null,
     lastErrorAt: null,
+    // Auth failure tracking
+    authFailures: 0,
+    authFailed: false,
+    needsRepair: false,
+    autoRepairAttempts: 0,
+    autoRepairLastError: null,
+    autoRepairedAt: null,
   };
   const session = {
     deviceId,
@@ -100,11 +107,14 @@ export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null
     pairingName: pairing.name,
     retryDelayMs: reconnectBaseMs,
     stopped: false,
+    repairing: false,
     reconnectTimeout: null,
     client: null,
     eventHandler: null,
     disconnectHandler: null,
     stats,
+    discoverDevice: options.discoverDevice ?? null,
+    savePairing: options.savePairing ?? null,
   };
   subscriberSessions.set(deviceId, session);
   subscriberStats.set(deviceId, stats);
@@ -145,6 +155,10 @@ export function stopSubscriber(deviceId) {
 
 function connectAccessory(session, pairing) {
   if (session.stopped) return;
+  if (session.repairing) {
+    log.debug(`[subscriber] ${pairing.name}: skipping connect, auto re-pair in progress`);
+    return;
+  }
   const { deviceId, rooms, getPairing, stats } = session;
   const { name: accessoryName, address, port, longTermData } = pairing;
   session.pairingName = accessoryName;
@@ -162,6 +176,7 @@ function connectAccessory(session, pairing) {
       accessories,
     });
     stats.lastConnectedAt = new Date().toISOString();
+    stats.authFailures = 0;
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
     const watchedKeys = [...iidMeta.keys()];
@@ -293,7 +308,20 @@ function connectAccessory(session, pairing) {
         stats.resubscribeFailures += 1;
         stats.lastError = err.message ?? String(err);
         stats.lastErrorAt = new Date().toISOString();
-        log.error(`[subscriber] ${accessoryName}: resubscribe failed:`, err.message ?? err.stack ?? err);
+
+        if (isAuthError(err)) {
+          stats.authFailures += 1;
+          if (stats.authFailures >= 3) {
+            stats.authFailed = true;
+            log.warn(`[subscriber] ${accessoryName}: resubscribe auth failed ${stats.authFailures} times, attempting auto re-pair…`);
+            attemptAutoRepair(session, pairing);
+            return;
+          }
+          log.warn(`[subscriber] ${accessoryName}: resubscribe auth failed (${stats.authFailures}/3):`, err.message ?? err.stack ?? err);
+        } else {
+          log.error(`[subscriber] ${accessoryName}: resubscribe failed:`, err.message ?? err.stack ?? err);
+        }
+
         scheduleReconnect(session, pairing);
       }
     };
@@ -338,7 +366,26 @@ function connectAccessory(session, pairing) {
     stats.accessoriesQueryFailures += 1;
     stats.lastError = err.message ?? String(err);
     stats.lastErrorAt = new Date().toISOString();
-    log.error(`[subscriber] ${accessoryName}: getAccessories failed:`, err.message ?? err.stack ?? err);
+
+    if (isMaxPeersError(err)) {
+      stats.needsRepair = true;
+      log.error(`[subscriber] ${accessoryName}: max peers reached, re-pair required (remove a pairing in Apple Home first)`);
+      return; // Terminal — do not retry or auto-re-pair
+    }
+
+    if (isAuthError(err)) {
+      stats.authFailures += 1;
+      if (stats.authFailures >= 3) {
+        stats.authFailed = true;
+        log.warn(`[subscriber] ${accessoryName}: authentication failed ${stats.authFailures} times, attempting auto re-pair…`);
+        attemptAutoRepair(session, pairing);
+        return;
+      }
+      log.warn(`[subscriber] ${accessoryName}: getAccessories auth failed (${stats.authFailures}/3):`, err.message ?? err.stack ?? err);
+    } else {
+      log.error(`[subscriber] ${accessoryName}: getAccessories failed:`, err.message ?? err.stack ?? err);
+    }
+
     scheduleReconnect(session, pairing);
   });
 }
@@ -352,6 +399,10 @@ function scheduleReconnect(session, pairing) {
   log.debug(`[subscriber] ${pairing.name}: retrying in ${nextDelay / 1000}s`);
   session.reconnectTimeout = setTimeout(() => {
     if (session.stopped) return;
+    if (session.repairing) {
+      log.debug(`[subscriber] ${pairing.name}: skipping reconnect, auto re-pair in progress`);
+      return;
+    }
     session.reconnectTimeout = null;
     // Re-read the pairing so reconnects pick up any address/port changes
     // that occurred (e.g. from a discovery scan) while we were backing off.
@@ -364,6 +415,12 @@ function scheduleReconnect(session, pairing) {
     }
     connectAccessoryImpl(session, latestPairing);
   }, nextDelay);
+}
+
+async function attemptAutoRepair(session, pairing) {
+  const { stats } = session;
+  stats.needsRepair = true;
+  log.warn(`[subscriber] ${pairing.name}: pairing expired, re-pair required (auto re-pair not yet wired)`);
 }
 
 export function getSubscriberStats(deviceId) {
@@ -401,6 +458,7 @@ export const __testHooks = {
   scheduleReconnect,
   isAuthError,
   isMaxPeersError,
+  attemptAutoRepair,
   getSession(deviceId) {
     return subscriberSessions.get(deviceId) ?? null;
   },
