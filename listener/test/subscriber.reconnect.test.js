@@ -294,3 +294,31 @@ test('attemptAutoRepair sets repairing flag during execution', async () => {
 
   __testHooks.resetState();
 });
+
+test('getSubscriberHealth includes needsRepair count', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber, getSubscriberHealth } = await import('../src/subscriber.js');
+  startSubscriber('health-1', {
+    name: 'Healthy Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+  startSubscriber('health-2', {
+    name: 'Broken Device',
+    address: '10.0.0.2',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session2 = __testHooks.getSession('health-2');
+  session2.stats.needsRepair = true;
+
+  const health = getSubscriberHealth();
+  assert.equal(health.total, 2);
+  assert.equal(health.needsRepair, 1);
+
+  __testHooks.resetState();
+});
