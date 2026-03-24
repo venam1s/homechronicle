@@ -418,9 +418,83 @@ function scheduleReconnect(session, pairing) {
 }
 
 async function attemptAutoRepair(session, pairing) {
-  const { stats } = session;
-  stats.needsRepair = true;
-  log.warn(`[subscriber] ${pairing.name}: pairing expired, re-pair required (auto re-pair not yet wired)`);
+  const { stats, discoverDevice, savePairing } = session;
+  const accessoryName = pairing.name ?? session.pairingName;
+
+  // No PIN — can't auto-re-pair
+  if (!pairing.pin) {
+    stats.needsRepair = true;
+    log.warn(`[subscriber] ${accessoryName}: pairing expired, re-pair required (no PIN stored)`);
+    return;
+  }
+
+  // Circuit breaker — stop after 3 auto-re-pair attempts
+  if (stats.autoRepairAttempts >= 3) {
+    stats.needsRepair = true;
+    return;
+  }
+
+  // No callbacks — can't auto-re-pair
+  if (!discoverDevice || !savePairing) {
+    stats.needsRepair = true;
+    log.warn(`[subscriber] ${accessoryName}: pairing expired, re-pair required (auto re-pair not configured)`);
+    return;
+  }
+
+  // Concurrency guard
+  if (session.repairing) return;
+  session.repairing = true;
+  stats.autoRepairAttempts += 1;
+
+  try {
+    log.info(`[subscriber] ${accessoryName}: attempting auto re-pair (attempt ${stats.autoRepairAttempts}/3)…`);
+
+    // Discover the device's current address/port
+    const discovered = await discoverDevice(session.deviceId);
+    if (!discovered) {
+      stats.autoRepairLastError = 'Device not found on network';
+      log.error(`[subscriber] ${accessoryName}: auto re-pair failed — device not found on network`);
+      if (stats.autoRepairAttempts >= 3) stats.needsRepair = true;
+      return;
+    }
+
+    // Attempt pair-setup with stored PIN (uses top-level HttpClient import)
+    const client = new HttpClient(session.deviceId, discovered.address, discovered.port);
+    await client.pairSetup(pairing.pin);
+    const longTermData = client.getLongTermData();
+
+    // Save updated pairing
+    await savePairing(session.deviceId, {
+      ...pairing,
+      address: discovered.address,
+      port: discovered.port,
+      longTermData,
+      pairedAt: new Date().toISOString(),
+    });
+
+    log.info(`[subscriber] ${accessoryName}: auto re-paired successfully`);
+    stats.autoRepairedAt = new Date().toISOString();
+    stats.authFailures = 0;
+    stats.authFailed = false;
+
+    // Resume normal connection with new keys
+    const updatedPairing = {
+      ...pairing,
+      address: discovered.address,
+      port: discovered.port,
+      longTermData,
+    };
+    connectAccessoryImpl(session, updatedPairing);
+  } catch (err) {
+    stats.autoRepairLastError = err.message ?? String(err);
+    log.error(`[subscriber] ${accessoryName}: auto re-pair failed:`, err.message ?? err.stack ?? err);
+    if (stats.autoRepairAttempts >= 3) {
+      stats.needsRepair = true;
+      log.warn(`[subscriber] ${accessoryName}: auto re-pair exhausted (3/3), manual re-pair required`);
+    }
+  } finally {
+    session.repairing = false;
+  }
 }
 
 export function getSubscriberStats(deviceId) {

@@ -128,3 +128,169 @@ test('scheduleReconnect stops growth at max reconnect delay', () => {
 
   __testHooks.resetState();
 });
+
+test('attemptAutoRepair marks needsRepair when no PIN stored', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('no-pin-1', {
+    name: 'No Pin Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('no-pin-1');
+  session.stats.authFailures = 3;
+  session.stats.authFailed = true;
+
+  await __testHooks.attemptAutoRepair(session, {
+    name: 'No Pin Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  assert.equal(session.stats.needsRepair, true);
+  assert.equal(session.stats.autoRepairAttempts, 0, 'should not count as attempt without PIN');
+  __testHooks.resetState();
+});
+
+test('attemptAutoRepair marks needsRepair when no callbacks configured', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('no-cb-1', {
+    name: 'No Callback Device',
+    address: '10.0.0.1',
+    port: 1234,
+    pin: '111-22-333',
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('no-cb-1');
+  session.stats.authFailures = 3;
+  session.stats.authFailed = true;
+
+  await __testHooks.attemptAutoRepair(session, {
+    name: 'No Callback Device',
+    pin: '111-22-333',
+    longTermData: {},
+  });
+
+  assert.equal(session.stats.needsRepair, true);
+  assert.equal(session.stats.autoRepairAttempts, 0, 'should not count without callbacks');
+  __testHooks.resetState();
+});
+
+test('attemptAutoRepair increments attempts when discovery fails', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('disc-fail-1', {
+    name: 'Disc Fail Device',
+    address: '10.0.0.1',
+    port: 1234,
+    pin: '111-22-333',
+    longTermData: {},
+  }, {}, null, {
+    discoverDevice: async () => null,
+    savePairing: async () => {},
+  });
+
+  const session = __testHooks.getSession('disc-fail-1');
+  session.stats.authFailures = 3;
+  session.stats.authFailed = true;
+
+  await __testHooks.attemptAutoRepair(session, {
+    name: 'Disc Fail Device',
+    pin: '111-22-333',
+    longTermData: {},
+  });
+
+  assert.equal(session.stats.autoRepairAttempts, 1);
+  assert.equal(session.stats.needsRepair, false, 'not yet at circuit breaker');
+  assert.equal(session.repairing, false, 'repairing flag cleared');
+  __testHooks.resetState();
+});
+
+test('attemptAutoRepair circuit breaker after 3 attempts', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('circuit-1', {
+    name: 'Circuit Device',
+    address: '10.0.0.1',
+    port: 1234,
+    pin: '111-22-333',
+    longTermData: {},
+  }, {}, null, {
+    discoverDevice: async () => null,
+    savePairing: async () => {},
+  });
+
+  const session = __testHooks.getSession('circuit-1');
+  session.stats.authFailures = 3;
+  session.stats.authFailed = true;
+
+  const pairing = { name: 'Circuit Device', pin: '111-22-333', longTermData: {} };
+
+  await __testHooks.attemptAutoRepair(session, pairing);
+  assert.equal(session.stats.autoRepairAttempts, 1);
+  assert.equal(session.stats.needsRepair, false);
+
+  await __testHooks.attemptAutoRepair(session, pairing);
+  assert.equal(session.stats.autoRepairAttempts, 2);
+  assert.equal(session.stats.needsRepair, false);
+
+  await __testHooks.attemptAutoRepair(session, pairing);
+  assert.equal(session.stats.autoRepairAttempts, 3);
+  assert.equal(session.stats.needsRepair, true, 'circuit breaker tripped');
+
+  await __testHooks.attemptAutoRepair(session, pairing);
+  assert.equal(session.stats.autoRepairAttempts, 3, 'should not increment past breaker');
+
+  __testHooks.resetState();
+});
+
+test('attemptAutoRepair sets repairing flag during execution', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  let repairingDuringDiscovery = null;
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('flag-1', {
+    name: 'Flag Device',
+    address: '10.0.0.1',
+    port: 1234,
+    pin: '111-22-333',
+    longTermData: {},
+  }, {}, null, {
+    discoverDevice: async (id) => {
+      const s = __testHooks.getSession('flag-1');
+      repairingDuringDiscovery = s.repairing;
+      return null;
+    },
+    savePairing: async () => {},
+  });
+
+  const session = __testHooks.getSession('flag-1');
+  session.stats.authFailures = 3;
+  session.stats.authFailed = true;
+
+  await __testHooks.attemptAutoRepair(session, {
+    name: 'Flag Device',
+    pin: '111-22-333',
+    longTermData: {},
+  });
+
+  assert.equal(repairingDuringDiscovery, true, 'repairing should be true during discovery');
+  assert.equal(session.repairing, false, 'repairing should be cleared after completion');
+
+  __testHooks.resetState();
+});
