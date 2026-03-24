@@ -64,6 +64,14 @@ export default function MonthlyHeatmap() {
   if (isLoading) {
     return <div className="h-24 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;
   }
+  if (!data.length) {
+    return (
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Monthly Heatmap</h3>
+        <div className="h-24 flex items-center justify-center text-sm text-gray-400">No activity in the last 12 months.</div>
+      </div>
+    );
+  }
 
   const maxCount = Math.max(1, ...rows.flatMap((r) => r.cells.map((c) => c?.count ?? 0)));
   const totalWidth = LABEL_W + 31 * (CELL + GAP);

@@ -40,6 +40,14 @@ export default function ActivityChart() {
   if (isError) {
     return <div className="h-48 flex items-center justify-center text-red-500 text-sm">Failed to load hourly stats.</div>;
   }
+  if (!data?.length) {
+    return (
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Events by Hour</h3>
+        <div className="h-48 flex items-center justify-center text-sm text-gray-400">No activity in the last 30 days.</div>
+      </div>
+    );
+  }
 
   return (
     <div>

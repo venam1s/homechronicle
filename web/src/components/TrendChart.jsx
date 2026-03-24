@@ -64,11 +64,21 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
     });
   }, [data, days]);
 
+  const hasData = data?.length > 0;
+
   if (isLoading) {
     return <SkeletonChart className="h-48" />;
   }
   if (isError) {
     return <div className="h-48 flex items-center justify-center text-red-500 text-sm">Failed to load daily stats.</div>;
+  }
+  if (!hasData) {
+    return (
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Daily Activity</h3>
+        <div className="h-48 flex items-center justify-center text-sm text-gray-400">No activity in the last {days} days.</div>
+      </div>
+    );
   }
 
   return (
