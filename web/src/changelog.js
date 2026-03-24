@@ -12,8 +12,15 @@
 const CHANGELOG = [
   {
     version: 'v0.1.5-beta',
-    title: 'New beta series',
-    items: [],
+    title: 'Auto re-pair and auth failure detection',
+    items: [
+      'Auto re-pair: listener detects expired HAP pairings (M4: Error: 2) and attempts automatic re-pairing using stored PINs',
+      'Auth failure detection: stops infinite retry loop after 3 consecutive authentication failures',
+      'Circuit breaker: caps auto re-pair attempts at 3 before marking device as needing manual re-pair',
+      'PIN storage: pairing PINs are now saved server-side for unattended recovery',
+      'Health API: new needs_repair count in /api/health and auth failure stats in /api/accessories reliability object',
+      'Troubleshooting docs: added guide for M4: Error: 2 authentication failures',
+    ],
   },
   {
     version: 'v0.1.4-beta',
