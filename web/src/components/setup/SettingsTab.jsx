@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ChevronDown, Download, Loader, X } from 'l
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
+import { useToast } from '../Toast.jsx';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, h) => {
   const period = h < 12 ? 'AM' : 'PM';
@@ -37,6 +38,7 @@ export default function SettingsTab({ setup }) {
     deleteAccessoryMutation,
   } = setup;
 
+  const { addToast } = useToast();
   const queryClient = useQueryClient();
   const archiveCountQuery = useQuery({
     queryKey: ['archive', 'count'],
@@ -217,6 +219,9 @@ export default function SettingsTab({ setup }) {
       if (nextRetention.sceneWindowSeconds != null) setSceneWindowInput(String(nextRetention.sceneWindowSeconds));
       if (nextRetention.episodeMinEventCount != null) setEpisodeMinEventInput(String(nextRetention.episodeMinEventCount));
       setSaveFeedback('saved');
+      if (retentionConfig?.toastsEnabled !== false) {
+        addToast('Settings saved', 'success');
+      }
     } catch {
       setSaveFeedback('error');
     }
@@ -687,7 +692,12 @@ export default function SettingsTab({ setup }) {
                           <span className="text-xs text-gray-500 dark:text-gray-400">Delete history? This cannot be undone.</span>
                           <button
                             onClick={() => deleteAccessoryMutation.mutate(acc.accessory_id, {
-                              onSuccess: () => setConfirmDeleteAccessory(null),
+                              onSuccess: () => {
+                                setConfirmDeleteAccessory(null);
+                                if (retentionConfig?.toastsEnabled !== false) {
+                                  addToast('Accessory deleted', 'success');
+                                }
+                              },
                             })}
                             disabled={isDeleting}
                             className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"

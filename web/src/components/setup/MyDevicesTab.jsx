@@ -3,6 +3,7 @@ import { Bell, BellOff, Check, CheckCircle, Trash2, ChevronDown, MapPin, FileTex
 import clsx from 'clsx';
 import { CATEGORY_LABELS } from './constants.js';
 import BridgeChildrenRow from './BridgeChildrenRow.jsx';
+import { useToast } from '../Toast.jsx';
 
 function summarizeMatterError(raw) {
   const text = String(raw ?? '').trim();
@@ -35,6 +36,8 @@ export default function MyDevicesTab({ setup }) {
     saveRetentionMutation,
   } = setup;
 
+  const { addToast } = useToast();
+
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmDeleteMatter, setConfirmDeleteMatter] = useState(null);
   const [matterDeleteError, setMatterDeleteError] = useState({});
@@ -51,7 +54,10 @@ export default function MyDevicesTab({ setup }) {
   const onRoomBlurWithFlash = useCallback((id) => {
     handleRoomBlur(id);
     flashSave(`room-${id}`);
-  }, [handleRoomBlur, flashSave]);
+    if (retentionConfig?.toastsEnabled !== false) {
+      addToast('Room saved', 'success');
+    }
+  }, [handleRoomBlur, flashSave, retentionConfig?.toastsEnabled, addToast]);
 
   const onNoteBlurWithFlash = useCallback((id) => {
     handleNoteBlur(id);
@@ -61,7 +67,10 @@ export default function MyDevicesTab({ setup }) {
   const onDisplayNameBlurWithFlash = useCallback((id) => {
     handleDisplayNameBlur(id);
     flashSave(`name-${id}`);
-  }, [handleDisplayNameBlur, flashSave]);
+    if (retentionConfig?.toastsEnabled !== false) {
+      addToast('Name saved', 'success');
+    }
+  }, [handleDisplayNameBlur, flashSave, retentionConfig?.toastsEnabled, addToast]);
 
   const toggleToastAccessory = useCallback((accessoryId) => {
     const current = retentionConfig?.toastAccessories ?? [];
