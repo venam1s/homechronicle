@@ -83,14 +83,16 @@ validate-release:
       artifacts: true
       optional: true
   variables:
-    DOCKER_TLS_CERTDIR: "/certs"
+    # Disable TLS so the buildx docker-container driver can reach DinD
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_HOST: tcp://docker:2375
     BUILD_PLATFORMS: "linux/amd64,linux/arm64"
   before_script:
     - apk add --no-cache curl
     - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USER" --password-stdin
-    # Set up buildx for multi-platform builds (uses DinD instance via DOCKER_HOST)
-    - docker context create dind-ctx --docker "host=$DOCKER_HOST" --description "DinD"
-    - docker buildx create --name multiarch --driver docker-container --use dind-ctx
+    # Register QEMU emulators for cross-platform builds (arm64 on amd64 runner)
+    - docker run --rm --privileged tonistiigi/binfmt --install all
+    - docker buildx create --name multiarch --driver docker-container --use
     - docker buildx inspect --bootstrap
     # Install Trivy
     - |
