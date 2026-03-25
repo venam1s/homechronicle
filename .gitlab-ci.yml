@@ -88,8 +88,9 @@ validate-release:
   before_script:
     - apk add --no-cache curl
     - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USER" --password-stdin
-    # Set up buildx for multi-platform builds
-    - docker buildx create --name multiarch --driver docker-container --use
+    # Set up buildx for multi-platform builds (uses DinD instance via DOCKER_HOST)
+    - docker context create dind-ctx --docker "host=$DOCKER_HOST" --description "DinD"
+    - docker buildx create --name multiarch --driver docker-container --use dind-ctx
     - docker buildx inspect --bootstrap
     # Install Trivy
     - |
