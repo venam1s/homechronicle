@@ -129,6 +129,36 @@ export function useSetup() {
     },
   });
 
+  const repairPairingMutation = useMutation({
+    mutationFn: async ({ deviceId, pin }) => {
+      const body = pin ? { pin } : {};
+      try {
+        return await fetchJson(`/api/setup/repair/${encodeURIComponent(deviceId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch (fetchErr) {
+        // fetchJson throws with the response text; try to parse structured error
+        try {
+          const parsed = JSON.parse(fetchErr.message);
+          const err = new Error(parsed.guidance || parsed.error || 'Repair failed');
+          err.code = parsed.code;
+          err.guidance = parsed.guidance;
+          throw err;
+        } catch (parseErr) {
+          if (parseErr.code) throw parseErr; // re-throw our structured error
+          throw fetchErr; // re-throw original
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pairings'] });
+      queryClient.invalidateQueries({ queryKey: ['accessories'] });
+      queryClient.invalidateQueries({ queryKey: ['health'] });
+    },
+  });
+
   const saveRoomMutation = useMutation({
     mutationFn: ({ accessoryId, roomName }) =>
       fetchJson('/api/setup/room', {
@@ -357,6 +387,7 @@ export function useSetup() {
     scanMutation,
     matterScanMutation,
     deletePairingMutation,
+    repairPairingMutation,
     saveRoomMutation,
     saveNoteMutation,
     saveRetentionMutation,
