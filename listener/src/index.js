@@ -81,6 +81,9 @@ const retentionStore = new JsonObjectStore(RETENTION_FILE, {
   archiveBeforeDelete: RETENTION_ARCHIVE_DEFAULT,
   staleThresholdHours: STALE_THRESHOLD_HOURS_DEFAULT,
   autoScanHomeKit: DISCOVERY_SCAN_ENABLED,
+  toastsEnabled: true,
+  liveEventToastsEnabled: false,
+  toastAccessories: [],
 });
 let matterRuntime = null;
 
@@ -163,7 +166,12 @@ function normalizeRetentionSettings(input = {}) {
   const quietHoursExcludedAccessories = Array.isArray(input.quietHoursExcludedAccessories)
     ? input.quietHoursExcludedAccessories.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim())
     : [];
-  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, quietHoursExcludedAccessories, episodeWindowMinutes, sceneWindowSeconds, episodeMinEventCount };
+  const toastsEnabled = input.toastsEnabled === undefined ? true : Boolean(input.toastsEnabled);
+  const liveEventToastsEnabled = Boolean(input.liveEventToastsEnabled ?? false);
+  const toastAccessories = Array.isArray(input.toastAccessories)
+    ? input.toastAccessories.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim())
+    : [];
+  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, quietHoursExcludedAccessories, episodeWindowMinutes, sceneWindowSeconds, episodeMinEventCount, toastsEnabled, liveEventToastsEnabled, toastAccessories };
 }
 
 function isLoopbackHostname(hostname) {
@@ -911,6 +919,9 @@ app.get('/api/setup/retention', (_req, res) => {
     episodeWindowMinutes: retentionSettings.episodeWindowMinutes,
     sceneWindowSeconds: retentionSettings.sceneWindowSeconds,
     episodeMinEventCount: retentionSettings.episodeMinEventCount,
+    toastsEnabled: retentionSettings.toastsEnabled,
+    liveEventToastsEnabled: retentionSettings.liveEventToastsEnabled,
+    toastAccessories: retentionSettings.toastAccessories,
     sweepMs: RETENTION_SWEEP_MS,
   });
 });
@@ -1003,6 +1014,30 @@ app.patch('/api/setup/retention', async (req, res) => {
     updates.episodeMinEventCount = emc;
   }
 
+  if (body.toastsEnabled !== undefined) {
+    if (typeof body.toastsEnabled !== 'boolean') {
+      return res.status(400).json({ error: 'toastsEnabled must be a boolean.' });
+    }
+    updates.toastsEnabled = body.toastsEnabled;
+  }
+
+  if (body.liveEventToastsEnabled !== undefined) {
+    if (typeof body.liveEventToastsEnabled !== 'boolean') {
+      return res.status(400).json({ error: 'liveEventToastsEnabled must be a boolean.' });
+    }
+    updates.liveEventToastsEnabled = body.liveEventToastsEnabled;
+  }
+
+  if (body.toastAccessories !== undefined) {
+    if (!Array.isArray(body.toastAccessories)) {
+      return res.status(400).json({ error: 'toastAccessories must be an array of accessory ID strings.' });
+    }
+    if (body.toastAccessories.some((v) => typeof v !== 'string' || !v.trim())) {
+      return res.status(400).json({ error: 'Each entry in toastAccessories must be a non-empty string.' });
+    }
+    updates.toastAccessories = body.toastAccessories.map((v) => v.trim());
+  }
+
   if (!Object.keys(updates).length) {
     return res.status(400).json({ error: 'No supported settings provided.' });
   }
@@ -1026,6 +1061,9 @@ app.patch('/api/setup/retention', async (req, res) => {
     episodeWindowMinutes: retentionSettings.episodeWindowMinutes,
     sceneWindowSeconds: retentionSettings.sceneWindowSeconds,
     episodeMinEventCount: retentionSettings.episodeMinEventCount,
+    toastsEnabled: retentionSettings.toastsEnabled,
+    liveEventToastsEnabled: retentionSettings.liveEventToastsEnabled,
+    toastAccessories: retentionSettings.toastAccessories,
     sweepMs: RETENTION_SWEEP_MS,
   });
 });
