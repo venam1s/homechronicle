@@ -594,6 +594,17 @@ export function getSubscriberHealth() {
   return { total, connected, stale, needsRepair };
 }
 
+export function resetSubscriberStats(deviceId) {
+  const session = subscriberSessions.get(deviceId);
+  if (!session) return false;
+  session.stats.authFailures = 0;
+  session.stats.authFailed = false;
+  session.stats.needsRepair = false;
+  session.stats.autoRepairAttempts = 0;
+  session.stats.autoRepairLastError = null;
+  return true;
+}
+
 export const __testHooks = {
   scheduleReconnect,
   isAuthError,

@@ -11,7 +11,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { IPDiscovery, HttpClient } from 'hap-controller';
 import { insertEvent, pool, migrateDb, runRetentionSweep } from './db.js';
-import { startSubscribers, stopSubscriber, getSubscriberStats, getSubscriberHealth } from './subscriber.js';
+import { startSubscribers, stopSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter, parentBridgeId, parseIntInRange } from './events-router.js';
 import { createAlertsRouter } from './alerts-router.js';
@@ -866,6 +866,99 @@ app.delete('/api/setup/pairing/:deviceId', async (req, res) => {
 
   log.info(`[setup] Removed pairing for ${name} (${deviceId})`);
   res.json({ success: true, name });
+});
+
+app.post('/api/setup/repair/:deviceId', async (req, res) => {
+  const { deviceId } = req.params;
+  const { pin: overridePin } = req.body ?? {};
+  const currentPairings = loadPairings();
+  const pairing = currentPairings[deviceId];
+
+  if (!pairing) {
+    return res.status(404).json({ error: 'Pairing not found', code: 'NOT_FOUND', guidance: 'This device is not paired. Go to Add Devices to pair it.' });
+  }
+  if (!isHomeKitPairing(pairing)) {
+    return res.status(400).json({ error: 'Repair is only available for HomeKit pairings', code: 'NOT_HOMEKIT' });
+  }
+
+  const pin = overridePin?.trim() || pairing.pin;
+  if (!pin) {
+    return res.status(400).json({
+      error: 'No PIN available',
+      code: 'NO_PIN',
+      guidance: 'No PIN on file for this device. Enter the device\'s HomeKit setup code to repair.',
+    });
+  }
+
+  log.info(`[setup] Repair requested for ${pairing.name} (${deviceId})`);
+
+  try {
+    // Discover current address/port (5s timeout for interactive use)
+    const discovered = await Promise.race([
+      discoverDeviceForRepair(deviceId),
+      new Promise((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+
+    if (!discovered) {
+      return res.status(404).json({
+        error: 'Device not found on network',
+        code: 'NOT_FOUND_NETWORK',
+        guidance: 'Make sure the device is powered on and on the same network, then try again.',
+      });
+    }
+
+    const client = new HttpClient(deviceId, discovered.address, discovered.port);
+    await client.pairSetup(pin);
+    const longTermData = client.getLongTermData();
+
+    // Save updated pairing
+    const updatedPairings = loadPairings();
+    updatedPairings[deviceId] = {
+      ...updatedPairings[deviceId],
+      address: discovered.address,
+      port: discovered.port,
+      longTermData,
+      pin,
+      pairedAt: new Date().toISOString(),
+    };
+    await savePairings(updatedPairings);
+
+    // Reset subscriber stats and restart
+    resetSubscriberStats(deviceId);
+    stopSubscriber(deviceId);
+    startSubscribers({ [deviceId]: updatedPairings[deviceId] }, loadRooms(), (id) => {
+      const p = pairingsStore.getByKey(id);
+      if (!p || !isHomeKitPairing(p)) return null;
+      return normalizePairingRecord(id, p);
+    }, {
+      discoverDevice: discoverDeviceForRepair,
+      savePairing: savePairingForRepair,
+    });
+
+    log.info(`[setup] Repair successful: ${pairing.name}`);
+    res.json({ success: true, name: pairing.name });
+  } catch (err) {
+    log.error(`[setup] Repair failed for ${deviceId}:`, err.message ?? err.stack ?? err);
+    const msg = err.message ?? '';
+    let code = 'UNKNOWN';
+    let guidance = 'Repair failed: ' + msg;
+
+    if (/Error:\s*6\b/.test(msg) || /unavailable/i.test(msg)) {
+      code = 'UNAVAILABLE';
+      guidance = 'This device rejected the pairing. It may be at its pairing limit or not accepting new pairings. Check the device\'s admin interface to remove stale pairings, then try again.';
+    } else if (/Error:\s*2\b/.test(msg) || /authentication/i.test(msg)) {
+      code = 'WRONG_PIN';
+      guidance = 'The PIN was rejected. Double-check the code on the device or in its admin interface.';
+    } else if (/Error:\s*4\b/.test(msg) || /maxpeers/i.test(msg)) {
+      code = 'MAX_PEERS';
+      guidance = 'This device has reached its pairing limit. Remove a pairing from the device first, then try again.';
+    } else if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg)) {
+      code = 'UNREACHABLE';
+      guidance = 'Could not reach the device. Make sure it\'s powered on and on the same network.';
+    }
+
+    res.status(400).json({ error: guidance, code, guidance });
+  }
 });
 
 app.patch('/api/setup/room', async (req, res) => {
