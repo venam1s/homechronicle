@@ -528,6 +528,7 @@ async function attemptAutoRepair(session, pairing) {
 
     log.info(`[subscriber] ${accessoryName}: auto re-paired successfully`);
     stats.autoRepairedAt = new Date().toISOString();
+    stats.autoRepairAttempts = 0;
     stats.authFailures = 0;
     stats.authFailed = false;
 
