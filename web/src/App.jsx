@@ -25,6 +25,7 @@ import { useTheme } from './hooks/useTheme.js';
 import { useSkin } from './hooks/useSkin.js';
 import { useUpdateCheck } from './hooks/useUpdateCheck.js';
 import { useLiveEventToasts } from './hooks/useLiveEventToasts.js';
+import { useToast } from './components/Toast.jsx';
 import { ExternalLink, Sparkles, ArrowUpCircle } from 'lucide-react';
 
 const CHANGELOG_VERSION_KEY = 'hc_last_seen_version';
@@ -87,7 +88,19 @@ export default function App() {
     staleTime: 30_000,
   });
 
+  const { configure: configureToasts } = useToast();
+
   useLiveEventToasts({ activeTab: tab, retentionConfig });
+
+  useEffect(() => {
+    if (retentionConfig) {
+      configureToasts({
+        position: retentionConfig.toastPosition,
+        duration: retentionConfig.toastDuration,
+        maxVisible: retentionConfig.toastMaxVisible,
+      });
+    }
+  }, [retentionConfig?.toastPosition, retentionConfig?.toastDuration, retentionConfig?.toastMaxVisible, configureToasts]);
 
   const [selectedAccessoryId, setSelectedAccessoryId] = useState(null);
   const [alertsEnabled, setAlertsEnabled] = useState(false);
