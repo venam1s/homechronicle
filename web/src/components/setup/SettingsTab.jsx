@@ -534,74 +534,116 @@ export default function SettingsTab({ setup }) {
       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">
         Notifications
       </h3>
-      <div className="space-y-3 mt-2">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={toastsEnabledInput}
-            onChange={(e) => setToastsEnabledInput(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-700 dark:text-gray-300">Enable toast notifications</span>
-        </label>
-        <label className={clsx('flex items-center gap-3', toastsEnabledInput ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed')}>
-          <input
-            type="checkbox"
-            checked={liveEventToastsEnabledInput}
-            onChange={(e) => setLiveEventToastsEnabledInput(e.target.checked)}
-            disabled={!toastsEnabledInput}
-            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-700 dark:text-gray-300">Live event toasts</span>
-        </label>
-        <p className="text-xs text-gray-500 dark:text-gray-400 ml-7">
-          Show a popup when selected accessories report events. Only appears when you're not on the Timeline tab.
-        </p>
+      {/* Toast notifications */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Toast notifications</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Show brief popup messages for saves, deletes, and other actions.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={toastsEnabledInput}
+              onChange={(e) => { setToastsEnabledInput(e.target.checked); setSaveFeedback(null); }}
+              disabled={savePending}
+            />
+            <span>{toastsEnabledInput ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Live event toasts */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Live event toasts</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Show a popup when selected accessories report events. Only appears when you're not on the Timeline tab.
+            </p>
+          </div>
+          <label className={clsx('inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300', !toastsEnabledInput && 'opacity-50 cursor-not-allowed')}>
+            <input
+              type="checkbox"
+              checked={liveEventToastsEnabledInput}
+              onChange={(e) => { setLiveEventToastsEnabledInput(e.target.checked); setSaveFeedback(null); }}
+              disabled={!toastsEnabledInput || savePending}
+            />
+            <span>{liveEventToastsEnabledInput ? 'On' : 'Off'}</span>
+          </label>
+        </div>
         {liveEventToastsEnabledInput && !(retentionConfig?.toastAccessories?.length > 0) && (
-          <p className="text-xs text-amber-600 dark:text-amber-400 ml-7">
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
             Select accessories to watch on the My Devices tab.
           </p>
         )}
-        <div className={clsx('space-y-2 mt-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Position</span>
-            <select
-              value={toastPositionInput}
-              onChange={(e) => setToastPositionInput(e.target.value)}
-              className="text-sm rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-blue-500"
-            >
-              <option value="bottom-right">Bottom Right</option>
-              <option value="top-right">Top Right</option>
-              <option value="bottom-left">Bottom Left</option>
-              <option value="top-left">Top Left</option>
-            </select>
+      </div>
+
+      {/* Toast position */}
+      <div className={clsx('bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Toast position</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Which corner of the screen to show toast popups.
+            </p>
           </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Duration</span>
-            <select
-              value={toastDurationInput}
-              onChange={(e) => setToastDurationInput(Number(e.target.value))}
-              className="text-sm rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-blue-500"
-            >
-              <option value={2}>2s</option>
-              <option value={3}>3s</option>
-              <option value={5}>5s</option>
-              <option value={7}>7s</option>
-            </select>
+          <select
+            value={toastPositionInput}
+            onChange={(e) => { setToastPositionInput(e.target.value); setSaveFeedback(null); }}
+            className="text-sm rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="bottom-right">Bottom Right</option>
+            <option value="top-right">Top Right</option>
+            <option value="bottom-left">Bottom Left</option>
+            <option value="top-left">Top Left</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Toast duration */}
+      <div className={clsx('bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Toast duration</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              How long each toast stays visible before auto-dismissing.
+            </p>
           </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-gray-700 dark:text-gray-300">Max visible</span>
-            <select
-              value={toastMaxVisibleInput}
-              onChange={(e) => setToastMaxVisibleInput(Number(e.target.value))}
-              className="text-sm rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-blue-500"
-            >
-              <option value={1}>1</option>
-              <option value={2}>2</option>
-              <option value={3}>3</option>
-              <option value={5}>5</option>
-            </select>
+          <select
+            value={toastDurationInput}
+            onChange={(e) => { setToastDurationInput(Number(e.target.value)); setSaveFeedback(null); }}
+            className="text-sm rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={2}>2 seconds</option>
+            <option value={3}>3 seconds</option>
+            <option value={5}>5 seconds</option>
+            <option value={7}>7 seconds</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Toast max visible */}
+      <div className={clsx('bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Max visible toasts</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Maximum number of toasts that can stack on screen at once.
+            </p>
           </div>
+          <select
+            value={toastMaxVisibleInput}
+            onChange={(e) => { setToastMaxVisibleInput(Number(e.target.value)); setSaveFeedback(null); }}
+            className="text-sm rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={1}>1</option>
+            <option value={2}>2</option>
+            <option value={3}>3</option>
+            <option value={5}>5</option>
+          </select>
         </div>
       </div>
 
