@@ -38,7 +38,7 @@ export default function SettingsTab({ setup }) {
     deleteAccessoryMutation,
   } = setup;
 
-  const { addToast } = useToast();
+  const { addToast, configure: configureToasts } = useToast();
   const queryClient = useQueryClient();
   const archiveCountQuery = useQuery({
     queryKey: ['archive', 'count'],
@@ -236,7 +236,12 @@ export default function SettingsTab({ setup }) {
       if (nextRetention.sceneWindowSeconds != null) setSceneWindowInput(String(nextRetention.sceneWindowSeconds));
       if (nextRetention.episodeMinEventCount != null) setEpisodeMinEventInput(String(nextRetention.episodeMinEventCount));
       setSaveFeedback('saved');
-      if (retentionConfig?.toastsEnabled !== false) {
+      configureToasts({
+        position: nextRetention.toastPosition,
+        duration: nextRetention.toastDuration,
+        maxVisible: nextRetention.toastMaxVisible,
+      });
+      if (nextRetention.toastsEnabled !== false) {
         addToast('Settings saved', 'success');
       }
     } catch {

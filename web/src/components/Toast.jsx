@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import clsx from 'clsx';
 
