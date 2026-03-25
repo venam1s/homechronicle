@@ -49,6 +49,11 @@ function isMaxPeersError(err) {
   return /M\d:\s*Error:\s*4\b/.test(msg) || /maxpeers/i.test(msg);
 }
 
+function isConnectionError(err) {
+  const msg = err?.message ?? String(err);
+  return /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EHOSTUNREACH/i.test(msg);
+}
+
 async function processAlertsSafe(eventPayload, insertedRow) {
   if (!ALERTS_ENABLED) return;
   try {
@@ -546,6 +551,7 @@ export const __testHooks = {
   scheduleReconnect,
   isAuthError,
   isMaxPeersError,
+  isConnectionError,
   attemptAutoRepair,
   getSession(deviceId) {
     return subscriberSessions.get(deviceId) ?? null;

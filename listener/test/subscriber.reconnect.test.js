@@ -398,6 +398,27 @@ test('transient errors do NOT trigger auth failure path', async () => {
   __testHooks.resetState();
 });
 
+test('isConnectionError matches ECONNREFUSED', () => {
+  const { isConnectionError } = __testHooks;
+  assert.ok(isConnectionError(new Error('connect ECONNREFUSED 172.16.25.16:51222')));
+});
+
+test('isConnectionError matches ETIMEDOUT', () => {
+  assert.ok(__testHooks.isConnectionError(new Error('connect ETIMEDOUT 172.16.25.16:51222')));
+});
+
+test('isConnectionError matches EHOSTUNREACH', () => {
+  assert.ok(__testHooks.isConnectionError(new Error('connect EHOSTUNREACH 172.16.25.16:51222')));
+});
+
+test('isConnectionError matches ENOTFOUND', () => {
+  assert.ok(__testHooks.isConnectionError(new Error('getaddrinfo ENOTFOUND example.local')));
+});
+
+test('isConnectionError does not match auth errors', () => {
+  assert.ok(!__testHooks.isConnectionError(new Error('M4: Error: 2')));
+});
+
 test('full flow: auth errors → with PIN → discovery fails → circuit breaker → needsRepair', async () => {
   __testHooks.resetState();
   __testHooks.setReconnectWindow(5, 10);
