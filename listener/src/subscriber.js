@@ -327,6 +327,29 @@ function connectAccessory(session, pairing) {
           log.error(`[subscriber] ${accessoryName}: resubscribe failed:`, err.message ?? err.stack ?? err);
         }
 
+        if (isConnectionError(err) && session.discoverDevice) {
+          log.info(`[subscriber] ${accessoryName}: resubscribe connection failed, re-discovering…`);
+          session.discoverDevice(deviceId).then((discovered) => {
+            if (!discovered || session.stopped) {
+              scheduleReconnect(session, pairing);
+              return;
+            }
+            if (discovered.address !== pairing.address || discovered.port !== pairing.port) {
+              log.info(`[subscriber] ${accessoryName}: found at ${discovered.address}:${discovered.port}`);
+              if (session.savePairing) {
+                session.savePairing(deviceId, { ...pairing, address: discovered.address, port: discovered.port })
+                  .catch((e) => log.debug(`[subscriber] ${accessoryName}: failed to save updated address: ${e.message}`));
+              }
+              const updatedPairing = { ...pairing, address: discovered.address, port: discovered.port };
+              session.retryDelayMs = reconnectBaseMs;
+              connectAccessoryImpl(session, updatedPairing);
+            } else {
+              scheduleReconnect(session, pairing);
+            }
+          }).catch(() => scheduleReconnect(session, pairing));
+          return;
+        }
+
         scheduleReconnect(session, pairing);
       }
     };
@@ -389,6 +412,29 @@ function connectAccessory(session, pairing) {
       log.warn(`[subscriber] ${accessoryName}: getAccessories auth failed (${stats.authFailures}/3):`, err.message ?? err.stack ?? err);
     } else {
       log.error(`[subscriber] ${accessoryName}: getAccessories failed:`, err.message ?? err.stack ?? err);
+    }
+
+    if (isConnectionError(err) && session.discoverDevice) {
+      log.info(`[subscriber] ${accessoryName}: connection failed, re-discovering device…`);
+      session.discoverDevice(deviceId).then((discovered) => {
+        if (!discovered || session.stopped) {
+          scheduleReconnect(session, pairing);
+          return;
+        }
+        if (discovered.address !== pairing.address || discovered.port !== pairing.port) {
+          log.info(`[subscriber] ${accessoryName}: found at ${discovered.address}:${discovered.port} (was ${address}:${port})`);
+          if (session.savePairing) {
+            session.savePairing(deviceId, { ...pairing, address: discovered.address, port: discovered.port })
+              .catch((e) => log.debug(`[subscriber] ${accessoryName}: failed to save updated address: ${e.message}`));
+          }
+          const updatedPairing = { ...pairing, address: discovered.address, port: discovered.port };
+          session.retryDelayMs = reconnectBaseMs;
+          connectAccessoryImpl(session, updatedPairing);
+        } else {
+          scheduleReconnect(session, pairing);
+        }
+      }).catch(() => scheduleReconnect(session, pairing));
+      return;
     }
 
     scheduleReconnect(session, pairing);
