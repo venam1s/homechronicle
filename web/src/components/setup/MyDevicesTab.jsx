@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Check, CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil } from 'lucide-react';
+import { Bell, BellOff, Check, CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { CATEGORY_LABELS } from './constants.js';
 import BridgeChildrenRow from './BridgeChildrenRow.jsx';
@@ -31,6 +31,8 @@ export default function MyDevicesTab({ setup }) {
     deletePairingMutation,
     deleteMatterPairingMutation,
     matterRuntime,
+    retentionConfig,
+    saveRetentionMutation,
   } = setup;
 
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -60,6 +62,14 @@ export default function MyDevicesTab({ setup }) {
     handleDisplayNameBlur(id);
     flashSave(`name-${id}`);
   }, [handleDisplayNameBlur, flashSave]);
+
+  const toggleToastAccessory = useCallback((accessoryId) => {
+    const current = retentionConfig?.toastAccessories ?? [];
+    const next = current.includes(accessoryId)
+      ? current.filter((id) => id !== accessoryId)
+      : [...current, accessoryId];
+    saveRetentionMutation.mutate({ toastAccessories: next });
+  }, [retentionConfig?.toastAccessories, saveRetentionMutation]);
 
   const uniqueRooms = useMemo(
     () => [...new Set(Object.values(savedRooms).map((r) => r?.trim()).filter(Boolean))].sort(),
@@ -214,6 +224,23 @@ export default function MyDevicesTab({ setup }) {
                 ) : (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">Logging</span>
+                    {retentionConfig?.liveEventToastsEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => toggleToastAccessory(acc.id)}
+                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        title={
+                          (retentionConfig?.toastAccessories ?? []).includes(acc.id)
+                            ? 'Disable live event toasts'
+                            : 'Enable live event toasts'
+                        }
+                      >
+                        {(retentionConfig?.toastAccessories ?? []).includes(acc.id)
+                          ? <Bell size={16} className="text-blue-500" />
+                          : <BellOff size={16} className="text-gray-400 dark:text-gray-500" />
+                        }
+                      </button>
+                    )}
                     <button
                       onClick={() => setConfirmDelete(acc.id)}
                       title="Remove pairing"
@@ -404,6 +431,23 @@ export default function MyDevicesTab({ setup }) {
                 ) : (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">Logging</span>
+                    {retentionConfig?.liveEventToastsEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => toggleToastAccessory(nodeId)}
+                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        title={
+                          (retentionConfig?.toastAccessories ?? []).includes(nodeId)
+                            ? 'Disable live event toasts'
+                            : 'Enable live event toasts'
+                        }
+                      >
+                        {(retentionConfig?.toastAccessories ?? []).includes(nodeId)
+                          ? <Bell size={16} className="text-blue-500" />
+                          : <BellOff size={16} className="text-gray-400 dark:text-gray-500" />
+                        }
+                      </button>
+                    )}
                     <button
                       onClick={() => setConfirmDeleteMatter(nodeId)}
                       title="Remove pairing"
