@@ -82,6 +82,8 @@ export default function SettingsTab({ setup }) {
   const [wipeConfirmText, setWipeConfirmText] = useState('');
   const [wipePending, setWipePending] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState(null);
+  const [toastsEnabledInput, setToastsEnabledInput] = useState(true);
+  const [liveEventToastsEnabledInput, setLiveEventToastsEnabledInput] = useState(false);
 
   const retentionDaysCurrent = retentionConfig?.retentionDays ?? null;
   const staleThresholdHoursCurrent = retentionConfig?.staleThresholdHours ?? null;
@@ -143,6 +145,13 @@ export default function SettingsTab({ setup }) {
     setLogLevelInput(logLevelCurrent);
   }, [logLevelCurrent]);
 
+  useEffect(() => {
+    if (retentionConfig) {
+      setToastsEnabledInput(retentionConfig.toastsEnabled ?? true);
+      setLiveEventToastsEnabledInput(retentionConfig.liveEventToastsEnabled ?? false);
+    }
+  }, [retentionConfig?.toastsEnabled, retentionConfig?.liveEventToastsEnabled]);
+
   const parsedRetentionDays = Number.parseInt(retentionDaysInput, 10);
   const parsedStaleThresholdHours = Number.parseInt(staleThresholdHoursInput, 10);
   const parsedEpisodeWindow = Number.parseInt(episodeWindowInput, 10);
@@ -172,6 +181,8 @@ export default function SettingsTab({ setup }) {
       || parsedSceneWindow !== sceneWindowCurrent
       || parsedEpisodeMinEvent !== episodeMinEventCurrent
       || logLevelInput !== logLevelCurrent
+      || toastsEnabledInput !== (retentionConfig?.toastsEnabled ?? true)
+      || liveEventToastsEnabledInput !== (retentionConfig?.liveEventToastsEnabled ?? false)
     );
 
   async function handleSaveSettings() {
@@ -190,6 +201,8 @@ export default function SettingsTab({ setup }) {
           episodeWindowMinutes: parsedEpisodeWindow,
           sceneWindowSeconds: parsedSceneWindow,
           episodeMinEventCount: parsedEpisodeMinEvent,
+          toastsEnabled: toastsEnabledInput,
+          liveEventToastsEnabled: liveEventToastsEnabledInput,
         }),
         saveLogLevelMutation.mutateAsync(logLevelInput),
       ]);
@@ -493,6 +506,40 @@ export default function SettingsTab({ setup }) {
             <span className="text-xs text-gray-500 dark:text-gray-400">events</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Notifications ── */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">
+        Notifications
+      </h3>
+      <div className="space-y-3 mt-2">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={toastsEnabledInput}
+            onChange={(e) => setToastsEnabledInput(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">Enable toast notifications</span>
+        </label>
+        <label className={clsx('flex items-center gap-3', toastsEnabledInput ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed')}>
+          <input
+            type="checkbox"
+            checked={liveEventToastsEnabledInput}
+            onChange={(e) => setLiveEventToastsEnabledInput(e.target.checked)}
+            disabled={!toastsEnabledInput}
+            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">Live event toasts</span>
+        </label>
+        <p className="text-xs text-gray-500 dark:text-gray-400 ml-7">
+          Show a popup when selected accessories report events. Only appears when you're not on the Timeline tab.
+        </p>
+        {liveEventToastsEnabledInput && !(retentionConfig?.toastAccessories?.length > 0) && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 ml-7">
+            Select accessories to watch on the My Devices tab.
+          </p>
+        )}
       </div>
 
       {/* — Advanced — */}
