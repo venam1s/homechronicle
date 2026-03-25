@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Bell, BellOff, Check, CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil } from 'lucide-react';
+import { Bell, BellOff, Check, CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil, Wrench } from 'lucide-react';
 import clsx from 'clsx';
 import { CATEGORY_LABELS } from './constants.js';
 import BridgeChildrenRow from './BridgeChildrenRow.jsx';
 import { useToast } from '../Toast.jsx';
+import PairingHealthBanner from '../PairingHealthBanner.jsx';
+import RepairFlow from './RepairFlow.jsx';
 
 function summarizeMatterError(raw) {
   const text = String(raw ?? '').trim();
@@ -45,6 +47,7 @@ export default function MyDevicesTab({ setup }) {
   const [expandedMatterEndpoints, setExpandedMatterEndpoints] = useState(new Set());
   const [expandedMatterErrors, setExpandedMatterErrors] = useState(new Set());
   const [savedFlash, setSavedFlash] = useState({});
+  const [repairingDevice, setRepairingDevice] = useState(null);
 
   const flashSave = useCallback((key) => {
     setSavedFlash((prev) => ({ ...prev, [key]: true }));
@@ -108,6 +111,7 @@ export default function MyDevicesTab({ setup }) {
 
   return (
     <div className="space-y-4">
+      <PairingHealthBanner />
       <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
         {totalCount} accessor{totalCount !== 1 ? 'ies' : 'y'}
       </p>
@@ -233,6 +237,13 @@ export default function MyDevicesTab({ setup }) {
                 ) : (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">Logging</span>
+                    <button
+                      onClick={() => setRepairingDevice({ device: acc, bridgeId: acc.id })}
+                      title="Repair pairing"
+                      className="p-1.5 rounded-lg text-gray-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
+                    >
+                      <Wrench size={14} />
+                    </button>
                     {retentionConfig?.liveEventToastsEnabled && (
                       <button
                         type="button"
@@ -524,6 +535,15 @@ export default function MyDevicesTab({ setup }) {
           <option key={room} value={room} />
         ))}
       </datalist>
+
+      {repairingDevice && (
+        <RepairFlow
+          device={repairingDevice.device}
+          deviceId={repairingDevice.bridgeId}
+          repairMutation={setup.repairPairingMutation}
+          onClose={() => setRepairingDevice(null)}
+        />
+      )}
     </div>
   );
 }
