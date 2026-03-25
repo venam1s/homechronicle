@@ -86,6 +86,9 @@ export default function SettingsTab({ setup }) {
   const [saveFeedback, setSaveFeedback] = useState(null);
   const [toastsEnabledInput, setToastsEnabledInput] = useState(true);
   const [liveEventToastsEnabledInput, setLiveEventToastsEnabledInput] = useState(false);
+  const [toastPositionInput, setToastPositionInput] = useState('bottom-right');
+  const [toastDurationInput, setToastDurationInput] = useState(3);
+  const [toastMaxVisibleInput, setToastMaxVisibleInput] = useState(3);
 
   const retentionDaysCurrent = retentionConfig?.retentionDays ?? null;
   const staleThresholdHoursCurrent = retentionConfig?.staleThresholdHours ?? null;
@@ -154,6 +157,14 @@ export default function SettingsTab({ setup }) {
     }
   }, [retentionConfig?.toastsEnabled, retentionConfig?.liveEventToastsEnabled]);
 
+  useEffect(() => {
+    if (retentionConfig) {
+      setToastPositionInput(retentionConfig.toastPosition ?? 'bottom-right');
+      setToastDurationInput(retentionConfig.toastDuration ?? 3);
+      setToastMaxVisibleInput(retentionConfig.toastMaxVisible ?? 3);
+    }
+  }, [retentionConfig?.toastPosition, retentionConfig?.toastDuration, retentionConfig?.toastMaxVisible]);
+
   const parsedRetentionDays = Number.parseInt(retentionDaysInput, 10);
   const parsedStaleThresholdHours = Number.parseInt(staleThresholdHoursInput, 10);
   const parsedEpisodeWindow = Number.parseInt(episodeWindowInput, 10);
@@ -185,6 +196,9 @@ export default function SettingsTab({ setup }) {
       || logLevelInput !== logLevelCurrent
       || toastsEnabledInput !== (retentionConfig?.toastsEnabled ?? true)
       || liveEventToastsEnabledInput !== (retentionConfig?.liveEventToastsEnabled ?? false)
+      || toastPositionInput !== (retentionConfig?.toastPosition ?? 'bottom-right')
+      || toastDurationInput !== (retentionConfig?.toastDuration ?? 3)
+      || toastMaxVisibleInput !== (retentionConfig?.toastMaxVisible ?? 3)
     );
 
   async function handleSaveSettings() {
@@ -205,6 +219,9 @@ export default function SettingsTab({ setup }) {
           episodeMinEventCount: parsedEpisodeMinEvent,
           toastsEnabled: toastsEnabledInput,
           liveEventToastsEnabled: liveEventToastsEnabledInput,
+          toastPosition: toastPositionInput,
+          toastDuration: toastDurationInput,
+          toastMaxVisible: toastMaxVisibleInput,
         }),
         saveLogLevelMutation.mutateAsync(logLevelInput),
       ]);
@@ -545,6 +562,47 @@ export default function SettingsTab({ setup }) {
             Select accessories to watch on the My Devices tab.
           </p>
         )}
+        <div className={clsx('space-y-2 mt-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm text-gray-700 dark:text-gray-300">Position</span>
+            <select
+              value={toastPositionInput}
+              onChange={(e) => setToastPositionInput(e.target.value)}
+              className="text-sm rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-blue-500"
+            >
+              <option value="bottom-right">Bottom Right</option>
+              <option value="top-right">Top Right</option>
+              <option value="bottom-left">Bottom Left</option>
+              <option value="top-left">Top Left</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm text-gray-700 dark:text-gray-300">Duration</span>
+            <select
+              value={toastDurationInput}
+              onChange={(e) => setToastDurationInput(Number(e.target.value))}
+              className="text-sm rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-blue-500"
+            >
+              <option value={2}>2s</option>
+              <option value={3}>3s</option>
+              <option value={5}>5s</option>
+              <option value={7}>7s</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm text-gray-700 dark:text-gray-300">Max visible</span>
+            <select
+              value={toastMaxVisibleInput}
+              onChange={(e) => setToastMaxVisibleInput(Number(e.target.value))}
+              className="text-sm rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 focus:ring-blue-500"
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+              <option value={5}>5</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* — Advanced — */}
