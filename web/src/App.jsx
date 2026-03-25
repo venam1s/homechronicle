@@ -19,9 +19,12 @@ import Alerts from './components/Alerts.jsx';
 import BrandLogo from './components/BrandLogo.jsx';
 import ChangelogModal from './components/ChangelogModal.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { useQuery } from '@tanstack/react-query';
+import { fetchJson } from './lib/api.js';
 import { useTheme } from './hooks/useTheme.js';
 import { useSkin } from './hooks/useSkin.js';
 import { useUpdateCheck } from './hooks/useUpdateCheck.js';
+import { useLiveEventToasts } from './hooks/useLiveEventToasts.js';
 import { ExternalLink, Sparkles, ArrowUpCircle } from 'lucide-react';
 
 const CHANGELOG_VERSION_KEY = 'hc_last_seen_version';
@@ -77,6 +80,15 @@ const SKIN_SWATCH_DARK = {
 
 export default function App() {
   const [tab, setTab]               = useState('dashboard');
+
+  const { data: retentionConfig } = useQuery({
+    queryKey: ['setup', 'retention'],
+    queryFn: () => fetchJson('/api/setup/retention'),
+    staleTime: 30_000,
+  });
+
+  useLiveEventToasts({ activeTab: tab, retentionConfig });
+
   const [selectedAccessoryId, setSelectedAccessoryId] = useState(null);
   const [alertsEnabled, setAlertsEnabled] = useState(false);
   const [isSkinPickerOpen, setIsSkinPickerOpen] = useState(false);

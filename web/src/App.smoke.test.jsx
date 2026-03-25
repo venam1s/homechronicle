@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.jsx';
 
 vi.mock('./components/Timeline.jsx', () => ({ default: () => <div>Timeline View</div> }));
@@ -33,6 +34,18 @@ vi.mock('./components/AccessoryDetail.jsx', () => ({
 }));
 vi.mock('./components/Setup.jsx', () => ({ default: () => <div>Manage View</div> }));
 vi.mock('./hooks/useUpdateCheck.js', () => ({ useUpdateCheck: () => ({ updateAvailable: false }) }));
+vi.mock('./hooks/useLiveEventToasts.js', () => ({ useLiveEventToasts: () => {} }));
+
+function renderApp() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
+  );
+}
 
 describe('App smoke', () => {
   beforeEach(() => {
@@ -40,9 +53,9 @@ describe('App smoke', () => {
   });
 
   it('renders and switches top-level tabs', () => {
-    render(<App />);
+    renderApp();
 
-    expect(screen.getByRole('img', { name: /home chronicle/i })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /homechronicle/i })).toBeInTheDocument();
     expect(screen.getByText('Stats Cards')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /timeline/i }));
@@ -58,7 +71,7 @@ describe('App smoke', () => {
   });
 
   it('uses browser back from accessory detail to return to accessory list', async () => {
-    render(<App />);
+    renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: /accessories/i }));
     fireEvent.click(screen.getByRole('button', { name: /open accessory detail/i }));
