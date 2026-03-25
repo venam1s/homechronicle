@@ -84,6 +84,9 @@ const retentionStore = new JsonObjectStore(RETENTION_FILE, {
   toastsEnabled: true,
   liveEventToastsEnabled: false,
   toastAccessories: [],
+  toastPosition: 'bottom-right',
+  toastDuration: 3,
+  toastMaxVisible: 3,
 });
 let matterRuntime = null;
 
@@ -171,7 +174,13 @@ function normalizeRetentionSettings(input = {}) {
   const toastAccessories = Array.isArray(input.toastAccessories)
     ? input.toastAccessories.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim())
     : [];
-  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, quietHoursExcludedAccessories, episodeWindowMinutes, sceneWindowSeconds, episodeMinEventCount, toastsEnabled, liveEventToastsEnabled, toastAccessories };
+  const VALID_POSITIONS = ['bottom-right', 'top-right', 'bottom-left', 'top-left'];
+  const VALID_DURATIONS = [2, 3, 5, 7];
+  const VALID_MAX_VISIBLE = [1, 2, 3, 5];
+  const toastPosition = VALID_POSITIONS.includes(input.toastPosition) ? input.toastPosition : 'bottom-right';
+  const toastDuration = VALID_DURATIONS.includes(Number(input.toastDuration)) ? Number(input.toastDuration) : 3;
+  const toastMaxVisible = VALID_MAX_VISIBLE.includes(Number(input.toastMaxVisible)) ? Number(input.toastMaxVisible) : 3;
+  return { retentionDays, archiveBeforeDelete, staleThresholdHours, autoScanHomeKit, quietHoursEnabled, quietHoursStart, quietHoursEnd, quietHoursExcludedAccessories, episodeWindowMinutes, sceneWindowSeconds, episodeMinEventCount, toastsEnabled, liveEventToastsEnabled, toastAccessories, toastPosition, toastDuration, toastMaxVisible };
 }
 
 function isLoopbackHostname(hostname) {
@@ -922,6 +931,9 @@ app.get('/api/setup/retention', (_req, res) => {
     toastsEnabled: retentionSettings.toastsEnabled,
     liveEventToastsEnabled: retentionSettings.liveEventToastsEnabled,
     toastAccessories: retentionSettings.toastAccessories,
+    toastPosition: retentionSettings.toastPosition,
+    toastDuration: retentionSettings.toastDuration,
+    toastMaxVisible: retentionSettings.toastMaxVisible,
     sweepMs: RETENTION_SWEEP_MS,
   });
 });
@@ -1038,6 +1050,30 @@ app.patch('/api/setup/retention', async (req, res) => {
     updates.toastAccessories = body.toastAccessories.map((v) => v.trim());
   }
 
+  if (body.toastPosition !== undefined) {
+    const valid = ['bottom-right', 'top-right', 'bottom-left', 'top-left'];
+    if (!valid.includes(body.toastPosition)) {
+      return res.status(400).json({ error: 'toastPosition must be one of: bottom-right, top-right, bottom-left, top-left.' });
+    }
+    updates.toastPosition = body.toastPosition;
+  }
+  if (body.toastDuration !== undefined) {
+    const valid = [2, 3, 5, 7];
+    const d = Number(body.toastDuration);
+    if (!valid.includes(d)) {
+      return res.status(400).json({ error: 'toastDuration must be one of: 2, 3, 5, 7.' });
+    }
+    updates.toastDuration = d;
+  }
+  if (body.toastMaxVisible !== undefined) {
+    const valid = [1, 2, 3, 5];
+    const m = Number(body.toastMaxVisible);
+    if (!valid.includes(m)) {
+      return res.status(400).json({ error: 'toastMaxVisible must be one of: 1, 2, 3, 5.' });
+    }
+    updates.toastMaxVisible = m;
+  }
+
   if (!Object.keys(updates).length) {
     return res.status(400).json({ error: 'No supported settings provided.' });
   }
@@ -1064,6 +1100,9 @@ app.patch('/api/setup/retention', async (req, res) => {
     toastsEnabled: retentionSettings.toastsEnabled,
     liveEventToastsEnabled: retentionSettings.liveEventToastsEnabled,
     toastAccessories: retentionSettings.toastAccessories,
+    toastPosition: retentionSettings.toastPosition,
+    toastDuration: retentionSettings.toastDuration,
+    toastMaxVisible: retentionSettings.toastMaxVisible,
     sweepMs: RETENTION_SWEEP_MS,
   });
 });
