@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useState } from 'react';
-import { CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import clsx from 'clsx';
 
 const ToastContext = createContext(null);
@@ -15,9 +15,20 @@ let nextId = 0;
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
+  const MAX_VISIBLE = 3;
+
   const addToast = useCallback((message, type = 'success', duration = 3000) => {
     const id = ++nextId;
-    setToasts((prev) => [...prev, { id, message, type, removing: false }]);
+    setToasts((prev) => {
+      const next = [...prev, { id, message, type, removing: false }];
+      const visible = next.filter((t) => !t.removing);
+      // Drop oldest toasts beyond the limit
+      if (visible.length > MAX_VISIBLE) {
+        const toDrop = visible.slice(0, visible.length - MAX_VISIBLE).map((t) => t.id);
+        return next.filter((t) => !toDrop.includes(t.id));
+      }
+      return next;
+    });
     setTimeout(() => {
       setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, removing: true } : t)));
       setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 300);
@@ -47,6 +58,7 @@ export function ToastProvider({ children }) {
           >
             {toast.type === 'success' && <CheckCircle2 size={16} className="flex-shrink-0" />}
             {toast.type === 'error' && <AlertCircle size={16} className="flex-shrink-0" />}
+            {toast.type === 'info' && <Info size={16} className="flex-shrink-0" />}
             <span className="flex-1">{toast.message}</span>
             <button
               onClick={() => dismiss(toast.id)}
