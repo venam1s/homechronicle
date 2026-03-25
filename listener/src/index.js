@@ -379,6 +379,16 @@ matterRuntime.syncPairings(pairings);
 
 if (pairedCount > 0) {
   log.info(`[init] Loaded ${pairedCount} pairing(s) from ${PAIRINGS_FILE}`);
+  const missingPinCount = Object.entries(homeKitPairings)
+    .filter(([, p]) => !p.pin)
+    .length;
+  if (missingPinCount > 0) {
+    const names = Object.entries(homeKitPairings)
+      .filter(([, p]) => !p.pin)
+      .map(([, p]) => p.name)
+      .join(', ');
+    log.warn(`[init] ${missingPinCount} pairing(s) missing PIN (auto-repair will be limited): ${names}`);
+  }
   startSubscribers(homeKitPairings, loadRooms(), (id) => {
     const pairing = pairingsStore.getByKey(id);
     if (!pairing || !isHomeKitPairing(pairing)) return null;
