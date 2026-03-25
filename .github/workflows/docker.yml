@@ -172,9 +172,9 @@ jobs:
             type=raw,value=beta,enable=${{ github.event.release.prerelease == true }}
             type=raw,value=latest,enable=${{ github.event.release.prerelease == false && steps.latest_release.outputs.is_latest == 'true' }}
 
-      # Single build: load locally for scanning AND populate GHA cache.
-      # The push step reuses the cache so it doesn't rebuild.
-      - name: Build image
+      # Build single-platform image for local Trivy scanning.
+      # Multi-platform images can't be loaded locally, so scan native arch only.
+      - name: Build image (native, for scanning)
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
@@ -216,13 +216,15 @@ jobs:
           sarif_file: trivy-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}
 
-      # Push reuses the GHA cache — near-instant, no rebuild.
-      - name: Push image
+      # Build + push multi-platform image (amd64 + arm64).
+      # Reuses GHA cache — only layers that differ between platforms rebuild.
+      - name: Push multi-platform image
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |

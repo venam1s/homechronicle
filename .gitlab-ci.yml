@@ -82,9 +82,13 @@ validate-release:
       optional: true
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
+    BUILD_PLATFORMS: "linux/amd64,linux/arm64"
   before_script:
     - apk add --no-cache curl
     - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USER" --password-stdin
+    # Set up buildx for multi-platform builds
+    - docker buildx create --name multiarch --driver docker-container --use
+    - docker buildx inspect --bootstrap
     # Install Trivy
     - |
       TRIVY_VERSION="0.69.3"
@@ -97,38 +101,42 @@ validate-release:
       EFFECTIVE_TAG="${CI_COMMIT_TAG:-$BUILD_TAG}"
       VERSION="${EFFECTIVE_TAG#v}"
 
-      echo "Building ${IMAGE}:${VERSION} from ${CONTEXT} (${DOCKERFILE})"
+      # Build a single-platform image for Trivy scanning (buildx multi-platform
+      # images can't be loaded locally, so scan the native arch only).
+      echo "Building ${IMAGE}:${VERSION} (native arch) for scanning..."
       docker build \
         --build-arg VITE_BUILD_VERSION="${EFFECTIVE_TAG}" \
         -f "${DOCKERFILE}" \
-        -t "${IMAGE}:${VERSION}" \
+        -t "${IMAGE}:scan" \
         "${CONTEXT}"
 
-      # Trivy scan
       echo "Running Trivy vulnerability scan..."
-      trivy image --format table --severity CRITICAL,HIGH --ignore-unfixed "${IMAGE}:${VERSION}" || true
+      trivy image --format table --severity CRITICAL,HIGH --ignore-unfixed "${IMAGE}:scan" || true
 
-      # Tag strategy
-      docker tag "${IMAGE}:${VERSION}" "${IMAGE}:${VERSION}"
+      # Build + push multi-platform image
+      echo "Building and pushing ${IMAGE}:${VERSION} (${BUILD_PLATFORMS})..."
+
+      TAGS="-t ${IMAGE}:${VERSION}"
 
       if [ "$IS_PRERELEASE" = "true" ]; then
-        docker tag "${IMAGE}:${VERSION}" "${IMAGE}:beta"
-        docker push "${IMAGE}:${VERSION}"
-        docker push "${IMAGE}:beta"
+        TAGS="${TAGS} -t ${IMAGE}:beta"
       else
-        # Extract major.minor and major from version
         MAJOR_MINOR=$(echo "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+)\..*/\1/')
         MAJOR=$(echo "$VERSION" | sed -E 's/^([0-9]+)\..*/\1/')
-        docker tag "${IMAGE}:${VERSION}" "${IMAGE}:${MAJOR_MINOR}"
-        docker tag "${IMAGE}:${VERSION}" "${IMAGE}:${MAJOR}"
-        docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
-        docker push "${IMAGE}:${VERSION}"
-        docker push "${IMAGE}:${MAJOR_MINOR}"
-        docker push "${IMAGE}:${MAJOR}"
-        docker push "${IMAGE}:latest"
+        TAGS="${TAGS} -t ${IMAGE}:${MAJOR_MINOR}"
+        TAGS="${TAGS} -t ${IMAGE}:${MAJOR}"
+        TAGS="${TAGS} -t ${IMAGE}:latest"
       fi
 
-      echo "Pushed ${IMAGE}:${VERSION}"
+      docker buildx build \
+        --platform "${BUILD_PLATFORMS}" \
+        --build-arg VITE_BUILD_VERSION="${EFFECTIVE_TAG}" \
+        -f "${DOCKERFILE}" \
+        ${TAGS} \
+        --push \
+        "${CONTEXT}"
+
+      echo "Pushed ${IMAGE}:${VERSION} (${BUILD_PLATFORMS})"
 
 build-listener:
   extends: .build-base
