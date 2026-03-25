@@ -19,6 +19,7 @@ import Alerts from './components/Alerts.jsx';
 import BrandLogo from './components/BrandLogo.jsx';
 import ChangelogModal from './components/ChangelogModal.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import PairingHealthBanner from './components/PairingHealthBanner.jsx';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from './lib/api.js';
 import { useTheme } from './hooks/useTheme.js';
@@ -291,6 +292,8 @@ export default function App() {
 
         {tab === 'dashboard' && (<ErrorBoundary key="dashboard">
           <div className="max-w-5xl mx-auto py-4 sm:py-6 px-3 sm:px-4 space-y-4">
+
+            <PairingHealthBanner onViewDetails={() => setTab('manage')} />
 
             {/* KPI cards row */}
             <StatsCards />
