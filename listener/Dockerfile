@@ -26,17 +26,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY --from=build /app/node_modules ./node_modules
-COPY package.json .
-COPY src/ ./src/
+# Copy as node user to avoid expensive recursive chown on node_modules
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node package.json .
+COPY --chown=node:node src/ ./src/
 
 # Pairing keys and persistent data are volume-mounted at /app/data
-RUN mkdir -p /app/data
-
-# Run as the built-in non-root `node` user (uid 1000).
 # The host volume for /app/data must be writable by uid 1000
 # (e.g. `chown 1000:1000 /path/to/listener/data` on the host).
-RUN chown -R node:node /app
+RUN mkdir -p /app/data && chown node:node /app/data
 
 USER node
 
