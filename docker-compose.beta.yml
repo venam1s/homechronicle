@@ -5,6 +5,7 @@
 services:
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    user: "1000:1000"
     restart: unless-stopped
     networks:
       my-network:
