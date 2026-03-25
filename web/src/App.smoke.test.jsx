@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastProvider } from './components/Toast.jsx';
 import App from './App.jsx';
 
 vi.mock('./components/Timeline.jsx', () => ({ default: () => <div>Timeline View</div> }));
@@ -42,7 +43,9 @@ function renderApp() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ToastProvider>
+        <App />
+      </ToastProvider>
     </QueryClientProvider>
   );
 }
