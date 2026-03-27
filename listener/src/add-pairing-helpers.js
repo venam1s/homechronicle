@@ -41,3 +41,25 @@ export function resolveControllerIdentity(targetPairings) {
   }
   return generateControllerIdentity();
 }
+
+/**
+ * Build a target pairing record from source metadata, discovered address, and beta identity.
+ */
+export function buildTargetPairing(source, discovered, identity) {
+  return {
+    protocol: 'homekit',
+    name: source.name,
+    address: discovered.address,
+    port: discovered.port,
+    category: source.category,
+    pin: source.pin,
+    pairedAt: new Date().toISOString(),
+    longTermData: {
+      AccessoryPairingID: source.longTermData.AccessoryPairingID,
+      AccessoryLTPK: source.longTermData.AccessoryLTPK,
+      iOSDevicePairingID: Buffer.from(identity.uuid).toString('hex'),
+      iOSDeviceLTSK: identity.ltskHex,
+      iOSDeviceLTPK: identity.ltpkHex,
+    },
+  };
+}

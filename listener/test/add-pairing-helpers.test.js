@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateControllerIdentity, resolveControllerIdentity } from '../src/add-pairing-helpers.js';
+import { generateControllerIdentity, resolveControllerIdentity, buildTargetPairing } from '../src/add-pairing-helpers.js';
 
 test('generateControllerIdentity returns uuid, ltpk, and ltsk as hex strings', () => {
   const id = generateControllerIdentity();
@@ -70,4 +70,36 @@ test('resolveControllerIdentity ignores non-homekit entries', () => {
   };
   const id = resolveControllerIdentity(existing);
   assert.equal(id.uuid.length, 36);
+});
+
+test('buildTargetPairing merges source metadata, discovery info, and beta identity', () => {
+  const source = {
+    protocol: 'homekit',
+    name: 'Test Bridge',
+    category: 2,
+    pin: '111-22-333',
+    address: '192.168.1.10',
+    port: 51826,
+    longTermData: {
+      AccessoryPairingID: 'aabbccdd',
+      AccessoryLTPK: 'eeff0011',
+    },
+  };
+  const discovered = { address: '192.168.1.20', port: 51827 };
+  const identity = { uuid: 'my-uuid', ltpkHex: 'aa'.repeat(32), ltskHex: 'bb'.repeat(64) };
+
+  const result = buildTargetPairing(source, discovered, identity);
+
+  assert.equal(result.protocol, 'homekit');
+  assert.equal(result.name, 'Test Bridge');
+  assert.equal(result.address, '192.168.1.20');
+  assert.equal(result.port, 51827);
+  assert.equal(result.category, 2);
+  assert.equal(result.pin, '111-22-333');
+  assert.ok(result.pairedAt);
+  assert.equal(result.longTermData.AccessoryPairingID, 'aabbccdd');
+  assert.equal(result.longTermData.AccessoryLTPK, 'eeff0011');
+  assert.equal(result.longTermData.iOSDevicePairingID, Buffer.from('my-uuid').toString('hex'));
+  assert.equal(result.longTermData.iOSDeviceLTSK, 'bb'.repeat(64));
+  assert.equal(result.longTermData.iOSDeviceLTPK, 'aa'.repeat(32));
 });
