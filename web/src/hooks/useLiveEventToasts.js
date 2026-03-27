@@ -37,7 +37,10 @@ export function useLiveEventToasts({ activeTab, retentionConfig }) {
     if (!data?.events?.length || !enabled) return;
 
     const newEvents = data.events.filter(
-      (e) => !seenIds.current.has(e.id) && accessorySet.has(e.accessory_id)
+      (e) => !seenIds.current.has(e.id) && (
+        accessorySet.has(e.accessory_id) ||
+        accessorySet.has(e.accessory_id?.split(':')[0])
+      )
     );
 
     for (const event of newEvents.slice().reverse()) {

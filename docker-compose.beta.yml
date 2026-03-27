@@ -52,6 +52,7 @@ services:
       TZ: ${TZ:-America/Indianapolis}
     volumes:
       - /mnt/Primary/apps/hc-beta/listener-data-beta:/app/data
+      - /mnt/Primary/apps/homechronicle/listener_data:/prod
       - ${HOST_DBUS_SOCKET:-/run/dbus/system_bus_socket}:/run/dbus/system_bus_socket:ro
     deploy:
       resources:
