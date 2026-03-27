@@ -78,6 +78,8 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      args:
+        VITE_BUILD_VERSION: ${VITE_BUILD_VERSION:-beta}
     restart: unless-stopped
     networks:
       - my-network
