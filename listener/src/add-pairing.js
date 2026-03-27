@@ -25,7 +25,7 @@ import {
 // --- Arg parsing -----------------------------------------------------------
 
 function parseArgs(argv) {
-  const args = { iface: process.env.DISCOVER_IFACE || null, timeout: 10_000 };
+  const args = { iface: process.env.DISCOVER_IFACE || undefined, timeout: 10_000 };
   for (let i = 2; i < argv.length; i++) {
     switch (argv[i]) {
       case '--source': args.source = argv[++i]; break;
@@ -101,13 +101,13 @@ function discoverDevice(deviceId, iface, timeout) {
 
 function formatHapError(err) {
   const msg = err.message || String(err);
-  if (/Error:\s*4/.test(msg)) {
+  if (/Error:\s*4\b/.test(msg)) {
     return 'max peers — remove a controller from Apple Home first';
   }
-  if (/Error:\s*2/.test(msg)) {
+  if (/Error:\s*2\b/.test(msg)) {
     return 'authentication failed — source pairing may be stale';
   }
-  if (/Error:\s*6/.test(msg)) {
+  if (/Error:\s*6\b/.test(msg)) {
     return 'unavailable — accessory may be busy or not accepting pairings';
   }
   return msg;
