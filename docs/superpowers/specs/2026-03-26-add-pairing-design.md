@@ -62,7 +62,7 @@ If the target file already contains HomeKit pairings with an `iOSDevicePairingID
    ```
 
 ### Step 4: Write target pairings
-Merge new pairing records into the target `pairings.json`, preserving any existing entries (e.g., Matter pairings). Write atomically.
+Merge new pairing records into the target `pairings.json`, preserving any existing entries (e.g., Matter pairings).
 
 ### Step 5: Summary
 Print results per accessory (success/fail/reason). Exit code 0 if all succeeded, 1 if any failed.
