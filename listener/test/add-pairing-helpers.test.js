@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateControllerIdentity } from '../src/add-pairing-helpers.js';
+import { generateControllerIdentity, resolveControllerIdentity } from '../src/add-pairing-helpers.js';
 
 test('generateControllerIdentity returns uuid, ltpk, and ltsk as hex strings', () => {
   const id = generateControllerIdentity();
@@ -37,4 +37,37 @@ test('generateControllerIdentity keys pass Ed25519 sign/verify round-trip', asyn
   const message = Buffer.from('test message');
   const signature = sign(null, message, privateKey);
   assert.ok(verify(null, message, publicKey, signature), 'signature should verify');
+});
+
+test('resolveControllerIdentity generates new identity when target has no HomeKit pairings', () => {
+  const id = resolveControllerIdentity({});
+  assert.ok(id.uuid);
+  assert.ok(id.ltpkHex);
+  assert.ok(id.ltskHex);
+});
+
+test('resolveControllerIdentity reuses identity from existing target pairings', () => {
+  const existingUUID = '550e8400-e29b-41d4-a716-446655440000';
+  const existing = {
+    'AA:BB:CC:DD:EE:FF': {
+      protocol: 'homekit',
+      longTermData: {
+        iOSDevicePairingID: Buffer.from(existingUUID).toString('hex'),
+        iOSDeviceLTSK: 'aa'.repeat(64),
+        iOSDeviceLTPK: 'bb'.repeat(32),
+      },
+    },
+  };
+  const id = resolveControllerIdentity(existing);
+  assert.equal(id.uuid, existingUUID);
+  assert.equal(id.ltskHex, 'aa'.repeat(64));
+  assert.equal(id.ltpkHex, 'bb'.repeat(32));
+});
+
+test('resolveControllerIdentity ignores non-homekit entries', () => {
+  const existing = {
+    'node-1': { protocol: 'matter', longTermData: {} },
+  };
+  const id = resolveControllerIdentity(existing);
+  assert.equal(id.uuid.length, 36);
 });

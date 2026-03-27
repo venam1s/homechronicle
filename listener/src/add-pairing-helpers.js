@@ -23,3 +23,21 @@ export function generateControllerIdentity() {
     ltskHex: ltskRaw.toString('hex'),
   };
 }
+
+/**
+ * Resolve a controller identity from existing target pairings, or generate a new one.
+ * @param {object} targetPairings - contents of target pairings.json
+ * @returns {{ uuid: string, ltpkHex: string, ltskHex: string }}
+ */
+export function resolveControllerIdentity(targetPairings) {
+  for (const entry of Object.values(targetPairings)) {
+    if (entry.protocol !== 'homekit' || !entry.longTermData?.iOSDevicePairingID) continue;
+    const { iOSDevicePairingID, iOSDeviceLTSK, iOSDeviceLTPK } = entry.longTermData;
+    return {
+      uuid: Buffer.from(iOSDevicePairingID, 'hex').toString('utf8'),
+      ltskHex: iOSDeviceLTSK,
+      ltpkHex: iOSDeviceLTPK,
+    };
+  }
+  return generateControllerIdentity();
+}
