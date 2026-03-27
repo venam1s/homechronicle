@@ -714,11 +714,7 @@ app.post('/api/setup/pair', async (req, res) => {
   }
 
   if (cached.pairedElsewhere) {
-    log.warn(`[setup] Skipping ${cached.name} — already paired to another controller (sf=0)`);
-    return res.status(409).json({
-      error: `${cached.name} is already paired to another controller (e.g. Apple Home). Remove it from the other controller first, then try again.`,
-      code: 'PAIRED_ELSEWHERE',
-    });
+    log.warn(`[setup] ${cached.name} appears paired to another controller (sf=0) — attempting anyway`);
   }
 
   log.info(`[setup] Pairing ${cached.name} (${deviceId})`);
