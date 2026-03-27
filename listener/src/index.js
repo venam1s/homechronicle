@@ -465,6 +465,7 @@ function runDiscoveryScan() {
             port: s.port,
             category: s.ci ?? null,
             paired: s.sf === 0 || !!currentPairings[s.id],
+            pairedElsewhere: s.sf === 0 && !currentPairings[s.id],
             alreadyPaired: !!currentPairings[s.id],
           }));
           log.info(`[discovery] Scan complete — found ${discoveryCache.length} accessory/accessories`);
@@ -674,7 +675,8 @@ app.get('/api/setup/discovered', (_req, res) => {
   const currentPairings = getHomeKitPairings(loadPairings());
   const results = discoveryCache.map((s) => ({
     ...s,
-    paired: s.alreadyPaired || !!currentPairings[s.id],
+    paired: s.paired || !!currentPairings[s.id],
+    pairedElsewhere: s.pairedElsewhere && !currentPairings[s.id],
     alreadyPaired: !!currentPairings[s.id],
   }));
   res.json({ accessories: results, cachedAt: new Date().toISOString() });
@@ -708,6 +710,14 @@ app.post('/api/setup/pair', async (req, res) => {
   if (!cached) {
     return res.status(404).json({
       error: 'Accessory not found in last scan. Run a new scan first.',
+    });
+  }
+
+  if (cached.pairedElsewhere) {
+    log.warn(`[setup] Skipping ${cached.name} — already paired to another controller (sf=0)`);
+    return res.status(409).json({
+      error: `${cached.name} is already paired to another controller (e.g. Apple Home). Remove it from the other controller first, then try again.`,
+      code: 'PAIRED_ELSEWHERE',
     });
   }
 
@@ -760,7 +770,7 @@ app.post('/api/setup/pair', async (req, res) => {
     else if (msg.includes('0x05') || /Error:\s*5\b/.test(msg) || /maxtries/i.test(msg))
       friendly = 'Too many failed attempts — wait a few minutes before trying again.';
     else if (msg.includes('0x06') || /Error:\s*6\b/.test(msg) || /unavailable/i.test(msg))
-      friendly = 'Device is unavailable. Make sure it\'s powered on and on the same network, then try again.';
+      friendly = 'Device is already paired to another controller (e.g. Apple Home). Remove it from the other controller first, or use Add Pairing if the device supports multiple controllers.';
     else if (msg.includes('0x07') || /Error:\s*7\b/.test(msg) || /busy/i.test(msg))
       friendly = 'Device is busy — wait a moment and try again.';
     else if (msg.includes('0x01') || /Error:\s*1\b/.test(msg))

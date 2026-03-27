@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   RefreshCw, CheckCircle, Circle, Loader, Lock, ChevronsRight,
-  HelpCircle, Wifi, X,
+  HelpCircle, Wifi, X, AlertTriangle,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
@@ -54,6 +54,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
 
   // Derived
   const unpaired = accessories.filter((a) => !a.alreadyPaired && pairingStatus[a.id]?.state !== 'success');
+  const pairedElsewhereCount = unpaired.filter((a) => a.pairedElsewhere).length;
   const scanning = scanMutation.isPending;
   const isBulkPairing = bulkProgress !== null && bulkProgress.done < bulkProgress.total;
   const allSelected = unpaired.length > 0 && selected.size === unpaired.length;
@@ -263,6 +264,15 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
           {/* Unpaired device list */}
           {unpaired.length > 0 && (
             <div>
+              {pairedElsewhereCount > 0 && (
+                <div className="mb-2 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
+                  <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+                  <span>
+                    {pairedElsewhereCount} device{pairedElsewhereCount > 1 ? 's are' : ' is'} already paired to another controller (e.g. Apple Home).
+                    Remove {pairedElsewhereCount > 1 ? 'them' : 'it'} from the other controller first, or pair with HomeChronicle before adding to Apple Home.
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs text-gray-400">{unpaired.length} available</span>
                 <button onClick={toggleAll} className="text-xs text-blue-600 hover:underline">
@@ -298,6 +308,12 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                             {acc.category === 2
                               ? <span className="text-blue-600 font-medium">Bridge</span>
                               : CATEGORY_LABELS[acc.category] ?? 'Unknown'}
+                            {acc.pairedElsewhere && (
+                              <span className="ml-1.5 inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-medium" title="Already paired to another controller (e.g. Apple Home) — pair-setup will be rejected">
+                                <AlertTriangle size={9} />
+                                paired elsewhere
+                              </span>
+                            )}
                           </div>
                         </div>
                         {!isSuccess && (
