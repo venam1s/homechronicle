@@ -31,8 +31,6 @@ The scan output shows each accessory's name, device ID (e.g., `AA:BB:CC:DD:EE:FF
 
 ### Pairing
 
-Devices already paired with Apple Home can also be paired with homechronicle simultaneously. You use the same PIN.
-
 **From the Web UI:**
 
 1. After scanning, click **Pair** next to an accessory
@@ -43,9 +41,6 @@ Devices already paired with Apple Home can also be paired with homechronicle sim
 
 ```bash
 docker compose run --rm listener node src/pairing.js <device-id> <pin>
-
-# Example:
-docker compose run --rm listener node src/pairing.js AA:BB:CC:DD:EE:FF 111-22-333
 ```
 
 After CLI pairing, restart the listener to start subscribing:
@@ -53,6 +48,52 @@ After CLI pairing, restart the listener to start subscribing:
 ```bash
 docker compose restart listener
 ```
+
+> **Important:** Pair-setup only works on devices that are not already paired to another controller. If a device is already in Apple Home, see [Multiple Controllers](#multiple-controllers-homekit) below.
+
+### Multiple Controllers (HomeKit)
+
+The HomeKit protocol only allows **one pair-setup** per device. Once a device is paired to Apple Home (or any controller), additional controllers must be registered via the **add-pairing** mechanism. There are three approaches:
+
+#### Option 1: Enable Homebridge Insecure Mode (recommended for Homebridge users)
+
+Homebridge's insecure mode (`-I` flag) bypasses the pair-setup restriction, allowing multiple controllers to pair independently.
+
+1. Open the Homebridge web UI
+2. Go to **Settings** (gear icon, top right)
+3. Enable **Enable UI Accessory Control –I**
+4. Restart Homebridge
+
+With insecure mode enabled, you can pair devices with both Apple Home and HomeChronicle using the normal pair-setup flow. The order does not matter.
+
+> **Note:** This setting only affects Homebridge accessories. Native HomeKit devices (e.g. TP-Link plugs, Ecobee thermostats) do not have this option.
+
+#### Option 2: Add as Controller (add-pairing)
+
+If you have another HomeChronicle instance already paired to the devices (e.g. a production instance), you can register this instance as an additional controller.
+
+**From the Web UI:**
+
+1. Go to **Manage > Add Devices**
+2. If devices show an amber "paired elsewhere" warning, expand **Add as Controller (advanced)**
+3. Paste the contents of the other instance's `pairings.json` file
+4. Click **Add as Controller**
+
+**From the CLI:**
+
+```bash
+npm run add-pairing -- --source /path/to/source/pairings.json --target /path/to/target/pairings.json
+```
+
+The source instance must have admin-level pairings to the target devices. The command registers the target instance's identity on each device and writes the resulting pairing records to the target file.
+
+#### Option 3: Pair HomeChronicle First
+
+For native HomeKit devices without Homebridge insecure mode:
+
+1. Remove the device from Apple Home
+2. Pair with HomeChronicle (pair-setup works because the device is now unpaired)
+3. Re-add the device to Apple Home
 
 ### Bridges (Homebridge, etc.)
 
