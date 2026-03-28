@@ -226,6 +226,26 @@ export default function MyDevicesTab({ setup }) {
             {repairAllState.phase === 'done' && repairAllState.results && repairAllFailureDetails}
           </div>
         )}
+
+        {/* Live Toasts toggle */}
+        <button
+          onClick={() => {
+            const next = !(retentionConfig?.liveEventToastsEnabled ?? false);
+            saveRetentionMutation.mutate({ liveEventToastsEnabled: next });
+            if (retentionConfig?.toastsEnabled !== false) {
+              addToast(next ? 'Live toasts enabled' : 'Live toasts disabled', 'success');
+            }
+          }}
+          className={clsx(
+            'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
+            retentionConfig?.liveEventToastsEnabled
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40'
+              : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700',
+          )}
+        >
+          {retentionConfig?.liveEventToastsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
+          Live Toasts {retentionConfig?.liveEventToastsEnabled ? 'On' : 'Off'}
+        </button>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm divide-y divide-gray-100 dark:divide-gray-700">

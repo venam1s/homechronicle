@@ -130,3 +130,37 @@ describe('MyDevicesTab toolbar', () => {
     });
   });
 });
+
+describe('Live Toasts toggle', () => {
+  beforeEach(() => {
+    mockFetchJson.mockReset().mockResolvedValue({});
+  });
+
+  it('renders Live Toasts toggle', () => {
+    renderTab(makeSetup());
+    expect(screen.getByRole('button', { name: /live toasts/i })).toBeInTheDocument();
+  });
+
+  it('calls saveRetentionMutation with liveEventToastsEnabled on toggle', async () => {
+    const mutate = vi.fn();
+    const setup = makeSetup({
+      saveRetentionMutation: { mutate, isPending: false },
+      retentionConfig: { liveEventToastsEnabled: false, toastAccessories: [] },
+    });
+    renderTab(setup);
+
+    await userEvent.click(screen.getByRole('button', { name: /live toasts/i }));
+
+    expect(mutate).toHaveBeenCalledWith({ liveEventToastsEnabled: true });
+  });
+
+  it('shows enabled state when liveEventToastsEnabled is true', () => {
+    const setup = makeSetup({
+      retentionConfig: { liveEventToastsEnabled: true, toastAccessories: [] },
+    });
+    renderTab(setup);
+
+    const btn = screen.getByRole('button', { name: /live toasts/i });
+    expect(btn).toHaveTextContent(/on/i);
+  });
+});
