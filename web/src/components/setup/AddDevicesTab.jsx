@@ -28,6 +28,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
     matterDiscoveredData,
     matterDiscoveredLoading,
     matterScanMutation,
+    addPairingMutation,
   } = setup;
 
   // HomeKit local state
@@ -38,6 +39,9 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
   const [pairingStatus, setPairingStatus] = useState({});
   const [helpDevice, setHelpDevice] = useState(null);
   const [matterHelpOpen, setMatterHelpOpen] = useState(false);
+  const [addPairingExpanded, setAddPairingExpanded] = useState(false);
+  const [sourcePairingsText, setSourcePairingsText] = useState('');
+  const [addPairingResults, setAddPairingResults] = useState(null);
 
   // Matter local state
   const [matterForm, setMatterForm] = useState({
@@ -90,6 +94,23 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
       return;
     }
     await pairOne(id, pin, setPairingStatus);
+  }
+
+  async function handleAddPairing() {
+    let parsed;
+    try {
+      parsed = JSON.parse(sourcePairingsText);
+    } catch {
+      setAddPairingResults({ error: 'Invalid JSON. Paste the contents of a pairings.json file.' });
+      return;
+    }
+    setAddPairingResults({ loading: true });
+    try {
+      const data = await addPairingMutation.mutateAsync(parsed);
+      setAddPairingResults(data);
+    } catch (err) {
+      setAddPairingResults({ error: err.message });
+    }
   }
 
   function handleMatterSubmit(event) {
@@ -265,13 +286,60 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
           {unpaired.length > 0 && (
             <div>
               {pairedElsewhereCount > 0 && (
-                <div className="mb-2 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
-                  <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
-                  <span>
-                    {pairedElsewhereCount} device{pairedElsewhereCount > 1 ? 's are' : ' is'} already paired to another controller (e.g. Apple Home).
-                    Remove {pairedElsewhereCount > 1 ? 'them' : 'it'} from the other controller first, or pair with HomeChronicle before adding to Apple Home.
-                  </span>
-                </div>
+                <>
+                  <div className="mb-2 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
+                    <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+                    <span>
+                      {pairedElsewhereCount} device{pairedElsewhereCount > 1 ? 's are' : ' is'} already paired to another controller (e.g. Apple Home).
+                      Enable Homebridge insecure mode (-I), use Add as Controller below, or pair with HomeChronicle before adding to Apple Home.
+                    </span>
+                  </div>
+                  <div className="mb-2">
+                    <button
+                      onClick={() => setAddPairingExpanded((v) => !v)}
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                    >
+                      <ChevronsRight size={12} className={clsx('transition-transform', addPairingExpanded && 'rotate-90')} />
+                      Add as Controller (advanced)
+                    </button>
+                    {addPairingExpanded && (
+                      <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg space-y-2">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Paste the <code className="text-[11px]">pairings.json</code> contents from another HomeChronicle instance
+                          that is already paired as admin to these devices.
+                        </p>
+                        <textarea
+                          rows={4}
+                          value={sourcePairingsText}
+                          onChange={(e) => setSourcePairingsText(e.target.value)}
+                          placeholder='{"AA:BB:CC:DD:EE:FF": {"protocol":"homekit", ...}}'
+                          className="w-full text-xs font-mono border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                        <button
+                          onClick={handleAddPairing}
+                          disabled={!sourcePairingsText.trim() || addPairingMutation.isPending}
+                          className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {addPairingMutation.isPending ? 'Adding\u2026' : 'Add as Controller'}
+                        </button>
+                        {addPairingResults?.loading && (
+                          <p className="text-xs text-blue-500 flex items-center gap-1"><Loader size={12} className="animate-spin" /> Discovering and adding pairings\u2026</p>
+                        )}
+                        {addPairingResults?.error && (
+                          <p className="text-xs text-red-600 dark:text-red-400">{addPairingResults.error}</p>
+                        )}
+                        {addPairingResults?.summary && (
+                          <div className="text-xs space-y-1">
+                            <p className="text-green-600">{addPairingResults.summary.succeeded} succeeded, {addPairingResults.summary.failed} failed</p>
+                            {addPairingResults.results?.filter((r) => !r.ok).map((r) => (
+                              <p key={r.deviceId} className="text-red-600 dark:text-red-400 ml-2">{r.name}: {r.reason}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs text-gray-400">{unpaired.length} available</span>
