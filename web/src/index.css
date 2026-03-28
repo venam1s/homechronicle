@@ -34,6 +34,9 @@
     --hc-tooltip-border: #e2e8f0;
 
     --hc-room-fallback: #64748b;
+
+    --hc-toast-success-rgb: 22, 163, 74;
+    --hc-toast-error-rgb: 185, 28, 28;
   }
 
   html,
@@ -81,6 +84,9 @@
     --hc-tooltip-border: #334155;
 
     --hc-room-fallback: #94a3b8;
+
+    --hc-toast-success-rgb: 74, 222, 128;
+    --hc-toast-error-rgb: 248, 113, 113;
   }
 
   html[data-skin='ocean'] {
@@ -499,20 +505,20 @@ html.hc-standalone .hc-fab {
   }
 }
 
-/* Toast slide-in animation */
-@keyframes slide-in-right {
-  from { opacity: 0; transform: translateX(1rem); }
-  to   { opacity: 1; transform: translateX(0); }
+/* Toast animations */
+@keyframes toast-in-top {
+  from { opacity: 0; transform: translateY(-0.75rem) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.animate-slide-in-right {
-  animation: slide-in-right 0.3s ease-out;
+.animate-toast-in-top {
+  animation: toast-in-top 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
-@keyframes slide-in-left {
-  from { opacity: 0; transform: translateX(-1rem); }
-  to   { opacity: 1; transform: translateX(0); }
+@keyframes toast-in-bottom {
+  from { opacity: 0; transform: translateY(0.75rem) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.animate-slide-in-left {
-  animation: slide-in-left 0.3s ease-out;
+.animate-toast-in-bottom {
+  animation: toast-in-bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Tab fade transition */

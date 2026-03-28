@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useState } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -27,7 +27,6 @@ export function ToastProvider({ children }) {
         duration: newSettings.duration != null ? newSettings.duration * 1000 : prev.duration,
         maxVisible: newSettings.maxVisible ?? prev.maxVisible,
       };
-      // Only update if values actually changed
       if (next.position === prev.position && next.duration === prev.duration && next.maxVisible === prev.maxVisible) {
         return prev;
       }
@@ -40,7 +39,6 @@ export function ToastProvider({ children }) {
     setToasts((prev) => {
       const next = [...prev, { id, message, type, removing: false }];
       const visible = next.filter((t) => !t.removing);
-      // Drop oldest toasts beyond the limit
       if (visible.length > settings.maxVisible) {
         const toDrop = visible.slice(0, visible.length - settings.maxVisible).map((t) => t.id);
         return next.filter((t) => !toDrop.includes(t.id));
@@ -49,56 +47,99 @@ export function ToastProvider({ children }) {
     });
     setTimeout(() => {
       setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, removing: true } : t)));
-      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 300);
+      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 400);
     }, duration);
     return id;
   }, [settings.duration, settings.maxVisible]);
 
   const dismiss = useCallback((id) => {
     setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, removing: true } : t)));
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 300);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 400);
   }, []);
 
-  const positionClasses = {
-    'bottom-right': 'bottom-4 right-4',
-    'top-right': 'top-4 right-4',
-    'bottom-left': 'bottom-4 left-4',
-    'top-left': 'top-4 left-4',
-  };
-
-  const isLeft = settings.position.includes('left');
-  const isBottom = settings.position.includes('bottom');
+  const isTop = settings.position.includes('top');
 
   return (
     <ToastContext.Provider value={{ addToast, dismiss, configure }}>
       {children}
-      <div className={clsx('fixed z-[9999] flex flex-col gap-2 pointer-events-none', positionClasses[settings.position], isBottom && 'hc-standalone:bottom-24')}>
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={clsx(
-              'pointer-events-auto flex items-center gap-2 px-3.5 py-2.5 rounded-lg shadow-lg text-sm font-medium max-w-xs transition-all duration-300',
-              toast.removing
-                ? isLeft ? 'opacity-0 -translate-x-4' : 'opacity-0 translate-x-4'
-                : isLeft ? 'opacity-100 translate-x-0 animate-slide-in-left' : 'opacity-100 translate-x-0 animate-slide-in-right',
-              toast.type === 'success' && 'bg-green-600 text-white',
-              toast.type === 'error' && 'bg-red-600 text-white',
-              toast.type === 'info' && 'bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-800',
-            )}
-          >
-            {toast.type === 'success' && <CheckCircle2 size={16} className="flex-shrink-0" />}
-            {toast.type === 'error' && <AlertCircle size={16} className="flex-shrink-0" />}
-            {toast.type === 'info' && <Info size={16} className="flex-shrink-0" />}
-            <span className="flex-1">{toast.message}</span>
-            <button
-              onClick={() => dismiss(toast.id)}
-              className="p-0.5 rounded hover:bg-white/20 transition-colors flex-shrink-0"
+      {toasts.length > 0 && (
+        <div
+          className={clsx(
+            'fixed left-0 right-0 z-[9999] flex flex-col items-center gap-2 px-3 pointer-events-none',
+            isTop ? 'top-0 pt-2' : 'bottom-0 pb-2 hc-standalone:pb-24',
+          )}
+        >
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={clsx(
+                'hc-toast pointer-events-auto flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-full text-sm font-medium max-w-md w-full sm:w-auto',
+                'shadow-md backdrop-blur-sm border transition-all duration-400 ease-out',
+                toast.removing
+                  ? 'opacity-0 scale-95'
+                  : isTop ? 'opacity-100 scale-100 animate-toast-in-top' : 'opacity-100 scale-100 animate-toast-in-bottom',
+              )}
+              style={{
+                background: toast.type === 'error'
+                  ? 'rgba(var(--hc-toast-error-rgb, 220, 38, 38), 0.1)'
+                  : toast.type === 'success'
+                    ? 'rgba(var(--hc-toast-success-rgb, 22, 163, 74), 0.1)'
+                    : 'rgba(var(--hc-accent-rgb), 0.1)',
+                borderColor: toast.type === 'error'
+                  ? 'rgba(var(--hc-toast-error-rgb, 220, 38, 38), 0.25)'
+                  : toast.type === 'success'
+                    ? 'rgba(var(--hc-toast-success-rgb, 22, 163, 74), 0.25)'
+                    : 'rgba(var(--hc-accent-rgb), 0.25)',
+              }}
             >
-              <X size={12} />
-            </button>
-          </div>
-        ))}
-      </div>
+              <span
+                className="flex items-center justify-center h-5 w-5 rounded-full flex-shrink-0"
+                style={{
+                  background: toast.type === 'error'
+                    ? 'rgba(var(--hc-toast-error-rgb, 220, 38, 38), 0.2)'
+                    : toast.type === 'success'
+                      ? 'rgba(var(--hc-toast-success-rgb, 22, 163, 74), 0.2)'
+                      : 'rgba(var(--hc-accent-rgb), 0.2)',
+                }}
+              >
+                {toast.type === 'success' && <CheckCircle2 size={13} style={{ color: 'rgb(var(--hc-toast-success-rgb, 22, 163, 74))' }} />}
+                {toast.type === 'error' && <AlertCircle size={13} style={{ color: 'rgb(var(--hc-toast-error-rgb, 220, 38, 38))' }} />}
+                {toast.type === 'info' && <Info size={13} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />}
+              </span>
+              <span
+                className="flex-1 text-sm"
+                style={{
+                  color: toast.type === 'error'
+                    ? 'rgb(var(--hc-toast-error-rgb, 220, 38, 38))'
+                    : toast.type === 'success'
+                      ? 'rgb(var(--hc-toast-success-rgb, 22, 163, 74))'
+                      : 'var(--hc-fg)',
+                }}
+              >
+                {toast.message}
+              </span>
+              <button
+                onClick={() => dismiss(toast.id)}
+                className="flex items-center justify-center h-5 w-5 rounded-full transition-colors flex-shrink-0 hover:opacity-70"
+                style={{
+                  background: toast.type === 'error'
+                    ? 'rgba(var(--hc-toast-error-rgb, 220, 38, 38), 0.15)'
+                    : toast.type === 'success'
+                      ? 'rgba(var(--hc-toast-success-rgb, 22, 163, 74), 0.15)'
+                      : 'rgba(var(--hc-accent-rgb), 0.15)',
+                  color: toast.type === 'error'
+                    ? 'rgb(var(--hc-toast-error-rgb, 220, 38, 38))'
+                    : toast.type === 'success'
+                      ? 'rgb(var(--hc-toast-success-rgb, 22, 163, 74))'
+                      : 'var(--hc-muted)',
+                }}
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </ToastContext.Provider>
   );
 }
