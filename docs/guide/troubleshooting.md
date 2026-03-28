@@ -16,12 +16,41 @@
 - Ensure the device is on the same network/VLAN as the listener
 - Some devices need to be in pairing mode — check the manufacturer's instructions
 - If the device was previously paired with homechronicle and uncleanly removed, it may need a factory reset
+- If you see `M2: Error: 6`, the device is already paired to another controller — see [below](#m2-error-6--device-already-paired-to-another-controller)
 
 ### Devices discovered but IP addresses are wrong
 
 - The listener runs a background discovery scan every hour to update addresses
 - Force an immediate scan from the **Manage** tab or via `POST /api/setup/scan`
 - Check if your router's DHCP is assigning new IPs — consider using static IPs or DHCP reservations
+
+### `M2: Error: 6` — device already paired to another controller
+
+**What it looks like:**
+
+```
+[setup] Pairing failed for 0E:10:F5:8E:BF:97: M2: Error: 6
+```
+
+All or most devices fail with `M2: Error: 6` during pairing, but they work fine in Apple Home.
+
+**What's happening:**
+
+Error 6 (`kTLVError_Unavailable`) means the device is already paired to another controller (e.g. Apple Home) and is refusing pair-setup. The HomeKit protocol only allows one pair-setup per device — additional controllers must be added via the add-pairing mechanism.
+
+**How to fix:**
+
+1. **Homebridge users (recommended):** Enable insecure mode in Homebridge.
+   - Open Homebridge UI > **Settings** (gear icon)
+   - Toggle **Enable UI Accessory Control –I**
+   - Restart Homebridge
+   - This allows pair-setup even when already paired to Apple Home
+
+2. **Use Add-Pairing:** If you have another HomeChronicle instance already paired to these devices, use the **Add as Controller** panel in **Manage > Add Devices** to register this instance using the other instance's credentials.
+
+3. **Pair HomeChronicle first:** Remove devices from Apple Home, pair with HomeChronicle, then re-add to Apple Home.
+
+> **Native HomeKit devices** (TP-Link, Ecobee, etc.) do not support insecure mode. For these, use option 2 or 3.
 
 ## Connectivity
 
