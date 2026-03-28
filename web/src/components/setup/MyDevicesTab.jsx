@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Bell, BellOff, Check, CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil, Wrench } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, BellOff, Check, CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil, Wrench, Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
+import { fetchJson } from '../../lib/api.js';
 import { CATEGORY_LABELS } from './constants.js';
 import BridgeChildrenRow from './BridgeChildrenRow.jsx';
 import { useToast } from '../Toast.jsx';
@@ -39,6 +41,7 @@ export default function MyDevicesTab({ setup }) {
   } = setup;
 
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
 
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmDeleteMatter, setConfirmDeleteMatter] = useState(null);
@@ -48,11 +51,59 @@ export default function MyDevicesTab({ setup }) {
   const [expandedMatterErrors, setExpandedMatterErrors] = useState(new Set());
   const [savedFlash, setSavedFlash] = useState({});
   const [repairingDevice, setRepairingDevice] = useState(null);
+  const [repairAllState, setRepairAllState] = useState({ phase: 'idle' });
+  const repairAllTimerRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(repairAllTimerRef.current), []);
 
   const flashSave = useCallback((key) => {
     setSavedFlash((prev) => ({ ...prev, [key]: true }));
     setTimeout(() => setSavedFlash((prev) => { const next = { ...prev }; delete next[key]; return next; }), 1200);
   }, []);
+
+  const handleRepairAll = useCallback(async () => {
+    const devices = [...paired];
+    const total = devices.length;
+    if (total === 0) return;
+
+    setRepairAllState({ phase: 'running', current: 0, total, results: [] });
+
+    const results = [];
+    for (let i = 0; i < devices.length; i++) {
+      setRepairAllState((s) => ({ ...s, current: i + 1 }));
+      try {
+        await fetchJson(`/api/setup/repair/${encodeURIComponent(devices[i].id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        results.push({ id: devices[i].id, name: devices[i].name, status: 'ok' });
+      } catch (err) {
+        let code;
+        try { code = JSON.parse(err.message)?.code; } catch {}
+        const isSkip = code === 'NO_PIN' || code === 'WRONG_PIN';
+        results.push({ id: devices[i].id, name: devices[i].name, status: isSkip ? 'skipped' : 'failed', error: err.message });
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['pairings'] });
+    queryClient.invalidateQueries({ queryKey: ['accessories'] });
+    queryClient.invalidateQueries({ queryKey: ['health'] });
+
+    const ok = results.filter((r) => r.status === 'ok').length;
+    const skipped = results.filter((r) => r.status === 'skipped').length;
+    const failed = results.filter((r) => r.status === 'failed').length;
+
+    setRepairAllState({ phase: 'done', ok, skipped, failed, results });
+
+    const parts = [`${ok} OK`];
+    if (skipped) parts.push(`${skipped} skipped`);
+    if (failed) parts.push(`${failed} failed`);
+    addToast(`Repair All: ${parts.join(', ')}`, failed ? 'error' : 'success');
+
+    clearTimeout(repairAllTimerRef.current);
+    repairAllTimerRef.current = setTimeout(() => setRepairAllState({ phase: 'idle' }), 5000);
+  }, [paired, queryClient, addToast]);
 
   const onRoomBlurWithFlash = useCallback((id) => {
     handleRoomBlur(id);
@@ -97,6 +148,18 @@ export default function MyDevicesTab({ setup }) {
     ...matterPairings.filter((p) => !savedRooms[p.nodeId ?? p.id]?.trim()),
   ];
 
+  const repairAllNonOk = repairAllState.results?.filter((r) => r.status !== 'ok') ?? [];
+  const repairAllFailureDetails = repairAllNonOk.length > 0 ? (
+    <div className="text-[11px] text-gray-500 dark:text-gray-400 pl-1">
+      {repairAllNonOk.some((r) => r.status === 'skipped') && (
+        <p>Skipped: {repairAllNonOk.filter((r) => r.status === 'skipped').map((r) => r.name).join(', ')} (use per-device repair)</p>
+      )}
+      {repairAllNonOk.some((r) => r.status === 'failed') && (
+        <p>Failed: {repairAllNonOk.filter((r) => r.status === 'failed').map((r) => r.name).join(', ')}</p>
+      )}
+    </div>
+  ) : null;
+
   if (totalCount === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-400 text-center">
@@ -127,6 +190,43 @@ export default function MyDevicesTab({ setup }) {
           </p>
         </div>
       )}
+
+      {/* ── Toolbar ──────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-3">
+        {paired.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={handleRepairAll}
+              disabled={repairAllState.phase !== 'idle'}
+              className={clsx(
+                'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
+                repairAllState.phase === 'done'
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
+                  : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+                repairAllState.phase === 'idle' && 'hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer',
+                'disabled:opacity-40 disabled:cursor-not-allowed',
+              )}
+            >
+              {repairAllState.phase === 'running' ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  Repairing {repairAllState.current}/{repairAllState.total}...
+                </>
+              ) : repairAllState.phase === 'done' ? (
+                <>
+                  {repairAllState.ok} OK{repairAllState.skipped ? `, ${repairAllState.skipped} skipped` : ''}{repairAllState.failed ? `, ${repairAllState.failed} failed` : ''}
+                </>
+              ) : (
+                <>
+                  <Wrench size={13} />
+                  Repair All
+                </>
+              )}
+            </button>
+            {repairAllState.phase === 'done' && repairAllState.results && repairAllFailureDetails}
+          </div>
+        )}
+      </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm divide-y divide-gray-100 dark:divide-gray-700">
 
