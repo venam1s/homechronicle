@@ -6,6 +6,11 @@ import { useToast } from '../components/Toast.jsx';
 const POLL_INTERVAL = 5000;
 const BASE = '/api';
 
+function parentBridgeId(id) {
+  const parts = String(id ?? '').split(':');
+  return parts.length > 6 ? parts.slice(0, 6).join(':') : String(id ?? '');
+}
+
 export function useLiveEventToasts({ activeTab, retentionConfig }) {
   const { addToast } = useToast();
   const seenIds = useRef(new Set());
@@ -39,7 +44,7 @@ export function useLiveEventToasts({ activeTab, retentionConfig }) {
     const newEvents = data.events.filter(
       (e) => !seenIds.current.has(e.id) && (
         accessorySet.has(e.accessory_id) ||
-        accessorySet.has(e.accessory_id?.split(':')[0])
+        accessorySet.has(parentBridgeId(e.accessory_id))
       )
     );
 
