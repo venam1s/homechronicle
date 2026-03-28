@@ -40,7 +40,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
             onChange={(e) => onNoteChange?.(bridgeId, e.target.value)}
             onBlur={() => onNoteBlur?.(bridgeId)}
             onKeyDown={(e) => e.key === 'Enter' && onNoteBlur?.(bridgeId)}
-            className="text-xs border border-gray-200 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
+            className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
           />
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                     'text-xs border rounded px-2 py-0.5 w-32 focus:outline-none focus:ring-1 focus:ring-blue-400',
                     isInheriting
                       ? 'border-blue-200 bg-blue-50/40 placeholder-blue-300 text-blue-700'
-                      : 'border-gray-200 bg-white placeholder-gray-300',
+                      : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400',
                   )}
                 />
               </div>
@@ -86,7 +86,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                   onChange={(e) => onNoteChange?.(child.childId, e.target.value)}
                   onBlur={() => onNoteBlur?.(child.childId)}
                   onKeyDown={(e) => e.key === 'Enter' && onNoteBlur?.(child.childId)}
-                  className="text-xs border border-gray-200 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-300"
+                  className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                 />
               </div>
             </div>

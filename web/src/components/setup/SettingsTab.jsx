@@ -286,7 +286,7 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={retentionDaysInput}
               onChange={(e) => { setRetentionDaysInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
             <span className="text-xs text-gray-500 dark:text-gray-400">days</span>
           </div>
@@ -349,7 +349,7 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={staleThresholdHoursInput}
               onChange={(e) => { setStaleThresholdHoursInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
             <span className="text-xs text-gray-500 dark:text-gray-400">hours</span>
           </div>
@@ -480,7 +480,7 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={episodeWindowInput}
               onChange={(e) => { setEpisodeWindowInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
             <span className="text-xs text-gray-500 dark:text-gray-400">min</span>
           </div>
@@ -504,7 +504,7 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={sceneWindowInput}
               onChange={(e) => { setSceneWindowInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
             <span className="text-xs text-gray-500 dark:text-gray-400">sec</span>
           </div>
@@ -528,7 +528,7 @@ export default function SettingsTab({ setup }) {
               step="1"
               value={episodeMinEventInput}
               onChange={(e) => { setEpisodeMinEventInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+              className="w-24 text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
             <span className="text-xs text-gray-500 dark:text-gray-400">events</span>
           </div>
@@ -598,7 +598,7 @@ export default function SettingsTab({ setup }) {
           <select
             value={toastPositionInput}
             onChange={(e) => { setToastPositionInput(e.target.value); setSaveFeedback(null); }}
-            className="text-sm rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="bottom-right">Bottom Right</option>
             <option value="top-right">Top Right</option>
@@ -620,7 +620,7 @@ export default function SettingsTab({ setup }) {
           <select
             value={toastDurationInput}
             onChange={(e) => { setToastDurationInput(Number(e.target.value)); setSaveFeedback(null); }}
-            className="text-sm rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={2}>2 seconds</option>
             <option value={3}>3 seconds</option>
@@ -642,7 +642,7 @@ export default function SettingsTab({ setup }) {
           <select
             value={toastMaxVisibleInput}
             onChange={(e) => { setToastMaxVisibleInput(Number(e.target.value)); setSaveFeedback(null); }}
-            className="text-sm rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={1}>1</option>
             <option value={2}>2</option>
@@ -669,7 +669,7 @@ export default function SettingsTab({ setup }) {
               value={logLevelInput}
               onChange={(e) => { setLogLevelInput(e.target.value); setSaveFeedback(null); }}
               disabled={savePending}
-              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               {LOG_LEVELS.map(({ value, label, desc }) => (
                 <option key={value} value={value}>

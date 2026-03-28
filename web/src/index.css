@@ -32,6 +32,8 @@
     --hc-tooltip-bg: #ffffff;
     --hc-tooltip-text: #1e293b;
     --hc-tooltip-border: #e2e8f0;
+
+    --hc-room-fallback: #64748b;
   }
 
   html,
@@ -77,6 +79,8 @@
     --hc-tooltip-bg: #1e293b;
     --hc-tooltip-text: #e2e8f0;
     --hc-tooltip-border: #334155;
+
+    --hc-room-fallback: #94a3b8;
   }
 
   html[data-skin='ocean'] {
@@ -445,6 +449,10 @@ html.hc-standalone .hc-fab {
     color: rgba(var(--hc-accent-rgb), 0.95) !important;
   }
 
+  html.theme-dark .bg-amber-50 {
+    background-color: rgba(var(--hc-warning-rgb), 0.15) !important;
+  }
+
   html.theme-dark .bg-amber-50\/70 {
     background-color: rgba(var(--hc-warning-rgb), 0.12) !important;
   }
@@ -465,8 +473,29 @@ html.hc-standalone .hc-fab {
     color: var(--hc-warning-text) !important;
   }
 
-  html.theme-dark .border-amber-100 {
-    border-color: rgba(var(--hc-warning-rgb), 0.2) !important;
+  html.theme-dark .text-amber-600 {
+    color: var(--hc-warning-text) !important;
+  }
+
+  html.theme-dark .border-amber-100,
+  html.theme-dark .border-amber-200 {
+    border-color: rgba(var(--hc-warning-rgb), 0.25) !important;
+  }
+
+  html.theme-dark .bg-emerald-50 {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+  }
+
+  html.theme-dark .text-emerald-600 {
+    color: #6ee7b7 !important;
+  }
+
+  html.theme-dark .border-emerald-100 {
+    border-color: rgba(16, 185, 129, 0.25) !important;
+  }
+
+  html.theme-dark .text-slate-500 {
+    color: var(--hc-muted-light) !important;
   }
 }
 
