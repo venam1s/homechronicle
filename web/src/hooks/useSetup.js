@@ -269,6 +269,20 @@ export function useSetup() {
     },
   });
 
+  const addPairingMutation = useMutation({
+    mutationFn: (sourcePairings) =>
+      fetchJson('/api/setup/add-pairing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourcePairings }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['setup', 'pairings'] });
+      queryClient.invalidateQueries({ queryKey: ['setup', 'discovered'] });
+      queryClient.invalidateQueries({ queryKey: ['accessories'] });
+    },
+  });
+
   // ── PIN helpers ──────────────────────────────────────────────────────────
 
   function savePin(id, pin) {
@@ -388,6 +402,7 @@ export function useSetup() {
     matterScanMutation,
     deletePairingMutation,
     repairPairingMutation,
+    addPairingMutation,
     saveRoomMutation,
     saveNoteMutation,
     saveRetentionMutation,
