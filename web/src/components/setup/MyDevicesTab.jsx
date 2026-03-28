@@ -53,6 +53,8 @@ export default function MyDevicesTab({ setup }) {
   const [repairingDevice, setRepairingDevice] = useState(null);
   const [repairAllState, setRepairAllState] = useState({ phase: 'idle' });
   const repairAllTimerRef = useRef(null);
+  const [removeAllState, setRemoveAllState] = useState({ phase: 'idle' }); // idle | confirming | running
+  const [removeAllConfirmText, setRemoveAllConfirmText] = useState('');
 
   useEffect(() => () => clearTimeout(repairAllTimerRef.current), []);
 
@@ -104,6 +106,57 @@ export default function MyDevicesTab({ setup }) {
     clearTimeout(repairAllTimerRef.current);
     repairAllTimerRef.current = setTimeout(() => setRepairAllState({ phase: 'idle' }), 5000);
   }, [paired, queryClient, addToast]);
+
+  const handleRemoveAll = useCallback(async () => {
+    const hkDevices = [...paired];
+    const matterDevices = [...matterPairings];
+    const total = hkDevices.length + matterDevices.length;
+    if (total === 0) return;
+
+    setRemoveAllState({ phase: 'running', current: 0, total });
+
+    let ok = 0;
+    let failed = 0;
+
+    for (let i = 0; i < hkDevices.length; i++) {
+      setRemoveAllState((s) => ({ ...s, current: i + 1 }));
+      try {
+        await new Promise((resolve, reject) => {
+          deletePairingMutation.mutate(hkDevices[i].id, {
+            onSuccess: resolve,
+            onError: reject,
+          });
+        });
+        ok++;
+      } catch {
+        failed++;
+      }
+    }
+
+    for (let i = 0; i < matterDevices.length; i++) {
+      setRemoveAllState((s) => ({ ...s, current: hkDevices.length + i + 1 }));
+      const nodeId = matterDevices[i].nodeId ?? matterDevices[i].id;
+      try {
+        await new Promise((resolve, reject) => {
+          deleteMatterPairingMutation.mutate(nodeId, {
+            onSuccess: resolve,
+            onError: reject,
+          });
+        });
+        ok++;
+      } catch {
+        failed++;
+      }
+    }
+
+    addToast(
+      failed ? `Removed ${ok}/${total} pairings (${failed} failed)` : `All ${ok} pairings removed`,
+      failed ? 'error' : 'success',
+    );
+
+    setRemoveAllState({ phase: 'idle' });
+    setRemoveAllConfirmText('');
+  }, [paired, matterPairings, deletePairingMutation, deleteMatterPairingMutation, addToast]);
 
   const onRoomBlurWithFlash = useCallback((id) => {
     handleRoomBlur(id);
@@ -246,7 +299,58 @@ export default function MyDevicesTab({ setup }) {
           {retentionConfig?.liveEventToastsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
           Live Toasts {retentionConfig?.liveEventToastsEnabled ? 'On' : 'Off'}
         </button>
+
+        {/* spacer */}
+        <div className="flex-1" />
+
+        {/* Remove All Pairings */}
+        {removeAllState.phase === 'idle' && (
+          <button
+            onClick={() => setRemoveAllState({ phase: 'confirming' })}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+          >
+            <Trash2 size={13} />
+            Remove All Pairings
+          </button>
+        )}
+        {removeAllState.phase === 'running' && (
+          <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+            <Loader2 size={13} className="animate-spin" />
+            Removing {removeAllState.current}/{removeAllState.total}...
+          </span>
+        )}
       </div>
+
+      {removeAllState.phase === 'confirming' && (
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 space-y-2">
+          <p className="text-xs text-red-700 dark:text-red-300">
+            This will remove all HomeKit and Matter pairings ({paired.length + matterPairings.length} total).
+            Event data will <strong>not</strong> be deleted. Type <strong>DELETE</strong> to confirm.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Type DELETE to confirm"
+              value={removeAllConfirmText}
+              onChange={(e) => setRemoveAllConfirmText(e.target.value)}
+              className="text-xs border border-red-300 dark:border-red-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1 w-44 focus:outline-none focus:ring-1 focus:ring-red-400"
+            />
+            <button
+              onClick={handleRemoveAll}
+              disabled={removeAllConfirmText !== 'DELETE'}
+              className="text-xs px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => { setRemoveAllState({ phase: 'idle' }); setRemoveAllConfirmText(''); }}
+              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm divide-y divide-gray-100 dark:divide-gray-700">
 
