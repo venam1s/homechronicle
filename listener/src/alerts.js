@@ -6,7 +6,7 @@ const ALERTS_WEBHOOK_TIMEOUT_MS = (() => {
   return parsed;
 })();
 const ALERTS_ALLOW_PRIVATE_TARGETS = /^(1|true|yes|on)$/i.test(
-  process.env.ALERTS_ALLOW_PRIVATE_TARGETS ?? 'false'
+  process.env.ALERTS_ALLOW_PRIVATE_TARGETS ?? 'true'
 );
 
 function normalizeString(value) {

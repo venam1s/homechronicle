@@ -1,5 +1,6 @@
 import * as matterController from './matter-controller.js';
 import { log } from './logger.js';
+import { toOptionalText, toOptionalInt, normalizeNodeId, isMatterPairing } from './matter-utils.js';
 
 const POLL_INTERVAL_MS = Number.parseInt(process.env.MATTER_POLL_INTERVAL_MS ?? '5000', 10);
 const SUBSCRIBE_ENABLED = !/^(0|false|no|off)$/i.test(process.env.MATTER_SUBSCRIBE_ENABLED ?? 'false');
@@ -8,32 +9,6 @@ const DISCOVER_TIMEOUT_MS = Number.parseInt(process.env.MATTER_SCAN_TIMEOUT_MS ?
 
 function nowIso() {
   return new Date().toISOString();
-}
-
-function isMatterPairing(pairing) {
-  return String(pairing?.protocol ?? 'homekit').toLowerCase() === 'matter';
-}
-
-function toOptionalText(value) {
-  if (value === undefined || value === null) return null;
-  const text = String(value).trim();
-  return text || null;
-}
-
-function toOptionalInt(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function normalizeNodeId(value) {
-  const text = toOptionalText(value);
-  if (!text) return null;
-  try {
-    return BigInt(text).toString();
-  } catch {
-    return text.toUpperCase();
-  }
 }
 
 function normalizePolledEvents(raw) {

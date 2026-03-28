@@ -22,7 +22,7 @@ import { deriveDeviceHealth } from './device-health.js';
 import { detectOutliers } from './anomaly-detection.js';
 import { cached } from './query-cache.js';
 import { log, getLevel, setLevel } from './logger.js';
-import { secureTokenEquals } from './security.js';
+import { secureTokenEquals, rateLimitKeyGenerator } from './security.js';
 import {
   cacheAccessoryMetadata,
   getAllDiscoveredAccessories,
@@ -71,6 +71,9 @@ const API_STATS_RATE_LIMIT_MAX = Number.parseInt(process.env.API_STATS_RATE_LIMI
 if (IS_PRODUCTION && !API_TOKEN) {
   log.error('[api] API_TOKEN is required when NODE_ENV=production');
   process.exit(1);
+}
+if (IS_PRODUCTION && CORS_ALLOW_LOCALHOST && !process.env.CORS_ALLOW_LOCALHOST) {
+  log.warn('[api] CORS_ALLOW_LOCALHOST defaults to true — set to false in production if not needed');
 }
 
 const pairingsStore = new JsonObjectStore(PAIRINGS_FILE, {});
@@ -217,14 +220,6 @@ function extractBearerToken(headerValue) {
   const scheme = auth.slice(0, spaceIndex).toLowerCase();
   if (scheme !== 'bearer') return '';
   return auth.slice(spaceIndex + 1).trim();
-}
-
-function rateLimitKeyGenerator(req) {
-  const forwardedFor = req?.headers?.['x-forwarded-for'];
-  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
-    return forwardedFor.split(',')[0].trim();
-  }
-  return req?.ip ?? req?.socket?.remoteAddress ?? 'unknown';
 }
 
 function mapReliabilityStats(reliability) {
@@ -1291,7 +1286,7 @@ app.patch('/api/setup/log-level', (req, res) => {
 });
 
 // Archive export (CSV download)
-app.get('/api/archive/export', async (_req, res) => {
+app.get('/api/archive/export', apiStatsReadLimiter, async (_req, res) => {
   const columns = [
     'source_id', 'timestamp', 'accessory_id', 'accessory_name', 'room_name',
     'service_type', 'characteristic', 'old_value', 'new_value',
@@ -1371,7 +1366,10 @@ app.delete('/api/data/accessory', apiWriteLimiter, async (req, res) => {
   }
 });
 
-app.delete('/api/data/all', apiWriteLimiter, async (_req, res) => {
+app.delete('/api/data/all', apiWriteLimiter, async (req, res) => {
+  if (req.body?.confirm !== 'DELETE ALL') {
+    return res.status(400).json({ error: 'Request body must include { "confirm": "DELETE ALL" }' });
+  }
   try {
     const result = await pool.query('DELETE FROM event_logs');
     await saveRooms({});

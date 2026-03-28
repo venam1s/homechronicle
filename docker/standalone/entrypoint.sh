@@ -88,7 +88,7 @@ fi
 
 # Configure pg_hba for local socket auth
 cat > "$PGDATA/pg_hba.conf" <<EOF
-local   all   all   trust
+local   all   all   scram-sha-256
 EOF
 
 # ── Listener data dir ───────────────────────────────────────────────────────

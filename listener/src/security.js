@@ -67,6 +67,18 @@ function classifyResolvedAddress(address, allowPrivateTargets) {
   return { blocked: true, reason: 'hostname resolved to a non-IP address' };
 }
 
+export function rateLimitKeyGenerator(req) {
+  // Only trust X-Forwarded-For when Express trust proxy is configured,
+  // otherwise an attacker can spoof the header to bypass rate limits.
+  if (req?.app?.get('trust proxy')) {
+    const forwardedFor = req?.headers?.['x-forwarded-for'];
+    if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+      return forwardedFor.split(',')[0].trim();
+    }
+  }
+  return req?.ip ?? req?.socket?.remoteAddress ?? 'unknown';
+}
+
 export function secureTokenEquals(expectedToken, providedToken) {
   const expected = String(expectedToken ?? '').trim();
   const provided = String(providedToken ?? '').trim();

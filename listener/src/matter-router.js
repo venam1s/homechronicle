@@ -1,29 +1,7 @@
 import express from 'express';
 import { randomBytes } from 'crypto';
 import { log } from './logger.js';
-
-function toOptionalText(value) {
-  if (value === undefined || value === null) return null;
-  const text = String(value).trim();
-  return text || null;
-}
-
-function toOptionalInt(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function normalizeNodeId(value) {
-  const text = toOptionalText(value);
-  if (!text) return null;
-  // Allow decimal or hex Matter node ids; convert to decimal for stable keys.
-  try {
-    return BigInt(text).toString();
-  } catch {
-    return text.toUpperCase();
-  }
-}
+import { toOptionalText, toOptionalInt, normalizeNodeId, isMatterPairing } from './matter-utils.js';
 
 function generateNodeId(pairings) {
   for (let i = 0; i < 8; i += 1) {
@@ -35,10 +13,6 @@ function generateNodeId(pairings) {
 
 function buildMatterAccessoryId(nodeId, endpointId) {
   return endpointId == null ? nodeId : `${nodeId}:${endpointId}`;
-}
-
-function isMatterPairing(pairing) {
-  return String(pairing?.protocol ?? 'homekit').toLowerCase() === 'matter';
 }
 
 function getMatterPairings(pairings) {

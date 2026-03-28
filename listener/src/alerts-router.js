@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { parseIntInRange } from './events-router.js';
 import { log } from './logger.js';
-import { validateWebhookTargetUrl } from './security.js';
+import { validateWebhookTargetUrl, rateLimitKeyGenerator } from './security.js';
 
 const VALID_SCOPE_TYPES = new Set(['all', 'room', 'accessory', 'characteristic']);
 const VALID_OPERATORS = new Set(['equals', 'not_equals', 'contains']);
@@ -27,14 +27,6 @@ function parseQuietMinutes(value, fallback = 0) {
 const ALERTS_ALLOW_PRIVATE_TARGETS = /^(1|true|yes|on)$/i.test(
   process.env.ALERTS_ALLOW_PRIVATE_TARGETS ?? 'true'
 );
-
-function rateLimitKeyGenerator(req) {
-  const forwardedFor = req?.headers?.['x-forwarded-for'];
-  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
-    return forwardedFor.split(',')[0].trim();
-  }
-  return req?.ip ?? req?.socket?.remoteAddress ?? 'unknown';
-}
 
 const ALERTS_READ_RATE_LIMIT_WINDOW_MS = parseIntInRange(
   process.env.ALERTS_READ_RATE_LIMIT_WINDOW_MS,

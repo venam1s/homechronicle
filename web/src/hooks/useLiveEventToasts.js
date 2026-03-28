@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast.jsx';
 
 const POLL_INTERVAL = 5000;
 const BASE = '/api';
+const MAX_SEEN_IDS = 500;
 
 function parentBridgeId(id) {
   const parts = String(id ?? '').split(':');
@@ -60,6 +61,12 @@ export function useLiveEventToasts({ activeTab, retentionConfig }) {
       if (newest > sinceRef.current) {
         sinceRef.current = newest;
       }
+    }
+
+    // Prune seen IDs to prevent unbounded growth in long-running tabs
+    if (seenIds.current.size > MAX_SEEN_IDS) {
+      const entries = [...seenIds.current];
+      seenIds.current = new Set(entries.slice(entries.length - MAX_SEEN_IDS));
     }
   }, [data, enabled, accessorySet, addToast]);
 }

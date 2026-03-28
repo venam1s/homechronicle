@@ -254,7 +254,11 @@ export default function SettingsTab({ setup }) {
     setWipePending(true);
     try {
       const { fetchJson } = await import('../../lib/api.js');
-      await fetchJson('/api/data/all', { method: 'DELETE' });
+      await fetchJson('/api/data/all', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE ALL' }),
+      });
       const { useQueryClient } = await import('@tanstack/react-query');
       // invalidation already happens via mutation callbacks; force refetch
       window.location.reload();

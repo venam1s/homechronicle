@@ -1,6 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
+import { rateLimitKeyGenerator } from './security.js';
 
 function parseIntInRange(value, fallback, min, max) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
@@ -11,14 +12,6 @@ function parseIntInRange(value, fallback, min, max) {
 function parentBridgeId(id) {
   const parts = String(id ?? '').split(':');
   return parts.length > 6 ? parts.slice(0, 6).join(':') : String(id ?? '');
-}
-
-function rateLimitKeyGenerator(req) {
-  const forwardedFor = req?.headers?.['x-forwarded-for'];
-  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
-    return forwardedFor.split(',')[0].trim();
-  }
-  return req?.ip ?? req?.socket?.remoteAddress ?? 'unknown';
 }
 
 const EVENTS_RATE_LIMIT_WINDOW_MS = parseIntInRange(
