@@ -2,6 +2,17 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## Unreleased
+
+### Added
+- **Add-Pairing web UI and API** — register HomeChronicle as an additional controller on devices already paired to Apple Home. Available in Manage > Add Devices when devices are detected as paired elsewhere.
+- **Paired-elsewhere detection** — devices already paired to another controller (sf=0) now show an amber warning badge in Add Devices with actionable guidance.
+- **Multiple Controllers documentation** — new sections in Device Setup and Troubleshooting explaining pair-setup vs add-pairing, Homebridge insecure mode requirement, and M2: Error 6 resolution.
+
+### Fixed
+- **Error 6 message** — pairing error for already-paired devices now says "Device is already paired to another controller" instead of the misleading "Device is unavailable."
+- **Discovery API** — `GET /api/setup/discovered` now preserves the device's `sf` status flag instead of dropping it, so the UI can distinguish between unpaired and paired-elsewhere devices.
+
 ## [0.1.5-beta.1] — 2026-03-21
 
 ### Changed

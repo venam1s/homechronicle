@@ -64,3 +64,4 @@ Open `http://localhost:3000` in your browser. See [Standalone Docker](standalone
 - Docker Engine (Docker Compose also needed for multi-container setup)
 - A machine on the same network as your HomeKit accessories (NAS, Raspberry Pi, desktop, etc.)
 - HomeKit accessory PINs (the 8-digit code from the device label or Apple Home)
+- **Homebridge users:** Enable insecure mode (`-I` flag) in Homebridge settings to allow HomeChronicle to pair alongside Apple Home. See [Device Setup](devices.md#multiple-controllers-homekit) for details.
