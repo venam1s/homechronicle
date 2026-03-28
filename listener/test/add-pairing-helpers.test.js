@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateControllerIdentity, resolveControllerIdentity, buildTargetPairing } from '../src/add-pairing-helpers.js';
+import { generateControllerIdentity, resolveControllerIdentity, buildTargetPairing, runAddPairing, formatHapError } from '../src/add-pairing-helpers.js';
 
 test('generateControllerIdentity returns uuid, ltpk, and ltsk as hex strings', () => {
   const id = generateControllerIdentity();
@@ -102,4 +102,217 @@ test('buildTargetPairing merges source metadata, discovery info, and beta identi
   assert.equal(result.longTermData.iOSDevicePairingID, Buffer.from('my-uuid').toString('hex'));
   assert.equal(result.longTermData.iOSDeviceLTSK, 'bb'.repeat(64));
   assert.equal(result.longTermData.iOSDeviceLTPK, 'aa'.repeat(32));
+});
+
+// --- formatHapError ---------------------------------------------------------
+
+test('formatHapError maps HAP error 4 to max peers message', () => {
+  assert.equal(formatHapError(new Error('Error: 4')), 'max peers — remove a controller first');
+});
+
+test('formatHapError maps HAP error 2 to authentication failed message', () => {
+  assert.equal(formatHapError(new Error('Error: 2')), 'authentication failed — source pairing may be stale');
+});
+
+test('formatHapError maps HAP error 6 to unavailable message', () => {
+  assert.equal(formatHapError(new Error('Error: 6')), 'unavailable — device may be busy');
+});
+
+test('formatHapError returns raw message for unknown errors', () => {
+  assert.equal(formatHapError(new Error('Something else went wrong')), 'Something else went wrong');
+});
+
+test('formatHapError handles errors without message property', () => {
+  const result = formatHapError({ toString: () => 'bare string error' });
+  assert.equal(result, 'bare string error');
+});
+
+// --- runAddPairing ----------------------------------------------------------
+
+function makeIdentity() {
+  return {
+    uuid: 'test-uuid-1234',
+    ltpkHex: 'aa'.repeat(32),
+    ltskHex: 'bb'.repeat(64),
+  };
+}
+
+function makeSourcePairings(...overrides) {
+  const base = {
+    'AA:BB:CC:DD:EE:01': {
+      protocol: 'homekit',
+      name: 'Test Bridge',
+      category: 2,
+      pin: '111-22-333',
+      longTermData: {
+        AccessoryPairingID: 'acc-id-01',
+        AccessoryLTPK: 'cc'.repeat(32),
+      },
+    },
+  };
+  for (const o of overrides) Object.assign(base, o);
+  return base;
+}
+
+test('runAddPairing calls addPairing for each HomeKit device and returns ok results', async () => {
+  const identity = makeIdentity();
+  const sourcePairings = makeSourcePairings();
+  const discovered = { address: '192.168.1.50', port: 51826 };
+  const addPairingCalls = [];
+
+  const discoverDevice = async () => discovered;
+  const createClient = (deviceId, address, port, ltd) => ({
+    addPairing: async (uuid, ltpk, isAdmin) => {
+      addPairingCalls.push({ deviceId, uuid, isAdmin });
+    },
+  });
+
+  const progressEvents = [];
+  const { results } = await runAddPairing({
+    sourcePairings,
+    identity,
+    discoverDevice,
+    createClient,
+    onProgress: (r) => progressEvents.push(r),
+  });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].ok, true);
+  assert.equal(results[0].deviceId, 'AA:BB:CC:DD:EE:01');
+  assert.equal(results[0].name, 'Test Bridge');
+  assert.ok(results[0].pairing, 'should include pairing data');
+  assert.equal(results[0].pairing.address, '192.168.1.50');
+  assert.equal(addPairingCalls.length, 1);
+  assert.equal(addPairingCalls[0].uuid, identity.uuid);
+  assert.equal(addPairingCalls[0].isAdmin, true);
+  assert.equal(progressEvents.length, 1);
+  assert.equal(progressEvents[0].ok, true);
+});
+
+test('runAddPairing skips non-homekit entries', async () => {
+  const sourcePairings = {
+    'node-1': { protocol: 'matter', name: 'Matter Light', longTermData: {} },
+    'AA:BB:CC:DD:EE:01': {
+      protocol: 'homekit',
+      name: 'Test Bridge',
+      longTermData: { AccessoryPairingID: 'x', AccessoryLTPK: 'y' },
+    },
+  };
+  const discovered = { address: '10.0.0.1', port: 51826 };
+  let clientCount = 0;
+  const { results } = await runAddPairing({
+    sourcePairings,
+    identity: makeIdentity(),
+    discoverDevice: async () => discovered,
+    createClient: () => { clientCount++; return { addPairing: async () => {} }; },
+  });
+
+  assert.equal(results.length, 1, 'only HomeKit entry should be processed');
+  assert.equal(results[0].deviceId, 'AA:BB:CC:DD:EE:01');
+  assert.equal(clientCount, 1);
+});
+
+test('runAddPairing skips entries without longTermData', async () => {
+  const sourcePairings = {
+    'AA:BB:CC:DD:EE:02': { protocol: 'homekit', name: 'No LTD' },
+    'AA:BB:CC:DD:EE:01': {
+      protocol: 'homekit',
+      name: 'Has LTD',
+      longTermData: { AccessoryPairingID: 'x', AccessoryLTPK: 'y' },
+    },
+  };
+  const { results } = await runAddPairing({
+    sourcePairings,
+    identity: makeIdentity(),
+    discoverDevice: async () => ({ address: '10.0.0.1', port: 51826 }),
+    createClient: () => ({ addPairing: async () => {} }),
+  });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].deviceId, 'AA:BB:CC:DD:EE:01');
+});
+
+test('runAddPairing reports discovery failure', async () => {
+  const sourcePairings = makeSourcePairings();
+  const progressEvents = [];
+
+  const { results } = await runAddPairing({
+    sourcePairings,
+    identity: makeIdentity(),
+    discoverDevice: async () => null,
+    createClient: () => { throw new Error('should not be called'); },
+    onProgress: (r) => progressEvents.push(r),
+  });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].ok, false);
+  assert.equal(results[0].reason, 'not found on network');
+  assert.equal(progressEvents.length, 1);
+  assert.equal(progressEvents[0].ok, false);
+});
+
+test('runAddPairing reports addPairing errors with formatted reason', async () => {
+  const sourcePairings = makeSourcePairings();
+  const discovered = { address: '10.0.0.1', port: 51826 };
+
+  const { results } = await runAddPairing({
+    sourcePairings,
+    identity: makeIdentity(),
+    discoverDevice: async () => discovered,
+    createClient: () => ({
+      addPairing: async () => { throw new Error('Error: 4'); },
+    }),
+  });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].ok, false);
+  assert.equal(results[0].reason, 'max peers — remove a controller first');
+});
+
+test('runAddPairing works without onProgress callback', async () => {
+  const sourcePairings = makeSourcePairings();
+  const discovered = { address: '10.0.0.1', port: 51826 };
+
+  const { results } = await runAddPairing({
+    sourcePairings,
+    identity: makeIdentity(),
+    discoverDevice: async () => discovered,
+    createClient: () => ({ addPairing: async () => {} }),
+    // onProgress intentionally omitted
+  });
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].ok, true);
+});
+
+test('runAddPairing handles multiple devices and mixed results', async () => {
+  const sourcePairings = makeSourcePairings({
+    'AA:BB:CC:DD:EE:02': {
+      protocol: 'homekit',
+      name: 'Second Bridge',
+      longTermData: { AccessoryPairingID: 'acc-id-02', AccessoryLTPK: 'dd'.repeat(32) },
+    },
+  });
+
+  let callCount = 0;
+  const { results } = await runAddPairing({
+    sourcePairings,
+    identity: makeIdentity(),
+    discoverDevice: async (deviceId) => {
+      if (deviceId === 'AA:BB:CC:DD:EE:01') return { address: '10.0.0.1', port: 51826 };
+      return null; // second device not found
+    },
+    createClient: () => {
+      callCount++;
+      return { addPairing: async () => {} };
+    },
+  });
+
+  assert.equal(results.length, 2);
+  const ok = results.find((r) => r.ok);
+  const failed = results.find((r) => !r.ok);
+  assert.ok(ok);
+  assert.ok(failed);
+  assert.equal(failed.reason, 'not found on network');
+  assert.equal(callCount, 1, 'createClient called only for discovered device');
 });

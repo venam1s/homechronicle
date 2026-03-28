@@ -63,3 +63,59 @@ export function buildTargetPairing(source, discovered, identity) {
     },
   };
 }
+
+/**
+ * Format a HAP error into a human-readable reason string.
+ */
+export function formatHapError(err) {
+  const msg = err.message || String(err);
+  if (/Error:\s*4\b/.test(msg)) return 'max peers — remove a controller first';
+  if (/Error:\s*2\b/.test(msg)) return 'authentication failed — source pairing may be stale';
+  if (/Error:\s*6\b/.test(msg)) return 'unavailable — device may be busy';
+  return msg;
+}
+
+/**
+ * Run add-pairing for all HomeKit devices in sourcePairings.
+ * @param {object} opts
+ * @param {object} opts.sourcePairings - source pairings object (keyed by deviceId)
+ * @param {{ uuid: string, ltpkHex: string, ltskHex: string }} opts.identity - this instance's identity
+ * @param {function} opts.discoverDevice - async (deviceId) => { address, port } | null
+ * @param {function} opts.createClient - (deviceId, address, port, longTermData) => client
+ * @param {function} [opts.onProgress] - optional (result) => void callback per device
+ * @returns {Promise<{ results: Array<{ deviceId, name, ok, reason?, pairing? }> }>}
+ */
+export async function runAddPairing({ sourcePairings, identity, discoverDevice, createClient, onProgress }) {
+  const homeKitEntries = Object.entries(sourcePairings).filter(
+    ([, v]) => v.protocol === 'homekit' && v.longTermData,
+  );
+
+  const results = [];
+  const ltpkBuffer = Buffer.from(identity.ltpkHex, 'hex');
+
+  for (const [deviceId, source] of homeKitEntries) {
+    const discovered = await discoverDevice(deviceId);
+    if (!discovered) {
+      const r = { deviceId, name: source.name, ok: false, reason: 'not found on network' };
+      results.push(r);
+      onProgress?.(r);
+      continue;
+    }
+
+    try {
+      const client = createClient(deviceId, discovered.address, discovered.port, source.longTermData);
+      await client.addPairing(identity.uuid, ltpkBuffer, true);
+      const pairing = buildTargetPairing(source, discovered, identity);
+      const r = { deviceId, name: source.name, ok: true, pairing };
+      results.push(r);
+      onProgress?.(r);
+    } catch (err) {
+      const reason = formatHapError(err);
+      const r = { deviceId, name: source.name, ok: false, reason };
+      results.push(r);
+      onProgress?.(r);
+    }
+  }
+
+  return { results };
+}

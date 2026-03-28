@@ -19,7 +19,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { IPDiscovery, HttpClient } from 'hap-controller';
 import {
   resolveControllerIdentity,
-  buildTargetPairing,
+  runAddPairing,
 } from './add-pairing-helpers.js';
 
 // --- Arg parsing -----------------------------------------------------------
@@ -57,11 +57,11 @@ try {
   process.exit(1);
 }
 
-const homeKitEntries = Object.entries(sourcePairings).filter(
-  ([, v]) => v.protocol === 'homekit' && v.longTermData,
-);
+const homeKitCount = Object.values(sourcePairings).filter(
+  (v) => v.protocol === 'homekit' && v.longTermData,
+).length;
 
-if (homeKitEntries.length === 0) {
+if (homeKitCount === 0) {
   console.error('No HomeKit pairings with longTermData found in source file.');
   process.exit(1);
 }
@@ -72,19 +72,19 @@ const targetPairings = existsSync(args.target)
 
 const identity = resolveControllerIdentity(targetPairings);
 
-console.log(`Source: ${homeKitEntries.length} HomeKit accessory/accessories`);
+console.log(`Source: ${homeKitCount} HomeKit accessory/accessories`);
 console.log(`Target identity: ${identity.uuid}`);
 console.log();
 
 // --- Discovery helper -------------------------------------------------------
 
-function discoverDevice(deviceId, iface, timeout) {
+function discoverDevice(deviceId) {
   return new Promise((resolve) => {
-    const discovery = new IPDiscovery(iface);
+    const discovery = new IPDiscovery(args.iface);
     const timer = setTimeout(() => {
       discovery.stop();
       resolve(null);
-    }, timeout);
+    }, args.timeout);
 
     discovery.on('serviceUp', (service) => {
       if (service.id !== deviceId) return;
@@ -97,62 +97,29 @@ function discoverDevice(deviceId, iface, timeout) {
   });
 }
 
-// --- HAP error formatting ---------------------------------------------------
-
-function formatHapError(err) {
-  const msg = err.message || String(err);
-  if (/Error:\s*4\b/.test(msg)) {
-    return 'max peers — remove a controller from Apple Home first';
-  }
-  if (/Error:\s*2\b/.test(msg)) {
-    return 'authentication failed — source pairing may be stale';
-  }
-  if (/Error:\s*6\b/.test(msg)) {
-    return 'unavailable — accessory may be busy or not accepting pairings';
-  }
-  return msg;
-}
-
 // --- Main loop --------------------------------------------------------------
 
-const results = [];
-
-for (const [deviceId, source] of homeKitEntries) {
-  process.stdout.write(`${source.name} (${deviceId}) ... `);
-
-  // 1. Discover
-  const discovered = await discoverDevice(deviceId, args.iface, args.timeout);
-  if (!discovered) {
-    console.log('SKIP (not found on network)');
-    results.push({ deviceId, name: source.name, ok: false, reason: 'not found' });
-    continue;
-  }
-
-  // 2. Authenticate with source credentials and call addPairing
-  try {
-    const client = new HttpClient(
-      deviceId,
-      discovered.address,
-      discovered.port,
-      source.longTermData,
-    );
-
-    const ltpkBuffer = Buffer.from(identity.ltpkHex, 'hex');
-    await client.addPairing(identity.uuid, ltpkBuffer, true);
-
-    // 3. Build and store target pairing
-    targetPairings[deviceId] = buildTargetPairing(source, discovered, identity);
-
-    console.log('OK');
-    results.push({ deviceId, name: source.name, ok: true });
-  } catch (err) {
-    const reason = formatHapError(err);
-    console.log(`FAIL (${reason})`);
-    results.push({ deviceId, name: source.name, ok: false, reason });
-  }
-}
+const { results } = await runAddPairing({
+  sourcePairings,
+  identity,
+  discoverDevice,
+  createClient: (deviceId, address, port, longTermData) =>
+    new HttpClient(deviceId, address, port, longTermData),
+  onProgress(r) {
+    process.stdout.write(`${r.name} (${r.deviceId}) ... `);
+    if (r.ok) {
+      console.log('OK');
+    } else {
+      console.log(`SKIP (${r.reason})`);
+    }
+  },
+});
 
 // --- Write target and summarize ---------------------------------------------
+
+for (const r of results) {
+  if (r.ok) targetPairings[r.deviceId] = r.pairing;
+}
 
 writeFileSync(args.target, JSON.stringify(targetPairings, null, 2));
 
