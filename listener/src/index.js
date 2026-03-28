@@ -30,6 +30,7 @@ import {
   getAccessoryIdentity,
   shortUuid,
 } from './accessory-metadata.js';
+import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
 
 const PAIRINGS_FILE = process.env.PAIRINGS_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/pairings.json' : './data/pairings.json');
@@ -965,6 +966,63 @@ app.post('/api/setup/repair/:deviceId', async (req, res) => {
 
     res.status(400).json({ error: guidance, code, guidance });
   }
+});
+
+app.post('/api/setup/add-pairing', async (req, res) => {
+  const { sourcePairings } = req.body ?? {};
+  if (!sourcePairings || typeof sourcePairings !== 'object') {
+    return res.status(400).json({ error: 'sourcePairings object is required' });
+  }
+
+  const homeKitEntries = Object.entries(sourcePairings).filter(
+    ([, v]) => v.protocol === 'homekit' && v.longTermData,
+  );
+  if (homeKitEntries.length === 0) {
+    return res.status(400).json({ error: 'No HomeKit pairings with longTermData found in sourcePairings' });
+  }
+
+  log.info(`[setup] Add-pairing requested for ${homeKitEntries.length} device(s)`);
+
+  const identity = resolveControllerIdentity(loadPairings());
+
+  const { results } = await runAddPairing({
+    sourcePairings,
+    identity,
+    discoverDevice: async (deviceId) => {
+      return Promise.race([
+        discoverDeviceForRepair(deviceId),
+        new Promise((resolve) => setTimeout(() => resolve(null), 10_000)),
+      ]);
+    },
+    createClient: (deviceId, address, port, longTermData) =>
+      new HttpClient(deviceId, address, port, longTermData),
+  });
+
+  // Save all successful pairings
+  const updatedPairings = loadPairings();
+  const newPairings = {};
+  for (const r of results.filter((r) => r.ok)) {
+    updatedPairings[r.deviceId] = r.pairing;
+    newPairings[r.deviceId] = r.pairing;
+  }
+  if (Object.keys(newPairings).length > 0) {
+    await savePairings(updatedPairings);
+    startSubscribers(newPairings, loadRooms(), (id) => {
+      const pairing = pairingsStore.getByKey(id);
+      if (!pairing || !isHomeKitPairing(pairing)) return null;
+      return normalizePairingRecord(id, pairing);
+    }, {
+      discoverDevice: discoverDeviceForRepair,
+      savePairing: savePairingForRepair,
+    });
+  }
+
+  const succeeded = results.filter((r) => r.ok).length;
+  const failed = results.filter((r) => !r.ok).length;
+  log.info(`[setup] Add-pairing complete: ${succeeded} succeeded, ${failed} failed`);
+
+  const safeResults = results.map(({ pairing, ...rest }) => rest);
+  res.json({ results: safeResults, summary: { total: results.length, succeeded, failed } });
 });
 
 app.patch('/api/setup/room', async (req, res) => {
