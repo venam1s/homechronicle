@@ -6,12 +6,10 @@ const GAP   = 2;  // px — gap between cells
 const LABEL = 148; // px — device name column width
 
 function cellColor(intensity) {
-  if (intensity === 0) return 'rgba(226, 232, 240, 0.5)'; // empty — light gray
-  // Blue gradient: low → #bfdbfe, high → #1d4ed8
-  const r = Math.round(191 - intensity * 162);
-  const g = Math.round(219 - intensity * 90);
-  const b = Math.round(254 - intensity * 82);
-  return `rgb(${r},${g},${b})`;
+  if (intensity === 0) return 'var(--hc-panel-mid)';
+  // Accent gradient via opacity: low → 0.15, high → 0.95
+  const opacity = 0.15 + intensity * 0.8;
+  return `rgba(var(--hc-accent-rgb), ${opacity.toFixed(2)})`;
 }
 
 // Rotate a 24-slot UTC hour array to local time

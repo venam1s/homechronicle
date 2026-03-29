@@ -19,9 +19,9 @@ const EMPTY_FORM = {
 };
 
 function statusClass(status) {
-  if (status === 'sent') return 'text-green-700 bg-green-50 border-green-200';
-  if (status === 'suppressed') return 'text-amber-700 bg-amber-50 border-amber-200';
-  return 'text-red-700 bg-red-50 border-red-200';
+  if (status === 'sent') return 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20';
+  if (status === 'suppressed') return 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20';
+  return 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20';
 }
 
 export default function Alerts() {
@@ -129,7 +129,7 @@ export default function Alerts() {
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
             placeholder="Rule name"
             aria-label="Rule name"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             required
           />
           <input
@@ -138,14 +138,14 @@ export default function Alerts() {
             onChange={(e) => setForm((prev) => ({ ...prev, targetUrl: e.target.value }))}
             placeholder="Webhook URL (https://...)"
             aria-label="Webhook URL"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             required
           />
           <select
             value={form.scopeType}
             onChange={(e) => setForm((prev) => ({ ...prev, scopeType: e.target.value }))}
             aria-label="Scope type"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           >
             <option value="all">All events</option>
             <option value="room">Room</option>
@@ -158,7 +158,7 @@ export default function Alerts() {
             onChange={(e) => setForm((prev) => ({ ...prev, scopeValue: e.target.value }))}
             placeholder="Scope value (optional for All)"
             aria-label="Scope value"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           />
           <input
             type="text"
@@ -166,13 +166,13 @@ export default function Alerts() {
             onChange={(e) => setForm((prev) => ({ ...prev, characteristic: e.target.value }))}
             placeholder="Characteristic filter (optional)"
             aria-label="Characteristic filter"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           />
           <select
             value={form.operator}
             onChange={(e) => setForm((prev) => ({ ...prev, operator: e.target.value }))}
             aria-label="Match operator"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           >
             <option value="equals">Equals</option>
             <option value="not_equals">Not equals</option>
@@ -184,7 +184,7 @@ export default function Alerts() {
             onChange={(e) => setForm((prev) => ({ ...prev, matchValue: e.target.value }))}
             placeholder="Match value"
             aria-label="Match value"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             required
           />
           <input
@@ -195,9 +195,9 @@ export default function Alerts() {
             onChange={(e) => setForm((prev) => ({ ...prev, quietMinutes: e.target.value }))}
             placeholder="Quiet period (minutes)"
             aria-label="Quiet period in minutes"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           />
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={form.enabled}
@@ -243,7 +243,7 @@ export default function Alerts() {
                 type="button"
                 className={clsx(
                   'text-xs px-2 py-1 rounded border',
-                  rule.enabled ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-600 border-gray-200'
+                  rule.enabled ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/20' : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
                 )}
                 onClick={() => toggleRuleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
               >

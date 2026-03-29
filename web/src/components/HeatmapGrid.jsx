@@ -5,7 +5,7 @@ const GAP   = 2;
 const LABEL = 128;
 
 function cellBg(intensity, accent) {
-  if (intensity === 0) return 'rgba(226,232,240,0.5)';
+  if (intensity === 0) return 'var(--hc-panel-mid)';
   return `rgba(${accent[0]},${accent[1]},${accent[2]},${0.15 + intensity * 0.85})`;
 }
 
@@ -59,14 +59,14 @@ export default function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onC
                       backgroundColor: cellBg(count / maxCount, accent),
                       cursor: count > 0 ? 'pointer' : 'default',
                       transition: 'transform 0.1s, box-shadow 0.1s',
-                      boxShadow: isLocked ? '0 0 0 2px #f97316' : undefined,
+                      boxShadow: isLocked ? `0 0 0 2px rgb(var(--hc-accent-rgb))` : undefined,
                       transform: isLocked ? 'scale(1.35)' : undefined,
                     }}
                     onMouseEnter={(e) => {
                       if (count > 0) {
                         if (!isLocked) {
                           e.currentTarget.style.transform = 'scale(1.35)';
-                          e.currentTarget.style.boxShadow = '0 0 0 1.5px #3b82f6';
+                          e.currentTarget.style.boxShadow = '0 0 0 1.5px rgb(var(--hc-accent-rgb))';
                         }
                         onHoverCell(name, h);
                       }

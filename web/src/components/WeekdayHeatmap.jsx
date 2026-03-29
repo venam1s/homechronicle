@@ -131,7 +131,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
             style={{
               width:      LABEL_W,
               fontSize:   10,
-              color:      '#6b7280',
+              color:      'var(--hc-muted)',
               textAlign:  'right',
               paddingRight: 6,
               lineHeight: `${CELL}px`,
@@ -149,7 +149,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
               : h === 12 ? 'noon'
               : `${h - 12}pm`;
             const bg = intensity === 0
-              ? 'rgba(226, 232, 240, 0.4)'
+              ? 'var(--hc-panel-mid)'
               : `rgba(${accent[0]},${accent[1]},${accent[2]},${0.15 + intensity * 0.85})`;
             return (
               <div
@@ -194,7 +194,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
             style={{
               gridColumn: 'span 6',
               fontSize:   10,
-              color:      '#94a3b8',
+              color:      'var(--hc-chart-tick)',
             }}
           >
             {label}

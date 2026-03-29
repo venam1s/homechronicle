@@ -115,7 +115,7 @@ export default function MonthlyHeatmap() {
                     borderRadius: 2,
                     backgroundColor: cell
                       ? cell.count / maxCount <= 0
-                        ? 'rgba(226, 232, 240, 0.4)'
+                        ? 'var(--hc-panel-mid)'
                         : `rgba(${accent[0]},${accent[1]},${accent[2]},${0.15 + (cell.count / maxCount) * 0.85})`
                       : 'transparent',
                     border: cell ? 'none' : '1px solid transparent',

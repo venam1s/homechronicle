@@ -637,14 +637,14 @@ app.get('/api/setup/discovered', (_req, res) => {
   res.json({ accessories: results, cachedAt: new Date().toISOString() });
 });
 
-app.post('/api/setup/scan', async (_req, res) => {
+app.post('/api/setup/scan', apiWriteLimiter, async (_req, res) => {
   try {
     log.info('[setup] Manual scan triggered from UI');
     const results = await runDiscoveryScan();
     res.json({ accessories: results, cachedAt: new Date().toISOString() });
   } catch (err) {
     log.error('[setup] Scan error:', err.message ?? err.stack ?? err);
-    res.status(200).json({
+    res.status(502).json({
       accessories: discoveryCache,
       cachedAt: new Date().toISOString(),
       warning: `mDNS scan failed: ${err.message}. Check DISCOVER_IFACE setting.`,
@@ -652,7 +652,7 @@ app.post('/api/setup/scan', async (_req, res) => {
   }
 });
 
-app.post('/api/setup/pair', async (req, res) => {
+app.post('/api/setup/pair', apiWriteLimiter, async (req, res) => {
   const { deviceId, pin, protocol = 'homekit' } = req.body ?? {};
   if (String(protocol).toLowerCase() !== 'homekit') {
     return res.status(400).json({ error: 'Unsupported protocol for this endpoint. Use /api/setup/matter/pair.' });
@@ -806,7 +806,7 @@ app.get('/api/setup/pairings', (_req, res) => {
   res.json(list);
 });
 
-app.delete('/api/setup/pairing/:deviceId', async (req, res) => {
+app.delete('/api/setup/pairing/:deviceId', apiWriteLimiter, async (req, res) => {
   const { deviceId } = req.params;
   const currentPairings = loadPairings();
 
@@ -829,7 +829,7 @@ app.delete('/api/setup/pairing/:deviceId', async (req, res) => {
   res.json({ success: true, name });
 });
 
-app.post('/api/setup/repair/:deviceId', async (req, res) => {
+app.post('/api/setup/repair/:deviceId', apiWriteLimiter, async (req, res) => {
   const { deviceId } = req.params;
   const { pin: overridePin } = req.body ?? {};
   const currentPairings = loadPairings();
@@ -922,7 +922,7 @@ app.post('/api/setup/repair/:deviceId', async (req, res) => {
   }
 });
 
-app.post('/api/setup/add-pairing', async (req, res) => {
+app.post('/api/setup/add-pairing', apiWriteLimiter, async (req, res) => {
   const { sourcePairings } = req.body ?? {};
   if (!sourcePairings || typeof sourcePairings !== 'object') {
     return res.status(400).json({ error: 'sourcePairings object is required' });
@@ -979,7 +979,7 @@ app.post('/api/setup/add-pairing', async (req, res) => {
   res.json({ results: safeResults, summary: { total: results.length, succeeded, failed } });
 });
 
-app.patch('/api/setup/room', async (req, res) => {
+app.patch('/api/setup/room', apiWriteLimiter, async (req, res) => {
   const { accessoryId, roomName } = req.body ?? {};
   if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
 
@@ -998,7 +998,7 @@ app.get('/api/setup/rooms', (_req, res) => {
   res.json(loadRooms());
 });
 
-app.patch('/api/setup/display-name', async (req, res) => {
+app.patch('/api/setup/display-name', apiWriteLimiter, async (req, res) => {
   const { accessoryId, displayName } = req.body ?? {};
   if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
 
@@ -1017,7 +1017,7 @@ app.get('/api/setup/display-names', (_req, res) => {
   res.json(loadDisplayNames());
 });
 
-app.patch('/api/setup/note', async (req, res) => {
+app.patch('/api/setup/note', apiWriteLimiter, async (req, res) => {
   const { accessoryId, note } = req.body ?? {};
   if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
 
@@ -1050,7 +1050,7 @@ app.get('/api/setup/log-level', (_req, res) => {
   res.json({ level: getLevel() });
 });
 
-app.patch('/api/setup/log-level', (req, res) => {
+app.patch('/api/setup/log-level', apiWriteLimiter, (req, res) => {
   const { level } = req.body ?? {};
   try {
     setLevel(level);
@@ -1134,6 +1134,12 @@ app.delete('/api/data/accessory', apiWriteLimiter, async (req, res) => {
     const rooms = loadRooms();
     delete rooms[accessoryId];
     await saveRooms(rooms);
+    const names = loadDisplayNames();
+    delete names[accessoryId];
+    await saveDisplayNames(names);
+    const notes = loadNotes();
+    delete notes[accessoryId];
+    await saveNotes(notes);
     log.info(`[data] Deleted ${result.rowCount} event(s) for accessory ${accessoryId}`);
     res.json({ success: true, deleted: result.rowCount });
   } catch (err) {
@@ -1149,6 +1155,8 @@ app.delete('/api/data/all', apiWriteLimiter, async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM event_logs');
     await saveRooms({});
+    await saveDisplayNames({});
+    await saveNotes({});
     log.info(`[data] Wiped all data — ${result.rowCount} event(s) deleted`);
     res.json({ success: true, deleted: result.rowCount });
   } catch (err) {
@@ -1393,7 +1401,7 @@ app.get('/api/accessories/:accessoryId/detail', apiStatsReadLimiter, async (req,
   if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
 
   const days = parseIntInRange(req.query.days, 30, 7, 365);
-  const page = parseIntInRange(req.query.page, 1, 1, Number.MAX_SAFE_INTEGER);
+  const page = parseIntInRange(req.query.page, 1, 1, 1_000_000);
   const limit = parseIntInRange(req.query.limit, 100, 1, 500);
   const offset = (page - 1) * limit;
 

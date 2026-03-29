@@ -31,6 +31,8 @@
 
     --hc-chart-tick: #64748b;
     --hc-chart-grid: #e2e8f0;
+    --hc-chart-label: #374151;
+    --hc-chart-sublabel: #6b7280;
     --hc-tooltip-bg: #ffffff;
     --hc-tooltip-text: #1e293b;
     --hc-tooltip-border: #e2e8f0;
@@ -80,6 +82,8 @@
 
     --hc-chart-tick: #94a3b8;
     --hc-chart-grid: #1e293b;
+    --hc-chart-label: #e2e8f0;
+    --hc-chart-sublabel: #94a3b8;
     --hc-tooltip-bg: #1e293b;
     --hc-tooltip-text: #e2e8f0;
     --hc-tooltip-border: #334155;
@@ -507,6 +511,66 @@ html.hc-standalone .hc-fab {
   html.theme-dark .text-slate-500 {
     color: var(--hc-muted-light) !important;
   }
+}
+
+/* Modals */
+.hc-modal {
+  background-color: var(--hc-panel);
+  color: var(--hc-fg);
+}
+.hc-modal .bg-white {
+  background-color: var(--hc-panel) !important;
+}
+.hc-modal .bg-gray-50,
+.hc-modal .bg-gray-50\/50 {
+  background-color: var(--hc-panel-soft) !important;
+}
+.hc-modal .border-gray-100,
+.hc-modal .border-gray-200 {
+  border-color: var(--hc-panel-border) !important;
+}
+.hc-modal .text-gray-900,
+.hc-modal .text-gray-800 {
+  color: var(--hc-fg-strong) !important;
+}
+.hc-modal .text-gray-700,
+.hc-modal .text-gray-600 {
+  color: var(--hc-fg) !important;
+}
+.hc-modal .text-gray-500 {
+  color: var(--hc-muted) !important;
+}
+.hc-modal .text-gray-400 {
+  color: var(--hc-muted) !important;
+}
+.hc-modal-close:hover {
+  background-color: var(--hc-panel-mid) !important;
+  color: var(--hc-fg) !important;
+}
+.hc-modal .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--hc-panel-border) !important;
+}
+
+/* Episode groups */
+.hc-episode {
+  background-color: var(--hc-panel-soft);
+}
+.hc-episode:hover {
+  background-color: var(--hc-panel-mid);
+}
+.hc-episode-icon {
+  background-color: rgba(var(--hc-accent-rgb), 0.12);
+}
+.hc-episode-icon-glyph {
+  color: rgb(var(--hc-accent-rgb));
+}
+.hc-episode-label {
+  color: rgb(var(--hc-accent-rgb));
+  opacity: 0.8;
+}
+.hc-episode-expanded {
+  background-color: var(--hc-panel);
+  border-top: 1px solid var(--hc-panel-border);
 }
 
 /* Toast animations */

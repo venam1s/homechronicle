@@ -46,7 +46,7 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
         : isDimmed    ? 'opacity-40'
         : 'hover:bg-gray-50'
       }`}
-      style={isHighlighted ? { boxShadow: 'inset 3px 0 0 0 #60a5fa' } : undefined}
+      style={isHighlighted ? { boxShadow: `inset 3px 0 0 0 rgba(var(--hc-accent-rgb), 0.65)` } : undefined}
     >
       <div className="flex-1 min-w-0">
 
@@ -64,7 +64,7 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
               <span className="font-medium text-gray-900 truncate">{event.accessory_name}</span>
             )}
             {anomalyLabel && (
-              <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
                 ⚠ {anomalyLabel}
               </span>
             )}

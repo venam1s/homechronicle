@@ -415,7 +415,7 @@ export default function App() {
               href={availableUpdate.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hc-update-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition-colors"
+              className="hc-update-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors"
             >
               <ArrowUpCircle size={11} />
               <span>{availableUpdate.tag} available</span>

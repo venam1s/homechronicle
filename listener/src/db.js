@@ -206,25 +206,29 @@ export async function migrateDb() {
 
   // One-time cleanup: remove initial-poll events that were incorrectly
   // inserted as real activity (old_value IS NULL in bursts of 5+ per second).
-  // These were caused by feeding getCharacteristics() results through
-  // handleEvent() instead of just seeding the valueCache.
-  const cleanup = await pool.query(`
-    DELETE FROM event_logs
-    WHERE id IN (
-      SELECT e.id
-      FROM event_logs e
-      JOIN (
-        SELECT date_trunc('second', timestamp) AS sec
-        FROM event_logs
-        WHERE old_value IS NULL
-        GROUP BY date_trunc('second', timestamp)
-        HAVING COUNT(*) >= 5
-      ) burst ON date_trunc('second', e.timestamp) = burst.sec
-      WHERE e.old_value IS NULL
-    )
-  `);
-  if (cleanup.rowCount > 0) {
-    log.info(`[db] Cleaned up ${cleanup.rowCount} initial-poll event(s).`);
+  // Guarded by a migrations table so it only runs once.
+  await pool.query(`CREATE TABLE IF NOT EXISTS _migrations (key TEXT PRIMARY KEY, done_at TIMESTAMPTZ DEFAULT NOW())`);
+  const migrationCheck = await pool.query(`SELECT 1 FROM _migrations WHERE key = 'initial_poll_cleanup'`);
+  if (migrationCheck.rowCount === 0) {
+    const cleanup = await pool.query(`
+      DELETE FROM event_logs
+      WHERE id IN (
+        SELECT e.id
+        FROM event_logs e
+        JOIN (
+          SELECT date_trunc('second', timestamp) AS sec
+          FROM event_logs
+          WHERE old_value IS NULL
+          GROUP BY date_trunc('second', timestamp)
+          HAVING COUNT(*) >= 5
+        ) burst ON date_trunc('second', e.timestamp) = burst.sec
+        WHERE e.old_value IS NULL
+      )
+    `);
+    if (cleanup.rowCount > 0) {
+      log.info(`[db] Cleaned up ${cleanup.rowCount} initial-poll event(s).`);
+    }
+    await pool.query(`INSERT INTO _migrations (key) VALUES ('initial_poll_cleanup')`);
   }
 
   log.info('[db] Schema ready.');

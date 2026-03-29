@@ -14,14 +14,14 @@ function Card({ icon: Icon, label, value, sub, bgClass, iconClass }) {
         <Icon size={16} className={iconClass} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-0.5">
           {label}
         </div>
         <div className="text-2xl font-bold text-gray-800 leading-tight truncate" title={value ?? undefined}>
           {value ?? '—'}
         </div>
         {sub != null && (
-          <div className="text-xs text-gray-400 mt-0.5 truncate">{sub}</div>
+          <div className="text-xs text-gray-500 mt-0.5 truncate">{sub}</div>
         )}
       </div>
     </div>

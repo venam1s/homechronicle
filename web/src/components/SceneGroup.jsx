@@ -53,7 +53,7 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
       }
       style={
         highlight === 'highlighted'
-          ? { boxShadow: 'inset 3px 0 0 0 #60a5fa', backgroundColor: 'rgb(239 246 255 / 0.6)' }
+          ? { boxShadow: `inset 3px 0 0 0 rgba(var(--hc-accent-rgb), 0.65)`, backgroundColor: 'rgba(var(--hc-accent-rgb), 0.08)' }
           : undefined
       }
     >

@@ -390,7 +390,7 @@ export default function Timeline() {
           <div className="max-w-2xl mx-auto py-4">
             {[...groupByDay(visibleEvents)].map(([day, events]) => (
               <div key={day} className="mb-6">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-4 mb-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 px-4 mb-2">
                   {format(new Date(day), 'EEEE, MMMM d')}
                 </h2>
                 <div className="bg-white rounded-xl shadow-sm divide-y divide-gray-100">

@@ -457,11 +457,11 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
 
           {/* Feature 3: Stale reason banner */}
           {health.isStale && health.staleReason && (
-            <section className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2.5">
-              <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+            <section className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 flex items-start gap-2.5">
+              <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-amber-800">Device is stale</p>
-                <p className="text-xs text-amber-600 mt-0.5">{health.staleReason}</p>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Device is stale</p>
+                <p className="text-xs text-amber-600 dark:text-amber-300 mt-0.5">{health.staleReason}</p>
               </div>
             </section>
           )}
@@ -579,11 +579,11 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 )}
               </div>
               {reliability.last_error && (
-                <div className="mt-3 rounded-lg bg-red-50 border border-red-100 px-3 py-2">
-                  <p className="text-[11px] text-red-400">Last Error</p>
-                  <p className="text-xs text-red-700 mt-0.5 break-all">{reliability.last_error}</p>
+                <div className="mt-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 px-3 py-2">
+                  <p className="text-[11px] text-red-400 dark:text-red-300">Last Error</p>
+                  <p className="text-xs text-red-700 dark:text-red-300 mt-0.5 break-all">{reliability.last_error}</p>
                   {reliability.last_error_at && (
-                    <p className="text-[10px] text-red-400 mt-1">
+                    <p className="text-[10px] text-red-400 dark:text-red-400 mt-1">
                       {formatDistanceToNow(new Date(reliability.last_error_at), { addSuffix: true })}
                     </p>
                   )}
@@ -605,26 +605,26 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                     key={`${o.hour}:${o.kind}`}
                     className={clsx(
                       'rounded-lg border px-3 py-2',
-                      o.severity === 'critical' ? 'border-red-200 bg-red-50/70' :
-                      o.severity === 'high' ? 'border-amber-200 bg-amber-50/70' :
-                      'border-yellow-100 bg-yellow-50/50'
+                      o.severity === 'critical' ? 'border-red-200 dark:border-red-500/20 bg-red-50/70 dark:bg-red-500/10' :
+                      o.severity === 'high' ? 'border-amber-200 dark:border-amber-500/20 bg-amber-50/70 dark:bg-amber-500/10' :
+                      'border-yellow-100 dark:border-yellow-500/20 bg-yellow-50/50 dark:bg-yellow-500/10'
                     )}
                   >
                     <div className="flex items-center gap-2 text-xs">
                       <span className={clsx(
                         'uppercase tracking-wide font-semibold',
-                        o.severity === 'critical' ? 'text-red-700' : 'text-amber-700'
+                        o.severity === 'critical' ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'
                       )}>
                         {o.severity}
                       </span>
-                      <span className={o.severity === 'critical' ? 'text-red-500' : 'text-amber-500'}>
+                      <span className={o.severity === 'critical' ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}>
                         {o.kind}
                       </span>
                       <span className="ml-auto text-gray-500">score {o.score}</span>
                     </div>
                     <p className={clsx(
                       'text-sm mt-1',
-                      o.severity === 'critical' ? 'text-red-900' : 'text-amber-900'
+                      o.severity === 'critical' ? 'text-red-900 dark:text-red-200' : 'text-amber-900 dark:text-amber-200'
                     )}>
                       {o.message}
                     </p>
@@ -733,7 +733,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                             ? 'border-gray-100 bg-gray-50'
                             : 'border-gray-100 bg-gray-50 hover:border-gray-200'
                         )}
-                        style={isSelected ? { borderColor: 'rgba(139,92,246,0.3)', backgroundColor: 'rgba(139,92,246,0.08)' } : undefined}
+                        style={isSelected ? { borderColor: 'rgba(var(--hc-accent-rgb), 0.3)', backgroundColor: 'rgba(var(--hc-accent-rgb), 0.08)' } : undefined}
                       >
                         <div className="flex items-center justify-between">
                           <p className="text-[11px] text-gray-500">{state.characteristic}</p>

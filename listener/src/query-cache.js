@@ -30,7 +30,7 @@ export async function cached(key, queryFn, ttlMs) {
     entry.refreshing = true;
     queryFn()
       .then((value) => {
-        store.set(key, { value, expiresAt: now + ttlMs, refreshing: false });
+        store.set(key, { value, expiresAt: Date.now() + ttlMs, refreshing: false });
       })
       .catch((err) => {
         log.debug(`[cache] Background refresh failed for ${key}:`, err.message);

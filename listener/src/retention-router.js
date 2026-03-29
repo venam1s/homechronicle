@@ -114,7 +114,10 @@ export function createRetentionRouter({ getSettings, saveSettings, sweepMs = 0 }
     }
 
     if (body.quietHoursEnabled !== undefined) {
-      updates.quietHoursEnabled = Boolean(body.quietHoursEnabled);
+      if (typeof body.quietHoursEnabled !== 'boolean') {
+        return res.status(400).json({ error: 'quietHoursEnabled must be a boolean.' });
+      }
+      updates.quietHoursEnabled = body.quietHoursEnabled;
     }
 
     if (body.quietHoursStart !== undefined) {
