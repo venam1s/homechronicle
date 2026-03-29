@@ -100,7 +100,7 @@ function CharacteristicTrend({ accessoryId, characteristic, days }) {
           <Line
             type={chartData.isNumeric ? 'monotone' : 'stepAfter'}
             dataKey="value"
-            stroke="#8b5cf6"
+            stroke="rgba(var(--hc-accent-rgb), 0.85)"
             strokeWidth={1.5}
             dot={false}
           />
@@ -247,13 +247,13 @@ function ActivityHeatmap({ accessoryId, days }) {
   if (maxCount === 0) return null;
 
   function cellColor(count) {
-    if (count === 0) return 'var(--hc-heatmap-empty, #f3f4f6)';
+    if (count === 0) return 'var(--hc-panel-mid)';
     const ratio = count / maxCount;
-    // 4-stop blue scale
-    if (ratio < 0.25) return '#bfdbfe';
-    if (ratio < 0.5) return '#60a5fa';
-    if (ratio < 0.75) return '#3b82f6';
-    return '#1d4ed8';
+    // 4-stop accent scale
+    if (ratio < 0.25) return `rgba(var(--hc-accent-rgb), 0.2)`;
+    if (ratio < 0.5) return `rgba(var(--hc-accent-rgb), 0.45)`;
+    if (ratio < 0.75) return `rgba(var(--hc-accent-rgb), 0.7)`;
+    return `rgba(var(--hc-accent-rgb), 0.95)`;
   }
 
   return (
@@ -291,9 +291,9 @@ function ActivityHeatmap({ accessoryId, days }) {
           {/* Legend */}
           <div className="flex items-center justify-end gap-1 mt-2">
             <span className="text-[9px] text-gray-400">Less</span>
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'var(--hc-heatmap-empty, #f3f4f6)' }} />
-            {['#bfdbfe', '#60a5fa', '#3b82f6', '#1d4ed8'].map((c) => (
-              <div key={c} className="w-3 h-3 rounded-sm" style={{ backgroundColor: c }} />
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'var(--hc-panel-mid)' }} />
+            {[0.2, 0.45, 0.7, 0.95].map((a) => (
+              <div key={a} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(var(--hc-accent-rgb), ${a})` }} />
             ))}
             <span className="text-[9px] text-gray-400">More</span>
           </div>
@@ -447,7 +447,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 {accessory.device_note && (
                   <p className="text-xs text-gray-500 mt-1 italic">{accessory.device_note}</p>
                 )}
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {accessory.room_name ?? 'No room'} · {accessory.model ?? 'Unknown model'}
                   {accessory.last_seen && ` · last seen ${formatDistanceToNow(new Date(accessory.last_seen), { addSuffix: true })}`}
                 </p>
@@ -469,34 +469,34 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Stats grid */}
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-white rounded-xl shadow-sm p-4">
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
+              <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Activity size={13} />
                 Event history
               </div>
               <div className="text-xl font-semibold text-gray-900 mt-1">{(history?.total ?? 0).toLocaleString()}</div>
-              <div className="text-xs text-gray-400 mt-0.5">
+              <div className="text-xs text-gray-500 mt-0.5">
                 {accessory.first_seen ? `since ${format(new Date(accessory.first_seen), 'PP')}` : 'No events yet'}
               </div>
             </div>
             <div className="bg-white rounded-xl shadow-sm p-4">
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
+              <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <ShieldCheck size={13} />
                 Uptime
               </div>
               <div className="text-xl font-semibold text-gray-900 mt-1">{formatRatio(uptime?.active_day_ratio)}</div>
-              <div className="text-xs text-gray-400 mt-0.5">
+              <div className="text-xs text-gray-500 mt-0.5">
                 {uptime?.active_days ?? 0}/{uptime?.observed_days ?? 0} active days
               </div>
             </div>
             <div className="bg-white rounded-xl shadow-sm p-4">
-              <div className="flex items-center gap-2 text-gray-400 text-xs">
+              <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <Clock3 size={13} />
                 Heartbeat
               </div>
               <div className="text-xl font-semibold text-gray-900 mt-1">
                 ~{formatSeconds(health.heartbeatSeconds)}
               </div>
-              <div className="text-xs text-gray-400 mt-0.5">
+              <div className="text-xs text-gray-500 mt-0.5">
                 {health.status ?? 'unknown'} · {formatNumber(uptime?.events_per_active_day)} events/day
               </div>
             </div>
@@ -512,13 +512,13 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
               <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2">
                 {metadataFields.map((field) => (
                   <div key={field.label}>
-                    <dt className="text-[11px] text-gray-400">{field.label}</dt>
+                    <dt className="text-[11px] text-gray-500">{field.label}</dt>
                     <dd className="text-sm text-gray-700 mt-0.5 break-all">{field.value}</dd>
                   </div>
                 ))}
               </dl>
               {accessory.metadata_updated_at && (
-                <p className="text-[10px] text-gray-300 mt-3">
+                <p className="text-[10px] text-gray-500 mt-3">
                   Metadata updated {formatDistanceToNow(new Date(accessory.metadata_updated_at), { addSuffix: true })}
                 </p>
               )}
@@ -540,24 +540,24 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <p className="text-[11px] text-gray-400">Disconnects</p>
+                  <p className="text-[11px] text-gray-500">Disconnects</p>
                   <p className={clsx('text-lg font-semibold mt-0.5', reliability.disconnects > 0 ? 'text-amber-600' : 'text-gray-900')}>
                     {reliability.disconnects ?? 0}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-gray-400">Reconnect Attempts</p>
+                  <p className="text-[11px] text-gray-500">Reconnect Attempts</p>
                   <p className="text-lg font-semibold text-gray-900 mt-0.5">{reliability.reconnect_attempts ?? 0}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-gray-400">Resubscribe Failures</p>
+                  <p className="text-[11px] text-gray-500">Resubscribe Failures</p>
                   <p className={clsx('text-lg font-semibold mt-0.5', reliability.resubscribe_failures > 0 ? 'text-red-600' : 'text-gray-900')}>
                     {reliability.resubscribe_failures ?? 0}
                   </p>
                 </div>
                 {reliability.last_connected_at && (
                   <div>
-                    <p className="text-[11px] text-gray-400">Last Connected</p>
+                    <p className="text-[11px] text-gray-500">Last Connected</p>
                     <p className="text-sm text-gray-700 mt-0.5">
                       {formatDistanceToNow(new Date(reliability.last_connected_at), { addSuffix: true })}
                     </p>
@@ -565,7 +565,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 )}
                 {reliability.last_subscribed_at && (
                   <div>
-                    <p className="text-[11px] text-gray-400">Last Subscribed</p>
+                    <p className="text-[11px] text-gray-500">Last Subscribed</p>
                     <p className="text-sm text-gray-700 mt-0.5">
                       {formatDistanceToNow(new Date(reliability.last_subscribed_at), { addSuffix: true })}
                     </p>
@@ -573,7 +573,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 )}
                 {Number.isFinite(reliability.subscribe_failures) && reliability.subscribe_failures > 0 && (
                   <div>
-                    <p className="text-[11px] text-gray-400">Subscribe Failures</p>
+                    <p className="text-[11px] text-gray-500">Subscribe Failures</p>
                     <p className="text-lg font-semibold text-red-600 mt-0.5">{reliability.subscribe_failures}</p>
                   </div>
                 )}
@@ -620,7 +620,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                       <span className={o.severity === 'critical' ? 'text-red-500' : 'text-amber-500'}>
                         {o.kind}
                       </span>
-                      <span className="ml-auto text-gray-400">score {o.score}</span>
+                      <span className="ml-auto text-gray-500">score {o.score}</span>
                     </div>
                     <p className={clsx(
                       'text-sm mt-1',
@@ -665,8 +665,8 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
               <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <defs>
                   <linearGradient id="accessoryActivityGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.01} />
+                    <stop offset="5%" stopColor="rgb(var(--hc-accent-rgb))" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="rgb(var(--hc-accent-rgb))" stopOpacity={0.01} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--hc-chart-grid)" vertical={false} />
@@ -687,7 +687,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 <Area
                   type="monotone"
                   dataKey="count"
-                  stroke="#3b82f6"
+                  stroke="rgb(var(--hc-accent-rgb))"
                   strokeWidth={2}
                   fill="url(#accessoryActivityGradient)"
                   dot={false}
@@ -736,21 +736,21 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                         style={isSelected ? { borderColor: 'rgba(139,92,246,0.3)', backgroundColor: 'rgba(139,92,246,0.08)' } : undefined}
                       >
                         <div className="flex items-center justify-between">
-                          <p className="text-[11px] text-gray-400">{state.characteristic}</p>
-                          {isSelected ? <ChevronUp size={11} className="text-violet-400" /> : <ChevronDown size={11} className="text-gray-300" />}
+                          <p className="text-[11px] text-gray-500">{state.characteristic}</p>
+                          {isSelected ? <ChevronUp size={11} className="text-violet-400" /> : <ChevronDown size={11} className="text-gray-400" />}
                         </div>
                         <p className="text-sm text-gray-700 mt-0.5">{describeChange(state.characteristic, state.new_value)}</p>
-                        <p className="text-[11px] text-gray-400 mt-1">
+                        <p className="text-[11px] text-gray-500 mt-1">
                           {formatDistanceToNow(new Date(state.timestamp), { addSuffix: true })}
                         </p>
                         {/* Feature 9: Protocol details */}
                         {isMatter && hasMatterIds && (
-                          <p className="text-[10px] text-gray-300 font-mono mt-0.5">
+                          <p className="text-[10px] text-gray-500 font-mono mt-0.5">
                             EP {state.endpoint_id} · Cluster {state.cluster_id} · Attr {state.attribute_id}
                           </p>
                         )}
                         {!isMatter && hasHomeKitId && (
-                          <p className="text-[10px] text-gray-300 font-mono mt-0.5">
+                          <p className="text-[10px] text-gray-500 font-mono mt-0.5">
                             IID {state.raw_iid}
                           </p>
                         )}
@@ -779,22 +779,22 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 <ScrollText size={14} className="text-gray-400" />
                 Full History
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 Page {history?.page ?? 1} of {Math.max(history?.pages ?? 1, 1)}
               </p>
             </div>
-            {!history?.events?.length && <p className="text-sm text-gray-400">No events recorded.</p>}
+            {!history?.events?.length && <p className="text-sm text-gray-500">No events recorded.</p>}
             {!!history?.events?.length && (
               <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
                 {history.events.map((event) => (
                   <div key={event.id} className="px-3 py-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm text-gray-700">{describeChange(event.characteristic, event.new_value)}</p>
-                      <p className="text-xs text-gray-400 whitespace-nowrap" title={format(new Date(event.timestamp), 'PPpp')}>
+                      <p className="text-xs text-gray-500 whitespace-nowrap" title={format(new Date(event.timestamp), 'PPpp')}>
                         {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
                       </p>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       {event.characteristic}
                       {event.old_value != null && (
                         <span>

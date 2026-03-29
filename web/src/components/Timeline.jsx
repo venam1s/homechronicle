@@ -11,7 +11,6 @@ import { formatGap } from '../lib/icons.js';
 import EpisodeGroup from './EpisodeGroup.jsx';
 import SceneGroup from './SceneGroup.jsx';
 import FilterBar from './FilterBar.jsx';
-import TimelineHeatmap from './TimelineHeatmap.jsx';
 
 const PAGE_SIZE = 50;
 
@@ -297,11 +296,8 @@ export default function Timeline() {
         onChange={handleFilterChange}
         open={filtersOpen}
         onToggle={() => setFiltersOpen((o) => !o)}
-      />
-
-      <TimelineHeatmap
-        open={heatmapOpen}
-        onToggle={() => { setHeatmapOpen((o) => !o); setLockedCell(null); }}
+        heatmapOpen={heatmapOpen}
+        onHeatmapToggle={() => { setHeatmapOpen((o) => !o); setLockedCell(null); }}
         onHoverCell={handleHoverCell}
         onHoverEnd={() => setHoveredCell(null)}
         onClickCell={handleClickCell}

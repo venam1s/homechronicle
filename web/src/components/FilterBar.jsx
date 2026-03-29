@@ -1,9 +1,26 @@
 import { useAccessories } from '../hooks/useEvents.js';
+import { useHeatmap } from '../hooks/useEvents.js';
+import { useAccentRgb } from '../hooks/useAccentRgb.js';
 import { getRoomColor } from '../lib/roomColors.js';
-import { Search, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, SlidersHorizontal, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
+import HeatmapGrid from './HeatmapGrid.jsx';
 
-export default function FilterBar({ filters, onChange, open, onToggle }) {
+export default function FilterBar({
+  filters,
+  onChange,
+  open,
+  onToggle,
+  heatmapOpen,
+  onHeatmapToggle,
+  onHoverCell,
+  onHoverEnd,
+  onClickCell,
+  lockedCell,
+}) {
   const { data: accessories = [] } = useAccessories();
+  const { data: heatmapData = [], isLoading: heatmapLoading } = useHeatmap();
+  const accent = useAccentRgb();
+  const hasHeatmapData = !heatmapLoading && heatmapData.length > 0;
 
   const rooms = [...new Set(accessories.map((a) => a.room_name).filter(Boolean))].sort();
 
@@ -15,29 +32,57 @@ export default function FilterBar({ filters, onChange, open, onToggle }) {
   const activeCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <button
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls="filter-bar-panel"
-        className="w-full py-2.5 text-left hover:bg-blue-50/60 transition-colors"
-      >
-        <div className="max-w-2xl mx-auto px-4 flex items-center gap-2">
-          <Search size={13} className="text-blue-600" />
-          <span className="text-xs font-semibold text-blue-800">Search & filters</span>
+    <div className="bg-white border-b border-gray-200">
+      {/* ── Combined toggle bar ────────────────────────────────── */}
+      <div className="max-w-2xl mx-auto px-4 flex items-center py-2">
+        {/* Search & filters toggle */}
+        <button
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls="filter-bar-panel"
+          className="flex items-center gap-1.5 py-0.5 px-2 rounded-md transition-colors hc-filter-toggle"
+        >
+          <Search size={13} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />
+          <span className="text-xs font-semibold" style={{ color: 'var(--hc-accent-stronger)' }}>Search & filters</span>
           {activeCount > 0 && (
-            <span className="text-[10px] font-medium text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ color: 'var(--hc-accent-strong)', backgroundColor: 'var(--hc-accent-soft)' }}>
               {activeCount} active
             </span>
           )}
-          {open ? (
-            <ChevronUp size={13} className="text-blue-700 ml-auto" />
-          ) : (
-            <ChevronDown size={13} className="text-blue-700 ml-auto" />
-          )}
-        </div>
-      </button>
+          {open
+            ? <ChevronUp size={12} style={{ color: 'var(--hc-accent-strong)' }} />
+            : <ChevronDown size={12} style={{ color: 'var(--hc-accent-strong)' }} />
+          }
+        </button>
 
+        {/* Separator dot */}
+        <span className="mx-2 text-[8px]" style={{ color: 'var(--hc-muted)', opacity: 0.4 }}>●</span>
+
+        {/* Activity heatmap toggle */}
+        <button
+          onClick={onHeatmapToggle}
+          disabled={!hasHeatmapData && !heatmapLoading}
+          className="flex items-center gap-1.5 py-0.5 px-2 rounded-md transition-colors hc-filter-toggle disabled:cursor-default disabled:opacity-40"
+        >
+          <BarChart2 size={13} style={hasHeatmapData ? { color: 'rgb(var(--hc-accent-rgb))' } : undefined} className={hasHeatmapData ? '' : 'text-gray-300'} />
+          <span className={`text-xs font-semibold ${hasHeatmapData ? '' : 'text-gray-300'}`} style={hasHeatmapData ? { color: 'var(--hc-accent-stronger)' } : undefined}>
+            Activity heatmap
+          </span>
+          {hasHeatmapData && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ color: 'var(--hc-accent-strong)', backgroundColor: 'var(--hc-accent-soft)' }}>
+              Jump view
+            </span>
+          )}
+          {heatmapLoading && <span className="text-[10px] text-gray-300">Loading…</span>}
+          {hasHeatmapData && (
+            heatmapOpen
+              ? <ChevronUp size={12} style={{ color: 'var(--hc-accent-strong)' }} />
+              : <ChevronDown size={12} style={{ color: 'var(--hc-accent-strong)' }} />
+          )}
+        </button>
+      </div>
+
+      {/* ── Filter panel ───────────────────────────────────────── */}
       {open && (
         <div id="filter-bar-panel" className="max-w-2xl mx-auto px-4 pb-3">
           <div className="flex flex-wrap gap-2 sm:gap-3">
@@ -102,7 +147,13 @@ export default function FilterBar({ filters, onChange, open, onToggle }) {
             {activeCount > 0 && (
               <button
                 onClick={() => onChange({})}
-                className="inline-flex items-center gap-1 text-sm text-blue-700 bg-blue-50 border border-blue-200 px-2.5 rounded-lg hover:bg-blue-100 sm:ml-auto"
+                className="inline-flex items-center gap-1 text-sm px-2.5 rounded-lg sm:ml-auto"
+                style={{
+                  color: 'var(--hc-accent-strong)',
+                  backgroundColor: 'var(--hc-accent-soft)',
+                  borderWidth: '1px',
+                  borderColor: 'rgba(var(--hc-accent-rgb), 0.2)',
+                }}
               >
                 <SlidersHorizontal size={12} />
                 Clear filters
@@ -110,6 +161,18 @@ export default function FilterBar({ filters, onChange, open, onToggle }) {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Heatmap panel ──────────────────────────────────────── */}
+      {heatmapOpen && hasHeatmapData && (
+        <HeatmapGrid
+          data={heatmapData}
+          accent={accent}
+          onHoverCell={onHoverCell}
+          onHoverEnd={onHoverEnd}
+          onClickCell={onClickCell}
+          lockedCell={lockedCell}
+        />
       )}
     </div>
   );

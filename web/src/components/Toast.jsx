@@ -58,6 +58,8 @@ export function ToastProvider({ children }) {
   }, []);
 
   const isTop = settings.position.includes('top');
+  const isRight = settings.position.includes('right');
+  const isLeft = settings.position.includes('left');
 
   function colorRgb(type) {
     return type === 'error'
@@ -71,8 +73,9 @@ export function ToastProvider({ children }) {
       {toasts.length > 0 && (
         <div
           className={clsx(
-            'fixed left-0 right-0 z-[9999] flex flex-col items-center gap-2 px-3 pointer-events-none',
+            'fixed z-[9999] flex flex-col gap-2 px-3 pointer-events-none',
             isTop ? 'top-0 pt-2' : 'bottom-0 pb-2 hc-standalone:pb-24',
+            isRight ? 'right-0 items-end' : isLeft ? 'left-0 items-start' : 'left-0 right-0 items-center',
           )}
         >
           {toasts.map((toast) => {

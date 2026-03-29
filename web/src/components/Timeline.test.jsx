@@ -59,7 +59,6 @@ vi.mock('@tanstack/react-query', async () => {
 });
 
 vi.mock('./FilterBar.jsx', () => ({ default: () => null }));
-vi.mock('./TimelineHeatmap.jsx', () => ({ default: () => null }));
 
 describe('Timeline', () => {
   it('does not crash when events include invalid timestamps', () => {

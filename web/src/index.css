@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.theme-dark, .theme-dark *));
+
 @layer base {
   :root {
     --hc-bg: #f8fafc;
@@ -284,6 +286,10 @@ html.hc-standalone .hc-fab {
 }
 
 @layer utilities {
+  .hc-filter-toggle:hover {
+    background-color: rgba(var(--hc-accent-rgb), 0.06);
+  }
+
   .bg-white {
     background-color: var(--hc-panel);
   }

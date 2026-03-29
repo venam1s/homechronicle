@@ -220,7 +220,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
           </button>
 
           {discoveredData?.cachedAt && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               Last Scan: {formatDistanceToNow(new Date(discoveredData.cachedAt), { addSuffix: true })}
             </p>
           )}
@@ -342,7 +342,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                 </>
               )}
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-gray-400">{unpaired.length} available</span>
+                <span className="text-xs text-gray-500">{unpaired.length} available</span>
                 <button onClick={toggleAll} className="text-xs text-blue-600 hover:underline">
                   {allSelected ? 'Deselect all' : 'Select all'}
                 </button>
@@ -372,7 +372,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                             : <Circle size={14} className="text-gray-300 flex-shrink-0" />}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-gray-900 dark:text-gray-100 text-xs truncate">{acc.name}</div>
-                          <div className="text-[11px] text-gray-400">
+                          <div className="text-[11px] text-gray-500">
                             {acc.category === 2
                               ? <span className="text-blue-600 font-medium">Bridge</span>
                               : CATEGORY_LABELS[acc.category] ?? 'Unknown'}
@@ -444,7 +444,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                               onClick={() => onSwitchTab('devices')}
                               className="text-blue-600 hover:underline"
                             >
-                              My Accessories
+                              Manage Accessories
                             </button>
                           </p>
                         </div>
@@ -606,7 +606,7 @@ function MatterCard({
       )}
 
       {matterDiscoveredData?.cachedAt && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-500">
           Last Manual Scan: {formatDistanceToNow(new Date(matterDiscoveredData.cachedAt), { addSuffix: true })}
         </p>
       )}
@@ -633,7 +633,7 @@ function MatterCard({
       {unpaired.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-gray-400">{unpaired.length} commissionable</span>
+            <span className="text-xs text-gray-500">{unpaired.length} commissionable</span>
           </div>
           <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-100 dark:border-gray-700 rounded-lg">
             {unpaired.map((device) => {
@@ -698,7 +698,7 @@ function MatterCard({
                           onClick={() => onSwitchTab('devices')}
                           className="text-blue-600 hover:underline"
                         >
-                          My Devices
+                          Manage Accessories
                         </button>
                       </p>
                     </div>
@@ -742,7 +742,7 @@ function MatterCard({
                 onClick={() => onSwitchTab('devices')}
                 className="text-blue-600 hover:underline"
               >
-                My Devices
+                Manage Accessories
               </button>
             </p>
           )}
@@ -757,7 +757,7 @@ function MatterCard({
         {matterAdvancedOpen ? 'Hide manual setup' : 'Add manually\u2026'}
       </button>
 
-      <p className="text-[11px] text-gray-400 italic">
+      <p className="text-[11px] text-gray-500 italic">
         Supports on/off, level control, boolean state, temperature, humidity, and occupancy clusters.
         Accessories using other clusters will pair but won't produce events.{' '}
         <button onClick={() => onOpenHelp('clusters')} className="underline hover:text-gray-600 transition-colors">See supported accessories</button>
@@ -765,7 +765,7 @@ function MatterCard({
 
       {matterAdvancedOpen && (
         <form onSubmit={handleMatterSubmit} className="space-y-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2.5">
-          <p className="text-[11px] text-gray-400">
+          <p className="text-[11px] text-gray-500">
             Add an accessory without scanning. Use this if the scan doesn't find your accessory.
           </p>
           <input

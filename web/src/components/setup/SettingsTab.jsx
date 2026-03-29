@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Download, Loader, X } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Download, Loader, Loader2, Trash2, X } from 'lucide-react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
@@ -36,6 +36,10 @@ export default function SettingsTab({ setup }) {
     saveLogLevelMutation,
     dbAccessories,
     deleteAccessoryMutation,
+    paired,
+    matterPairings,
+    deletePairingMutation,
+    deleteMatterPairingMutation,
   } = setup;
 
   const { addToast, configure: configureToasts } = useToast();
@@ -83,12 +87,68 @@ export default function SettingsTab({ setup }) {
   const [confirmDeleteAccessory, setConfirmDeleteAccessory] = useState(null);
   const [wipeConfirmText, setWipeConfirmText] = useState('');
   const [wipePending, setWipePending] = useState(false);
+  const [confirmDeletePairing, setConfirmDeletePairing] = useState(null);
+  const [removeAllState, setRemoveAllState] = useState({ phase: 'idle' });
+  const [removeAllConfirmText, setRemoveAllConfirmText] = useState('');
+  const [matterDeleteError, setMatterDeleteError] = useState({});
   const [saveFeedback, setSaveFeedback] = useState(null);
   const [toastsEnabledInput, setToastsEnabledInput] = useState(true);
   const [liveEventToastsEnabledInput, setLiveEventToastsEnabledInput] = useState(false);
   const [toastPositionInput, setToastPositionInput] = useState('bottom-right');
   const [toastDurationInput, setToastDurationInput] = useState(3);
   const [toastMaxVisibleInput, setToastMaxVisibleInput] = useState(3);
+
+  // ── Auto-save helper (debounced, serialized) ───────────────────────────
+  const autoSaveTimer = useRef(null);
+  const autoSaveInFlight = useRef(false);
+  const autoSaveQueued = useRef(null);
+
+  const flushAutoSave = useCallback(async (payload, kind) => {
+    if (autoSaveInFlight.current) {
+      autoSaveQueued.current = { payload, kind };
+      return;
+    }
+    autoSaveInFlight.current = true;
+    try {
+      if (kind === 'logLevel') {
+        await saveLogLevelMutation.mutateAsync(payload.level);
+      } else {
+        const result = await saveRetentionMutation.mutateAsync(payload);
+        // Apply toast config immediately so the confirmation toast respects new settings
+        if (payload.toastsEnabled !== undefined || payload.toastPosition || payload.toastDuration || payload.toastMaxVisible) {
+          configureToasts({
+            position: result.toastPosition,
+            duration: result.toastDuration,
+            maxVisible: result.toastMaxVisible,
+          });
+        }
+      }
+      // Show toast (respects whether toasts are now enabled)
+      const toastsOn = kind === 'logLevel'
+        ? (retentionConfig?.toastsEnabled ?? true)
+        : (payload.toastsEnabled ?? retentionConfig?.toastsEnabled ?? true);
+      if (toastsOn) addToast('Setting saved', 'success');
+    } catch {
+      addToast('Failed to save setting', 'error');
+      // Revert: invalidate query cache to re-fetch server state
+      queryClient.invalidateQueries({ queryKey: ['setup', 'retention'] });
+      queryClient.invalidateQueries({ queryKey: ['setup', 'log-level'] });
+    } finally {
+      autoSaveInFlight.current = false;
+      if (autoSaveQueued.current) {
+        const next = autoSaveQueued.current;
+        autoSaveQueued.current = null;
+        flushAutoSave(next.payload, next.kind);
+      }
+    }
+  }, [saveRetentionMutation, saveLogLevelMutation, configureToasts, addToast, retentionConfig?.toastsEnabled, queryClient]);
+
+  const autoSave = useCallback((payload, kind = 'retention') => {
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => flushAutoSave(payload, kind), 300);
+  }, [flushAutoSave]);
+
+  useEffect(() => () => clearTimeout(autoSaveTimer.current), []);
 
   const retentionDaysCurrent = retentionConfig?.retentionDays ?? null;
   const staleThresholdHoursCurrent = retentionConfig?.staleThresholdHours ?? null;
@@ -176,7 +236,7 @@ export default function SettingsTab({ setup }) {
   const sceneWindowValid = Number.isFinite(parsedSceneWindow) && parsedSceneWindow >= 1 && parsedSceneWindow <= 30;
   const episodeMinEventValid = Number.isFinite(parsedEpisodeMinEvent) && parsedEpisodeMinEvent >= 1 && parsedEpisodeMinEvent <= 20;
   const inputsReady = retentionDaysInput.trim() && staleThresholdHoursInput.trim() && episodeWindowInput.trim() && sceneWindowInput.trim() && episodeMinEventInput.trim();
-  const savePending = saveRetentionMutation.isPending || saveLogLevelMutation.isPending;
+  const savePending = saveRetentionMutation.isPending;
   const isDirty = retentionDaysValid
     && staleThresholdValid
     && episodeWindowValid
@@ -185,69 +245,86 @@ export default function SettingsTab({ setup }) {
     && (
       parsedRetentionDays !== retentionDaysCurrent
       || parsedStaleThresholdHours !== staleThresholdHoursCurrent
-      || archiveBeforeDeleteInput !== archiveBeforeDeleteCurrent
-      || autoScanHomeKitInput !== autoScanHomeKit
-      || quietHoursEnabledInput !== quietHoursEnabledCurrent
-      || quietHoursStartInput !== quietHoursStartCurrent
-      || quietHoursEndInput !== quietHoursEndCurrent
       || parsedEpisodeWindow !== episodeWindowCurrent
       || parsedSceneWindow !== sceneWindowCurrent
       || parsedEpisodeMinEvent !== episodeMinEventCurrent
-      || logLevelInput !== logLevelCurrent
-      || toastsEnabledInput !== (retentionConfig?.toastsEnabled ?? true)
-      || liveEventToastsEnabledInput !== (retentionConfig?.liveEventToastsEnabled ?? false)
-      || toastPositionInput !== (retentionConfig?.toastPosition ?? 'bottom-right')
-      || toastDurationInput !== (retentionConfig?.toastDuration ?? 3)
-      || toastMaxVisibleInput !== (retentionConfig?.toastMaxVisible ?? 3)
     );
 
   async function handleSaveSettings() {
     if (!isDirty || !retentionDaysValid || !staleThresholdValid) return;
     setSaveFeedback(null);
     try {
-      const [nextRetention] = await Promise.all([
-        saveRetentionMutation.mutateAsync({
-          retentionDays: parsedRetentionDays,
-          staleThresholdHours: parsedStaleThresholdHours,
-          archiveBeforeDelete: archiveBeforeDeleteInput,
-          autoScanHomeKit: autoScanHomeKitInput,
-          quietHoursEnabled: quietHoursEnabledInput,
-          quietHoursStart: localHourToUtc(quietHoursStartInput),
-          quietHoursEnd: localHourToUtc(quietHoursEndInput),
-          episodeWindowMinutes: parsedEpisodeWindow,
-          sceneWindowSeconds: parsedSceneWindow,
-          episodeMinEventCount: parsedEpisodeMinEvent,
-          toastsEnabled: toastsEnabledInput,
-          liveEventToastsEnabled: liveEventToastsEnabledInput,
-          toastPosition: toastPositionInput,
-          toastDuration: toastDurationInput,
-          toastMaxVisible: toastMaxVisibleInput,
-        }),
-        saveLogLevelMutation.mutateAsync(logLevelInput),
-      ]);
+      const nextRetention = await saveRetentionMutation.mutateAsync({
+        retentionDays: parsedRetentionDays,
+        staleThresholdHours: parsedStaleThresholdHours,
+        episodeWindowMinutes: parsedEpisodeWindow,
+        sceneWindowSeconds: parsedSceneWindow,
+        episodeMinEventCount: parsedEpisodeMinEvent,
+      });
       setRetentionDaysInput(String(nextRetention.retentionDays));
       setStaleThresholdHoursInput(String(nextRetention.staleThresholdHours));
-      setArchiveBeforeDeleteInput(Boolean(nextRetention.archiveBeforeDelete ?? true));
-      setAutoScanHomeKitInput(Boolean(nextRetention.autoScanHomeKit ?? true));
-      setQuietHoursEnabledInput(Boolean(nextRetention.quietHoursEnabled ?? false));
-      if (nextRetention.quietHoursStart != null) setQuietHoursStartInput(utcHourToLocal(nextRetention.quietHoursStart));
-      if (nextRetention.quietHoursEnd != null) setQuietHoursEndInput(utcHourToLocal(nextRetention.quietHoursEnd));
       if (nextRetention.episodeWindowMinutes != null) setEpisodeWindowInput(String(nextRetention.episodeWindowMinutes));
       if (nextRetention.sceneWindowSeconds != null) setSceneWindowInput(String(nextRetention.sceneWindowSeconds));
       if (nextRetention.episodeMinEventCount != null) setEpisodeMinEventInput(String(nextRetention.episodeMinEventCount));
       setSaveFeedback('saved');
-      configureToasts({
-        position: nextRetention.toastPosition,
-        duration: nextRetention.toastDuration,
-        maxVisible: nextRetention.toastMaxVisible,
-      });
-      if (nextRetention.toastsEnabled !== false) {
+      if (retentionConfig?.toastsEnabled !== false) {
         addToast('Settings saved', 'success');
       }
     } catch {
       setSaveFeedback('error');
     }
   }
+
+  const handleRemoveAll = useCallback(async () => {
+    const hkDevices = [...paired];
+    const matterDevices = [...matterPairings];
+    const total = hkDevices.length + matterDevices.length;
+    if (total === 0) return;
+
+    setRemoveAllState({ phase: 'running', current: 0, total });
+
+    let ok = 0;
+    let failed = 0;
+
+    for (let i = 0; i < hkDevices.length; i++) {
+      setRemoveAllState((s) => ({ ...s, current: i + 1 }));
+      try {
+        await new Promise((resolve, reject) => {
+          deletePairingMutation.mutate(hkDevices[i].id, {
+            onSuccess: resolve,
+            onError: reject,
+          });
+        });
+        ok++;
+      } catch {
+        failed++;
+      }
+    }
+
+    for (let i = 0; i < matterDevices.length; i++) {
+      setRemoveAllState((s) => ({ ...s, current: hkDevices.length + i + 1 }));
+      const nodeId = matterDevices[i].nodeId ?? matterDevices[i].id;
+      try {
+        await new Promise((resolve, reject) => {
+          deleteMatterPairingMutation.mutate(nodeId, {
+            onSuccess: resolve,
+            onError: reject,
+          });
+        });
+        ok++;
+      } catch {
+        failed++;
+      }
+    }
+
+    addToast(
+      failed ? `Removed ${ok}/${total} pairings (${failed} failed)` : `All ${ok} pairings removed`,
+      failed ? 'error' : 'success',
+    );
+
+    setRemoveAllState({ phase: 'idle' });
+    setRemoveAllConfirmText('');
+  }, [paired, matterPairings, deletePairingMutation, deleteMatterPairingMutation, addToast]);
 
   async function handleWipeAll() {
     if (wipeConfirmText !== 'DELETE') return;
@@ -271,7 +348,7 @@ export default function SettingsTab({ setup }) {
     <div className="space-y-4">
 
       {/* — Data — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-1">Data</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-1">Data</h3>
 
       {/* Retention cutoff */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
@@ -295,7 +372,7 @@ export default function SettingsTab({ setup }) {
             <span className="text-xs text-gray-500 dark:text-gray-400">days</span>
           </div>
         </div>
-        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
           Changes apply without restart. Sweep interval is every 24 hours by default.
         </p>
       </div>
@@ -313,14 +390,13 @@ export default function SettingsTab({ setup }) {
             <input
               type="checkbox"
               checked={archiveBeforeDeleteInput}
-              onChange={(e) => { setArchiveBeforeDeleteInput(e.target.checked); setSaveFeedback(null); }}
-              disabled={savePending}
+              onChange={(e) => { const v = e.target.checked; setArchiveBeforeDeleteInput(v); autoSave({ archiveBeforeDelete: v }); }}
             />
             <span>{archiveBeforeDeleteInput ? 'On' : 'Off'}</span>
           </label>
         </div>
         <div className="flex items-center justify-between mt-2">
-          <p className="text-[11px] text-gray-400 dark:text-gray-500">
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">
             When off, expired events are permanently deleted during retention sweep.
           </p>
           {archiveCount > 0 && (
@@ -373,19 +449,18 @@ export default function SettingsTab({ setup }) {
             <input
               type="checkbox"
               checked={autoScanHomeKitInput}
-              onChange={(e) => { setAutoScanHomeKitInput(e.target.checked); setSaveFeedback(null); }}
-              disabled={savePending}
+              onChange={(e) => { const v = e.target.checked; setAutoScanHomeKitInput(v); autoSave({ autoScanHomeKit: v }); }}
             />
             <span>{autoScanHomeKitInput ? 'On' : 'Off'}</span>
           </label>
         </div>
-        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
           Manual scans from Add Accessories still work when this is off.
         </p>
       </div>
 
       {/* — Alerts — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">Alerts</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Alerts</h3>
 
       {/* Quiet hours */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
@@ -400,8 +475,7 @@ export default function SettingsTab({ setup }) {
             <input
               type="checkbox"
               checked={quietHoursEnabledInput}
-              onChange={(e) => { setQuietHoursEnabledInput(e.target.checked); setSaveFeedback(null); }}
-              disabled={savePending}
+              onChange={(e) => { const v = e.target.checked; setQuietHoursEnabledInput(v); autoSave({ quietHoursEnabled: v }); }}
             />
             <span>{quietHoursEnabledInput ? 'On' : 'Off'}</span>
           </label>
@@ -411,8 +485,8 @@ export default function SettingsTab({ setup }) {
             <span className="text-xs text-gray-500 dark:text-gray-400">From</span>
             <select
               value={quietHoursStartInput}
-              onChange={(e) => { setQuietHoursStartInput(Number(e.target.value)); setSaveFeedback(null); }}
-              disabled={savePending || !quietHoursEnabledInput}
+              onChange={(e) => { const v = Number(e.target.value); setQuietHoursStartInput(v); autoSave({ quietHoursStart: localHourToUtc(v) }); }}
+              disabled={!quietHoursEnabledInput}
               className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
@@ -424,8 +498,8 @@ export default function SettingsTab({ setup }) {
             <span className="text-xs text-gray-500 dark:text-gray-400">to</span>
             <select
               value={quietHoursEndInput}
-              onChange={(e) => { setQuietHoursEndInput(Number(e.target.value)); setSaveFeedback(null); }}
-              disabled={savePending || !quietHoursEnabledInput}
+              onChange={(e) => { const v = Number(e.target.value); setQuietHoursEndInput(v); autoSave({ quietHoursEnd: localHourToUtc(v) }); }}
+              disabled={!quietHoursEnabledInput}
               className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
@@ -439,9 +513,12 @@ export default function SettingsTab({ setup }) {
           <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Excluded from quiet hours:</p>
             <div className="flex flex-wrap gap-1.5">
-              {retentionConfig.quietHoursExcludedAccessories.map((id) => (
+              {retentionConfig.quietHoursExcludedAccessories.map((id) => {
+                const matchedAcc = paired.find((a) => a.id === id) ?? dbAccessories.find((a) => a.accessory_id === id);
+                const label = matchedAcc?.name ?? matchedAcc?.accessory_name ?? id;
+                return (
                 <span key={id} className="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full px-2.5 py-1">
-                  <span className="truncate max-w-[180px]">{id}</span>
+                  <span className="truncate max-w-[180px]">{label}</span>
                   <button
                     onClick={async () => {
                       const next = retentionConfig.quietHoursExcludedAccessories.filter((a) => a !== id);
@@ -458,14 +535,15 @@ export default function SettingsTab({ setup }) {
                     <X size={10} />
                   </button>
                 </span>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
       </div>
 
       {/* — Timeline — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">Timeline</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Timeline</h3>
 
       {/* Episode capture interval */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
@@ -540,7 +618,7 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* ── Notifications ── */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">
         Notifications
       </h3>
       {/* Toast notifications */}
@@ -556,8 +634,7 @@ export default function SettingsTab({ setup }) {
             <input
               type="checkbox"
               checked={toastsEnabledInput}
-              onChange={(e) => { setToastsEnabledInput(e.target.checked); setSaveFeedback(null); }}
-              disabled={savePending}
+              onChange={(e) => { const v = e.target.checked; setToastsEnabledInput(v); autoSave({ toastsEnabled: v }); }}
             />
             <span>{toastsEnabledInput ? 'On' : 'Off'}</span>
           </label>
@@ -565,7 +642,7 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* Live event toasts */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+      <div className={clsx('bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Live event toasts</p>
@@ -573,19 +650,19 @@ export default function SettingsTab({ setup }) {
               Show a popup when selected accessories report events. Only appears when you're not on the Timeline tab.
             </p>
           </div>
-          <label className={clsx('inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300', !toastsEnabledInput && 'opacity-50 cursor-not-allowed')}>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={liveEventToastsEnabledInput}
-              onChange={(e) => { setLiveEventToastsEnabledInput(e.target.checked); setSaveFeedback(null); }}
-              disabled={!toastsEnabledInput || savePending}
+              onChange={(e) => { const v = e.target.checked; setLiveEventToastsEnabledInput(v); autoSave({ liveEventToastsEnabled: v }); }}
+              disabled={!toastsEnabledInput}
             />
             <span>{liveEventToastsEnabledInput ? 'On' : 'Off'}</span>
           </label>
         </div>
         {liveEventToastsEnabledInput && !(retentionConfig?.toastAccessories?.length > 0) && (
           <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-            Select accessories to watch on the My Devices tab.
+            Select accessories to watch on the Manage Accessories tab.
           </p>
         )}
       </div>
@@ -601,7 +678,7 @@ export default function SettingsTab({ setup }) {
           </div>
           <select
             value={toastPositionInput}
-            onChange={(e) => { setToastPositionInput(e.target.value); setSaveFeedback(null); }}
+            onChange={(e) => { const v = e.target.value; setToastPositionInput(v); autoSave({ toastPosition: v }); }}
             className="text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="bottom-right">Bottom Right</option>
@@ -623,7 +700,7 @@ export default function SettingsTab({ setup }) {
           </div>
           <select
             value={toastDurationInput}
-            onChange={(e) => { setToastDurationInput(Number(e.target.value)); setSaveFeedback(null); }}
+            onChange={(e) => { const v = Number(e.target.value); setToastDurationInput(v); autoSave({ toastDuration: v }); }}
             className="text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={2}>2 seconds</option>
@@ -645,7 +722,7 @@ export default function SettingsTab({ setup }) {
           </div>
           <select
             value={toastMaxVisibleInput}
-            onChange={(e) => { setToastMaxVisibleInput(Number(e.target.value)); setSaveFeedback(null); }}
+            onChange={(e) => { const v = Number(e.target.value); setToastMaxVisibleInput(v); autoSave({ toastMaxVisible: v }); }}
             className="text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={1}>1</option>
@@ -657,7 +734,7 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* — Advanced — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 pt-3">Advanced</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Advanced</h3>
 
       {/* Log level */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
@@ -671,8 +748,7 @@ export default function SettingsTab({ setup }) {
           <div className="flex items-center gap-2">
             <select
               value={logLevelInput}
-              onChange={(e) => { setLogLevelInput(e.target.value); setSaveFeedback(null); }}
-              disabled={savePending}
+              onChange={(e) => { const v = e.target.value; setLogLevelInput(v); autoSave({ level: v }, 'logLevel'); }}
               className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               {LOG_LEVELS.map(({ value, label, desc }) => (
@@ -727,7 +803,7 @@ export default function SettingsTab({ setup }) {
         >
           <span className="flex items-center gap-2">
             <AlertTriangle size={14} />
-            Danger Zone — delete accessory data
+            Danger Zone
           </span>
           <ChevronDown
             size={14}
@@ -737,7 +813,172 @@ export default function SettingsTab({ setup }) {
 
         {dangerOpen && (
           <div className="bg-white dark:bg-gray-800">
-            <p className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+
+            {/* ── Remove pairings ──────────────────────────────────── */}
+            <div className="border-b border-gray-100 dark:border-gray-700">
+              <p className="px-4 pt-3 pb-2 text-xs font-medium text-red-700 dark:text-red-400">Remove pairings</p>
+              <p className="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">
+                Unpair individual HomeKit or Matter accessories. Event data is <strong>not</strong> deleted.
+              </p>
+
+              {(paired.length + matterPairings.length) === 0 ? (
+                <p className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 italic">No paired accessories.</p>
+              ) : (
+                <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {paired.map((acc) => {
+                    const isConfirming = confirmDeletePairing === acc.id;
+                    const isDeleting = deletePairingMutation.isPending && isConfirming;
+                    return (
+                      <div key={acc.id} className="flex items-center gap-3 px-4 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{acc.name ?? acc.id}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">HomeKit</div>
+                        </div>
+                        {isConfirming ? (
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Remove pairing?</span>
+                            <button
+                              onClick={() => deletePairingMutation.mutate(acc.id, {
+                                onSuccess: () => setConfirmDeletePairing(null),
+                                onError: () => setConfirmDeletePairing(null),
+                              })}
+                              disabled={isDeleting}
+                              className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                            >
+                              {isDeleting ? 'Removing\u2026' : 'Yes, remove'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeletePairing(null)}
+                              disabled={isDeleting}
+                              className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeletePairing(acc.id)}
+                            className="flex-shrink-0 text-xs text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {matterPairings.map((pairing) => {
+                    const nodeId = pairing.nodeId ?? pairing.id;
+                    const isConfirming = confirmDeletePairing === `matter-${nodeId}`;
+                    const isDeleting = deleteMatterPairingMutation.isPending && isConfirming;
+                    return (
+                      <div key={`matter-${nodeId}`} className="flex items-center gap-3 px-4 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{pairing.name ?? nodeId}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Matter</div>
+                        </div>
+                        {isConfirming ? (
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Remove pairing?</span>
+                            <button
+                              onClick={() => {
+                                setMatterDeleteError((s) => ({ ...s, [nodeId]: null }));
+                                deleteMatterPairingMutation.mutate(nodeId, {
+                                  onSuccess: () => setConfirmDeletePairing(null),
+                                  onError: (err) => {
+                                    setConfirmDeletePairing(null);
+                                    setMatterDeleteError((s) => ({ ...s, [nodeId]: err.message ?? 'Could not remove accessory.' }));
+                                  },
+                                });
+                              }}
+                              disabled={isDeleting}
+                              className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                            >
+                              {isDeleting ? 'Removing\u2026' : 'Yes, remove'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeletePairing(null)}
+                              disabled={isDeleting}
+                              className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeletePairing(`matter-${nodeId}`)}
+                            className="flex-shrink-0 text-xs text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                        {matterDeleteError[nodeId] && (
+                          <p className="text-xs text-red-500 mt-1">{matterDeleteError[nodeId]}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Remove all pairings */}
+              {(paired.length + matterPairings.length) > 0 && (
+                <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                  {removeAllState.phase === 'idle' && removeAllState !== 'confirming' && (
+                    <>
+                      {removeAllConfirmText === '' && (
+                        <button
+                          onClick={() => setRemoveAllConfirmText('_')}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                        >
+                          <Trash2 size={13} />
+                          Remove All Pairings ({paired.length + matterPairings.length})
+                        </button>
+                      )}
+                      {removeAllConfirmText !== '' && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-red-700 dark:text-red-300">
+                            This will remove all HomeKit and Matter pairings ({paired.length + matterPairings.length} total).
+                            Type <strong>DELETE</strong> to confirm.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              placeholder="Type DELETE to confirm"
+                              value={removeAllConfirmText === '_' ? '' : removeAllConfirmText}
+                              onChange={(e) => setRemoveAllConfirmText(e.target.value || '_')}
+                              className="text-xs border border-red-300 dark:border-red-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1 w-44 focus:outline-none focus:ring-1 focus:ring-red-400"
+                            />
+                            <button
+                              onClick={handleRemoveAll}
+                              disabled={removeAllConfirmText !== 'DELETE'}
+                              className="text-xs px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setRemoveAllConfirmText('')}
+                              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {removeAllState.phase === 'running' && (
+                    <span className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
+                      <Loader2 size={13} className="animate-spin" />
+                      Removing {removeAllState.current}/{removeAllState.total}...
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Delete accessory data ────────────────────────────── */}
+            <p className="px-4 pt-3 pb-2 text-xs font-medium text-red-700 dark:text-red-400">Delete accessory data</p>
+            <p className="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
               Delete stored event history for individual accessories, or wipe everything.
               This only removes logged data — it does not unpair accessories.
             </p>
@@ -768,9 +1009,9 @@ export default function SettingsTab({ setup }) {
             )}
 
             {dbAccessories.length === 0 ? (
-              <p className="px-4 py-4 text-xs text-gray-400 dark:text-gray-500 italic">No accessory data in the database.</p>
+              <p className="px-4 py-4 text-xs text-gray-500 dark:text-gray-400 italic">No accessory data in the database.</p>
             ) : visibleDangerAccessories.length === 0 ? (
-              <p className="px-4 py-4 text-xs text-gray-400 dark:text-gray-500 italic">No accessories match this filter.</p>
+              <p className="px-4 py-4 text-xs text-gray-500 dark:text-gray-400 italic">No accessories match this filter.</p>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {visibleDangerAccessories.map((acc) => {
@@ -781,7 +1022,7 @@ export default function SettingsTab({ setup }) {
                     <div key={acc.accessory_id} className="flex items-center gap-3 px-4 py-2.5">
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{acc.accessory_name}</div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5 flex-wrap">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 flex-wrap">
                           {acc.service_type ?? 'No events yet'}
                           {acc.room_name && <span className="ml-1">&middot; {acc.room_name}</span>}
                           <span

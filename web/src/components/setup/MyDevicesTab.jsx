@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, BellOff, Check, CheckCircle, Trash2, ChevronDown, MapPin, FileText, AlertCircle, Pencil, Wrench, Loader2 } from 'lucide-react';
+import { Bell, BellOff, Check, CheckCircle, ChevronDown, MapPin, FileText, AlertCircle, Pencil, Wrench, Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { fetchJson } from '../../lib/api.js';
@@ -33,8 +33,6 @@ export default function MyDevicesTab({ setup }) {
     displayNameInputs,
     setDisplayNameInputs,
     handleDisplayNameBlur,
-    deletePairingMutation,
-    deleteMatterPairingMutation,
     matterRuntime,
     retentionConfig,
     saveRetentionMutation,
@@ -43,9 +41,6 @@ export default function MyDevicesTab({ setup }) {
   const { addToast } = useToast();
   const queryClient = useQueryClient();
 
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  const [confirmDeleteMatter, setConfirmDeleteMatter] = useState(null);
-  const [matterDeleteError, setMatterDeleteError] = useState({});
   const [expandedBridges, setExpandedBridges] = useState(new Set());
   const [expandedMatterEndpoints, setExpandedMatterEndpoints] = useState(new Set());
   const [expandedMatterErrors, setExpandedMatterErrors] = useState(new Set());
@@ -53,8 +48,6 @@ export default function MyDevicesTab({ setup }) {
   const [repairingDevice, setRepairingDevice] = useState(null);
   const [repairAllState, setRepairAllState] = useState({ phase: 'idle' });
   const repairAllTimerRef = useRef(null);
-  const [removeAllState, setRemoveAllState] = useState({ phase: 'idle' }); // idle | confirming | running
-  const [removeAllConfirmText, setRemoveAllConfirmText] = useState('');
 
   useEffect(() => () => clearTimeout(repairAllTimerRef.current), []);
 
@@ -107,56 +100,6 @@ export default function MyDevicesTab({ setup }) {
     repairAllTimerRef.current = setTimeout(() => setRepairAllState({ phase: 'idle' }), 5000);
   }, [paired, queryClient, addToast]);
 
-  const handleRemoveAll = useCallback(async () => {
-    const hkDevices = [...paired];
-    const matterDevices = [...matterPairings];
-    const total = hkDevices.length + matterDevices.length;
-    if (total === 0) return;
-
-    setRemoveAllState({ phase: 'running', current: 0, total });
-
-    let ok = 0;
-    let failed = 0;
-
-    for (let i = 0; i < hkDevices.length; i++) {
-      setRemoveAllState((s) => ({ ...s, current: i + 1 }));
-      try {
-        await new Promise((resolve, reject) => {
-          deletePairingMutation.mutate(hkDevices[i].id, {
-            onSuccess: resolve,
-            onError: reject,
-          });
-        });
-        ok++;
-      } catch {
-        failed++;
-      }
-    }
-
-    for (let i = 0; i < matterDevices.length; i++) {
-      setRemoveAllState((s) => ({ ...s, current: hkDevices.length + i + 1 }));
-      const nodeId = matterDevices[i].nodeId ?? matterDevices[i].id;
-      try {
-        await new Promise((resolve, reject) => {
-          deleteMatterPairingMutation.mutate(nodeId, {
-            onSuccess: resolve,
-            onError: reject,
-          });
-        });
-        ok++;
-      } catch {
-        failed++;
-      }
-    }
-
-    addToast(
-      failed ? `Removed ${ok}/${total} pairings (${failed} failed)` : `All ${ok} pairings removed`,
-      failed ? 'error' : 'success',
-    );
-
-    setRemoveAllState({ phase: 'idle' });
-    setRemoveAllConfirmText('');
-  }, [paired, matterPairings, deletePairingMutation, deleteMatterPairingMutation, addToast]);
 
   const onRoomBlurWithFlash = useCallback((id) => {
     handleRoomBlur(id);
@@ -196,6 +139,25 @@ export default function MyDevicesTab({ setup }) {
   const matterNodes = Array.isArray(matterRuntime?.nodes) ? matterRuntime.nodes : [];
   const accessories = Array.isArray(dbAccessories) ? dbAccessories : [];
 
+  // Build a lookup of reliability/health per bridge ID from dbAccessories
+  const deviceStatus = useMemo(() => {
+    const map = {};
+    for (const acc of accessories) {
+      const bridgeId = acc.bridge_id ?? acc.accessory_id;
+      if (!map[bridgeId]) {
+        map[bridgeId] = {
+          needsRepair: acc.reliability?.needs_repair ?? false,
+          healthStatus: acc.health?.status ?? 'unknown',
+          isStale: acc.health?.isStale ?? false,
+        };
+      }
+      // If any child signals needsRepair, propagate to bridge
+      if (acc.reliability?.needs_repair) map[bridgeId].needsRepair = true;
+      if (acc.health?.isStale) { map[bridgeId].isStale = true; map[bridgeId].healthStatus = 'stale'; }
+    }
+    return map;
+  }, [accessories]);
+
   const devicesWithoutRoom = [
     ...paired.filter((acc) => acc.category !== 2 && !savedRooms[acc.id]?.trim()),
     ...matterPairings.filter((p) => !savedRooms[p.nodeId ?? p.id]?.trim()),
@@ -228,7 +190,7 @@ export default function MyDevicesTab({ setup }) {
   return (
     <div className="space-y-4">
       <PairingHealthBanner />
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
         {totalCount} accessor{totalCount !== 1 ? 'ies' : 'y'}
       </p>
 
@@ -245,7 +207,7 @@ export default function MyDevicesTab({ setup }) {
       )}
 
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 justify-end">
         {paired.length > 0 && (
           <div className="flex flex-col gap-1">
             <button
@@ -299,70 +261,17 @@ export default function MyDevicesTab({ setup }) {
           {retentionConfig?.liveEventToastsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
           Live Toasts {retentionConfig?.liveEventToastsEnabled ? 'On' : 'Off'}
         </button>
-
-        {/* spacer */}
-        <div className="flex-1" />
-
-        {/* Remove All Pairings */}
-        {removeAllState.phase === 'idle' && (
-          <button
-            onClick={() => setRemoveAllState({ phase: 'confirming' })}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-          >
-            <Trash2 size={13} />
-            Remove All Pairings
-          </button>
-        )}
-        {removeAllState.phase === 'running' && (
-          <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
-            <Loader2 size={13} className="animate-spin" />
-            Removing {removeAllState.current}/{removeAllState.total}...
-          </span>
-        )}
       </div>
-
-      {removeAllState.phase === 'confirming' && (
-        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 space-y-2">
-          <p className="text-xs text-red-700 dark:text-red-300">
-            This will remove all HomeKit and Matter pairings ({paired.length + matterPairings.length} total).
-            Event data will <strong>not</strong> be deleted. Type <strong>DELETE</strong> to confirm.
-          </p>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Type DELETE to confirm"
-              value={removeAllConfirmText}
-              onChange={(e) => setRemoveAllConfirmText(e.target.value)}
-              className="text-xs border border-red-300 dark:border-red-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1 w-44 focus:outline-none focus:ring-1 focus:ring-red-400"
-            />
-            <button
-              onClick={handleRemoveAll}
-              disabled={removeAllConfirmText !== 'DELETE'}
-              className="text-xs px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Confirm
-            </button>
-            <button
-              onClick={() => { setRemoveAllState({ phase: 'idle' }); setRemoveAllConfirmText(''); }}
-              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm divide-y divide-gray-100 dark:divide-gray-700">
 
         {/* HomeKit paired accessories */}
         {paired.map((acc) => {
-          const isConfirming = confirmDelete === acc.id;
-          const isDeleting = deletePairingMutation.isPending && confirmDelete === acc.id;
           const roomVal = roomInputs[acc.id] ?? savedRooms[acc.id] ?? '';
           return (
             <div key={acc.id} className="px-4 py-3">
               <div className="flex items-center gap-3">
-                <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
+                <CheckCircle size={18} className={clsx('flex-shrink-0', deviceStatus[acc.id]?.needsRepair ? 'text-red-500' : deviceStatus[acc.id]?.isStale ? 'text-amber-500' : 'text-green-500')} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
@@ -382,7 +291,7 @@ export default function MyDevicesTab({ setup }) {
                       HomeKit
                     </span>
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-gray-500">
                     {CATEGORY_LABELS[acc.category] ?? 'Unknown'} &middot; {acc.address}
                   </div>
                   <div className="flex items-center gap-1 mt-1.5">
@@ -415,7 +324,7 @@ export default function MyDevicesTab({ setup }) {
                     </div>
                   )}
                   {acc.category === 2 && roomVal && (
-                    <p className="text-[10px] text-gray-400 mt-0.5 ml-3.5">
+                    <p className="text-[10px] text-gray-500 mt-0.5 ml-3.5">
                       Child accessories without their own room inherit this.
                     </p>
                   )}
@@ -437,30 +346,19 @@ export default function MyDevicesTab({ setup }) {
                   )}
                 </div>
 
-                {isConfirming ? (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs text-gray-500">Remove pairing?</span>
-                    <button
-                      onClick={() => deletePairingMutation.mutate(acc.id, {
-                        onSuccess: () => setConfirmDelete(null),
-                        onError: () => setConfirmDelete(null),
-                      })}
-                      disabled={isDeleting}
-                      className="text-xs px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
-                    >
-                      {isDeleting ? 'Removing\u2026' : 'Yes, remove'}
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(null)}
-                      disabled={isDeleting}
-                      className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded-full">Logging</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {(() => {
+                      const ds = deviceStatus[acc.id];
+                      if (ds?.needsRepair) return (
+                        <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">Needs Repair</span>
+                      );
+                      if (ds?.isStale) return (
+                        <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">Stale</span>
+                      );
+                      return (
+                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded-full">Logging</span>
+                      );
+                    })()}
                     <button
                       onClick={() => setRepairingDevice({ device: acc, bridgeId: acc.id })}
                       title="Repair pairing"
@@ -485,15 +383,7 @@ export default function MyDevicesTab({ setup }) {
                         }
                       </button>
                     )}
-                    <button
-                      onClick={() => setConfirmDelete(acc.id)}
-                      title="Remove pairing"
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
                   </div>
-                )}
               </div>
               {acc.category === 2 && (
                 <BridgeChildrenRow
@@ -517,8 +407,6 @@ export default function MyDevicesTab({ setup }) {
         {/* Matter paired accessories */}
         {matterPairings.map((pairing) => {
           const nodeId = pairing.nodeId ?? pairing.id;
-          const isConfirming = confirmDeleteMatter === nodeId;
-          const isDeleting = deleteMatterPairingMutation.isPending && isConfirming;
           const nodeStatus = matterNodes.find((n) => n.nodeId === nodeId);
           const roomVal = roomInputs[nodeId] ?? savedRooms[nodeId] ?? '';
           const endpointRows = accessories
@@ -533,7 +421,7 @@ export default function MyDevicesTab({ setup }) {
           return (
             <div key={`matter-${nodeId}`} className="px-4 py-3">
               <div className="flex items-center gap-3">
-                <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
+                <CheckCircle size={18} className={clsx('flex-shrink-0', deviceStatus[nodeId]?.needsRepair ? 'text-red-500' : deviceStatus[nodeId]?.isStale ? 'text-amber-500' : 'text-green-500')} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
@@ -553,7 +441,7 @@ export default function MyDevicesTab({ setup }) {
                       Matter
                     </span>
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-gray-500">
                     {nodeId}
                     {pairing.address ? ` \u00b7 ${pairing.address}` : ''}
                     {pairing.port ? `:${pairing.port}` : ''}
@@ -646,35 +534,19 @@ export default function MyDevicesTab({ setup }) {
                   )}
                 </div>
 
-                {isConfirming ? (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => {
-                        setMatterDeleteError((s) => ({ ...s, [nodeId]: null }));
-                        deleteMatterPairingMutation.mutate(nodeId, {
-                          onSuccess: () => setConfirmDeleteMatter(null),
-                          onError: (err) => {
-                            setConfirmDeleteMatter(null);
-                            setMatterDeleteError((s) => ({ ...s, [nodeId]: err.message ?? 'Could not remove accessory.' }));
-                          },
-                        });
-                      }}
-                      disabled={isDeleting}
-                      className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                    >
-                      {isDeleting ? 'Removing\u2026' : 'Confirm'}
-                    </button>
-                    <button
-                      onClick={() => setConfirmDeleteMatter(null)}
-                      disabled={isDeleting}
-                      className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded-full">Logging</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {(() => {
+                      const ds = deviceStatus[nodeId];
+                      if (ds?.needsRepair) return (
+                        <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">Needs Repair</span>
+                      );
+                      if (ds?.isStale) return (
+                        <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">Stale</span>
+                      );
+                      return (
+                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded-full">Logging</span>
+                      );
+                    })()}
                     {retentionConfig?.liveEventToastsEnabled && (
                       <button
                         type="button"
@@ -692,21 +564,8 @@ export default function MyDevicesTab({ setup }) {
                         }
                       </button>
                     )}
-                    <button
-                      onClick={() => setConfirmDeleteMatter(nodeId)}
-                      title="Remove pairing"
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
                   </div>
-                )}
               </div>
-              {matterDeleteError[nodeId] && (
-                <div className="mt-1.5 ml-6 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded px-2 py-1">
-                  <p className="text-xs text-red-700 dark:text-red-400">{matterDeleteError[nodeId]}</p>
-                </div>
-              )}
               {isEndpointsExpanded && endpointRows.length > 0 && (
                 <div className="mt-2 pl-8 space-y-2">
                   {endpointRows.map((row) => {
