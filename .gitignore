@@ -21,6 +21,9 @@ web/.vite/
 *.log
 npm-debug.log*
 
+# Test artifacts
+test-results/
+
 # OS
 .DS_Store
 Thumbs.db
