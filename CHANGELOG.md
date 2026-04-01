@@ -2,144 +2,72 @@
 
 All notable changes to homechronicle are documented in this file.
 
-## Unreleased
+## [0.1.5] — 2026-03-31
 
 ### Added
-- **Add-Pairing web UI and API** — register HomeChronicle as an additional controller on devices already paired to Apple Home. Available in Manage > Add Devices when devices are detected as paired elsewhere.
-- **Paired-elsewhere detection** — devices already paired to another controller (sf=0) now show an amber warning badge in Add Devices with actionable guidance.
-- **Multiple Controllers documentation** — new sections in Device Setup and Troubleshooting explaining pair-setup vs add-pairing, Homebridge insecure mode requirement, and M2: Error 6 resolution.
-
-### Fixed
-- **Error 6 message** — pairing error for already-paired devices now says "Device is already paired to another controller" instead of the misleading "Device is unavailable."
-- **Discovery API** — `GET /api/setup/discovered` now preserves the device's `sf` status flag instead of dropping it, so the UI can distinguish between unpaired and paired-elsewhere devices.
-
-## [0.1.5-beta.1] — 2026-03-21
+- **Add-pairing support** — register as additional controller on devices already paired to Apple Home, with web UI panel and API endpoint
+- **Paired-elsewhere detection** — amber warning badge for devices with sf=0, with actionable guidance
+- **Repair flow** — per-device repair button, guided RepairFlow modal, health banner on Dashboard
+- **Repair All / Remove All Pairings** — bulk actions in My Accessories toolbar
+- **Live event toasts** — polling hook with per-accessory bell toggle, configurable position/duration/max visible in Settings
+- **Toast notification system** — centered pill banners using skin accent colors, wired into save/delete flows
+- **Quiet hours API** and muting support
+- **Auto re-pair** — stored PIN with circuit breaker for automatic re-pairing on auth failure
+- **Connection recovery** — re-discover device on connection failure before reconnect
+- **Multi-platform Docker builds** (amd64 + arm64)
 
 ### Changed
 - Migrate container images from GHCR to Docker Hub
 - Matter controller/runtime improvements and quiet hours exclusions
-- Pass API_TOKEN to web container for nginx proxy auth
-- Switch test stack to named Docker networks
 - Container image cleanup workflow
+- Reorganize docs and lowercase branding
+- Multiple controllers documentation with Homebridge insecure mode guidance
+
+### Fixed
+- Dark mode consistency across Settings, My Accessories, FilterBar, chart axes, tooltips
+- Light mode readability, skin-aware charts, room label colors
+- API hardening and security improvements
+- Error 6 message now says "Device is already paired" instead of "Device is unavailable"
+- Discovery API preserves device sf status flag
+- Initial poll flooding timeline, dashboard empty state
+- Standalone build fixes (PGDG repo, gosu, recursive chown)
 
 ## [0.1.4] — 2026-03-15
 
 ### Added
-- Skeleton shimmer loading for all dashboard charts and lists
+- Skeleton shimmer loading for dashboard charts and lists
 - Toast notification system (ToastProvider + useToast hook)
-- Manage tab UX overhaul: default tab My Devices, sticky save bar, room autocomplete, save-flash animation
-- Tab slide animations with CSS keyframes
-
-### Fixed
-- Dark mode fully applied to all Manage sub-tabs (Settings, Setup, MyDevices, AddDevices)
-
-## [0.1.4-beta.14] — 2026-03-12
-
-### Added
-- Dark mode support for chart axes, titles, and tooltips
-- Show bridge names instead of MAC addresses
-
-### Fixed
-- Replace hardcoded dark mode colors with CSS variables
-- Fix initial poll flooding timeline
-- Restore slate/alabaster themes
-
-## [0.1.4-beta.12] — 2026-03-10
-
-### Fixed
-- Theme selector and heatmap accessory filter
-
-## [0.1.4-beta.11] — 2026-03-09
-
-### Added
-- Real health checks to /api/health and Dockerfile
-- Quiet-time muting
-
-### Fixed
-- Timeline jump crash and cap heatmap row count
-- Theme styles and room color palette
-
-## [0.1.4-beta.10] — 2026-03-08
-
-### Fixed
-- Dashboard dark mode for anomaly panel, quiet hours, and tooltips
-- Poll initial characteristic values on connect so all accessories appear immediately
-
-## [0.1.4-beta.9] — 2026-03-07
-
-### Fixed
-- Standalone build: add PGDG repo for PostgreSQL 16, replace su-exec with gosu
-
-## [0.1.4-beta.7] — 2026-03-05
-
-### Added
-- Auto-generate API token on first standalone run
-- Quiet hours API
-
-### Changed
-- Reorganize docs and lowercase branding across all files
-- Dashboard polish and dark mode tooltip fixes
-
-## [0.1.4-beta.6] — 2026-03-04
-
-### Added
+- Manage tab UX overhaul: default tab, sticky save bar, room autocomplete, save-flash animation
+- Tab slide animations
+- Dark mode for chart axes, bridge names instead of MAC addresses
+- Real health checks, quiet-time muting
 - Standalone Docker image (all-in-one: PostgreSQL + listener + web)
-
-### Fixed
-- MIT references updated to AGPL-3.0 in README and docs
-
-## [0.1.4-beta.5] — 2026-03-03
-
-### Added
+- Auto-generate API token on first standalone run
 - Protocol badges on device cards
-- Improved room color hashing
-
-### Changed
-- License changed from MIT to AGPL-3.0
-
-## [0.1.4-beta.3] — 2026-03-01
-
-### Added
-- Performance, security hardening, and accessibility improvements
 - Slate and Alabaster themes
-
-### Fixed
-- Theme contrast improvements
-- Dockerfile: use built-in node user instead of creating uid 1000
-
-## [0.1.4-beta.2] — 2026-02-28
-
-### Added
-- New themes (Teal, Slate, Alabaster)
-- Settings sections and UX polish
-- "Accessories" terminology (replaces "devices" in UI)
+- Scene/episode tuning settings, accent-themed heatmap
 
 ### Changed
 - Bump Express to v5, date-fns to v4, actions/checkout to v6
+- License changed from MIT to AGPL-3.0
+- "Accessories" terminology replaces "devices" in UI
 
-## [0.1.4-beta.1] — 2026-02-27
-
-### Added
-- Scene/episode tuning settings
-- Accent-themed heatmap
+### Fixed
+- Dark mode across all Manage sub-tabs
+- Theme selector and heatmap accessory filter
+- Timeline jump crash, heatmap row count cap
+- Standalone build (PostgreSQL 16 PGDG repo, gosu)
+- Dockerfile: use built-in node user
 
 ## [0.1.3] — 2026-02-25
 
 ### Added
 - Docsify documentation site at /guide/
-- Update available indicator in footer
-- Collapse bridge devices in accessories
-- Archive before delete setting
-- Device notes backend and UI
+- Update available indicator, collapsible bridge devices, archive before delete, device notes
 - Dark mode for PIN help and Matter help modals
 
-### Changed
-- Clean version tag in footer (remove Build prefix and commit hash)
-- Dark mode audit fixes across all components
-
 ### Fixed
-- Quiet hours configuration
-- Close button visibility in dark mode
+- Quiet hours configuration, close button visibility in dark mode
 
 ## [0.1.2] — 2026-02-20
 
@@ -147,48 +75,25 @@ All notable changes to homechronicle are documented in this file.
 - Accessory detail page: reliability score, metadata, anomalies, trends, protocol info
 
 ### Fixed
-- Stale web cache loading
-- Accessories back navigation
+- Stale web cache, accessories back navigation
 
 ## [0.1.1] — 2026-02-15
 
 ### Added
 - Portainer compose example and deployment docs
-- GitHub security baseline (SECURITY.md, Dependabot, CodeQL, CI permissions)
-- Copy button on docs site
+- GitHub security baseline (SECURITY.md, Dependabot, CodeQL)
 
 ### Changed
-- Suppress Matter startup snapshot timeline events
-- Update Docker compose for Portainer compatibility
-- Document pod networking and listener host fallbacks
+- Suppress Matter startup snapshot events
+- Pod networking and listener host fallback docs
 
 ## [0.1.0] — 2026-02-01
 
 ### Added
-- Initial release
-- HomeKit device discovery and pairing via HAP
-- Matter device commissioning via matter.js
-- Event timeline with search and filtering
-- Dashboard with activity analytics, trend charts, and heatmaps
-- Accessory list with room assignment
-- Webhook alert rules with quiet-period suppression
-- Docker Compose deployment (PostgreSQL + listener + web)
-- Dark mode support
-- PWA-ready web interface
+- Initial release: HomeKit discovery/pairing (HAP), Matter commissioning, event timeline, dashboard analytics, accessory management, webhook alerts, Docker Compose deployment, dark mode, PWA
 
-[0.1.5-beta.1]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.16...v0.1.5-beta.1
+[0.1.5]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4...v0.1.5
 [0.1.4]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.3...v0.1.4
-[0.1.4-beta.14]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.13...v0.1.4-beta.14
-[0.1.4-beta.12]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.11...v0.1.4-beta.12
-[0.1.4-beta.11]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.10...v0.1.4-beta.11
-[0.1.4-beta.10]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.9...v0.1.4-beta.10
-[0.1.4-beta.9]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.8...v0.1.4-beta.9
-[0.1.4-beta.7]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.6...v0.1.4-beta.7
-[0.1.4-beta.6]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.5...v0.1.4-beta.6
-[0.1.4-beta.5]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.4...v0.1.4-beta.5
-[0.1.4-beta.3]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.2...v0.1.4-beta.3
-[0.1.4-beta.2]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4-beta.1...v0.1.4-beta.2
-[0.1.4-beta.1]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.3...v0.1.4-beta.1
 [0.1.3]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.2...v0.1.3
 [0.1.2]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.1...v0.1.2
 [0.1.1]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.0...v0.1.1
