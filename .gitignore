@@ -28,9 +28,11 @@ Thumbs.db
 # Docker volumes / local data
 postgres-data/
 docker-compose.override.yml
+docker-compose.gitlab-runner.yml
 
-# Test environment
+# Test / beta environment
 .env.test
+.env.beta
 listener/data-test/
 
 # Local helper scripts
