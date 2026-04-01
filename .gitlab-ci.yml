@@ -108,10 +108,11 @@ validate-release:
       EFFECTIVE_TAG="${CI_COMMIT_TAG:-$BUILD_TAG}"
       VERSION="${EFFECTIVE_TAG#v}"
 
-      # Build a single-platform image for Trivy scanning (buildx multi-platform
-      # images can't be loaded locally, so scan the native arch only).
+      # Build a single-platform image for Trivy scanning using buildx so the
+      # layer cache is shared with the multi-platform build that follows.
       echo "Building ${IMAGE}:${VERSION} (native arch) for scanning..."
-      docker build \
+      docker buildx build \
+        --load \
         --build-arg VITE_BUILD_VERSION="${EFFECTIVE_TAG}" \
         -f "${DOCKERFILE}" \
         -t "${IMAGE}:scan" \
@@ -161,6 +162,7 @@ build-web:
 
 build-standalone:
   extends: .build-base
+  timeout: 3h
   variables:
     SERVICE: standalone
     CONTEXT: "."
