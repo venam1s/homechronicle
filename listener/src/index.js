@@ -2055,7 +2055,15 @@ app.get('/api/health', async (_req, res) => {
   const subscribers = getSubscriberHealth();
   const runtimeStatus = matterRuntime?.getStatus?.() ?? null;
 
-  const healthy = dbOk && (subscribers.total === 0 || subscribers.connected > 0);
+  // Grace period: tolerate transient HAP disconnects for up to 2 minutes
+  // before reporting unhealthy (reconnects typically complete in seconds).
+  const disconnectGraceMs = 2 * 60_000;
+  let subscribersOk = subscribers.total === 0 || subscribers.connected > 0;
+  if (!subscribersOk && subscribers.lastConnectedAt) {
+    const elapsed = Date.now() - new Date(subscribers.lastConnectedAt).getTime();
+    subscribersOk = elapsed < disconnectGraceMs;
+  }
+  const healthy = dbOk && subscribersOk;
 
   res.status(healthy ? 200 : 503).json({
     status: healthy ? 'ok' : 'unhealthy',

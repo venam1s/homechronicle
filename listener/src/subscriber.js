@@ -578,6 +578,7 @@ export function getSubscriberHealth() {
   let connected = 0;
   let stale = 0;
   let needsRepair = 0;
+  let lastConnectedAt = null;
   const staleThresholdMs = 10 * 60_000; // 10 minutes with no subscribe success
   const now = Date.now();
 
@@ -589,9 +590,11 @@ export function getSubscriberHealth() {
     if (!lastSub || now - new Date(lastSub).getTime() > staleThresholdMs) {
       stale += 1;
     }
+    const lc = session.stats.lastConnectedAt;
+    if (lc && (!lastConnectedAt || lc > lastConnectedAt)) lastConnectedAt = lc;
   }
 
-  return { total, connected, stale, needsRepair };
+  return { total, connected, stale, needsRepair, lastConnectedAt };
 }
 
 export function resetSubscriberStats(deviceId) {
