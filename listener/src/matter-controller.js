@@ -397,7 +397,9 @@ export async function discover(timeoutMs = 10_000) {
     const timer = setTimeout(() => {
       try {
         controller.cancelCommissionableDeviceDiscovery({});
-      } catch { /* ignore */ }
+      } catch (err) {
+        log.debug('[matter] cancelDiscovery error:', err.message);
+      }
       resolve();
     }, timeoutMs);
 
@@ -458,7 +460,8 @@ export function getStatus() {
       ready: true,
       commissionedNodes: nodes.map((n) => String(n)),
     };
-  } catch {
+  } catch (err) {
+    log.debug('[matter] getCommissionedNodes failed:', err.message);
     return { ready: controllerReady, commissionedNodes: [] };
   }
 }

@@ -12,6 +12,7 @@
 
 import { IPDiscovery, HttpClient } from 'hap-controller';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { log } from './logger.js';
 
 // When running locally (outside Docker), save pairings here instead of /app/data
 const PAIRINGS_FILE = process.env.PAIRINGS_FILE
@@ -34,7 +35,8 @@ function loadPairings() {
   if (existsSync(PAIRINGS_FILE)) {
     try {
       return JSON.parse(readFileSync(PAIRINGS_FILE, 'utf8'));
-    } catch {
+    } catch (err) {
+      log.debug('[pairing] Failed to parse pairings file, using empty map:', err.message);
       return {};
     }
   }
