@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Error Handler Foundation** - Add process-level error containment and silent-catch logging
 - [ ] **Phase 2: Migration System** - Adopt node-pg-migrate, retire init.sql, add alert_deliveries retention
 - [x] **Phase 3: COUNT Optimization** - Replace full-table COUNT(*) with estimated reltuples for unfiltered pagination (completed 2026-04-02)
-- [ ] **Phase 4: Router Extraction (Simple)** - Extract utils, archive, data, stats, and health routers with integration tests
+- [x] **Phase 4: Router Extraction (Simple)** - Extract utils, archive, data, stats, and health routers with integration tests (completed 2026-04-02)
 - [ ] **Phase 5: Router Extraction (Accessories)** - Extract accessories router with integration tests
 - [ ] **Phase 6: Router Extraction (Setup)** - Extract setup/pairing router with integration tests; index.js reaches target size
 
@@ -79,8 +79,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Extract utils.js + archive-router.js with integration tests (RTR-01, RTR-02, RTR-07, RTR-09, TST-01)
-- [ ] 04-02-PLAN.md — Extract stats-router.js + health-router.js with integration tests (RTR-03, RTR-04, RTR-07, RTR-09, TST-02, TST-03, TST-06)
+- [x] 04-01-PLAN.md — Extract utils.js + archive-router.js with integration tests (RTR-01, RTR-02, RTR-07, RTR-09, TST-01)
+- [x] 04-02-PLAN.md — Extract stats-router.js + health-router.js with integration tests (RTR-03, RTR-04, RTR-07, RTR-09, TST-02, TST-03, TST-06)
 
 ### Phase 5: Router Extraction (Accessories)
 **Goal**: Accessories routes live in a dedicated router file with full integration test coverage
@@ -120,6 +120,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Error Handler Foundation | 1/2 | In Progress|  |
 | 2. Migration System | 1/2 | In Progress|  |
 | 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
-| 4. Router Extraction (Simple) | 0/2 | Not started | - |
+| 4. Router Extraction (Simple) | 2/2 | Complete   | 2026-04-02 |
 | 5. Router Extraction (Accessories) | 0/? | Not started | - |
 | 6. Router Extraction (Setup) | 0/? | Not started | - |
