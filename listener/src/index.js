@@ -33,6 +33,17 @@ import {
 } from './accessory-metadata.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
 
+// ─── Process-level error handlers — registered before any async operations ───
+// D-01: Log rejection but do NOT exit — exiting kills HAP subscriptions
+process.on('unhandledRejection', (reason, _promise) => {
+  log.error('[process] Unhandled promise rejection:', reason?.message ?? reason?.stack ?? reason);
+});
+// D-02: Log exception and exit — Docker restart policy handles recovery
+process.on('uncaughtException', (err) => {
+  log.error('[process] Uncaught exception — exiting for clean Docker restart:', err.message ?? err.stack ?? err);
+  process.exit(1);
+});
+
 const PAIRINGS_FILE = process.env.PAIRINGS_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/pairings.json' : './data/pairings.json');
 
@@ -101,7 +112,7 @@ function normalizeMatterNodeId(value) {
   if (!text) return null;
   try {
     return BigInt(text).toString();
-  } catch {
+  } catch { // flow-control catch — correct, no change
     return text.toUpperCase();
   }
 }
@@ -161,7 +172,7 @@ function isAllowedCorsOrigin(origin) {
   try {
     const parsed = new URL(origin);
     return isLoopbackHostname(parsed.hostname);
-  } catch {
+  } catch { // flow-control catch — correct, no change
     return false;
   }
 }
@@ -478,27 +489,34 @@ async function discoverDeviceForRepair(deviceId) {
     discovery.on('serviceUp', (service) => {
       if (service.id !== deviceId || settled) return;
       settled = true;
-      try { discovery.stop(); } catch { /* ignore */ }
+      try { discovery.stop(); } catch (err) {
+        log.debug('[discovery] stop error on serviceUp:', err.message);
+      }
       resolve({ address: service.address, port: service.port });
     });
 
     discovery.on('error', () => {
       if (settled) return;
       settled = true;
-      try { discovery.stop(); } catch { /* ignore */ }
+      try { discovery.stop(); } catch (err) {
+        log.debug('[discovery] stop error on discovery error:', err.message);
+      }
       resolve(null);
     });
 
     try {
       discovery.start();
-    } catch {
+    } catch (err) {
+      log.debug('[discovery] start failed during repair:', err.message);
       return resolve(null);
     }
 
     setTimeout(() => {
       if (settled) return;
       settled = true;
-      try { discovery.stop(); } catch { /* ignore */ }
+      try { discovery.stop(); } catch (err) {
+        log.debug('[discovery] stop error on timeout:', err.message);
+      }
       resolve(null);
     }, 10_000);
   });
@@ -2050,7 +2068,9 @@ app.get('/api/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
     dbOk = true;
-  } catch { /* leave dbOk false */ }
+  } catch (err) {
+    log.debug('[health] DB connectivity check failed:', err.message);
+  }
 
   const subscribers = getSubscriberHealth();
   const runtimeStatus = matterRuntime?.getStatus?.() ?? null;
@@ -2077,6 +2097,15 @@ app.get('/api/health', async (_req, res) => {
       activeNodes: runtimeStatus.nodes?.length ?? 0,
     } : null,
   });
+});
+
+// ─── Global error handler — MUST remain the final app.use() in index.js ───
+// D-03: Returns { error: 'Internal server error' } — matches existing route handler pattern
+// D-06: Safety net only; existing route try/catch blocks are preserved
+app.use(function globalExpressErrorHandler(err, req, res, _next) {
+  log.error(`[express] Unhandled route error ${req.method} ${req.path}:`, err.message ?? err.stack ?? err);
+  if (res.headersSent) return;
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 const API_BIND_ADDRESS = (process.env.API_BIND_ADDRESS ?? '').trim() || '0.0.0.0';
