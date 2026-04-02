@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-04-02T05:50:27.326Z"
+stopped_at: Completed 03-count-optimization 03-01-PLAN.md
+last_updated: "2026-04-02T06:13:55.220Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 02 — migration-system
+**Current focus:** Phase 03 — count-optimization
 
 ## Current Position
 
-Phase: 02 (migration-system) — EXECUTING
-Plan: 2 of 2
+Phase: 03 (count-optimization) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-02
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-error-handler-foundation P02 | 15 | 2 tasks | 4 files |
 | Phase 02-migration-system P01 | 4 | 2 tasks | 6 files |
 | Phase 02-migration-system P02 | 525602 | 2 tasks | 8 files |
+| Phase 03-count-optimization P01 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase 02-migration-system]: Fake-apply gate uses information_schema.tables for both event_logs and pgmigrations detection
 - [Phase 02-migration-system]: Static source inspection for alert retention tests — consistent with project pattern
 - [Phase 02-migration-system]: db/init.sql kept as reference but fully retired from all Docker entrypoints
+- [Phase 03-count-optimization]: Unfiltered /api/events uses pg_class.reltuples (estimated=true); filtered requests use exact COUNT (estimated=false); reltuples <= 0 falls back to exact COUNT
 
 ### Pending Todos
 
@@ -91,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T05:50:27.321Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-04-02T06:13:55.216Z
+Stopped at: Completed 03-count-optimization 03-01-PLAN.md
 Resume file: None

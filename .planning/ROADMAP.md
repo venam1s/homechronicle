@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Error Handler Foundation** - Add process-level error containment and silent-catch logging
 - [ ] **Phase 2: Migration System** - Adopt node-pg-migrate, retire init.sql, add alert_deliveries retention
-- [ ] **Phase 3: COUNT Optimization** - Replace full-table COUNT(*) with estimated reltuples for unfiltered pagination
+- [x] **Phase 3: COUNT Optimization** - Replace full-table COUNT(*) with estimated reltuples for unfiltered pagination (completed 2026-04-02)
 - [ ] **Phase 4: Router Extraction (Simple)** - Extract utils, archive, data, stats, and health routers with integration tests
 - [ ] **Phase 5: Router Extraction (Accessories)** - Extract accessories router with integration tests
 - [ ] **Phase 6: Router Extraction (Setup)** - Extract setup/pairing router with integration tests; index.js reaches target size
@@ -61,7 +61,10 @@ Plans:
   2. The API response includes `"estimated": true` when the estimated count is used so callers know the value is approximate
   3. A filtered `/api/events` request (by device, date range, etc.) still returns an exact `COUNT(*)` result
   4. On a fresh install where `reltuples` is zero or negative, the endpoint falls back to exact count and does not return zero
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [x] 03-01-PLAN.md — TDD: Replace COUNT(*) with reltuples for unfiltered /api/events pagination
 
 ### Phase 4: Router Extraction (Simple Groups)
 **Goal**: Archive, data, stats, and health routes live in dedicated router files; shared utilities no longer couple routers together
@@ -73,7 +76,10 @@ Plans:
   3. Integration tests for each extracted router pass under `npm test` using the existing mock-pool pattern
   4. All pre-existing tests continue to pass (`npm test` green) after extraction
   5. `retentionSettings` is accessed via a `getRetentionSettings()` callback in every router that needs it, not captured by value at construction
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md — TDD: Replace COUNT(*) with reltuples for unfiltered /api/events pagination
 
 ### Phase 5: Router Extraction (Accessories)
 **Goal**: Accessories routes live in a dedicated router file with full integration test coverage
@@ -84,7 +90,10 @@ Plans:
   2. Integration tests for `accessories-router.js` pass under `npm test` covering list, detail, and characteristic history endpoints
   3. All pre-existing tests continue to pass after extraction
   4. `index.js` is below 800 lines after this extraction
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md — TDD: Replace COUNT(*) with reltuples for unfiltered /api/events pagination
 
 ### Phase 6: Router Extraction (Setup)
 **Goal**: Setup, pairing, rooms, display-names, notes, and log-level routes live in a dedicated router file; index.js reaches its target size
@@ -95,7 +104,10 @@ Plans:
   2. `discoveryCache` is accessed exclusively via getter/setter callbacks injected at construction time — no snapshot captured at startup
   3. Integration tests for `setup-router.js` pass under `npm test` and include at least one test that exercises a route after simulating a cache state change
   4. `index.js` is between 300 and 400 lines and contains only store init, Matter/HAP bootstrap, background jobs, middleware registration, router mounts, and `app.listen()`
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md — TDD: Replace COUNT(*) with reltuples for unfiltered /api/events pagination
 
 ## Progress
 
@@ -106,7 +118,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Error Handler Foundation | 1/2 | In Progress|  |
 | 2. Migration System | 1/2 | In Progress|  |
-| 3. COUNT Optimization | 0/? | Not started | - |
+| 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
 | 4. Router Extraction (Simple) | 0/? | Not started | - |
 | 5. Router Extraction (Accessories) | 0/? | Not started | - |
 | 6. Router Extraction (Setup) | 0/? | Not started | - |
