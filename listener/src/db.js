@@ -3,6 +3,9 @@
  */
 
 import pg from 'pg';
+import { runner } from 'node-pg-migrate';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { log } from './logger.js';
 
 const { Pool } = pg;
@@ -65,171 +68,67 @@ export async function insertEvent(event) {
 }
 
 /**
- * Ensure the database schema exists.
- * Safe to call on every startup — uses IF NOT EXISTS throughout.
+ * Run all pending database migrations using node-pg-migrate.
+ * On existing installs where the schema exists but pgmigrations tracking
+ * has not yet been set up, the baseline migration is fake-applied so that
+ * node-pg-migrate does not attempt to re-create already-existing objects.
  */
 export async function migrateDb() {
-  await pool.query(`
-    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+  const migrationsDir = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../migrations',
+  );
 
-    CREATE TABLE IF NOT EXISTS event_logs (
-      id              BIGSERIAL PRIMARY KEY,
-      timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      accessory_id    TEXT        NOT NULL,
-      accessory_name  TEXT        NOT NULL,
-      room_name       TEXT,
-      service_type    TEXT,
-      characteristic  TEXT        NOT NULL,
-      old_value       TEXT,
-      new_value       TEXT        NOT NULL,
-      protocol        TEXT        NOT NULL DEFAULT 'homekit',
-      transport       TEXT,
-      endpoint_id     INT,
-      cluster_id      BIGINT,
-      attribute_id    BIGINT,
-      raw_iid         INT
-    );
-
-    CREATE TABLE IF NOT EXISTS event_logs_archive (
-      archived_id     BIGSERIAL PRIMARY KEY,
-      source_id       BIGINT      NOT NULL,
-      timestamp       TIMESTAMPTZ NOT NULL,
-      accessory_id    TEXT        NOT NULL,
-      accessory_name  TEXT        NOT NULL,
-      room_name       TEXT,
-      service_type    TEXT,
-      characteristic  TEXT        NOT NULL,
-      old_value       TEXT,
-      new_value       TEXT        NOT NULL,
-      protocol        TEXT        NOT NULL DEFAULT 'homekit',
-      transport       TEXT,
-      endpoint_id     INT,
-      cluster_id      BIGINT,
-      attribute_id    BIGINT,
-      raw_iid         INT,
-      archived_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-
-    ALTER TABLE event_logs
-      ADD COLUMN IF NOT EXISTS protocol TEXT NOT NULL DEFAULT 'homekit',
-      ADD COLUMN IF NOT EXISTS transport TEXT,
-      ADD COLUMN IF NOT EXISTS endpoint_id INT,
-      ADD COLUMN IF NOT EXISTS cluster_id BIGINT,
-      ADD COLUMN IF NOT EXISTS attribute_id BIGINT;
-
-    ALTER TABLE event_logs_archive
-      ADD COLUMN IF NOT EXISTS protocol TEXT NOT NULL DEFAULT 'homekit',
-      ADD COLUMN IF NOT EXISTS transport TEXT,
-      ADD COLUMN IF NOT EXISTS endpoint_id INT,
-      ADD COLUMN IF NOT EXISTS cluster_id BIGINT,
-      ADD COLUMN IF NOT EXISTS attribute_id BIGINT;
-
-    CREATE TABLE IF NOT EXISTS alert_rules (
-      id              BIGSERIAL PRIMARY KEY,
-      name            TEXT        NOT NULL,
-      enabled         BOOLEAN     NOT NULL DEFAULT TRUE,
-      scope_type      TEXT        NOT NULL DEFAULT 'all',
-      scope_value     TEXT,
-      characteristic  TEXT,
-      operator        TEXT        NOT NULL DEFAULT 'equals',
-      match_value     TEXT        NOT NULL,
-      target_url      TEXT        NOT NULL,
-      quiet_minutes   INT         NOT NULL DEFAULT 0,
-      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      CONSTRAINT chk_alert_scope_type
-        CHECK (scope_type IN ('all', 'room', 'accessory', 'characteristic')),
-      CONSTRAINT chk_alert_operator
-        CHECK (operator IN ('equals', 'not_equals', 'contains')),
-      CONSTRAINT chk_alert_quiet_minutes
-        CHECK (quiet_minutes >= 0 AND quiet_minutes <= 10080)
-    );
-
-    CREATE TABLE IF NOT EXISTS alert_deliveries (
-      id              BIGSERIAL PRIMARY KEY,
-      rule_id         BIGINT      NOT NULL REFERENCES alert_rules(id) ON DELETE CASCADE,
-      event_id        BIGINT      REFERENCES event_logs(id) ON DELETE SET NULL,
-      status          TEXT        NOT NULL,
-      target_url      TEXT        NOT NULL,
-      response_code   INT,
-      error           TEXT,
-      sent_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      CONSTRAINT chk_alert_delivery_status
-        CHECK (status IN ('sent', 'failed', 'suppressed'))
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_event_logs_archive_source_id
-      ON event_logs_archive (source_id);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_timestamp_id
-      ON event_logs (timestamp DESC, id DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_accessory
-      ON event_logs (accessory_name);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_accessory_ts
-      ON event_logs (accessory_name, timestamp DESC, id DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_accessory_trgm
-      ON event_logs USING GIN (accessory_name gin_trgm_ops);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_room
-      ON event_logs (room_name);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_room_ts
-      ON event_logs (room_name, timestamp DESC, id DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_char
-      ON event_logs (characteristic);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_char_ts
-      ON event_logs (characteristic, timestamp DESC, id DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_timestamp_trunc
-      ON event_logs (date_trunc('hour', timestamp AT TIME ZONE 'UTC'));
-
-    CREATE INDEX IF NOT EXISTS idx_event_logs_accessory_id_ts
-      ON event_logs (accessory_id, timestamp DESC, id DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled
-      ON alert_rules (enabled);
-
-    CREATE INDEX IF NOT EXISTS idx_alert_rules_updated
-      ON alert_rules (updated_at DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_alert_deliveries_rule_sent
-      ON alert_deliveries (rule_id, sent_at DESC);
-
-    CREATE INDEX IF NOT EXISTS idx_alert_deliveries_event
-      ON alert_deliveries (event_id);
+  // Check if this is an existing install (event_logs already exists)
+  const { rows: tableRows } = await pool.query(`
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'event_logs'
   `);
+  const hasEventLogs = tableRows.length > 0;
 
-  // One-time cleanup: remove initial-poll events that were incorrectly
-  // inserted as real activity (old_value IS NULL in bursts of 5+ per second).
-  // Guarded by a migrations table so it only runs once.
-  await pool.query(`CREATE TABLE IF NOT EXISTS _migrations (key TEXT PRIMARY KEY, done_at TIMESTAMPTZ DEFAULT NOW())`);
-  const migrationCheck = await pool.query(`SELECT 1 FROM _migrations WHERE key = 'initial_poll_cleanup'`);
-  if (migrationCheck.rowCount === 0) {
-    const cleanup = await pool.query(`
-      DELETE FROM event_logs
-      WHERE id IN (
-        SELECT e.id
-        FROM event_logs e
-        JOIN (
-          SELECT date_trunc('second', timestamp) AS sec
-          FROM event_logs
-          WHERE old_value IS NULL
-          GROUP BY date_trunc('second', timestamp)
-          HAVING COUNT(*) >= 5
-        ) burst ON date_trunc('second', e.timestamp) = burst.sec
-        WHERE e.old_value IS NULL
-      )
-    `);
-    if (cleanup.rowCount > 0) {
-      log.info(`[db] Cleaned up ${cleanup.rowCount} initial-poll event(s).`);
+  // Check if pgmigrations already tracks the baseline
+  let baselineAlreadyTracked = false;
+  if (hasEventLogs) {
+    try {
+      const { rows: pgmRows } = await pool.query(`
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'pgmigrations'
+      `);
+      if (pgmRows.length > 0) {
+        const { rows: baselineRows } = await pool.query(
+          `SELECT 1 FROM pgmigrations WHERE name = '0001_baseline'`,
+        );
+        baselineAlreadyTracked = baselineRows.length > 0;
+      }
+    } catch {
+      // pgmigrations doesn't exist yet — baseline not tracked
     }
-    await pool.query(`INSERT INTO _migrations (key) VALUES ('initial_poll_cleanup')`);
   }
+
+  // Existing install without pgmigrations: fake-apply baseline only
+  if (hasEventLogs && !baselineAlreadyTracked) {
+    await runner({
+      databaseUrl: process.env.DATABASE_URL,
+      dir: migrationsDir,
+      direction: 'up',
+      count: 1,
+      fake: true,
+      migrationsTable: 'pgmigrations',
+      singleTransaction: true,
+      log: (msg) => log.debug('[migrate]', msg),
+    });
+    log.info('[db] Existing install detected — baseline migration marked as applied.');
+  }
+
+  // Run all pending migrations
+  await runner({
+    databaseUrl: process.env.DATABASE_URL,
+    dir: migrationsDir,
+    direction: 'up',
+    migrationsTable: 'pgmigrations',
+    singleTransaction: true,
+    log: (msg) => log.debug('[migrate]', msg),
+  });
 
   log.info('[db] Schema ready.');
 }
