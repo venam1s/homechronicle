@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-04-02T22:27:24.951Z"
+status: executing
+stopped_at: Completed 06-01-PLAN.md (setup-router extraction)
+last_updated: "2026-04-02T23:13:33.269Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 05 — router-extraction-accessories
+**Current focus:** Phase 06 — router-extraction-setup
 
 ## Current Position
 
-Phase: 05 (router-extraction-accessories) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
+Phase: 06 (router-extraction-setup) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-router-extraction-simple-groups P01 | 15 | 3 tasks | 6 files |
 | Phase 04-router-extraction-simple-groups P02 | 8 | 3 tasks | 5 files |
 | Phase 05-router-extraction-accessories P01 | 10 | 2 tasks | 3 files |
+| Phase 06-router-extraction-setup P01 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Recent decisions affecting current work:
 - [Phase 04-router-extraction-simple-groups]: getMatterRuntime() called per-request in health handler — avoids null capture when runtime initializes after startup
 - [Phase 05-router-extraction-accessories]: HttpClient injected as factory dep in accessories-router.js for testability — no direct hap-controller import in router
 - [Phase 05-router-extraction-accessories]: 800-line index.js target is Phase 5+6 combined goal — Phase 5 alone yields ~1162 from 1683
+- [Phase 06-router-extraction-setup]: discoveryCache accessed via getDiscoveryCache()/setDiscoveryCache() callbacks (RTR-08) — matches matterDiscoveryCache pattern
+- [Phase 06-router-extraction-setup]: getPairingForLookup extracted as named function replacing three identical inline pairingsStore closures
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T22:27:24.949Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-04-02T23:13:33.267Z
+Stopped at: Completed 06-01-PLAN.md (setup-router extraction)
 Resume file: None

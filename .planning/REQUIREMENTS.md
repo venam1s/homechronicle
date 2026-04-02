@@ -37,11 +37,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **RTR-03**: Stats routes are extracted to `listener/src/stats-router.js`
 - [x] **RTR-04**: Health endpoint is extracted to `listener/src/health-router.js`
 - [x] **RTR-05**: Accessories routes are extracted to `listener/src/accessories-router.js`
-- [ ] **RTR-06**: Setup, pairing, rooms, display-names, notes, and log-level routes are extracted to `listener/src/setup-router.js`
+- [x] **RTR-06**: Setup, pairing, rooms, display-names, notes, and log-level routes are extracted to `listener/src/setup-router.js`
 - [x] **RTR-07**: Extracted routers use the factory function pattern (`createXxxRouter(deps)`) consistent with existing routers
-- [ ] **RTR-08**: `discoveryCache` is passed to setup-router via getter/setter callbacks, not by value
+- [x] **RTR-08**: `discoveryCache` is passed to setup-router via getter/setter callbacks, not by value
 - [x] **RTR-09**: `retentionSettings` is passed to routers via `getRetentionSettings()` callback
-- [ ] **RTR-10**: After extraction, `index.js` contains only store init, Matter/HAP bootstrap, background jobs, global middleware, router mounts, and `app.listen()` (~300-400 lines)
+- [x] **RTR-10**: After extraction, `index.js` contains only store init, Matter/HAP bootstrap, background jobs, global middleware, router mounts, and `app.listen()` (~300-400 lines)
 
 ### Testing
 
@@ -111,9 +111,9 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | TST-06 | Phase 4 | Complete |
 | RTR-05 | Phase 5 | Complete |
 | TST-04 | Phase 5 | Complete |
-| RTR-06 | Phase 6 | Pending |
-| RTR-08 | Phase 6 | Pending |
-| RTR-10 | Phase 6 | Pending |
+| RTR-06 | Phase 6 | Complete |
+| RTR-08 | Phase 6 | Complete |
+| RTR-10 | Phase 6 | Complete |
 | TST-05 | Phase 6 | Pending |
 
 **Coverage:**

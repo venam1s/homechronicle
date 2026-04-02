@@ -108,7 +108,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Extract setup-router.js factory with all 18 route handlers and wire into index.js (RTR-06, RTR-08, RTR-10)
+- [x] 06-01-PLAN.md — Extract setup-router.js factory with all 18 route handlers and wire into index.js (RTR-06, RTR-08, RTR-10)
 - [ ] 06-02-PLAN.md — Create integration tests for setup-router.js (TST-05)
 
 ## Progress
@@ -123,4 +123,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
 | 4. Router Extraction (Simple) | 2/2 | Complete   | 2026-04-02 |
 | 5. Router Extraction (Accessories) | 1/1 | Complete   | 2026-04-02 |
-| 6. Router Extraction (Setup) | 0/2 | Not started | - |
+| 6. Router Extraction (Setup) | 1/2 | In Progress|  |
