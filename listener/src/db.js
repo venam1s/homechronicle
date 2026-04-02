@@ -185,4 +185,26 @@ export async function runRetentionSweep({
   }
 }
 
+export async function runAlertDeliveriesRetentionSweep({ retentionDays }) {
+  if (!Number.isFinite(retentionDays) || retentionDays <= 0) {
+    return { deleted: 0, cutoffDays: retentionDays };
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `DELETE FROM alert_deliveries WHERE sent_at < NOW() - ($1::int * INTERVAL '1 day')`,
+      [retentionDays],
+    );
+    await client.query('COMMIT');
+    return { deleted: result.rowCount, cutoffDays: retentionDays };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export { pool };

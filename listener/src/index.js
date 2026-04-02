@@ -10,7 +10,7 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { IPDiscovery, HttpClient } from 'hap-controller';
-import { insertEvent, pool, migrateDb, runRetentionSweep } from './db.js';
+import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep } from './db.js';
 import { startSubscribers, stopSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter, parentBridgeId, parseIntInRange } from './events-router.js';
@@ -73,6 +73,7 @@ const IS_PRODUCTION = String(process.env.NODE_ENV ?? 'production').trim().toLowe
 
 const RETENTION_SWEEP_MS = Number.parseInt(process.env.RETENTION_SWEEP_MS ?? `${24 * 60 * 60 * 1000}`, 10);
 const RETENTION_DAYS_DEFAULT = Number.parseInt(process.env.RETENTION_DAYS ?? '365', 10);
+const ALERT_RETENTION_DAYS = Number.parseInt(process.env.ALERT_RETENTION_DAYS ?? '90', 10);
 const RETENTION_ARCHIVE_DEFAULT = /^(1|true|yes|on)$/i.test(process.env.RETENTION_ARCHIVE ?? 'true');
 const STALE_THRESHOLD_HOURS_DEFAULT = Number.parseInt(process.env.STALE_THRESHOLD_HOURS ?? '12', 10);
 const API_WRITE_RATE_LIMIT_WINDOW_MS = Number.parseInt(process.env.API_WRITE_RATE_LIMIT_WINDOW_MS ?? '60000', 10);
@@ -566,6 +567,20 @@ async function runRetentionSweepSafe() {
     }
   } catch (err) {
     log.error('[retention] sweep failed:', err.message ?? err.stack ?? err);
+  }
+
+  // alert_deliveries retention (delete-only, no archive)
+  if (Number.isFinite(ALERT_RETENTION_DAYS) && ALERT_RETENTION_DAYS > 0) {
+    try {
+      const alertResult = await runAlertDeliveriesRetentionSweep({
+        retentionDays: ALERT_RETENTION_DAYS,
+      });
+      if (alertResult.deleted > 0) {
+        log.info(`[retention] alert_deliveries cutoff=${alertResult.cutoffDays}d deleted=${alertResult.deleted}`);
+      }
+    } catch (err) {
+      log.error('[retention] alert_deliveries sweep failed:', err.message ?? err.stack ?? err);
+    }
   }
 }
 
