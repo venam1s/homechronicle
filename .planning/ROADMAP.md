@@ -105,11 +105,12 @@ Plans:
   2. `discoveryCache` is accessed exclusively via getter/setter callbacks injected at construction time — no snapshot captured at startup
   3. Integration tests for `setup-router.js` pass under `npm test` and include at least one test that exercises a route after simulating a cache state change
   4. `index.js` is between 300 and 400 lines and contains only store init, Matter/HAP bootstrap, background jobs, middleware registration, router mounts, and `app.listen()`
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 06-01-PLAN.md — Extract setup-router.js factory with all 18 route handlers and wire into index.js (RTR-06, RTR-08, RTR-10)
 - [x] 06-02-PLAN.md — Create integration tests for setup-router.js (TST-05)
+- [ ] 06-03-PLAN.md — Extract helper functions from index.js to shared modules (RTR-10 gap closure)
 
 ## Progress
 
@@ -123,4 +124,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
 | 4. Router Extraction (Simple) | 2/2 | Complete   | 2026-04-02 |
 | 5. Router Extraction (Accessories) | 1/1 | Complete   | 2026-04-02 |
-| 6. Router Extraction (Setup) | 2/2 | Complete   | 2026-04-02 |
+| 6. Router Extraction (Setup) | 2/3 | Gap Closure | 2026-04-02 |
