@@ -2,17 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
-
-function parseIntInRange(value, fallback, min, max) {
-  const parsed = Number.parseInt(String(value ?? ''), 10);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.min(max, Math.max(min, parsed));
-}
-
-function parentBridgeId(id) {
-  const parts = String(id ?? '').split(':');
-  return parts.length > 6 ? parts.slice(0, 6).join(':') : String(id ?? '');
-}
+import { parseIntInRange, parentBridgeId } from './utils.js';
 
 const EVENTS_RATE_LIMIT_WINDOW_MS = parseIntInRange(
   process.env.EVENTS_RATE_LIMIT_WINDOW_MS,
@@ -161,5 +151,3 @@ export function createEventsRouter({ pool, getRooms }) {
 
   return router;
 }
-
-export { parentBridgeId, parseIntInRange };

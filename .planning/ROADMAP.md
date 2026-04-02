@@ -76,10 +76,11 @@ Plans:
   3. Integration tests for each extracted router pass under `npm test` using the existing mock-pool pattern
   4. All pre-existing tests continue to pass (`npm test` green) after extraction
   5. `retentionSettings` is accessed via a `getRetentionSettings()` callback in every router that needs it, not captured by value at construction
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — TDD: Replace COUNT(*) with reltuples for unfiltered /api/events pagination
+- [ ] 04-01-PLAN.md — Extract utils.js + archive-router.js with integration tests (RTR-01, RTR-02, RTR-07, RTR-09, TST-01)
+- [ ] 04-02-PLAN.md — Extract stats-router.js + health-router.js with integration tests (RTR-03, RTR-04, RTR-07, RTR-09, TST-02, TST-03, TST-06)
 
 ### Phase 5: Router Extraction (Accessories)
 **Goal**: Accessories routes live in a dedicated router file with full integration test coverage
@@ -93,7 +94,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 03-01-PLAN.md — TDD: Replace COUNT(*) with reltuples for unfiltered /api/events pagination
+- [ ] 05-01-PLAN.md — [to be planned]
 
 ### Phase 6: Router Extraction (Setup)
 **Goal**: Setup, pairing, rooms, display-names, notes, and log-level routes live in a dedicated router file; index.js reaches its target size
@@ -107,7 +108,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 03-01-PLAN.md — TDD: Replace COUNT(*) with reltuples for unfiltered /api/events pagination
+- [ ] 06-01-PLAN.md — [to be planned]
 
 ## Progress
 
@@ -119,6 +120,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Error Handler Foundation | 1/2 | In Progress|  |
 | 2. Migration System | 1/2 | In Progress|  |
 | 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
-| 4. Router Extraction (Simple) | 0/? | Not started | - |
+| 4. Router Extraction (Simple) | 0/2 | Not started | - |
 | 5. Router Extraction (Accessories) | 0/? | Not started | - |
 | 6. Router Extraction (Setup) | 0/? | Not started | - |

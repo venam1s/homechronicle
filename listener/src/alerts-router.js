@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { parseIntInRange } from './events-router.js';
+import { parseIntInRange } from './utils.js';
 import { log } from './logger.js';
 import { validateWebhookTargetUrl, rateLimitKeyGenerator } from './security.js';
 
