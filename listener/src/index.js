@@ -20,6 +20,7 @@ import { createMatterRouter } from './matter-router.js';
 import { createRetentionRouter, normalizeRetentionSettings } from './retention-router.js';
 import { createArchiveRouter } from './archive-router.js';
 import { createStatsRouter } from './stats-router.js';
+import { createHealthRouter } from './health-router.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { deriveDeviceHealth } from './device-health.js';
@@ -1642,42 +1643,13 @@ app.get('/api/accessories/:accessoryId/char-summary', apiStatsReadLimiter, async
 
 
 
-app.get('/api/health', async (_req, res) => {
-  // Verify DB connectivity with a lightweight query
-  let dbOk = false;
-  try {
-    await pool.query('SELECT 1');
-    dbOk = true;
-  } catch (err) {
-    log.debug('[health] DB connectivity check failed:', err.message);
-  }
-
-  const subscribers = getSubscriberHealth();
-  const runtimeStatus = matterRuntime?.getStatus?.() ?? null;
-
-  // Grace period: tolerate transient HAP disconnects for up to 2 minutes
-  // before reporting unhealthy (reconnects typically complete in seconds).
-  const disconnectGraceMs = 2 * 60_000;
-  let subscribersOk = subscribers.total === 0 || subscribers.connected > 0;
-  if (!subscribersOk && subscribers.lastConnectedAt) {
-    const elapsed = Date.now() - new Date(subscribers.lastConnectedAt).getTime();
-    subscribersOk = elapsed < disconnectGraceMs;
-  }
-  const healthy = dbOk && subscribersOk;
-
-  res.status(healthy ? 200 : 503).json({
-    status: healthy ? 'ok' : 'unhealthy',
-    db: dbOk ? 'ok' : 'unreachable',
-    subscribers,
-    paired: Object.keys(loadPairings()).length,
-    alertsEnabled: ALERTS_ENABLED,
-    matter: runtimeStatus ? {
-      commissionConfigured: runtimeStatus.commissionConfigured,
-      pollingConfigured: runtimeStatus.pollingConfigured,
-      activeNodes: runtimeStatus.nodes?.length ?? 0,
-    } : null,
-  });
-});
+app.use('/api', createHealthRouter({
+  pool,
+  getSubscriberHealth,
+  getMatterRuntime: () => matterRuntime,
+  loadPairings,
+  alertsEnabled: ALERTS_ENABLED,
+}));
 
 // ─── Global error handler — MUST remain the final app.use() in index.js ───
 // D-03: Returns { error: 'Internal server error' } — matches existing route handler pattern
