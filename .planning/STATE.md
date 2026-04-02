@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-04-02T21:42:14.144Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-04-02T22:27:24.951Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 6
-  completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
+  completed_phases: 5
+  total_plans: 8
+  completed_plans: 8
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 04 — router-extraction-simple-groups
+**Current focus:** Phase 05 — router-extraction-accessories
 
 ## Current Position
 
-Phase: 04 (router-extraction-simple-groups) — EXECUTING
-Plan: 2 of 2
+Phase: 05 (router-extraction-accessories) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-02
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-count-optimization P01 | 3 | 2 tasks | 2 files |
 | Phase 04-router-extraction-simple-groups P01 | 15 | 3 tasks | 6 files |
 | Phase 04-router-extraction-simple-groups P02 | 8 | 3 tasks | 5 files |
+| Phase 05-router-extraction-accessories P01 | 10 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 04-router-extraction-simple-groups]: GET /archive/count gets rate limiter for consistency — was unprotected in original index.js
 - [Phase 04-router-extraction-simple-groups]: getRetentionSettings() called per-request in quiet-hours handler (RTR-09) — avoids stale settings capture
 - [Phase 04-router-extraction-simple-groups]: getMatterRuntime() called per-request in health handler — avoids null capture when runtime initializes after startup
+- [Phase 05-router-extraction-accessories]: HttpClient injected as factory dep in accessories-router.js for testability — no direct hap-controller import in router
+- [Phase 05-router-extraction-accessories]: 800-line index.js target is Phase 5+6 combined goal — Phase 5 alone yields ~1162 from 1683
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T21:42:14.142Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-04-02T22:27:24.949Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

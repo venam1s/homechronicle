@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Migration System** - Adopt node-pg-migrate, retire init.sql, add alert_deliveries retention
 - [x] **Phase 3: COUNT Optimization** - Replace full-table COUNT(*) with estimated reltuples for unfiltered pagination (completed 2026-04-02)
 - [x] **Phase 4: Router Extraction (Simple)** - Extract utils, archive, data, stats, and health routers with integration tests (completed 2026-04-02)
-- [ ] **Phase 5: Router Extraction (Accessories)** - Extract accessories router with integration tests
+- [x] **Phase 5: Router Extraction (Accessories)** - Extract accessories router with integration tests (completed 2026-04-02)
 - [ ] **Phase 6: Router Extraction (Setup)** - Extract setup/pairing router with integration tests; index.js reaches target size
 
 ## Phase Details
@@ -94,7 +94,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md — Extract accessories-router.js factory with integration tests (RTR-05, TST-04)
+- [x] 05-01-PLAN.md — Extract accessories-router.js factory with integration tests (RTR-05, TST-04)
 
 ### Phase 6: Router Extraction (Setup)
 **Goal**: Setup, pairing, rooms, display-names, notes, and log-level routes live in a dedicated router file; index.js reaches its target size
@@ -105,10 +105,11 @@ Plans:
   2. `discoveryCache` is accessed exclusively via getter/setter callbacks injected at construction time — no snapshot captured at startup
   3. Integration tests for `setup-router.js` pass under `npm test` and include at least one test that exercises a route after simulating a cache state change
   4. `index.js` is between 300 and 400 lines and contains only store init, Matter/HAP bootstrap, background jobs, middleware registration, router mounts, and `app.listen()`
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — [to be planned]
+- [ ] 06-01-PLAN.md — Extract setup-router.js factory with all 18 route handlers and wire into index.js (RTR-06, RTR-08, RTR-10)
+- [ ] 06-02-PLAN.md — Create integration tests for setup-router.js (TST-05)
 
 ## Progress
 
@@ -121,5 +122,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Migration System | 1/2 | In Progress|  |
 | 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
 | 4. Router Extraction (Simple) | 2/2 | Complete   | 2026-04-02 |
-| 5. Router Extraction (Accessories) | 0/? | Not started | - |
-| 6. Router Extraction (Setup) | 0/? | Not started | - |
+| 5. Router Extraction (Accessories) | 1/1 | Complete   | 2026-04-02 |
+| 6. Router Extraction (Setup) | 0/2 | Not started | - |

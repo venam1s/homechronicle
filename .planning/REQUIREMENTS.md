@@ -36,7 +36,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **RTR-02**: Archive and data management routes are extracted to `listener/src/archive-router.js`
 - [x] **RTR-03**: Stats routes are extracted to `listener/src/stats-router.js`
 - [x] **RTR-04**: Health endpoint is extracted to `listener/src/health-router.js`
-- [ ] **RTR-05**: Accessories routes are extracted to `listener/src/accessories-router.js`
+- [x] **RTR-05**: Accessories routes are extracted to `listener/src/accessories-router.js`
 - [ ] **RTR-06**: Setup, pairing, rooms, display-names, notes, and log-level routes are extracted to `listener/src/setup-router.js`
 - [x] **RTR-07**: Extracted routers use the factory function pattern (`createXxxRouter(deps)`) consistent with existing routers
 - [ ] **RTR-08**: `discoveryCache` is passed to setup-router via getter/setter callbacks, not by value
@@ -48,7 +48,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **TST-01**: Integration tests exist for `archive-router.js` following the existing mock-pool pattern
 - [x] **TST-02**: Integration tests exist for `stats-router.js`
 - [x] **TST-03**: Integration tests exist for `health-router.js`
-- [ ] **TST-04**: Integration tests exist for `accessories-router.js`
+- [x] **TST-04**: Integration tests exist for `accessories-router.js`
 - [ ] **TST-05**: Integration tests exist for `setup-router.js`
 - [x] **TST-06**: All existing tests continue to pass after extraction (`npm test` in listener/)
 
@@ -109,8 +109,8 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | TST-02 | Phase 4 | Complete |
 | TST-03 | Phase 4 | Complete |
 | TST-06 | Phase 4 | Complete |
-| RTR-05 | Phase 5 | Pending |
-| TST-04 | Phase 5 | Pending |
+| RTR-05 | Phase 5 | Complete |
+| TST-04 | Phase 5 | Complete |
 | RTR-06 | Phase 6 | Pending |
 | RTR-08 | Phase 6 | Pending |
 | RTR-10 | Phase 6 | Pending |
