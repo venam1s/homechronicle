@@ -101,7 +101,7 @@ function normalizeMatterNodeId(value) {
   if (!text) return null;
   try {
     return BigInt(text).toString();
-  } catch {
+  } catch { // flow-control catch — correct, no change
     return text.toUpperCase();
   }
 }
@@ -161,7 +161,7 @@ function isAllowedCorsOrigin(origin) {
   try {
     const parsed = new URL(origin);
     return isLoopbackHostname(parsed.hostname);
-  } catch {
+  } catch { // flow-control catch — correct, no change
     return false;
   }
 }
@@ -478,27 +478,34 @@ async function discoverDeviceForRepair(deviceId) {
     discovery.on('serviceUp', (service) => {
       if (service.id !== deviceId || settled) return;
       settled = true;
-      try { discovery.stop(); } catch { /* ignore */ }
+      try { discovery.stop(); } catch (err) {
+        log.debug('[discovery] stop error on serviceUp:', err.message);
+      }
       resolve({ address: service.address, port: service.port });
     });
 
     discovery.on('error', () => {
       if (settled) return;
       settled = true;
-      try { discovery.stop(); } catch { /* ignore */ }
+      try { discovery.stop(); } catch (err) {
+        log.debug('[discovery] stop error on discovery error:', err.message);
+      }
       resolve(null);
     });
 
     try {
       discovery.start();
-    } catch {
+    } catch (err) {
+      log.debug('[discovery] start failed during repair:', err.message);
       return resolve(null);
     }
 
     setTimeout(() => {
       if (settled) return;
       settled = true;
-      try { discovery.stop(); } catch { /* ignore */ }
+      try { discovery.stop(); } catch (err) {
+        log.debug('[discovery] stop error on timeout:', err.message);
+      }
       resolve(null);
     }, 10_000);
   });
@@ -2050,7 +2057,9 @@ app.get('/api/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
     dbOk = true;
-  } catch { /* leave dbOk false */ }
+  } catch (err) {
+    log.debug('[health] DB connectivity check failed:', err.message);
+  }
 
   const subscribers = getSubscriberHealth();
   const runtimeStatus = matterRuntime?.getStatus?.() ?? null;
