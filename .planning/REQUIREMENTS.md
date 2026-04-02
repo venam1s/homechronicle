@@ -49,7 +49,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **TST-02**: Integration tests exist for `stats-router.js`
 - [x] **TST-03**: Integration tests exist for `health-router.js`
 - [x] **TST-04**: Integration tests exist for `accessories-router.js`
-- [ ] **TST-05**: Integration tests exist for `setup-router.js`
+- [x] **TST-05**: Integration tests exist for `setup-router.js`
 - [x] **TST-06**: All existing tests continue to pass after extraction (`npm test` in listener/)
 
 ## v2 Requirements
@@ -114,7 +114,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | RTR-06 | Phase 6 | Complete |
 | RTR-08 | Phase 6 | Complete |
 | RTR-10 | Phase 6 | Complete |
-| TST-05 | Phase 6 | Pending |
+| TST-05 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 30 total

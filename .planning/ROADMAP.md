@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: COUNT Optimization** - Replace full-table COUNT(*) with estimated reltuples for unfiltered pagination (completed 2026-04-02)
 - [x] **Phase 4: Router Extraction (Simple)** - Extract utils, archive, data, stats, and health routers with integration tests (completed 2026-04-02)
 - [x] **Phase 5: Router Extraction (Accessories)** - Extract accessories router with integration tests (completed 2026-04-02)
-- [ ] **Phase 6: Router Extraction (Setup)** - Extract setup/pairing router with integration tests; index.js reaches target size
+- [x] **Phase 6: Router Extraction (Setup)** - Extract setup/pairing router with integration tests; index.js reaches target size (completed 2026-04-02)
 
 ## Phase Details
 
@@ -109,7 +109,7 @@ Plans:
 
 Plans:
 - [x] 06-01-PLAN.md — Extract setup-router.js factory with all 18 route handlers and wire into index.js (RTR-06, RTR-08, RTR-10)
-- [ ] 06-02-PLAN.md — Create integration tests for setup-router.js (TST-05)
+- [x] 06-02-PLAN.md — Create integration tests for setup-router.js (TST-05)
 
 ## Progress
 
@@ -123,4 +123,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
 | 4. Router Extraction (Simple) | 2/2 | Complete   | 2026-04-02 |
 | 5. Router Extraction (Accessories) | 1/1 | Complete   | 2026-04-02 |
-| 6. Router Extraction (Setup) | 1/2 | In Progress|  |
+| 6. Router Extraction (Setup) | 2/2 | Complete   | 2026-04-02 |
