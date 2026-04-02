@@ -56,8 +56,29 @@ export function createEventsRouter({ pool, getRooms }) {
 
       const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-      const countResult = await pool.query(`SELECT COUNT(*) AS total FROM event_logs ${where}`, params);
-      const total = Number.parseInt(countResult.rows[0].total, 10);
+      let total;
+      let estimated = false;
+
+      if (conditions.length === 0) {
+        const reltuplesResult = await pool.query(
+          `SELECT reltuples FROM pg_class WHERE relname = 'event_logs'`
+        );
+        const reltuples = Number(reltuplesResult.rows[0]?.reltuples ?? 0);
+        if (reltuples > 0) {
+          total = Math.round(reltuples);
+          estimated = true;
+        } else {
+          log.debug('[api] reltuples <= 0, falling back to exact COUNT for /api/events');
+          const countResult = await pool.query('SELECT COUNT(*) AS total FROM event_logs');
+          total = Number.parseInt(countResult.rows[0].total, 10);
+        }
+      } else {
+        const countResult = await pool.query(
+          `SELECT COUNT(*) AS total FROM event_logs ${where}`,
+          params
+        );
+        total = Number.parseInt(countResult.rows[0].total, 10);
+      }
 
       params.push(limit, offset);
       const dataResult = await pool.query(
@@ -78,7 +99,7 @@ export function createEventsRouter({ pool, getRooms }) {
           ?? row.room_name,
       }));
 
-      res.json({ total, page, limit, pages: Math.ceil(total / limit), events });
+      res.json({ total, page, limit, pages: Math.ceil(total / limit), estimated, events });
     } catch (err) {
       log.error('[api] /api/events error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
