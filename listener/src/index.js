@@ -18,6 +18,7 @@ import { parentBridgeId, parseIntInRange } from './utils.js';
 import { createAlertsRouter } from './alerts-router.js';
 import { createMatterRouter } from './matter-router.js';
 import { createRetentionRouter, normalizeRetentionSettings } from './retention-router.js';
+import { createArchiveRouter } from './archive-router.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { deriveDeviceHealth } from './device-health.js';
@@ -1095,110 +1096,6 @@ app.patch('/api/setup/log-level', apiWriteLimiter, (req, res) => {
   }
 });
 
-// Archive export (CSV download)
-app.get('/api/archive/export', apiStatsReadLimiter, async (_req, res) => {
-  const columns = [
-    'source_id', 'timestamp', 'accessory_id', 'accessory_name', 'room_name',
-    'service_type', 'characteristic', 'old_value', 'new_value',
-    'protocol', 'transport', 'endpoint_id', 'cluster_id', 'attribute_id', 'archived_at',
-  ];
-
-  function csvRow(row) {
-    return columns.map((col) => {
-      const val = row[col];
-      if (val == null) return '';
-      const str = val instanceof Date ? val.toISOString() : String(val);
-      return /[,"\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    }).join(',');
-  }
-
-  try {
-    const countResult = await pool.query('SELECT COUNT(*) AS cnt FROM event_logs_archive');
-    if (Number(countResult.rows[0].cnt) === 0) {
-      return res.status(404).json({ error: 'No archived events to export.' });
-    }
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="homechronicle-archive.csv"');
-    res.write(columns.join(',') + '\n');
-
-    const BATCH = 5000;
-    let offset = 0;
-    let hasMore = true;
-    while (hasMore) {
-      const batch = await pool.query(
-        `SELECT ${columns.join(', ')} FROM event_logs_archive ORDER BY timestamp ASC LIMIT $1 OFFSET $2`,
-        [BATCH, offset]
-      );
-      for (const row of batch.rows) {
-        res.write(csvRow(row) + '\n');
-      }
-      offset += batch.rows.length;
-      hasMore = batch.rows.length === BATCH;
-    }
-    res.end();
-  } catch (err) {
-    log.error('[archive] /api/archive/export error:', err.message ?? err.stack ?? err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error' });
-    } else {
-      res.end();
-    }
-  }
-});
-
-app.get('/api/archive/count', async (_req, res) => {
-  try {
-    const result = await pool.query('SELECT COUNT(*) AS count FROM event_logs_archive');
-    res.json({ count: Number(result.rows[0].count) });
-  } catch (err) {
-    log.error('[archive] /api/archive/count error:', err.message ?? err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Data management
-app.delete('/api/data/accessory', apiWriteLimiter, async (req, res) => {
-  const { accessoryId } = req.body ?? {};
-  if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
-  try {
-    const result = await pool.query(
-      'DELETE FROM event_logs WHERE accessory_id = $1', [accessoryId]
-    );
-    const rooms = loadRooms();
-    delete rooms[accessoryId];
-    await saveRooms(rooms);
-    const names = loadDisplayNames();
-    delete names[accessoryId];
-    await saveDisplayNames(names);
-    const notes = loadNotes();
-    delete notes[accessoryId];
-    await saveNotes(notes);
-    log.info(`[data] Deleted ${result.rowCount} event(s) for accessory ${accessoryId}`);
-    res.json({ success: true, deleted: result.rowCount });
-  } catch (err) {
-    log.error('[data] /api/data/accessory error:', err.message ?? err.stack ?? err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/data/all', apiWriteLimiter, async (req, res) => {
-  if (req.body?.confirm !== 'DELETE ALL') {
-    return res.status(400).json({ error: 'Request body must include { "confirm": "DELETE ALL" }' });
-  }
-  try {
-    const result = await pool.query('DELETE FROM event_logs');
-    await saveRooms({});
-    await saveDisplayNames({});
-    await saveNotes({});
-    log.info(`[data] Wiped all data — ${result.rowCount} event(s) deleted`);
-    res.json({ success: true, deleted: result.rowCount });
-  } catch (err) {
-    log.error('[data] /api/data/all error:', err.message ?? err.stack ?? err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Event API routes
 app.use('/api', createEventsRouter({
   pool,
@@ -1219,6 +1116,15 @@ app.use('/api', createMatterRouter({
   matterRuntime,
   getMatterDiscoveryCache: () => matterDiscoveryCache,
   setMatterDiscoveryCache: (cache) => { matterDiscoveryCache = cache; },
+}));
+app.use('/api', createArchiveRouter({
+  pool,
+  loadRooms,
+  saveRooms,
+  loadDisplayNames,
+  saveDisplayNames,
+  loadNotes,
+  saveNotes,
 }));
 
 // Stats routes
