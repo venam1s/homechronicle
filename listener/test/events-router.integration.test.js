@@ -35,6 +35,7 @@ test('/api/events orders by timestamp and id descending', async () => {
   const pool = {
     async query(sql) {
       sqlSeen.push(sql);
+      if (sql.includes('pg_class')) return { rows: [{ reltuples: 1 }] };
       if (sql.includes('COUNT(*) AS total')) return { rows: [{ total: '1' }] };
       return { rows: [{ id: 42, timestamp: '2026-02-20T12:00:00.000Z', accessory_id: 'a1', accessory_name: 'Lamp', room_name: null, service_type: 'Lightbulb', characteristic: 'On', old_value: 'false', new_value: 'true', raw_iid: 1 }] };
     },
@@ -48,6 +49,80 @@ test('/api/events orders by timestamp and id descending', async () => {
 
   const selectSql = sqlSeen.find((sql) => sql.includes('LIMIT'));
   assert.ok(selectSql.includes('ORDER BY timestamp DESC, id DESC'));
+});
+
+test('unfiltered /api/events uses reltuples estimate', async () => {
+  const pool = {
+    async query(sql) {
+      if (sql.includes('pg_class')) return { rows: [{ reltuples: 5000 }] };
+      if (sql.includes('SELECT id')) return { rows: [] };
+      return { rows: [] };
+    },
+  };
+
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events');
+  const response = await invoke(handler, { page: '1', limit: '50' });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.estimated, true);
+  assert.equal(response.jsonBody.total, 5000);
+  assert.equal(response.jsonBody.pages, 100);
+});
+
+test('reltuples zero falls back to exact COUNT', async () => {
+  const pool = {
+    async query(sql) {
+      if (sql.includes('pg_class')) return { rows: [{ reltuples: 0 }] };
+      if (sql.includes('COUNT(*) AS total')) return { rows: [{ total: '42' }] };
+      if (sql.includes('SELECT id')) return { rows: [] };
+      return { rows: [] };
+    },
+  };
+
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events');
+  const response = await invoke(handler, { page: '1', limit: '50' });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.estimated, false);
+  assert.equal(response.jsonBody.total, 42);
+});
+
+test('reltuples negative falls back to exact COUNT', async () => {
+  const pool = {
+    async query(sql) {
+      if (sql.includes('pg_class')) return { rows: [{ reltuples: -1 }] };
+      if (sql.includes('COUNT(*) AS total')) return { rows: [{ total: '10' }] };
+      if (sql.includes('SELECT id')) return { rows: [] };
+      return { rows: [] };
+    },
+  };
+
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events');
+  const response = await invoke(handler, { page: '1', limit: '50' });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.estimated, false);
+  assert.equal(response.jsonBody.total, 10);
+});
+
+test('filtered /api/events uses exact COUNT', async () => {
+  const sqlSeen = [];
+  const pool = {
+    async query(sql, params) {
+      sqlSeen.push(sql);
+      if (sql.includes('COUNT(*) AS total')) return { rows: [{ total: '25' }] };
+      if (sql.includes('SELECT id')) return { rows: [] };
+      return { rows: [] };
+    },
+  };
+
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events');
+  const response = await invoke(handler, { page: '1', limit: '50', room: 'Kitchen' });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.estimated, false);
+  assert.equal(response.jsonBody.total, 25);
+  assert.ok(!sqlSeen.some((sql) => sql.includes('pg_class')), 'filtered path must not query pg_class');
 });
 
 test('/api/events/jump uses deterministic tie-breaker for timestamp ties', async () => {
