@@ -11,8 +11,6 @@ services:
       TZ: ${TZ:-UTC}
     volumes:
       - ${POSTGRES_DATA_SOURCE:-postgres-data}:/var/lib/postgresql/data
-      # DO NOT EDIT: required for database initialization.
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     deploy:

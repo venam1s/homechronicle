@@ -1,3 +1,10 @@
+-- ============================================================================
+-- DEPRECATED: This file is kept as a reference only.
+-- Schema is now managed by node-pg-migrate migrations in listener/migrations/.
+-- Do not use this file for database initialization.
+-- See: listener/migrations/0001_baseline.sql
+-- ============================================================================
+
 -- homechronicle — database schema
 -- This file runs automatically when the postgres container first starts.
 

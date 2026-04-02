@@ -17,7 +17,6 @@ services:
       TZ: ${TZ:-America/Indianapolis}
     volumes:
       - /mnt/Primary/apps/hc-beta/postgres-data-beta:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "127.0.0.1:5433:5432"
     deploy:
