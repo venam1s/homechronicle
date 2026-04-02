@@ -94,7 +94,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md — [to be planned]
+- [ ] 05-01-PLAN.md — Extract accessories-router.js factory with integration tests (RTR-05, TST-04)
 
 ### Phase 6: Router Extraction (Setup)
 **Goal**: Setup, pairing, rooms, display-names, notes, and log-level routes live in a dedicated router file; index.js reaches its target size
