@@ -1,5 +1,6 @@
 import { chmod, mkdir, readFile, rename, stat, writeFile } from 'fs/promises';
 import { dirname } from 'path';
+import { log } from './logger.js';
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -40,7 +41,8 @@ export class JsonObjectStore {
       }
       this.lastMtimeMs = meta.mtimeMs;
       return this.getSnapshot();
-    } catch {
+    } catch (err) {
+      log.debug('[store] read error, using default:', err.message);
       this.cache = clone(this.defaultValue);
       this.lastMtimeMs = 0;
       return this.getSnapshot();
@@ -74,14 +76,15 @@ export class JsonObjectStore {
     await rename(tempPath, this.filePath);
     try {
       await chmod(this.filePath, 0o600);
-    } catch {
-      // Ignore filesystems that do not support POSIX permissions.
+    } catch (err) {
+      log.debug('[store] chmod skipped (filesystem may not support POSIX permissions):', err.message);
     }
 
     try {
       const meta = await stat(this.filePath);
       this.lastMtimeMs = meta.mtimeMs;
-    } catch {
+    } catch (err) {
+      log.debug('[store] stat after write failed, using Date.now():', err.message);
       this.lastMtimeMs = Date.now();
     }
 
