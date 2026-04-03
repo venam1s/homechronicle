@@ -17,11 +17,6 @@ export function isLoopbackHostname(hostname) {
     || normalized.endsWith('.localhost');
 }
 
-export function normalizeRateLimitValue(value, fallback, min, max) {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.min(max, Math.max(min, Math.trunc(value)));
-}
-
 export function extractBearerToken(headerValue) {
   const auth = String(headerValue ?? '').trim();
   if (!auth) return '';

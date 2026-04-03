@@ -21,7 +21,7 @@ import { getHomeKitPairings, isHomeKitPairing, normalizePairingRecord } from './
  * @param {function} opts.loadPairings - normalized pairings loader
  * @param {function} opts.savePairings - normalized pairings saver
  * @param {function} opts.getRetentionSettings - getter returning current retentionSettings
- * @returns {{ runDiscoveryScan, safeDiscoveryScan, discoverDeviceForRepair, savePairingForRepair, getPairingForLookup, isAutoDiscoveryEnabled, runScheduledDiscoveryScan }}
+ * @returns {{ runDiscoveryScan, discoverDeviceForRepair, savePairingForRepair, getPairingForLookup, runScheduledDiscoveryScan }}
  */
 export function createDiscoveryHelpers({
   discoverIface,
@@ -206,11 +206,9 @@ export function createDiscoveryHelpers({
 
   return {
     runDiscoveryScan,
-    safeDiscoveryScan,
     discoverDeviceForRepair,
     savePairingForRepair,
     getPairingForLookup,
-    isAutoDiscoveryEnabled,
     runScheduledDiscoveryScan,
   };
 }
