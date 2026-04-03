@@ -14,7 +14,7 @@ v1.0 (Code Health) ended at Phase 7. v1.1 continues from Phase 8.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 8: Scheduled Repair Backend** - Persist repair toggle, run daily repair cycle for needs_repair devices, log outcomes
+- [x] **Phase 8: Scheduled Repair Backend** - Persist repair toggle, run daily repair cycle for needs_repair devices, log outcomes (completed 2026-04-03)
 - [ ] **Phase 9: Scheduled Repair UI** - Toggle in Manage > Settings with explanatory text, wired to the backend setting
 
 ## Phase Details
@@ -28,10 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The repair pass only attempts to re-pair devices whose `needs_repair` flag is set — healthy devices are untouched
   3. Each repair run logs which devices were repaired, which were skipped, and which failed, visible in `docker compose logs`
   4. The enabled/disabled state survives a container restart — restarting the listener with the feature on resumes scheduled repair automatically
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 08-01-PLAN.md — Repair scheduler module + getRepairTargets export + unit tests
-- [ ] 08-02-PLAN.md — Repair router API + index.js wiring + integration tests
+- [x] 08-02-PLAN.md — Repair router API + index.js wiring + integration tests
 **UI hint**: no
 
 ### Phase 9: Scheduled Repair UI
@@ -52,5 +52,5 @@ Phases execute in numeric order: 8 → 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 8. Scheduled Repair Backend | 1/2 | In Progress|  |
+| 8. Scheduled Repair Backend | 2/2 | Complete   | 2026-04-03 |
 | 9. Scheduled Repair UI | 0/? | Not started | - |

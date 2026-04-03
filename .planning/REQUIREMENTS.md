@@ -65,7 +65,7 @@ Requirements for milestone v1.1 — Scheduled Repair.
 
 - [ ] **SREP-01**: User can enable/disable scheduled repair from Manage > Settings (disabled by default)
 - [x] **SREP-02**: When enabled, listener runs a daily repair cycle that re-pairs only HomeKit devices flagged as `needs_repair`
-- [ ] **SREP-03**: Scheduled repair setting persists across container restarts via JsonObjectStore
+- [x] **SREP-03**: Scheduled repair setting persists across container restarts via JsonObjectStore
 - [ ] **SREP-04**: Settings UI explains why users might want scheduled repair enabled (informational text)
 - [x] **SREP-05**: Scheduled repair runs and outcomes are logged (which devices were repaired, skipped, or failed)
 
@@ -106,7 +106,7 @@ Deferred to future milestones.
 |-------------|-------|--------|
 | SREP-01 | Phase 9 | Pending |
 | SREP-02 | Phase 8 | Complete |
-| SREP-03 | Phase 8 | Pending |
+| SREP-03 | Phase 8 | Complete |
 | SREP-04 | Phase 9 | Pending |
 | SREP-05 | Phase 8 | Complete |
 
