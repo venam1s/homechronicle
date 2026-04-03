@@ -2,6 +2,32 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.1.6-beta.1] — 2026-04-03
+
+### Added
+- **Formal database migration system** — `node-pg-migrate` v8 replaces `CREATE IF NOT EXISTS`; versioned migration files in `listener/migrations/`
+- **Alert deliveries retention sweep** — automatic cleanup of old alert delivery records (default 90 days)
+- **Process-level error handlers** — `unhandledRejection` and `uncaughtException` handlers prevent silent failures
+- **Global Express error middleware** — structured JSON error responses for unhandled route errors
+- **COUNT optimization** — unfiltered `/api/events` uses `pg_class.reltuples` estimate instead of full table scan
+- **Integration tests** for archive-router, stats-router, health-router, accessories-router, setup-router (80+ new tests)
+- **Unit tests** for setup-helpers pure functions (32 new tests)
+
+### Changed
+- **Listener architecture overhaul** — extracted monolithic `index.js` (2,100 lines) into modular routers:
+  - `utils.js` — shared utility functions
+  - `archive-router.js` — archive and data management routes
+  - `stats-router.js` — statistics and aggregation routes
+  - `health-router.js` — health endpoint
+  - `accessories-router.js` — accessory list, detail, and characteristic history
+  - `setup-router.js` — pairing, rooms, display-names, notes, log-level (18 route handlers)
+  - `setup-helpers.js` — pairing normalization, store helper factory
+  - `discovery-helpers.js` — discovery scan and repair helper factory
+- `index.js` reduced from 2,100 to 477 lines (store init, bootstrap, middleware, router mounts)
+- Silent `catch {}` blocks replaced with `log.debug()` calls across discovery and Matter cleanup paths
+- `db/init.sql` retired — migrations are the sole schema source for fresh and upgraded installs
+- Pure functions (isHomeKitPairing, mapReliabilityStats, etc.) now imported directly by routers instead of injected as callbacks
+
 ## [0.1.5] — 2026-03-31
 
 ### Added
