@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 06-02-PLAN.md (setup-router integration tests)
-last_updated: "2026-04-02T23:18:10.855Z"
-last_activity: 2026-04-02
+stopped_at: Completed 06-03-PLAN.md (gap closure — helper extraction)
+last_updated: "2026-04-03T00:30:08.850Z"
+last_activity: 2026-04-03
 progress:
   total_phases: 6
-  completed_phases: 6
-  total_plans: 10
-  completed_plans: 10
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 5
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 Phase: 06 (router-extraction-setup) — EXECUTING
 Plan: 2 of 2
 Status: Phase complete — ready for verification
-Last activity: 2026-04-02
+Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05-router-extraction-accessories P01 | 10 | 2 tasks | 3 files |
 | Phase 06-router-extraction-setup P01 | 5 | 2 tasks | 2 files |
 | Phase 06-router-extraction-setup P02 | 5 | 1 tasks | 1 files |
+| Phase 06-router-extraction-setup P03 | 32 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,7 @@ Recent decisions affecting current work:
 - [Phase 06-router-extraction-setup]: discoveryCache accessed via getDiscoveryCache()/setDiscoveryCache() callbacks (RTR-08) — matches matterDiscoveryCache pattern
 - [Phase 06-router-extraction-setup]: getPairingForLookup extracted as named function replacing three identical inline pairingsStore closures
 - [Phase 06-router-extraction-setup]: Live getter closure pattern for D-14 state-change test confirms router calls getDiscoveryCache() on each request, not at construction
+- [Phase 06-router-extraction-setup]: Pure functions imported directly by routers (not injected) — simplifies dep bags while HttpClient stays injected for testability
 
 ### Pending Todos
 
@@ -106,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T23:18:10.853Z
-Stopped at: Completed 06-02-PLAN.md (setup-router integration tests)
+Last session: 2026-04-03T00:30:08.848Z
+Stopped at: Completed 06-03-PLAN.md (gap closure — helper extraction)
 Resume file: None
