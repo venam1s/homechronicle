@@ -184,6 +184,35 @@ To clear a note, send an empty string or `null` for the `note` field.
 
 Notes are stored in `listener/data/notes.json`.
 
+## Scheduled Repair
+
+The listener can automatically repair stale HomeKit pairings on a daily schedule. When enabled, it identifies devices with reconnection errors or that haven't been seen recently, then attempts to re-discover and re-subscribe to each one.
+
+**From the Web UI:**
+- Go to **Manage** > **Settings** > **Scheduled Repair** section
+- Toggle the repair cycle on/off and set the preferred hour
+
+**From the API:**
+```bash
+curl -X PATCH http://localhost:3001/api/setup/repair \
+  -H "Content-Type: application/json" \
+  -H "X-API-Token: <token>" \
+  -d '{"enabled": true, "hour": 3}'
+```
+
+The `hour` is UTC. The web UI converts to your local timezone automatically.
+
+Settings are stored in `listener/data/repair.json`.
+
+## Firmware Tracking
+
+The listener automatically detects firmware version changes on HomeKit accessories. When a device reconnects and reports a different `FirmwareRevision` than what was previously cached, the listener:
+
+1. Logs a `FirmwareRevision` event with the old and new version
+2. The event appears in the device's timeline like any other state change
+
+You can view the firmware update history on the **Accessory Detail** page under the **Firmware History** section (only shown if firmware changes have been detected).
+
 ## Event Subscriptions
 
 Once paired, the listener maintains persistent connections to all HomeKit accessories. For each state change (light on/off, temperature reading, motion detected, etc.), the listener:

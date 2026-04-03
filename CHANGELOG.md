@@ -2,6 +2,15 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.1.6-beta.2] — 2026-04-03
+
+### Added
+- **Scheduled repair** — daily automated repair cycle for stale HomeKit pairings; configurable hour in Settings, REST API at `GET/PATCH /api/setup/repair`
+- **Firmware version tracking** — detects firmware changes on reconnect, logs them as `FirmwareRevision` events, and shows update history in Accessory Detail
+
+### Changed
+- Removed dead code and unused exports from listener source files
+
 ## [0.1.6-beta.1] — 2026-04-03
 
 ### Added
@@ -118,6 +127,8 @@ All notable changes to homechronicle are documented in this file.
 ### Added
 - Initial release: HomeKit discovery/pairing (HAP), Matter commissioning, event timeline, dashboard analytics, accessory management, webhook alerts, Docker Compose deployment, dark mode, PWA
 
+[0.1.6-beta.2]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.6-beta.1...v0.1.6-beta.2
+[0.1.6-beta.1]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.5...v0.1.6-beta.1
 [0.1.5]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4...v0.1.5
 [0.1.4]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.3...v0.1.4
 [0.1.3]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.2...v0.1.3

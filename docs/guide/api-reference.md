@@ -337,6 +337,41 @@ Update retention settings.
 }
 ```
 
+### `GET /api/setup/repair`
+
+Get scheduled repair settings.
+
+**Response:**
+```json
+{
+  "enabled": true,
+  "hour": 3,
+  "lastRunAt": "2026-04-03T03:00:12.000Z",
+  "lastRunResult": { "attempted": 2, "repaired": 1, "failed": 1 }
+}
+```
+
+The `hour` is in UTC (0–23). The web UI converts to local time for display.
+
+### `PATCH /api/setup/repair`
+
+Update scheduled repair settings.
+
+**Body (all fields optional):**
+```json
+{
+  "enabled": true,
+  "hour": 3
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Enable or disable the daily repair cycle |
+| `hour` | integer | UTC hour (0–23) when the repair runs |
+
+---
+
 ### `GET /api/setup/log-level`
 
 Get the current log level.

@@ -40,7 +40,7 @@ The listener is the core service. It runs on Node.js with ES modules and serves 
 
 | File | Purpose |
 |------|---------|
-| `index.js` | Express server entry point; boots API routes, subscribers, and background tasks |
+| `index.js` | Express server entry point; boots API routes, subscribers, scheduled repair, and background tasks |
 | `subscriber.js` | Maintains persistent HAP event subscriptions via `hap-controller` |
 | `matter-runtime.js` | Matter.js polling loop and subscription management |
 | `matter-controller.js` | Matter commissioning and controller lifecycle |
@@ -48,6 +48,11 @@ The listener is the core service. It runs on Node.js with ES modules and serves 
 | `store.js` | `JsonObjectStore` for persistent JSON files (pairings, rooms, retention) |
 | `events-router.js` | GET endpoints for events with filtering and pagination |
 | `alerts-router.js` | CRUD for alert rules and delivery log |
+| `repair-router.js` | GET/PATCH endpoints for scheduled repair settings |
+| `repair-scheduler.js` | Daily scheduled repair cycle for stale HomeKit pairings |
+| `retention-router.js` | Retention and settings configuration endpoints |
+| `setup-helpers.js` | Pairing normalization and store helper factory |
+| `discovery-helpers.js` | Discovery scan and repair helper factory |
 | `alerts.js` | Rule matching and webhook dispatch with quiet-period suppression |
 | `discover.js` | CLI tool for mDNS network scanning |
 | `pairing.js` | CLI tool for HAP pair-setup |
@@ -71,6 +76,8 @@ The listener is the core service. It runs on Node.js with ES modules and serves 
 
 - **Discovery scan**: Runs every hour, updates accessory addresses in pairings
 - **Retention sweep**: Runs every 24 hours, archives and/or deletes old events
+- **Scheduled repair**: Runs daily at a configurable hour, re-discovers and re-subscribes stale devices
+- **Firmware detection**: On each reconnect, compares firmware versions and logs changes as events
 - **Store refresh**: Re-reads JSON stores from disk every 30 seconds
 
 ### Reconnection Strategy

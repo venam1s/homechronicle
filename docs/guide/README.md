@@ -9,6 +9,8 @@ homechronicle is a self-hosted event log for Apple HomeKit and Matter devices. I
 - **Activity analytics** — daily trends, hourly distributions, heatmaps, device rankings
 - **Device management** — discover, pair, and monitor accessories from the web UI
 - **Webhook alerts** — get notified when specific events occur (enable with `ALERTS_ENABLED=true`)
+- **Scheduled repair** — daily automated repair cycle for stale HomeKit pairings ([details](devices.md#scheduled-repair))
+- **Firmware tracking** — detects and logs firmware version changes on reconnect ([details](devices.md#firmware-tracking))
 - **Quiet hours** — flag unexpected activity during a defined time window
 - **Dark mode & accent themes** — system/light/dark toggle and six color themes ([details](appearance.md))
 
