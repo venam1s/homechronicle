@@ -46,9 +46,6 @@ function makeRouter(overrides = {}) {
     saveDisplayNames: async () => {},
     loadNotes: () => ({}),
     saveNotes: async () => {},
-    getHomeKitPairings: (p) => p,
-    isHomeKitPairing: () => true,
-    normalizePairingRecord: (id, p) => ({ ...p, protocol: 'homekit' }),
     discoverDeviceForRepair: async () => null,
     savePairingForRepair: async () => {},
     startSubscribers: () => {},
@@ -66,7 +63,6 @@ test('GET /discovered — returns accessories from discovery cache with paired s
   const router = makeRouter({
     getDiscoveryCache: () => [{ id: 'abc', name: 'Light', paired: false, pairedElsewhere: false }],
     loadPairings: () => ({ abc: { protocol: 'homekit' } }),
-    getHomeKitPairings: (p) => p,
   });
   const handler = getRouteHandler(router, 'GET', '/discovered');
   const { statusCode, jsonBody } = await invoke(handler);
@@ -242,7 +238,6 @@ test('GET /pairings — returns list of HomeKit pairings', async () => {
     loadPairings: () => ({
       dev1: { protocol: 'homekit', name: 'Light', address: '1.2.3.4', port: 80, category: 5, pairedAt: '2026-01-01T00:00:00Z' },
     }),
-    getHomeKitPairings: (p) => p,
   });
   const handler = getRouteHandler(router, 'GET', '/pairings');
   const { statusCode, jsonBody } = await invoke(handler);
@@ -269,7 +264,6 @@ test('DELETE /pairing/:deviceId — deletes known pairing successfully', async (
     loadPairings: () => ({ dev1: { protocol: 'homekit', name: 'Light' } }),
     savePairings: async () => { savePairingsCalled = true; },
     stopSubscriber: () => { stopSubscriberCalled = true; },
-    isHomeKitPairing: () => true,
   });
   const handler = getRouteHandler(router, 'DELETE', '/pairing/:deviceId');
   const { statusCode, jsonBody } = await invoke(handler, {
@@ -297,7 +291,6 @@ test('DELETE /pairing/:deviceId — 404 for unknown deviceId', async () => {
 test('DELETE /pairing/:deviceId — 400 for non-HomeKit pairing', async () => {
   const router = makeRouter({
     loadPairings: () => ({ dev1: { protocol: 'matter' } }),
-    isHomeKitPairing: () => false,
   });
   const handler = getRouteHandler(router, 'DELETE', '/pairing/:deviceId');
   const { statusCode } = await invoke(handler, {
