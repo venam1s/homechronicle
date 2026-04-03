@@ -179,7 +179,7 @@ Indexes are optimized for the primary query pattern (timestamp descending):
 
 ### Schema Initialization
 
-The schema is defined in `db/init.sql` and auto-runs on the first `docker compose up` via PostgreSQL's `docker-entrypoint-initdb.d` mechanism. Subsequent migrations are handled by `db.js` at listener startup.
+The schema is managed by versioned migrations in `listener/migrations/`. On the first `docker compose up`, the listener runs all migrations in sequence to create the full schema. On upgraded installs, migration 0001 is fake-applied (already-present schema is skipped) and only new migrations run. `db/init.sql` is a historical reference only and is not used by any Docker service.
 
 ## Networking
 
