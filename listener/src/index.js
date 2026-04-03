@@ -10,10 +10,10 @@ import express from 'express';
 import cors from 'cors';
 import { HttpClient } from 'hap-controller'; // injected into setup-router and accessories-router for testability
 import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep } from './db.js';
-import { startSubscribers, stopSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats } from './subscriber.js';
+import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter } from './events-router.js';
-import { isLoopbackHostname, extractBearerToken } from './utils.js';
+import { isLoopbackHostname, extractBearerToken, parseIntInRange } from './utils.js';
 import { createAlertsRouter } from './alerts-router.js';
 import { createMatterRouter } from './matter-router.js';
 import { createRetentionRouter, normalizeRetentionSettings } from './retention-router.js';
@@ -22,6 +22,8 @@ import { createStatsRouter } from './stats-router.js';
 import { createAccessoriesRouter } from './accessories-router.js';
 import { createHealthRouter } from './health-router.js';
 import { createSetupRouter } from './setup-router.js';
+import { createRepairScheduler } from './repair-scheduler.js';
+import { createRepairRouter } from './repair-router.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { cached } from './query-cache.js';
@@ -58,6 +60,9 @@ const NOTES_FILE = process.env.NOTES_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/notes.json' : './data/notes.json');
 const RETENTION_FILE = process.env.RETENTION_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/retention.json' : './data/retention.json');
+const REPAIR_FILE = process.env.REPAIR_FILE
+  || (process.env.NODE_ENV === 'production' ? '/app/data/repair.json' : './data/repair.json');
+const REPAIR_HOUR_DEFAULT = parseIntInRange(process.env.REPAIR_HOUR, 3, 0, 23);
 
 const PORT = Number(process.env.API_PORT ?? 3001);
 const RESCAN_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -103,6 +108,12 @@ const retentionStore = new JsonObjectStore(RETENTION_FILE, {
   toastPosition: 'bottom-right',
   toastDuration: 3,
   toastMaxVisible: 3,
+});
+const repairStore = new JsonObjectStore(REPAIR_FILE, {
+  enabled: false,
+  hour: REPAIR_HOUR_DEFAULT,
+  lastRunAt: null,
+  lastRunResult: null,
 });
 let matterRuntime = null;
 
@@ -153,6 +164,7 @@ await roomsStore.init();
 await displayNamesStore.init();
 await notesStore.init();
 await retentionStore.init();
+await repairStore.init();
 await initMatterController();
 matterRuntime = createMatterRuntime({
   insertEvent,
@@ -187,6 +199,9 @@ if (Number.isFinite(STORE_REFRESH_INTERVAL_MS) && STORE_REFRESH_INTERVAL_MS >= 5
       .catch((err) => {
         log.warn('[store] retention refresh failed:', err.message ?? err.stack ?? err);
       });
+    void repairStore.refresh().catch((err) => {
+      log.warn('[store] repair refresh failed:', err.message ?? err.stack ?? err);
+    });
   }, STORE_REFRESH_INTERVAL_MS);
 }
 
@@ -241,6 +256,21 @@ if (pairedCount > 0) {
 } else {
   log.warn('[init] No pairings found — use the Setup tab in the web UI to discover and pair accessories.');
 }
+
+const repairScheduler = createRepairScheduler({
+  getSettings: () => repairStore.getSnapshot(),
+  saveSettings: async (s) => repairStore.write(s),
+  getRepairTargets,
+  discoverDevice: discoverDeviceForRepair,
+  savePairing: savePairingForRepair,
+  stopSubscriber,
+  startSubscriber,
+  resetSubscriberStats,
+  loadPairings: () => pairingsStore.getSnapshot(),
+  loadRooms: () => roomsStore.getSnapshot(),
+  getPairingForLookup: (id) => pairingsStore.getSnapshot()[id] ?? null,
+});
+repairScheduler.start();
 
 if (DISCOVERY_SCAN_ENABLED) {
   void runScheduledDiscoveryScan();
@@ -382,6 +412,15 @@ app.use('/api/setup', createRetentionRouter({
     retentionSettings = loadRetentionSettings();
   },
   sweepMs: RETENTION_SWEEP_MS,
+}));
+
+app.use('/api/setup', createRepairRouter({
+  getSettings: () => repairStore.getSnapshot(),
+  saveSettings: async (s) => repairStore.write(s),
+  onSettingsChange: (next) => {
+    repairScheduler.stop();
+    if (next.enabled) repairScheduler.start();
+  },
 }));
 
 // Event API routes
