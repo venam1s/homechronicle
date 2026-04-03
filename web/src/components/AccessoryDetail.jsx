@@ -377,6 +377,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
   const health = accessory?.health ?? {};
   const reliability = accessory?.reliability ?? null;
   const outliers = anomalyData?.outliers ?? [];
+  const firmwareEvents = history?.events?.filter((e) => e.characteristic === 'FirmwareRevision') ?? [];
 
   const chartData = useMemo(() => {
     const dailyMap = new Map((data?.activity?.daily ?? []).map((d) => [String(d.day).slice(0, 10), Number.parseInt(d.count, 10)]));
@@ -522,6 +523,28 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                   Metadata updated {formatDistanceToNow(new Date(accessory.metadata_updated_at), { addSuffix: true })}
                 </p>
               )}
+            </section>
+          )}
+
+          {/* Firmware History */}
+          {firmwareEvents.length > 0 && (
+            <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+                <Info size={14} className="text-gray-400 dark:text-gray-500" />
+                Firmware History
+              </h3>
+              <div className="space-y-1">
+                {firmwareEvents.map((event) => (
+                  <div key={event.id} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {event.old_value} &rarr; {event.new_value}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {new Date(event.timestamp).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
 
