@@ -2,7 +2,9 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
-import { parseIntInRange as _parseIntInRange } from './utils.js';
+import { parseIntInRange as _parseIntInRange, parentBridgeId } from './utils.js';
+import { isHomeKitPairing, mapReliabilityStats } from './setup-helpers.js';
+import { deriveDeviceHealth } from './device-health.js';
 
 const ACCESSORIES_RATE_LIMIT_WINDOW_MS = _parseIntInRange(
   process.env.ACCESSORIES_RATE_LIMIT_WINDOW_MS,
@@ -27,11 +29,6 @@ export function createAccessoriesRouter({
   getAccessoryIdentity,
   getAllDiscoveredAccessories,
   cacheAccessoryMetadata,
-  deriveDeviceHealth,
-  isHomeKitPairing,
-  mapReliabilityStats,
-  parentBridgeId,
-  parseIntInRange,
   HttpClient,
 }) {
   const router = express.Router();
@@ -290,9 +287,9 @@ export function createAccessoriesRouter({
     const accessoryId = String(req.params.accessoryId ?? '').trim();
     if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
 
-    const days = parseIntInRange(req.query.days, 30, 7, 365);
-    const page = parseIntInRange(req.query.page, 1, 1, 1_000_000);
-    const limit = parseIntInRange(req.query.limit, 100, 1, 500);
+    const days = _parseIntInRange(req.query.days, 30, 7, 365);
+    const page = _parseIntInRange(req.query.page, 1, 1, 1_000_000);
+    const limit = _parseIntInRange(req.query.limit, 100, 1, 500);
     const offset = (page - 1) * limit;
 
     try {
@@ -468,7 +465,7 @@ export function createAccessoriesRouter({
   router.get('/accessories/:accessoryId/characteristics/:characteristic/trend', accessoriesReadLimiter, async (req, res) => {
     const accessoryId = String(req.params.accessoryId ?? '').trim();
     const characteristic = String(req.params.characteristic ?? '').trim();
-    const days = parseIntInRange(req.query.days, 30, 1, 365);
+    const days = _parseIntInRange(req.query.days, 30, 1, 365);
     if (!accessoryId || !characteristic) {
       return res.status(400).json({ error: 'accessoryId and characteristic are required' });
     }
@@ -496,7 +493,7 @@ export function createAccessoriesRouter({
   router.get('/accessories/:accessoryId/heatmap', accessoriesReadLimiter, async (req, res) => {
     const accessoryId = String(req.params.accessoryId ?? '').trim();
     if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
-    const days = parseIntInRange(req.query.days, 90, 7, 365);
+    const days = _parseIntInRange(req.query.days, 90, 7, 365);
     try {
       const result = await pool.query(
         `SELECT
@@ -523,7 +520,7 @@ export function createAccessoriesRouter({
   router.get('/accessories/:accessoryId/state-duration', accessoriesReadLimiter, async (req, res) => {
     const accessoryId = String(req.params.accessoryId ?? '').trim();
     if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
-    const days = parseIntInRange(req.query.days, 30, 1, 365);
+    const days = _parseIntInRange(req.query.days, 30, 1, 365);
     try {
       const result = await pool.query(
         `WITH ordered AS (
@@ -553,7 +550,7 @@ export function createAccessoriesRouter({
   router.get('/accessories/:accessoryId/char-summary', accessoriesReadLimiter, async (req, res) => {
     const accessoryId = String(req.params.accessoryId ?? '').trim();
     if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
-    const days = parseIntInRange(req.query.days, 30, 1, 365);
+    const days = _parseIntInRange(req.query.days, 30, 1, 365);
     try {
       const result = await pool.query(
         `SELECT characteristic,

@@ -5,6 +5,7 @@ import { rateLimitKeyGenerator } from './security.js';
 import { parseIntInRange } from './utils.js';
 import { shortUuid } from './accessory-metadata.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
+import { isHomeKitPairing, getHomeKitPairings, normalizePairingRecord } from './setup-helpers.js';
 
 const SETUP_WRITE_RATE_LIMIT_WINDOW_MS = parseIntInRange(
   process.env.API_WRITE_RATE_LIMIT_WINDOW_MS, 60_000, 1_000, 24 * 60 * 60 * 1000
@@ -26,9 +27,6 @@ export function createSetupRouter({
   saveDisplayNames,
   loadNotes,
   saveNotes,
-  getHomeKitPairings,
-  isHomeKitPairing,
-  normalizePairingRecord,
   discoverDeviceForRepair,
   savePairingForRepair,
   startSubscribers,

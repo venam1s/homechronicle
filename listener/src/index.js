@@ -8,13 +8,12 @@
 import { networkInterfaces } from 'os';
 import express from 'express';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
-import { IPDiscovery, HttpClient } from 'hap-controller';
+import { HttpClient } from 'hap-controller'; // injected into setup-router and accessories-router for testability
 import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep } from './db.js';
 import { startSubscribers, stopSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter } from './events-router.js';
-import { parentBridgeId, parseIntInRange } from './utils.js';
+import { isLoopbackHostname, extractBearerToken } from './utils.js';
 import { createAlertsRouter } from './alerts-router.js';
 import { createMatterRouter } from './matter-router.js';
 import { createRetentionRouter, normalizeRetentionSettings } from './retention-router.js';
@@ -25,17 +24,17 @@ import { createHealthRouter } from './health-router.js';
 import { createSetupRouter } from './setup-router.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
-import { deriveDeviceHealth } from './device-health.js';
-import { detectOutliers } from './anomaly-detection.js';
 import { cached } from './query-cache.js';
 import { log } from './logger.js';
-import { secureTokenEquals, rateLimitKeyGenerator } from './security.js';
+import { secureTokenEquals } from './security.js';
 import {
   cacheAccessoryMetadata,
   getAllDiscoveredAccessories,
   getAccessoryCapabilities,
   getAccessoryIdentity,
 } from './accessory-metadata.js';
+import { getHomeKitPairings, createStoreHelpers } from './setup-helpers.js';
+import { createDiscoveryHelpers } from './discovery-helpers.js';
 
 // ─── Process-level error handlers — registered before any async operations ───
 // D-01: Log rejection but do NOT exit — exiting kills HAP subscriptions
@@ -80,10 +79,6 @@ const RETENTION_DAYS_DEFAULT = Number.parseInt(process.env.RETENTION_DAYS ?? '36
 const ALERT_RETENTION_DAYS = Number.parseInt(process.env.ALERT_RETENTION_DAYS ?? '90', 10);
 const RETENTION_ARCHIVE_DEFAULT = /^(1|true|yes|on)$/i.test(process.env.RETENTION_ARCHIVE ?? 'true');
 const STALE_THRESHOLD_HOURS_DEFAULT = Number.parseInt(process.env.STALE_THRESHOLD_HOURS ?? '12', 10);
-const API_WRITE_RATE_LIMIT_WINDOW_MS = Number.parseInt(process.env.API_WRITE_RATE_LIMIT_WINDOW_MS ?? '60000', 10);
-const API_WRITE_RATE_LIMIT_MAX = Number.parseInt(process.env.API_WRITE_RATE_LIMIT_MAX ?? '60', 10);
-const API_STATS_RATE_LIMIT_WINDOW_MS = Number.parseInt(process.env.API_STATS_RATE_LIMIT_WINDOW_MS ?? '60000', 10);
-const API_STATS_RATE_LIMIT_MAX = Number.parseInt(process.env.API_STATS_RATE_LIMIT_MAX ?? '120', 10);
 
 if (IS_PRODUCTION && !API_TOKEN) {
   log.error('[api] API_TOKEN is required when NODE_ENV=production');
@@ -111,170 +106,26 @@ const retentionStore = new JsonObjectStore(RETENTION_FILE, {
 });
 let matterRuntime = null;
 
-function normalizeMatterNodeId(value) {
-  if (value === undefined || value === null) return null;
-  const text = String(value).trim();
-  if (!text) return null;
-  try {
-    return BigInt(text).toString();
-  } catch { // flow-control catch — correct, no change
-    return text.toUpperCase();
-  }
-}
-
-function normalizePairingRecord(id, pairing = {}) {
-  const protocol = String(pairing?.protocol ?? 'homekit').toLowerCase() === 'matter'
-    ? 'matter'
-    : 'homekit';
-  if (protocol === 'matter') {
-    const nodeId = normalizeMatterNodeId(pairing?.nodeId ?? id) ?? String(id);
-    return {
-      ...pairing,
-      protocol: 'matter',
-      nodeId,
-      name: pairing?.name ?? nodeId,
-    };
-  }
-  return {
-    ...pairing,
-    protocol: 'homekit',
-  };
-}
-
-function normalizePairingsMap(input = {}) {
-  const output = {};
-  for (const [id, pairing] of Object.entries(input ?? {})) {
-    const normalized = normalizePairingRecord(id, pairing);
-    const key = normalized.protocol === 'matter' ? normalized.nodeId : id;
-    output[key] = normalized;
-  }
-  return output;
-}
-
-function isHomeKitPairing(pairing) {
-  return String(pairing?.protocol ?? 'homekit').toLowerCase() === 'homekit';
-}
-
-function getHomeKitPairings(pairings = {}) {
-  return Object.fromEntries(
-    Object.entries(pairings).filter(([, pairing]) => isHomeKitPairing(pairing))
-  );
-}
-
-
-function isLoopbackHostname(hostname) {
-  const normalized = String(hostname ?? '').toLowerCase();
-  return normalized === 'localhost'
-    || normalized === '127.0.0.1'
-    || normalized === '::1'
-    || normalized.endsWith('.localhost');
-}
-
-function isAllowedCorsOrigin(origin) {
-  if (!origin) return true;
-  if (CORS_ALLOWED_ORIGINS.length > 0) return CORS_ALLOWED_ORIGINS.includes(origin);
-  if (!CORS_ALLOW_LOCALHOST) return false;
-  try {
-    const parsed = new URL(origin);
-    return isLoopbackHostname(parsed.hostname);
-  } catch { // flow-control catch — correct, no change
-    return false;
-  }
-}
-
-function normalizeRateLimitValue(value, fallback, min, max) {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.min(max, Math.max(min, Math.trunc(value)));
-}
-
-function extractBearerToken(headerValue) {
-  const auth = String(headerValue ?? '').trim();
-  if (!auth) return '';
-  const spaceIndex = auth.indexOf(' ');
-  if (spaceIndex <= 0) return '';
-  const scheme = auth.slice(0, spaceIndex).toLowerCase();
-  if (scheme !== 'bearer') return '';
-  return auth.slice(spaceIndex + 1).trim();
-}
-
-function mapReliabilityStats(reliability) {
-  if (!reliability) return null;
-  return {
-    connect_attempts: reliability.connectAttempts,
-    reconnect_attempts: reliability.reconnectAttempts,
-    reconnect_schedules: reliability.reconnectSchedules,
-    disconnects: reliability.disconnects,
-    resubscribe_successes: reliability.resubscribeSuccesses,
-    resubscribe_failures: reliability.resubscribeFailures,
-    subscribe_failures: reliability.subscribeFailures,
-    accessories_query_failures: reliability.accessoriesQueryFailures,
-    last_connected_at: reliability.lastConnectedAt,
-    last_subscribed_at: reliability.lastSubscribedAt,
-    last_error: reliability.lastError,
-    last_error_at: reliability.lastErrorAt,
-    auth_failures: reliability.authFailures,
-    auth_failed: reliability.authFailed,
-    needs_repair: reliability.needsRepair,
-    auto_repair_attempts: reliability.autoRepairAttempts,
-    auto_repair_last_error: reliability.autoRepairLastError,
-    auto_repaired_at: reliability.autoRepairedAt,
-  };
-}
-
-function loadPairings() {
-  return normalizePairingsMap(pairingsStore.getSnapshot());
-}
-
-async function savePairings(pairings) {
-  const normalized = normalizePairingsMap(pairings);
-
-  // Guard: never discard existing longTermData during a save.
-  // A discovery rescan or store-refresh race could produce entries without
-  // longTermData; writing those would silently break all HomeKit pairings.
-  const existing = pairingsStore.getSnapshot();
-  for (const [id, entry] of Object.entries(normalized)) {
-    if (entry.protocol !== 'homekit') continue;
-    const prev = existing[id];
-    if (prev?.longTermData && !entry.longTermData) {
-      normalized[id] = { ...entry, longTermData: prev.longTermData };
-    }
-  }
-
-  await pairingsStore.write(normalized);
-  if (matterRuntime) matterRuntime.syncPairings(normalized);
-}
-
-function loadRooms() {
-  return roomsStore.getSnapshot();
-}
-
-async function saveRooms(rooms) {
-  await roomsStore.write(rooms);
-}
-
-function loadDisplayNames() {
-  return displayNamesStore.getSnapshot();
-}
-
-async function saveDisplayNames(names) {
-  await displayNamesStore.write(names);
-}
-
-function loadNotes() {
-  return notesStore.getSnapshot();
-}
-
-async function saveNotes(notes) {
-  await notesStore.write(notes);
-}
-
-function loadRetentionSettings() {
-  return normalizeRetentionSettings(retentionStore.getSnapshot());
-}
-
-async function saveRetentionSettings(settings) {
-  await retentionStore.write(normalizeRetentionSettings(settings));
-}
+const {
+  loadPairings,
+  savePairings,
+  loadRooms,
+  saveRooms,
+  loadDisplayNames,
+  saveDisplayNames,
+  loadNotes,
+  saveNotes,
+  loadRetentionSettings,
+  saveRetentionSettings,
+} = createStoreHelpers({
+  pairingsStore,
+  roomsStore,
+  displayNamesStore,
+  notesStore,
+  retentionStore,
+  getMatterRuntime: () => matterRuntime,
+  normalizeRetentionSettings,
+});
 
 // Resolve the mDNS network interface.
 // If DISCOVER_IFACE is set but doesn't exist on this machine, log the
@@ -340,6 +191,29 @@ if (Number.isFinite(STORE_REFRESH_INTERVAL_MS) && STORE_REFRESH_INTERVAL_MS >= 5
 }
 
 // ---------------------------------------------------------------------------
+// 2. Discovery helpers (must be created before subscriber startup)
+// ---------------------------------------------------------------------------
+
+let discoveryCache = []; // last scan results
+
+const {
+  runDiscoveryScan,
+  discoverDeviceForRepair,
+  savePairingForRepair,
+  getPairingForLookup,
+  runScheduledDiscoveryScan,
+} = createDiscoveryHelpers({
+  discoverIface: DISCOVER_IFACE,
+  discoveryEnabled: DISCOVERY_SCAN_ENABLED,
+  getDiscoveryCache: () => discoveryCache,
+  setDiscoveryCache: (cache) => { discoveryCache = cache; },
+  pairingsStore,
+  loadPairings,
+  savePairings,
+  getRetentionSettings: () => retentionSettings,
+});
+
+// ---------------------------------------------------------------------------
 // 1. Start HomeKit subscribers
 // ---------------------------------------------------------------------------
 
@@ -366,182 +240,6 @@ if (pairedCount > 0) {
   });
 } else {
   log.warn('[init] No pairings found — use the Setup tab in the web UI to discover and pair accessories.');
-}
-
-// ---------------------------------------------------------------------------
-// 2. Background discovery scan (refreshes every hour, populates cache)
-// ---------------------------------------------------------------------------
-
-let discoveryCache = []; // last scan results
-
-function runDiscoveryScan() {
-  if (!DISCOVERY_SCAN_ENABLED) {
-    return Promise.resolve(discoveryCache);
-  }
-
-  return new Promise((resolve, reject) => {
-    const found = new Map();
-    let discovery;
-    let settled = false;
-
-    function fail(err) {
-      if (settled) return;
-      settled = true;
-      try { discovery?.stop?.(); } catch (err) { log.debug('[discovery] stop error:', err.message); }
-      reject(err instanceof Error ? err : new Error(String(err)));
-    }
-
-    function succeed(value) {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    }
-
-    try {
-      discovery = new IPDiscovery(DISCOVER_IFACE);
-    } catch (err) {
-      return reject(err);
-    }
-
-    discovery.on('serviceUp', (service) => {
-      if (!found.has(service.id)) found.set(service.id, service);
-    });
-    discovery.on('error', (err) => {
-      fail(err);
-    });
-
-    try {
-      discovery.start();
-    } catch (err) {
-      return fail(err);
-    }
-
-    setTimeout(() => {
-      void (async () => {
-        if (settled) return;
-        try {
-          try { discovery.stop(); } catch (err) { log.debug('[discovery] stop error:', err.message); }
-          await pairingsStore.refresh();
-          const allPairings = loadPairings();
-          const currentPairings = getHomeKitPairings(allPairings);
-          discoveryCache = [...found.values()].map((s) => ({
-            id: s.id,
-            protocol: 'homekit',
-            name: s.name,
-            address: s.address,
-            port: s.port,
-            category: s.ci ?? null,
-            paired: s.sf === 0 || !!currentPairings[s.id],
-            pairedElsewhere: s.sf === 0 && !currentPairings[s.id],
-            alreadyPaired: !!currentPairings[s.id],
-          }));
-          log.info(`[discovery] Scan complete — found ${discoveryCache.length} accessory/accessories`);
-
-          let pairingsUpdated = false;
-          for (const [id, pairing] of Object.entries(currentPairings)) {
-            const seen = found.get(id);
-            if (!seen) continue;
-            if (seen.address !== pairing.address || seen.port !== pairing.port) {
-              log.debug(
-                `[discovery] ${pairing.name}: address updated ` +
-                `${pairing.address}:${pairing.port} -> ${seen.address}:${seen.port} — pairing refreshed`
-              );
-              currentPairings[id] = { ...pairing, address: seen.address, port: seen.port };
-              pairingsUpdated = true;
-            }
-          }
-          if (pairingsUpdated) {
-            await savePairings({
-              ...allPairings,
-              ...currentPairings,
-            });
-          }
-
-          succeed(discoveryCache);
-        } catch (err) {
-          fail(err);
-        }
-      })();
-    }, 10_000);
-  });
-}
-
-function safeDiscoveryScan() {
-  return runDiscoveryScan().catch((err) => {
-    log.warn(`[discovery] Scan skipped: ${err.message}`);
-    return [];
-  });
-}
-
-async function discoverDeviceForRepair(deviceId) {
-  if (!DISCOVERY_SCAN_ENABLED) return null;
-
-  return new Promise((resolve) => {
-    let discovery;
-    let settled = false;
-
-    try {
-      discovery = new IPDiscovery(DISCOVER_IFACE);
-    } catch (err) {
-      log.debug(`[auto-repair] Discovery init failed: ${err.message}`);
-      return resolve(null);
-    }
-
-    discovery.on('serviceUp', (service) => {
-      if (service.id !== deviceId || settled) return;
-      settled = true;
-      try { discovery.stop(); } catch (err) {
-        log.debug('[discovery] stop error on serviceUp:', err.message);
-      }
-      resolve({ address: service.address, port: service.port });
-    });
-
-    discovery.on('error', () => {
-      if (settled) return;
-      settled = true;
-      try { discovery.stop(); } catch (err) {
-        log.debug('[discovery] stop error on discovery error:', err.message);
-      }
-      resolve(null);
-    });
-
-    try {
-      discovery.start();
-    } catch (err) {
-      log.debug('[discovery] start failed during repair:', err.message);
-      return resolve(null);
-    }
-
-    setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      try { discovery.stop(); } catch (err) {
-        log.debug('[discovery] stop error on timeout:', err.message);
-      }
-      resolve(null);
-    }, 10_000);
-  });
-}
-
-async function savePairingForRepair(deviceId, updatedFields) {
-  const current = loadPairings();
-  current[deviceId] = { ...current[deviceId], ...updatedFields };
-  await savePairings(current);
-}
-
-function getPairingForLookup(id) {
-  const pairing = pairingsStore.getByKey(id);
-  if (!pairing || !isHomeKitPairing(pairing)) return null;
-  return normalizePairingRecord(id, pairing);
-}
-
-function isAutoDiscoveryEnabled() {
-  return DISCOVERY_SCAN_ENABLED && retentionSettings.autoScanHomeKit;
-}
-
-function runScheduledDiscoveryScan() {
-  if (!isAutoDiscoveryEnabled()) return Promise.resolve(discoveryCache);
-  return safeDiscoveryScan();
 }
 
 if (DISCOVERY_SCAN_ENABLED) {
@@ -603,18 +301,17 @@ if (Number.isFinite(RETENTION_SWEEP_MS) && RETENTION_SWEEP_MS >= 60_000) {
 
 const app = express();
 app.disable('x-powered-by');
-const apiWriteLimiter = rateLimit({
-  windowMs: normalizeRateLimitValue(API_WRITE_RATE_LIMIT_WINDOW_MS, 60_000, 1_000, 24 * 60 * 60 * 1000),
-  max: normalizeRateLimitValue(API_WRITE_RATE_LIMIT_MAX, 60, 1, 100_000),
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  keyGenerator: rateLimitKeyGenerator,
-  message: { error: 'Too many requests' },
-});
 app.use(cors({
   origin(origin, callback) {
-    callback(null, isAllowedCorsOrigin(origin));
+    if (!origin) return callback(null, true);
+    if (CORS_ALLOWED_ORIGINS.length > 0) return callback(null, CORS_ALLOWED_ORIGINS.includes(origin));
+    if (!CORS_ALLOW_LOCALHOST) return callback(null, false);
+    try {
+      const parsed = new URL(origin);
+      callback(null, isLoopbackHostname(parsed.hostname));
+    } catch { // flow-control catch — URL parse fails for malformed origins
+      callback(null, false);
+    }
   },
   methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Token'],
@@ -669,9 +366,6 @@ app.use('/api/setup', createSetupRouter({
   saveDisplayNames,
   loadNotes,
   saveNotes,
-  getHomeKitPairings,
-  isHomeKitPairing,
-  normalizePairingRecord,
   discoverDeviceForRepair,
   savePairingForRepair,
   startSubscribers,
@@ -736,11 +430,6 @@ app.use('/api', createAccessoriesRouter({
   getAccessoryIdentity,
   getAllDiscoveredAccessories,
   cacheAccessoryMetadata,
-  deriveDeviceHealth,
-  isHomeKitPairing,
-  mapReliabilityStats,
-  parentBridgeId,
-  parseIntInRange,
   HttpClient,
 }));
 
