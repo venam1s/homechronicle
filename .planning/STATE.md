@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-04-03T15:50:19.318Z"
+stopped_at: Completed 09-01-PLAN.md (scheduled repair UI)
+last_updated: "2026-04-03T16:33:50.597Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 2
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 08 — scheduled-repair-backend
+**Current focus:** Phase 09 — scheduled-repair-ui
 
 ## Current Position
 
-Phase: 9
-Plan: Not started
+Phase: 09 (scheduled-repair-ui) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-03
 
@@ -43,6 +43,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 08-01]: getRepairTargets uses session.pairingName fallback chain (pairing?.name ?? pairingName ?? deviceId)
 - [Phase 08-01]: running flag kept true during saveSettings in nested finally to prevent concurrent cycle start
 - [Phase 08-02]: onSettingsChange always calls stop() before conditional start() to handle hour changes as well as enable/disable
+- [Phase 09-scheduled-repair-ui]: repairConfig query uses 60s refetchInterval to auto-refresh last-run status
+- [Phase 09-scheduled-repair-ui]: Direct saveRepairMutation.mutate() on toggle/hour change — no debounce needed for repair config
 
 ### Pending Todos
 
@@ -60,6 +62,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T15:45:06.709Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-04-03T16:33:50.595Z
+Stopped at: Completed 09-01-PLAN.md (scheduled repair UI)
 Resume file: None

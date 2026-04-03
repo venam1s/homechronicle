@@ -15,7 +15,7 @@ v1.0 (Code Health) ended at Phase 7. v1.1 continues from Phase 8.
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 8: Scheduled Repair Backend** - Persist repair toggle, run daily repair cycle for needs_repair devices, log outcomes (completed 2026-04-03)
-- [ ] **Phase 9: Scheduled Repair UI** - Toggle in Manage > Settings with explanatory text, wired to the backend setting
+- [x] **Phase 9: Scheduled Repair UI** - Toggle in Manage > Settings with explanatory text, wired to the backend setting (completed 2026-04-03)
 
 ## Phase Details
 
@@ -42,7 +42,9 @@ Plans:
   1. A toggle labeled for scheduled repair is visible in Manage > Settings and reflects the current enabled/disabled state on page load
   2. Toggling the switch immediately persists the change — a page refresh shows the same state the user set
   3. Explanatory text adjacent to the toggle describes what scheduled repair does and when a user would want to enable it
-**Plans**: TBD
+**Plans:** 1/1 plans complete
+Plans:
+- [x] 09-01-PLAN.md — Repair query/mutation in useSetup.js + Scheduled Repair section in SettingsTab + unit tests
 **UI hint**: yes
 
 ## Progress
@@ -53,4 +55,4 @@ Phases execute in numeric order: 8 → 9
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 8. Scheduled Repair Backend | 2/2 | Complete   | 2026-04-03 |
-| 9. Scheduled Repair UI | 0/? | Not started | - |
+| 9. Scheduled Repair UI | 1/1 | Complete   | 2026-04-03 |
