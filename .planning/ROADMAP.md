@@ -1,8 +1,10 @@
-# Roadmap: HomeChronicle — Code Health Milestone
+# Roadmap: HomeChronicle — v1.1 Scheduled Repair
 
 ## Overview
 
-Six sequential phases transform the 2,100-line `index.js` monolith into a maintainable, testable service. The sequence is lowest-risk-first: a zero-risk error handler safety net lands first, then a formal migration system before any new schema changes, then a COUNT optimization that delivers visible perf improvement independently, then router extraction in dependency order from simplest to most complex. Every router extraction ships with its integration tests in the same phase.
+Two sequential phases deliver the scheduled repair feature. The backend phase establishes the daily repair timer, persistence, and logging — everything that runs whether the user is watching or not. The frontend phase wires the toggle and explanatory text into the existing Settings UI, turning the backend capability on and off from the browser.
+
+v1.0 (Code Health) ended at Phase 7. v1.1 continues from Phase 8.
 
 ## Phases
 
@@ -12,133 +14,43 @@ Six sequential phases transform the 2,100-line `index.js` monolith into a mainta
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Error Handler Foundation** - Add process-level error containment and silent-catch logging (completed 2026-04-02)
-- [x] **Phase 2: Migration System** - Adopt node-pg-migrate, retire init.sql, add alert_deliveries retention (completed 2026-04-02)
-- [x] **Phase 3: COUNT Optimization** - Replace full-table COUNT(*) with estimated reltuples for unfiltered pagination (completed 2026-04-02)
-- [x] **Phase 4: Router Extraction (Simple)** - Extract utils, archive, data, stats, and health routers with integration tests (completed 2026-04-02)
-- [x] **Phase 5: Router Extraction (Accessories)** - Extract accessories router with integration tests (completed 2026-04-02)
-- [x] **Phase 6: Router Extraction (Setup)** - Extract setup/pairing router with integration tests; index.js reaches target size (completed 2026-04-02)
+- [ ] **Phase 8: Scheduled Repair Backend** - Persist repair toggle, run daily repair cycle for needs_repair devices, log outcomes
+- [ ] **Phase 9: Scheduled Repair UI** - Toggle in Manage > Settings with explanatory text, wired to the backend setting
 
 ## Phase Details
 
-### Phase 1: Error Handler Foundation
-**Goal**: The listener process surfaces all errors rather than failing silently
-**Depends on**: Nothing (first phase)
-**Requirements**: ERR-01, ERR-02, ERR-03, ERR-04
+### Phase 8: Scheduled Repair Backend
+**Goal**: The listener automatically repairs stale HomeKit pairings on a daily schedule when the feature is enabled
+**Depends on**: Phase 7 (v1.0 complete)
+**Requirements**: SREP-02, SREP-03, SREP-05
 **Success Criteria** (what must be TRUE):
-  1. An unhandled promise rejection is logged at error level and the process continues running (HAP subscriptions survive)
-  2. An uncaught exception is logged and the process exits with code 1 (Docker restarts it with full crash context)
-  3. Any Express route that throws returns a structured JSON error response instead of crashing or hanging
-  4. A pairing or Matter cleanup failure that was previously swallowed now emits a debug-level log line visible in `docker compose logs`
-**Plans**: 2 plans
-
+  1. When the setting is enabled, the listener runs a repair pass once every 24 hours without manual intervention
+  2. The repair pass only attempts to re-pair devices whose `needs_repair` flag is set — healthy devices are untouched
+  3. Each repair run logs which devices were repaired, which were skipped, and which failed, visible in `docker compose logs`
+  4. The enabled/disabled state survives a container restart — restarting the listener with the feature on resumes scheduled repair automatically
+**Plans:** 2 plans
 Plans:
-- [x] 01-01-PLAN.md — Register process handlers (ERR-01, ERR-02) + Express error middleware (ERR-03) + test file
-- [x] 01-02-PLAN.md — Convert all silent catch blocks to log.debug() calls (ERR-04)
+- [ ] 08-01-PLAN.md — Repair scheduler module + getRepairTargets export + unit tests
+- [ ] 08-02-PLAN.md — Repair router API + index.js wiring + integration tests
+**UI hint**: no
 
-### Phase 2: Migration System
-**Goal**: Database schema changes are versioned, reproducible, and safe to apply on existing installs
-**Depends on**: Phase 1
-**Requirements**: MIG-01, MIG-02, MIG-03, MIG-04, MIG-05, PERF-04, PERF-05
+### Phase 9: Scheduled Repair UI
+**Goal**: Users can enable or disable scheduled repair from the Settings panel and understand what it does
+**Depends on**: Phase 8
+**Requirements**: SREP-01, SREP-04
 **Success Criteria** (what must be TRUE):
-  1. A fresh Docker install runs all migrations and reaches a fully operational schema without manual SQL
-  2. An existing install with live data runs the bootstrap and reaches the same schema state without data loss (init migration fake-applied)
-  3. `alert_deliveries` rows older than the configured threshold are swept on startup and on schedule
-  4. A `sent_at` index exists on `alert_deliveries` so listing and sweep queries avoid full scans
-  5. `db/init.sql` is no longer the schema authority — migrations are the sole source for both new and upgraded installs
-**Plans**: 2 plans
-
-Plans:
-- [x] 02-01-PLAN.md — Install node-pg-migrate, create migration files, rewrite migrateDb() with existing-install detection
-- [x] 02-02-PLAN.md — Add alert_deliveries retention sweep, retire init.sql from Docker configs
-
-### Phase 3: COUNT Optimization
-**Goal**: Paginated timeline requests no longer trigger a full table scan on every load
-**Depends on**: Phase 2
-**Requirements**: PERF-01, PERF-02, PERF-03
-**Success Criteria** (what must be TRUE):
-  1. An unfiltered `/api/events` request returns a count sourced from `pg_class.reltuples` rather than `COUNT(*)`
-  2. The API response includes `"estimated": true` when the estimated count is used so callers know the value is approximate
-  3. A filtered `/api/events` request (by device, date range, etc.) still returns an exact `COUNT(*)` result
-  4. On a fresh install where `reltuples` is zero or negative, the endpoint falls back to exact count and does not return zero
-**Plans**: 1 plan
-
-Plans:
-- [x] 03-01-PLAN.md — TDD: Replace COUNT(*) with reltuples for unfiltered /api/events pagination
-
-### Phase 4: Router Extraction (Simple Groups)
-**Goal**: Archive, data, stats, and health routes live in dedicated router files; shared utilities no longer couple routers together
-**Depends on**: Phase 3
-**Requirements**: RTR-01, RTR-02, RTR-03, RTR-04, RTR-07, RTR-09, TST-01, TST-02, TST-03, TST-06
-**Success Criteria** (what must be TRUE):
-  1. `utils.js` exists and all existing `alerts-router.js` → `events-router.js` utility imports are replaced with imports from `utils.js`
-  2. `archive-router.js`, `stats-router.js`, and `health-router.js` each exist as factory-function routers and are mounted in `index.js`
-  3. Integration tests for each extracted router pass under `npm test` using the existing mock-pool pattern
-  4. All pre-existing tests continue to pass (`npm test` green) after extraction
-  5. `retentionSettings` is accessed via a `getRetentionSettings()` callback in every router that needs it, not captured by value at construction
-**Plans**: 2 plans
-
-Plans:
-- [x] 04-01-PLAN.md — Extract utils.js + archive-router.js with integration tests (RTR-01, RTR-02, RTR-07, RTR-09, TST-01)
-- [x] 04-02-PLAN.md — Extract stats-router.js + health-router.js with integration tests (RTR-03, RTR-04, RTR-07, RTR-09, TST-02, TST-03, TST-06)
-
-### Phase 5: Router Extraction (Accessories)
-**Goal**: Accessories routes live in a dedicated router file with full integration test coverage
-**Depends on**: Phase 4
-**Requirements**: RTR-05, TST-04
-**Success Criteria** (what must be TRUE):
-  1. `accessories-router.js` exists as a factory-function router and is mounted in `index.js`
-  2. Integration tests for `accessories-router.js` pass under `npm test` covering list, detail, and characteristic history endpoints
-  3. All pre-existing tests continue to pass after extraction
-  4. `index.js` is below 800 lines after this extraction
-**Plans**: 1 plan
-
-Plans:
-- [x] 05-01-PLAN.md — Extract accessories-router.js factory with integration tests (RTR-05, TST-04)
-
-### Phase 6: Router Extraction (Setup)
-**Goal**: Setup, pairing, rooms, display-names, notes, and log-level routes live in a dedicated router file; index.js reaches its target size
-**Depends on**: Phase 5
-**Requirements**: RTR-06, RTR-08, RTR-10, TST-05
-**Success Criteria** (what must be TRUE):
-  1. `setup-router.js` exists as a factory-function router covering pairing, repair, add-pairing, rooms, display-names, notes, and log-level endpoints
-  2. `discoveryCache` is accessed exclusively via getter/setter callbacks injected at construction time — no snapshot captured at startup
-  3. Integration tests for `setup-router.js` pass under `npm test` and include at least one test that exercises a route after simulating a cache state change
-  4. `index.js` is between 300 and 400 lines and contains only store init, Matter/HAP bootstrap, background jobs, middleware registration, router mounts, and `app.listen()`
-**Plans**: 3 plans
-
-Plans:
-- [x] 06-01-PLAN.md — Extract setup-router.js factory with all 18 route handlers and wire into index.js (RTR-06, RTR-08, RTR-10)
-- [x] 06-02-PLAN.md — Create integration tests for setup-router.js (TST-05)
-- [ ] 06-03-PLAN.md — Extract helper functions from index.js to shared modules (RTR-10 gap closure)
-
-### Phase 7: Tech Debt Cleanup
-**Goal**: Close all tech debt items identified by the v1.0 milestone audit before archiving
-**Depends on**: Phase 6
-**Requirements**: RTR-01 (partial), TST-05 (partial), MIG-04 (partial)
-**Gap Closure**: Closes all 5 tech debt items from v1.0-MILESTONE-AUDIT.md
-**Success Criteria** (what must be TRUE):
-  1. `normalizeRateLimitValue` is either removed from utils.js or wired into a consumer
-  2. setup-router.integration.test.js no longer passes mock options that `createSetupRouter` ignores
-  3. CLAUDE.md and docs no longer reference init.sql as the schema source
-  4. discovery-helpers.js does not export functions that have no external consumer
-  5. All 273+ listener tests continue to pass
-**Plans**: 1 plan
-
-Plans:
-- [x] 07-01-PLAN.md — Fix all 5 tech debt items (dead code, stale docs, test mock, unused exports)
+  1. A toggle labeled for scheduled repair is visible in Manage > Settings and reflects the current enabled/disabled state on page load
+  2. Toggling the switch immediately persists the change — a page refresh shows the same state the user set
+  3. Explanatory text adjacent to the toggle describes what scheduled repair does and when a user would want to enable it
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+Phases execute in numeric order: 8 → 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Error Handler Foundation | 2/2 | Complete   | 2026-04-02 |
-| 2. Migration System | 2/2 | Complete   | 2026-04-02 |
-| 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
-| 4. Router Extraction (Simple) | 2/2 | Complete   | 2026-04-02 |
-| 5. Router Extraction (Accessories) | 1/1 | Complete   | 2026-04-02 |
-| 6. Router Extraction (Setup) | 3/3 | Complete   | 2026-04-03 |
-| 7. Tech Debt Cleanup | 1/1 | Complete   | 2026-04-03 |
+| 8. Scheduled Repair Backend | 0/2 | Planning complete | - |
+| 9. Scheduled Repair UI | 0/? | Not started | - |

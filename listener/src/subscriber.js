@@ -663,6 +663,31 @@ export function getSubscriberHealth() {
   return { total, connected, stale, needsRepair, lastConnectedAt };
 }
 
+/**
+ * Return per-device repair targets for the scheduled repair cycle.
+ * @param {number} staleThresholdMs — devices with no subscribe success in this window are stale (default 10 min)
+ * @returns {Array<{ deviceId: string, pairingName: string, needsRepair: boolean, isStale: boolean }>}
+ */
+export function getRepairTargets(staleThresholdMs = 10 * 60_000) {
+  const now = Date.now();
+  const targets = [];
+  for (const [deviceId, session] of subscriberSessions) {
+    const { stats } = session;
+    const isNeedsRepair = Boolean(stats.needsRepair);
+    const lastSub = stats.lastSubscribedAt;
+    const isStale = !lastSub || now - new Date(lastSub).getTime() > staleThresholdMs;
+    if (isNeedsRepair || isStale) {
+      targets.push({
+        deviceId,
+        pairingName: session.pairing?.name ?? session.pairingName ?? deviceId,
+        needsRepair: isNeedsRepair,
+        isStale,
+      });
+    }
+  }
+  return targets;
+}
+
 export function resetSubscriberStats(deviceId) {
   const session = subscriberSessions.get(deviceId);
   if (!session) return false;
