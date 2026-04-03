@@ -13,6 +13,7 @@ import { processAlertsForEvent } from './alerts.js';
 import {
   cacheAccessoryMetadata,
   clearAccessoryMetadata,
+  getAccessoryIdentity,
 } from './accessory-metadata.js';
 import { log } from './logger.js';
 
@@ -28,6 +29,45 @@ const RUN_CYCLE_OFF_DELAY_MS = Number.parseInt(
   process.env.RUN_CYCLE_OFF_DELAY_MS ?? `${15 * 60_000}`,
   10
 );
+
+/**
+ * Compare pre-cache firmware versions against freshly-populated identities and
+ * return an array of insertEvent-compatible payload objects for any accessories
+ * whose firmware_revision has changed.
+ *
+ * Called from connectAccessory() AFTER cacheAccessoryMetadata() updates the
+ * cache. The caller iterates the returned array and calls insertEvent() for each.
+ *
+ * @param {object} opts
+ * @param {Map<string, string>} opts.oldFirmwareByAccessoryId - effectiveId → trimmed firmware string (only non-null values)
+ * @param {Map<string, object>} opts.identitiesByAccessoryId  - effectiveId → identity object from cacheAccessoryMetadata
+ * @param {string} opts.deviceId      - top-level device ID (for room fallback)
+ * @param {string} opts.accessoryName - display name of the top-level accessory
+ * @param {Record<string, string>} opts.rooms - rooms map (effectiveId → roomName)
+ * @returns {Array<object>} insertEvent payloads
+ */
+function detectFirmwareChanges({ oldFirmwareByAccessoryId, identitiesByAccessoryId, deviceId, accessoryName, rooms }) {
+  const events = [];
+  for (const [effId, identity] of identitiesByAccessoryId.entries()) {
+    const newFw = identity.firmware_revision != null ? String(identity.firmware_revision).trim() : null;
+    const oldFw = oldFirmwareByAccessoryId.get(effId) ?? null;
+    if (oldFw !== null && newFw !== null && oldFw !== newFw) {
+      const effName = identity.child_name || accessoryName;
+      events.push({
+        accessoryId: effId,
+        accessoryName: effName,
+        roomName: rooms[effId] ?? (effId.includes(':') ? rooms[deviceId] : null) ?? null,
+        serviceType: 'AccessoryInformation',
+        characteristic: 'FirmwareRevision',
+        oldValue: oldFw,
+        newValue: newFw,
+        protocol: 'homekit',
+        transport: 'ip',
+      });
+    }
+  }
+  return events;
+}
 
 // In-memory cache of last-seen values: "deviceId:aid.iid" → value string.
 // Used to populate old_value on each event so the UI can show before→after.
@@ -175,11 +215,37 @@ function connectAccessory(session, pairing) {
   session.client = client;
 
   client.getAccessories().then(async (accessories) => {
-    const { iidMetaMap: iidMeta } = cacheAccessoryMetadata({
+    // Snapshot old firmware versions before cacheAccessoryMetadata() clears the cache
+    const oldFirmwareByAccessoryId = new Map();
+    for (const acc of accessories?.accessories ?? []) {
+      const effId = acc.aid > 1 ? `${deviceId}:${acc.aid}` : deviceId;
+      const prev = getAccessoryIdentity(effId);
+      if (prev?.firmware_revision != null) {
+        oldFirmwareByAccessoryId.set(effId, String(prev.firmware_revision).trim());
+      }
+    }
+
+    const { iidMetaMap: iidMeta, identitiesByAccessoryId } = cacheAccessoryMetadata({
       deviceId,
       pairingName: accessoryName,
       accessories,
     });
+
+    // Detect and log firmware version changes (skipped on first connect — oldFirmwareByAccessoryId is empty)
+    const firmwareEvents = detectFirmwareChanges({
+      oldFirmwareByAccessoryId,
+      identitiesByAccessoryId,
+      deviceId,
+      accessoryName,
+      rooms,
+    });
+    for (const payload of firmwareEvents) {
+      insertEvent(payload).then(() => {
+        log.info(`[firmware] ${payload.accessoryName}: ${payload.oldValue} -> ${payload.newValue}`);
+      }).catch((err) => {
+        log.error(`[firmware] Failed to log version change for ${payload.accessoryName}:`, err.message ?? err);
+      });
+    }
     stats.lastConnectedAt = new Date().toISOString();
     stats.authFailures = 0;
 
@@ -614,6 +680,7 @@ export const __testHooks = {
   isMaxPeersError,
   isConnectionError,
   attemptAutoRepair,
+  detectFirmwareChanges,
   getSession(deviceId) {
     return subscriberSessions.get(deviceId) ?? null;
   },
