@@ -1,6 +1,7 @@
 # Environment
 .env
 .claude/
+.planning/
 .zed
 
 CLAUDE.md
