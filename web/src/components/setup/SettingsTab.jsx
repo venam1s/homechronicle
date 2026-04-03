@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { AlertTriangle, CheckCircle2, ChevronDown, Download, Loader, Loader2, Trash2, X } from 'lucide-react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
@@ -40,6 +41,8 @@ export default function SettingsTab({ setup }) {
     matterPairings,
     deletePairingMutation,
     deleteMatterPairingMutation,
+    repairConfig,
+    saveRepairMutation,
   } = setup;
 
   const { addToast, configure: configureToasts } = useToast();
@@ -97,6 +100,8 @@ export default function SettingsTab({ setup }) {
   const [toastPositionInput, setToastPositionInput] = useState('bottom-right');
   const [toastDurationInput, setToastDurationInput] = useState(3);
   const [toastMaxVisibleInput, setToastMaxVisibleInput] = useState(3);
+  const [repairEnabledInput, setRepairEnabledInput] = useState(false);
+  const [repairHourInput, setRepairHourInput] = useState(3);
 
   // ── Auto-save helper (debounced, serialized) ───────────────────────────
   const autoSaveTimer = useRef(null);
@@ -161,6 +166,8 @@ export default function SettingsTab({ setup }) {
   const sceneWindowCurrent = retentionConfig?.sceneWindowSeconds ?? 5;
   const episodeMinEventCurrent = retentionConfig?.episodeMinEventCount ?? 3;
   const logLevelCurrent = logLevelConfig?.level ?? 'info';
+  const repairEnabledCurrent = Boolean(repairConfig?.enabled ?? false);
+  const repairHourCurrent = repairConfig?.hour != null ? utcHourToLocal(repairConfig.hour) : 3;
   const dangerPairedCount = dbAccessories.filter((a) => Boolean(a.paired_at)).length;
   const dangerUnpairedCount = dbAccessories.length - dangerPairedCount;
   const visibleDangerAccessories = dbAccessories.filter((a) => {
@@ -224,6 +231,11 @@ export default function SettingsTab({ setup }) {
       setToastMaxVisibleInput(retentionConfig.toastMaxVisible ?? 3);
     }
   }, [retentionConfig?.toastPosition, retentionConfig?.toastDuration, retentionConfig?.toastMaxVisible]);
+
+  useEffect(() => {
+    setRepairEnabledInput(repairEnabledCurrent);
+    setRepairHourInput(repairHourCurrent);
+  }, [repairEnabledCurrent, repairHourCurrent]);
 
   const parsedRetentionDays = Number.parseInt(retentionDaysInput, 10);
   const parsedStaleThresholdHours = Number.parseInt(staleThresholdHoursInput, 10);
@@ -793,6 +805,65 @@ export default function SettingsTab({ setup }) {
             {savePending ? 'Saving\u2026' : 'Save settings'}
           </button>
         </div>
+      </div>
+
+      {/* — Scheduled Repair — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Scheduled Repair</h3>
+
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+          Automatically re-pairs HomeKit devices that lose their connection overnight.
+          Enable this if you notice devices going offline and not reconnecting on their own.
+        </p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Scheduled Repair</p>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={repairEnabledInput}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setRepairEnabledInput(v);
+                saveRepairMutation.mutate({ enabled: v });
+              }}
+            />
+            <span>{repairEnabledInput ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+        {repairEnabledInput && (
+          <>
+            <div className="flex items-center gap-3 mt-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Repair Hour</span>
+                <select
+                  value={repairHourInput}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setRepairHourInput(v);
+                    saveRepairMutation.mutate({ hour: localHourToUtc(v) });
+                  }}
+                  className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                >
+                  {HOURS_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              {repairConfig?.lastRunAt ? (
+                <span>Last run: {formatDistanceToNow(new Date(repairConfig.lastRunAt), { addSuffix: true })}</span>
+              ) : (
+                <span>No runs yet</span>
+              )}
+              {repairConfig?.lastRunResult && (
+                <span className="ml-2">
+                  &middot; {repairConfig.lastRunResult.repaired} repaired, {repairConfig.lastRunResult.failed} failed
+                </span>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Danger Zone */}

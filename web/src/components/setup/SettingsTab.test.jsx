@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '../Toast.jsx';
@@ -65,7 +65,10 @@ describe('Scheduled Repair section', () => {
 
   it('renders "Scheduled Repair" heading text when repairConfig is provided', () => {
     renderTab(makeSetup());
-    expect(screen.getByText('Scheduled Repair')).toBeInTheDocument();
+    const matches = screen.getAllByText('Scheduled Repair');
+    expect(matches.length).toBeGreaterThanOrEqual(1);
+    // The section heading should be an h3
+    expect(matches.some((el) => el.tagName === 'H3')).toBe(true);
   });
 
   it('renders explanatory text containing "re-pairs HomeKit devices"', () => {
@@ -73,27 +76,23 @@ describe('Scheduled Repair section', () => {
     expect(screen.getByText(/re-pairs HomeKit devices/i)).toBeInTheDocument();
   });
 
+  function getRepairCard() {
+    // The explanatory text is unique to the Scheduled Repair card
+    const explanatoryText = screen.getByText(/Automatically re-pairs HomeKit devices/i);
+    return explanatoryText.closest('div.bg-white, div[class*="bg-white"]');
+  }
+
   it('renders toggle checkbox as unchecked when repairConfig.enabled is false', () => {
     renderTab(makeSetup({ repairConfig: { enabled: false, hour: 3, lastRunAt: null, lastRunResult: null } }));
-    // The Scheduled Repair section has a checkbox; find it by being near the "Off" label
-    const checkboxes = screen.getAllByRole('checkbox');
-    // Find the one in the Scheduled Repair section — it's in a label near "Off" span
-    const repairCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest('label');
-      return label && label.textContent.includes('Off');
-    });
-    expect(repairCheckbox).toBeDefined();
+    const card = getRepairCard();
+    const repairCheckbox = within(card).getByRole('checkbox');
     expect(repairCheckbox).not.toBeChecked();
   });
 
   it('renders toggle checkbox as checked when repairConfig.enabled is true', () => {
     renderTab(makeSetup({ repairConfig: { enabled: true, hour: 3, lastRunAt: null, lastRunResult: null } }));
-    const checkboxes = screen.getAllByRole('checkbox');
-    const repairCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest('label');
-      return label && label.textContent.includes('On');
-    });
-    expect(repairCheckbox).toBeDefined();
+    const card = getRepairCard();
+    const repairCheckbox = within(card).getByRole('checkbox');
     expect(repairCheckbox).toBeChecked();
   });
 
@@ -103,11 +102,8 @@ describe('Scheduled Repair section', () => {
       repairConfig: { enabled: false, hour: 3, lastRunAt: null, lastRunResult: null },
       saveRepairMutation,
     }));
-    const checkboxes = screen.getAllByRole('checkbox');
-    const repairCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest('label');
-      return label && label.textContent.includes('Off');
-    });
+    const card = getRepairCard();
+    const repairCheckbox = within(card).getByRole('checkbox');
     await userEvent.click(repairCheckbox);
     expect(saveRepairMutation.mutate).toHaveBeenCalledWith({ enabled: true });
   });
