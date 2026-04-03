@@ -66,6 +66,12 @@ export function useSetup() {
     queryFn: () => fetchJson('/api/setup/log-level'),
   });
 
+  const { data: repairConfig } = useQuery({
+    queryKey: ['setup', 'repair'],
+    queryFn: () => fetchJson('/api/setup/repair'),
+    refetchInterval: 60_000,
+  });
+
   const {
     data: matterRuntime = null,
     isError: matterRuntimeError,
@@ -218,6 +224,18 @@ export function useSetup() {
       }),
     onSuccess: (next) => {
       queryClient.setQueryData(['setup', 'log-level'], next);
+    },
+  });
+
+  const saveRepairMutation = useMutation({
+    mutationFn: (settingsPatch) =>
+      fetchJson('/api/setup/repair', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsPatch),
+      }),
+    onSuccess: (next) => {
+      queryClient.setQueryData(['setup', 'repair'], next);
     },
   });
 
@@ -378,6 +396,7 @@ export function useSetup() {
     savedDisplayNames,
     retentionConfig,
     logLevelConfig,
+    repairConfig,
     matterRuntime,
     matterRuntimeError,
     matterRuntimeErrorValue,
@@ -407,6 +426,7 @@ export function useSetup() {
     saveNoteMutation,
     saveRetentionMutation,
     saveLogLevelMutation,
+    saveRepairMutation,
     deleteAccessoryMutation,
     pairMatterMutation,
     deleteMatterPairingMutation,
