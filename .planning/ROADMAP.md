@@ -12,8 +12,8 @@ Six sequential phases transform the 2,100-line `index.js` monolith into a mainta
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Error Handler Foundation** - Add process-level error containment and silent-catch logging
-- [ ] **Phase 2: Migration System** - Adopt node-pg-migrate, retire init.sql, add alert_deliveries retention
+- [x] **Phase 1: Error Handler Foundation** - Add process-level error containment and silent-catch logging (completed 2026-04-02)
+- [x] **Phase 2: Migration System** - Adopt node-pg-migrate, retire init.sql, add alert_deliveries retention (completed 2026-04-02)
 - [x] **Phase 3: COUNT Optimization** - Replace full-table COUNT(*) with estimated reltuples for unfiltered pagination (completed 2026-04-02)
 - [x] **Phase 4: Router Extraction (Simple)** - Extract utils, archive, data, stats, and health routers with integration tests (completed 2026-04-02)
 - [x] **Phase 5: Router Extraction (Accessories)** - Extract accessories router with integration tests (completed 2026-04-02)
@@ -112,16 +112,33 @@ Plans:
 - [x] 06-02-PLAN.md — Create integration tests for setup-router.js (TST-05)
 - [ ] 06-03-PLAN.md — Extract helper functions from index.js to shared modules (RTR-10 gap closure)
 
+### Phase 7: Tech Debt Cleanup
+**Goal**: Close all tech debt items identified by the v1.0 milestone audit before archiving
+**Depends on**: Phase 6
+**Requirements**: RTR-01 (partial), TST-05 (partial), MIG-04 (partial)
+**Gap Closure**: Closes all 5 tech debt items from v1.0-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. `normalizeRateLimitValue` is either removed from utils.js or wired into a consumer
+  2. setup-router.integration.test.js no longer passes mock options that `createSetupRouter` ignores
+  3. CLAUDE.md and docs no longer reference init.sql as the schema source
+  4. discovery-helpers.js does not export functions that have no external consumer
+  5. All 273+ listener tests continue to pass
+**Plans**: 1 plan
+
+Plans:
+- [x] 07-01-PLAN.md — Fix all 5 tech debt items (dead code, stale docs, test mock, unused exports)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Error Handler Foundation | 1/2 | In Progress|  |
-| 2. Migration System | 1/2 | In Progress|  |
+| 1. Error Handler Foundation | 2/2 | Complete   | 2026-04-02 |
+| 2. Migration System | 2/2 | Complete   | 2026-04-02 |
 | 3. COUNT Optimization | 1/1 | Complete   | 2026-04-02 |
 | 4. Router Extraction (Simple) | 2/2 | Complete   | 2026-04-02 |
 | 5. Router Extraction (Accessories) | 1/1 | Complete   | 2026-04-02 |
-| 6. Router Extraction (Setup) | 2/1 | Complete   | 2026-04-03 |
+| 6. Router Extraction (Setup) | 3/3 | Complete   | 2026-04-03 |
+| 7. Tech Debt Cleanup | 1/1 | Complete   | 2026-04-03 |
