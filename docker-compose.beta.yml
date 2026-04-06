@@ -10,6 +10,7 @@ services:
       my-network:
         aliases:
           - hc-beta-postgres
+    entrypoint: ["/usr/local/bin/ensure-password.sh"]
     environment:
       POSTGRES_USER: homekit
       POSTGRES_PASSWORD: homekit-test
@@ -17,6 +18,7 @@ services:
       TZ: ${TZ:-America/Indianapolis}
     volumes:
       - /mnt/Primary/apps/hc-beta/postgres-data-beta:/var/lib/postgresql/data
+      - ./docker/postgres-ensure-password.sh:/usr/local/bin/ensure-password.sh:ro
     ports:
       - "127.0.0.1:5433:5432"
     deploy:
