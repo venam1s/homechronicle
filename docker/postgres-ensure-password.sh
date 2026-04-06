@@ -26,13 +26,24 @@ until pg_isready -U "$PG_USER" -d postgres -q 2>/dev/null; do
 done
 
 # Sync password via local Unix socket (trust auth — no password needed).
-# Connect to 'postgres' database which always exists.
+# Explicitly set password_encryption to scram-sha-256 so the stored hash
+# matches what pg_hba.conf requires.  Without this, a volume initialised
+# with md5 encryption silently stores an md5 hash that SCRAM auth rejects.
 if [ -n "$PG_PASS" ]; then
   if psql -U "$PG_USER" --host /var/run/postgresql -d postgres \
+       -c "SET password_encryption = 'scram-sha-256';" \
        -c "ALTER USER \"$PG_USER\" PASSWORD '$PG_PASS';" 2>&1; then
-    echo "ensure-password: synced password for user '$PG_USER'"
+    echo "ensure-password: synced password for user '$PG_USER' (scram-sha-256)"
   else
     echo "ensure-password: WARNING — failed to sync password" >&2
+  fi
+
+  # Verify the password actually works over TCP before declaring healthy.
+  if PGPASSWORD="$PG_PASS" psql -U "$PG_USER" -h 127.0.0.1 -d postgres \
+       -c "SELECT 1;" >/dev/null 2>&1; then
+    echo "ensure-password: verified TCP auth for '$PG_USER'"
+  else
+    echo "ensure-password: WARNING — TCP auth failed after sync, check password_encryption" >&2
   fi
 fi
 
