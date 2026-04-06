@@ -46,11 +46,11 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
   return (
     <div
       data-scene-id={events[0].id}
-      className={
+      className={`hc-scene-card mx-3 my-2 rounded-lg overflow-hidden ${
         highlight === 'highlighted' ? 'transition-all'
         : highlight === 'dimmed'    ? 'opacity-40 transition-all'
         : ''
-      }
+      }`}
       style={
         highlight === 'highlighted'
           ? { boxShadow: `inset 3px 0 0 0 rgba(var(--hc-accent-rgb), 0.65)`, backgroundColor: 'rgba(var(--hc-accent-rgb), 0.08)' }
@@ -60,14 +60,14 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
       {/* Scene header row */}
       <button
         onClick={() => setExpanded((x) => !x)}
-        className="flex items-center gap-3 py-2.5 px-4 w-full text-left hover:bg-blue-50/60 transition-colors"
+        className="hc-scene flex items-center gap-3 py-2.5 px-4 w-full text-left transition-colors"
       >
         <div
-          className="flex-shrink-0 w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center"
+          className="flex-shrink-0 w-9 h-9 rounded-full hc-scene-icon flex items-center justify-center"
           title="Scene: multiple events happened together"
           aria-label="Scene: multiple events happened together"
         >
-          <Zap size={16} className="text-blue-500" />
+          <Zap size={16} className="hc-scene-icon-glyph" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -101,10 +101,10 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
         </div>
       </button>
 
-      {/* Expanded individual events — indented with blue accent border */}
+      {/* Expanded individual events — indented with accent border */}
       {expanded && (
-        <div className="border-t border-gray-100">
-          <div className="ml-4 border-l-2 border-blue-200 bg-blue-50/20">
+        <div className="hc-scene-expanded">
+          <div className="ml-4 border-l-2 hc-scene-border">
             <div className="divide-y divide-gray-100/80">
               {events.map((event) => (
                 <EventRow

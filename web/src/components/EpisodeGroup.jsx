@@ -23,7 +23,7 @@ export default memo(function EpisodeGroup({ episode, scenes, eventMetaMap, hover
   const rooms = [...new Set(events.map((event) => event.room_name).filter(Boolean))];
 
   return (
-    <div data-scene-id={events[0].id} className="border-b border-gray-100 last:border-b-0">
+    <div data-scene-id={events[0].id} className="hc-episode-card mx-3 my-2 rounded-xl overflow-hidden">
       <button
         onClick={() => setExpanded((value) => !value)}
         className="hc-episode w-full text-left px-4 py-3.5 transition-colors"
