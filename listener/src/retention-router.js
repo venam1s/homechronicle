@@ -40,7 +40,7 @@ export function normalizeRetentionSettings(input = {}) {
   const toastAccessories = Array.isArray(input.toastAccessories)
     ? input.toastAccessories.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim())
     : [];
-  const VALID_POSITIONS = ['bottom-right', 'top-right', 'bottom-left', 'top-left'];
+  const VALID_POSITIONS = ['bottom-right', 'top-right', 'bottom-left', 'top-left', 'bottom-center', 'top-center'];
   const VALID_DURATIONS = [2, 3, 5, 7];
   const VALID_MAX_VISIBLE = [1, 2, 3, 5];
   const toastPosition = VALID_POSITIONS.includes(input.toastPosition) ? input.toastPosition : 'bottom-right';
@@ -195,9 +195,9 @@ export function createRetentionRouter({ getSettings, saveSettings, sweepMs = 0 }
     }
 
     if (body.toastPosition !== undefined) {
-      const valid = ['bottom-right', 'top-right', 'bottom-left', 'top-left'];
+      const valid = ['bottom-right', 'top-right', 'bottom-left', 'top-left', 'bottom-center', 'top-center'];
       if (!valid.includes(body.toastPosition)) {
-        return res.status(400).json({ error: 'toastPosition must be one of: bottom-right, top-right, bottom-left, top-left.' });
+        return res.status(400).json({ error: 'toastPosition must be one of: bottom-right, top-right, bottom-left, top-left, bottom-center, top-center.' });
       }
       updates.toastPosition = body.toastPosition;
     }
