@@ -82,6 +82,15 @@ const SKIN_SWATCH_DARK = {
 
 export default function App() {
   const [tab, setTab]               = useState('dashboard');
+  const [scrolled, setScrolled]     = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const { data: retentionConfig } = useQuery({
     queryKey: ['setup', 'retention'],
@@ -260,13 +269,16 @@ export default function App() {
   return (
     <div className={clsx('min-h-screen bg-gray-50 flex flex-col', isStandalonePwa && 'hc-pwa-shell')}>
       {/* Header */}
-      <header className="hc-app-header bg-white border-b border-gray-200 px-3 sm:px-4 py-3 flex flex-wrap items-center gap-3">
+      <header className={clsx(
+        'hc-app-header sticky top-0 z-50 transition-all duration-200 border-b px-3 sm:px-4 flex items-center gap-3 bg-[var(--hc-panel)] border-[var(--hc-panel-border)]',
+        scrolled ? 'py-1.5 shadow-sm' : 'py-3 flex-wrap',
+      )}>
         {!isStandalonePwa && (
-          <BrandLogo className="h-12 sm:h-14 w-auto max-w-[260px] sm:max-w-[300px] flex-shrink-0" />
+          <BrandLogo className={clsx('w-auto flex-shrink-0 transition-all duration-200', scrolled ? 'h-8 max-w-[200px]' : 'h-12 sm:h-14 max-w-[260px] sm:max-w-[300px]')} />
         )}
         {!isStandalonePwa && <span className="flex-1 hidden md:block" />}
 
-        <nav className="hc-tab-nav order-3 md:order-none w-full md:w-auto flex gap-1 overflow-x-auto pb-1 -mb-1">
+        <nav className={clsx('hc-tab-nav flex gap-1 overflow-x-auto pb-1 -mb-1', scrolled ? 'md:order-none md:w-auto' : 'order-3 md:order-none w-full md:w-auto')}>
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
