@@ -8,22 +8,27 @@
 # compose file password doesn't match what's baked into the volume.
 set -e
 
+PG_USER="${POSTGRES_USER:-postgres}"
+PG_PASS="$POSTGRES_PASSWORD"
+
 # Start the real entrypoint in the background
 docker-entrypoint.sh postgres &
 PG_PID=$!
 
 # Wait for postgres to accept connections
-until pg_isready -U "${POSTGRES_USER:-postgres}" -q 2>/dev/null; do
+until pg_isready -U "$PG_USER" -d postgres -q 2>/dev/null; do
   sleep 1
 done
 
-# Sync password via local Unix socket (trust auth — no password needed)
-if [ -n "$POSTGRES_PASSWORD" ]; then
-  psql -U "${POSTGRES_USER:-postgres}" \
-       --host /var/run/postgresql \
-       -d "${POSTGRES_DB:-postgres}" \
-       -c "ALTER USER \"${POSTGRES_USER:-postgres}\" PASSWORD '${POSTGRES_PASSWORD}';" \
-       >/dev/null 2>&1 || true
+# Sync password via local Unix socket (trust auth — no password needed).
+# Connect to 'postgres' database which always exists.
+if [ -n "$PG_PASS" ]; then
+  if psql -U "$PG_USER" --host /var/run/postgresql -d postgres \
+       -c "ALTER USER \"$PG_USER\" PASSWORD '$PG_PASS';" 2>&1; then
+    echo "ensure-password: synced password for user '$PG_USER'"
+  else
+    echo "ensure-password: WARNING — failed to sync password" >&2
+  fi
 fi
 
 # Hand off to the postgres process
