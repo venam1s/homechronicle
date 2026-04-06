@@ -7,9 +7,13 @@ const POLL_INTERVAL = 5000;
 const BASE = '/api';
 const MAX_SEEN_IDS = 500;
 
-function parentBridgeId(id) {
+function parentDeviceId(id) {
   const parts = String(id ?? '').split(':');
-  return parts.length > 6 ? parts.slice(0, 6).join(':') : String(id ?? '');
+  // HAP bridge: 6-part MAC + aid suffix → return MAC
+  if (parts.length > 6) return parts.slice(0, 6).join(':');
+  // Matter: nodeId:endpointId → return nodeId
+  if (parts.length > 1) return parts[0];
+  return String(id ?? '');
 }
 
 export function useLiveEventToasts({ activeTab, retentionConfig }) {
@@ -45,7 +49,7 @@ export function useLiveEventToasts({ activeTab, retentionConfig }) {
     const newEvents = data.events.filter(
       (e) => !seenIds.current.has(e.id) && (
         accessorySet.has(e.accessory_id) ||
-        accessorySet.has(parentBridgeId(e.accessory_id))
+        accessorySet.has(parentDeviceId(e.accessory_id))
       )
     );
 
