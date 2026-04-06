@@ -27,10 +27,10 @@ services:
           cpus: "1"
           memory: 1G
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U homekit -d homekit_events"]
-      interval: 10s
+      test: ["CMD-SHELL", "PGPASSWORD=homekit-test psql -U homekit -d homekit_events -c 'SELECT 1' -q 2>/dev/null"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 30s
 
   listener:

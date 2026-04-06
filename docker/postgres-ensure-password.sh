@@ -15,6 +15,11 @@ PG_PASS="$POSTGRES_PASSWORD"
 docker-entrypoint.sh postgres &
 PG_PID=$!
 
+# Forward SIGTERM/SIGINT to postgres so it shuts down cleanly.
+# Without this, bash (PID 1) swallows the signal and docker SIGKILLs
+# postgres after the grace period, causing "not properly shut down" on restart.
+trap "kill -TERM $PG_PID; wait $PG_PID" SIGTERM SIGINT
+
 # Wait for postgres to accept connections
 until pg_isready -U "$PG_USER" -d postgres -q 2>/dev/null; do
   sleep 1
