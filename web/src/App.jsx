@@ -274,7 +274,9 @@ export default function App() {
         scrolled ? 'py-1.5 shadow-sm' : 'py-3 flex-wrap',
       )}>
         {!isStandalonePwa && (
-          <BrandLogo className={clsx('w-auto flex-shrink-0 transition-all duration-200', scrolled ? 'h-8 max-w-[200px]' : 'h-12 sm:h-14 max-w-[260px] sm:max-w-[300px]')} />
+          <a href="https://gitlab.com/havuq/homechronicle" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+            <BrandLogo className={clsx('w-auto transition-all duration-200', scrolled ? 'h-8 max-w-[200px]' : 'h-12 sm:h-14 max-w-[260px] sm:max-w-[300px]')} />
+          </a>
         )}
         {!isStandalonePwa && <span className="flex-1 hidden md:block" />}
 
