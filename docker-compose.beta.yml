@@ -27,7 +27,11 @@ services:
           cpus: "1"
           memory: 1G
     healthcheck:
-      test: ["CMD-SHELL", "PGPASSWORD=homekit-test psql -U homekit -d homekit_events -c 'SELECT 1' -q 2>/dev/null"]
+      test:
+        [
+          "CMD-SHELL",
+          "PGPASSWORD=homekit-test psql -U homekit -d homekit_events -c 'SELECT 1' -q 2>/dev/null",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -92,6 +96,13 @@ services:
           memory: 256M
     ports:
       - "${WEB_PORT:-3100}:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hc-beta.rule=Host(`${BETA_FQDN}`)"
+      - "traefik.http.routers.hc-beta.entrypoints=websecure"
+      - "traefik.http.routers.hc-beta.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.hc-beta.middlewares=secured@file"
+      - "traefik.http.services.hc-beta.loadbalancer.server.port=80"
     environment:
       LISTENER_HOST: ${LISTENER_HOST:-hc-beta-listener}
       LISTENER_PORT: ${LISTENER_PORT:-${API_PORT:-3002}}
