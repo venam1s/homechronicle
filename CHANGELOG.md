@@ -4,8 +4,19 @@ All notable changes to homechronicle are documented in this file.
 
 ## [0.1.6-beta.3] — 2026-04-06
 
+### Added
+- **Clickable brand logo** — HomeChronicle logo in the header now links to the GitLab project page
+- **Settings guide page** — new documentation page covering all Manage > Settings sections (Device Management, Data & Retention, Alerts, Timeline, Appearance, Advanced, Danger Zone)
+- **Toast center positions** — added top-center and bottom-center toast position options
+- **Sticky header** — app header now sticks to the top and collapses on scroll
+- **Episode/scene card styling** — distinct card styles for episode and scene groups on the Timeline
+
+### Changed
+- **Settings tab reorganization** — reordered and renamed sections: Device Management, Data & Retention, Alerts & Quiet Hours, Timeline, Appearance, Advanced, Danger Zone
+
 ### Fixed
 - **Matter live toast notifications** — toast matching only handled HAP-style accessory IDs; Matter devices using `nodeId:endpointId` format were silently skipped
+- **Toast offset** — adjusted toast top position to clear the new sticky header
 
 ## [0.1.6-beta.2] — 2026-04-03
 
