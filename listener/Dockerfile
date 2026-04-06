@@ -30,6 +30,7 @@ WORKDIR /app
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node package.json .
 COPY --chown=node:node src/ ./src/
+COPY --chown=node:node migrations/ ./migrations/
 
 # Pairing keys and persistent data are volume-mounted at /app/data
 # The host volume for /app/data must be writable by uid 1000
