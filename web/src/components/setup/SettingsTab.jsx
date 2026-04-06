@@ -749,7 +749,7 @@ export default function SettingsTab({ setup }) {
           <div>
             <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Toast position</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Which corner of the screen to show toast popups.
+              Where on screen to show toast popups.
             </p>
           </div>
           <select
@@ -758,9 +758,11 @@ export default function SettingsTab({ setup }) {
             className="text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="bottom-right">Bottom Right</option>
-            <option value="top-right">Top Right</option>
             <option value="bottom-left">Bottom Left</option>
+            <option value="bottom-center">Bottom Center</option>
+            <option value="top-right">Top Right</option>
             <option value="top-left">Top Left</option>
+            <option value="top-center">Top Center</option>
           </select>
         </div>
       </div>

@@ -60,6 +60,7 @@ export function ToastProvider({ children }) {
   const isTop = settings.position.includes('top');
   const isRight = settings.position.includes('right');
   const isLeft = settings.position.includes('left');
+  const isCenter = settings.position.includes('center');
 
   function colorRgb(type) {
     return type === 'error'
@@ -75,7 +76,7 @@ export function ToastProvider({ children }) {
           className={clsx(
             'fixed z-[9999] flex flex-col gap-2 px-3 pointer-events-none',
             isTop ? 'top-20 pt-2' : 'bottom-0 pb-2 hc-standalone:pb-24',
-            isRight ? 'right-0 items-end' : isLeft ? 'left-0 items-start' : 'left-0 right-0 items-center',
+            isCenter ? 'left-0 right-0 items-center' : isRight ? 'right-0 items-end' : 'left-0 items-start',
           )}
         >
           {toasts.map((toast) => {

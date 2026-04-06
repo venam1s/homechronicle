@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-03)
 Phase: 09
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-03
+Last activity: 2026-04-06 - Completed quick task 260406-lo7: Reorganize Settings tab
 
 ```
 Progress: [░░░░░░░░░░] 0% (0/2 phases)
@@ -55,6 +55,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260403-2fx | Firmware version tracking — log and surface firmware version changes | 2026-04-03 | bd176bd | [260403-2fx-firmware-version-tracking-log-and-surfac](./quick/260403-2fx-firmware-version-tracking-log-and-surfac/) |
+| 260406-lo7 | Reorganize Settings tab - full layout rethink with improved visual hierarchy, section merging, and reordering | 2026-04-06 | 73fc185 | [260406-lo7-reorganize-settings-tab-full-layout-reth](./quick/260406-lo7-reorganize-settings-tab-full-layout-reth/) |
 
 ### Blockers/Concerns
 
