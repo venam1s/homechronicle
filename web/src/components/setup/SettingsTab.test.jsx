@@ -63,12 +63,12 @@ describe('Scheduled Repair section', () => {
     vi.clearAllMocks();
   });
 
-  it('renders "Scheduled Repair" heading text when repairConfig is provided', () => {
+  it('renders "Scheduled Repair" label text when repairConfig is provided', () => {
     renderTab(makeSetup());
     const matches = screen.getAllByText('Scheduled Repair');
     expect(matches.length).toBeGreaterThanOrEqual(1);
-    // The section heading should be an h3
-    expect(matches.some((el) => el.tagName === 'H3')).toBe(true);
+    // Scheduled Repair is now a card label inside Device Management, not a section heading
+    expect(matches.some((el) => el.tagName === 'P')).toBe(true);
   });
 
   it('renders explanatory text containing "re-pairs HomeKit devices"', () => {

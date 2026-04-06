@@ -359,8 +359,91 @@ export default function SettingsTab({ setup }) {
   return (
     <div className="space-y-4">
 
-      {/* — Data — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-1">Data</h3>
+      {/* — Device Management — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-1">Device Management</h3>
+
+      {/* HomeKit auto-scan */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">HomeKit auto-scan</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Automatically scan for HomeKit accessories every hour in the background.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={autoScanHomeKitInput}
+              onChange={(e) => { const v = e.target.checked; setAutoScanHomeKitInput(v); autoSave({ autoScanHomeKit: v }); }}
+            />
+            <span>{autoScanHomeKitInput ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
+          Manual scans from Add Accessories still work when this is off.
+        </p>
+      </div>
+
+      {/* Scheduled Repair */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+          Automatically re-pairs HomeKit devices that lose their connection overnight.
+          Enable this if you notice devices going offline and not reconnecting on their own.
+        </p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Scheduled Repair</p>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={repairEnabledInput}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setRepairEnabledInput(v);
+                saveRepairMutation.mutate({ enabled: v });
+              }}
+            />
+            <span>{repairEnabledInput ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+        {repairEnabledInput && (
+          <>
+            <div className="flex items-center gap-3 mt-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Repair Hour</span>
+                <select
+                  value={repairHourInput}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setRepairHourInput(v);
+                    saveRepairMutation.mutate({ hour: localHourToUtc(v) });
+                  }}
+                  className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                >
+                  {HOURS_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              {repairConfig?.lastRunAt ? (
+                <span>Last run: {formatDistanceToNow(new Date(repairConfig.lastRunAt), { addSuffix: true })}</span>
+              ) : (
+                <span>No runs yet</span>
+              )}
+              {repairConfig?.lastRunResult && (
+                <span className="ml-2">
+                  &middot; {repairConfig.lastRunResult.repaired} repaired, {repairConfig.lastRunResult.failed} failed
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* — Data & Retention — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Data &amp; Retention</h3>
 
       {/* Retention cutoff */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
@@ -448,31 +531,14 @@ export default function SettingsTab({ setup }) {
         </div>
       </div>
 
-      {/* HomeKit auto-scan */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-100">HomeKit auto-scan</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Automatically scan for HomeKit accessories every hour in the background.
-            </p>
-          </div>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-            <input
-              type="checkbox"
-              checked={autoScanHomeKitInput}
-              onChange={(e) => { const v = e.target.checked; setAutoScanHomeKitInput(v); autoSave({ autoScanHomeKit: v }); }}
-            />
-            <span>{autoScanHomeKitInput ? 'On' : 'Off'}</span>
-          </label>
-        </div>
-        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
-          Manual scans from Add Accessories still work when this is off.
+      {saveRetentionMutation.isError && (
+        <p className="text-xs text-red-600 dark:text-red-400">
+          Could not save settings: {saveRetentionMutation.error?.message}
         </p>
-      </div>
+      )}
 
-      {/* — Alerts — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Alerts</h3>
+      {/* — Alerts & Quiet Hours — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Alerts &amp; Quiet Hours</h3>
 
       {/* Quiet hours */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
@@ -629,10 +695,8 @@ export default function SettingsTab({ setup }) {
         </div>
       </div>
 
-      {/* ── Notifications ── */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">
-        Notifications
-      </h3>
+      {/* — Appearance — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Appearance</h3>
       {/* Toast notifications */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -775,71 +839,6 @@ export default function SettingsTab({ setup }) {
           <p className="text-xs text-red-600 dark:text-red-400 mt-2">
             Could not update log level: {saveLogLevelMutation.error?.message}
           </p>
-        )}
-      </div>
-
-      {saveRetentionMutation.isError && (
-        <p className="text-xs text-red-600 dark:text-red-400">
-          Could not save settings: {saveRetentionMutation.error?.message}
-        </p>
-      )}
-
-      {/* — Scheduled Repair — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Scheduled Repair</h3>
-
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-          Automatically re-pairs HomeKit devices that lose their connection overnight.
-          Enable this if you notice devices going offline and not reconnecting on their own.
-        </p>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Scheduled Repair</p>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-            <input
-              type="checkbox"
-              checked={repairEnabledInput}
-              onChange={(e) => {
-                const v = e.target.checked;
-                setRepairEnabledInput(v);
-                saveRepairMutation.mutate({ enabled: v });
-              }}
-            />
-            <span>{repairEnabledInput ? 'On' : 'Off'}</span>
-          </label>
-        </div>
-        {repairEnabledInput && (
-          <>
-            <div className="flex items-center gap-3 mt-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Repair Hour</span>
-                <select
-                  value={repairHourInput}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setRepairHourInput(v);
-                    saveRepairMutation.mutate({ hour: localHourToUtc(v) });
-                  }}
-                  className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100"
-                >
-                  {HOURS_OPTIONS.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-              {repairConfig?.lastRunAt ? (
-                <span>Last run: {formatDistanceToNow(new Date(repairConfig.lastRunAt), { addSuffix: true })}</span>
-              ) : (
-                <span>No runs yet</span>
-              )}
-              {repairConfig?.lastRunResult && (
-                <span className="ml-2">
-                  &middot; {repairConfig.lastRunResult.repaired} repaired, {repairConfig.lastRunResult.failed} failed
-                </span>
-              )}
-            </div>
-          </>
         )}
       </div>
 
