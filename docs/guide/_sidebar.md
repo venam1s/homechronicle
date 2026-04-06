@@ -9,6 +9,7 @@
   - [Security](security.md)
 - **Usage**
   - [Device Setup](devices.md)
+  - [Settings](settings.md)
   - [Appearance](appearance.md)
   - [Mobile Install (PWA)](mobile-install.md)
 - **Reference**
