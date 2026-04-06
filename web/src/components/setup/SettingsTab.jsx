@@ -784,29 +784,6 @@ export default function SettingsTab({ setup }) {
         </p>
       )}
 
-      {/* Sticky save bar */}
-      <div
-        className={clsx(
-          'sticky bottom-0 z-30 transition-all duration-300 -mx-4 px-4 hc-standalone:bottom-16',
-          isDirty ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none',
-        )}
-      >
-        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 shadow-lg flex items-center justify-between gap-3">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {saveFeedback === 'saved'
-              ? <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"><CheckCircle2 size={14} /> Saved</span>
-              : 'You have unsaved changes'}
-          </span>
-          <button
-            onClick={handleSaveSettings}
-            disabled={savePending || !inputsReady || !isDirty}
-            className="px-4 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            {savePending ? 'Saving\u2026' : 'Save settings'}
-          </button>
-        </div>
-      </div>
-
       {/* — Scheduled Repair — */}
       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Scheduled Repair</h3>
 
@@ -1172,6 +1149,29 @@ export default function SettingsTab({ setup }) {
           </div>
         )}
       </section>
+
+      {/* Sticky save bar */}
+      <div
+        className={clsx(
+          'sticky bottom-0 z-30 transition-all duration-300 -mx-4 px-4 hc-standalone:bottom-16',
+          isDirty ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none',
+        )}
+      >
+        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 shadow-lg flex items-center justify-between gap-3">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {saveFeedback === 'saved'
+              ? <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"><CheckCircle2 size={14} /> Saved</span>
+              : 'You have unsaved changes'}
+          </span>
+          <button
+            onClick={handleSaveSettings}
+            disabled={savePending || !inputsReady || !isDirty}
+            className="px-4 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {savePending ? 'Saving\u2026' : 'Save settings'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
