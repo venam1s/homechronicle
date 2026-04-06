@@ -2,6 +2,11 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.1.6-beta.3] — 2026-04-06
+
+### Fixed
+- **Matter live toast notifications** — toast matching only handled HAP-style accessory IDs; Matter devices using `nodeId:endpointId` format were silently skipped
+
 ## [0.1.6-beta.2] — 2026-04-03
 
 ### Added
