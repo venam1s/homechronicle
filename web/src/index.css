@@ -200,12 +200,12 @@
   }
 
   html.theme-dark[data-skin='pink'] {
-    --hc-accent-rgb: 244, 114, 182;
+    --hc-accent-rgb: 236, 72, 153;
     --hc-accent-soft: #500724;
-    --hc-accent-strong: #f472b6;
-    --hc-accent-stronger: #f9a8d4;
-    --hc-glow-1: rgba(244, 114, 182, 0.1);
-    --hc-glow-2: rgba(236, 72, 153, 0.08);
+    --hc-accent-strong: #ec4899;
+    --hc-accent-stronger: #db2777;
+    --hc-glow-1: rgba(236, 72, 153, 0.1);
+    --hc-glow-2: rgba(219, 39, 119, 0.08);
   }
 }
 
