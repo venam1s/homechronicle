@@ -424,3 +424,151 @@ test('GET /accessories/:accessoryId/char-summary — DB error returns 500', asyn
   assert.equal(statusCode, 500);
   assert.equal(jsonBody.error, 'Internal server error');
 });
+
+// -- GET /accessories bridge children via discovered source --
+
+test('GET /accessories — includes bridge children from discovered source', async () => {
+  const bridgeId = 'aa:bb:cc:dd:ee:ff';
+  // Child :4 has events (in dbRows); children :2 and :3 are only in discovered cache
+  let queryCallCount = 0;
+  const router = makeRouter({
+    pool: {
+      async query() {
+        queryCallCount++;
+        if (queryCallCount === 1) {
+          return {
+            rows: [{
+              accessory_id: `${bridgeId}:4`,
+              accessory_name: 'Child 4',
+              room_name: null,
+              service_type: 'Switch',
+              protocol: 'homekit',
+              last_seen: new Date().toISOString(),
+              event_count: 7,
+            }],
+          };
+        }
+        return { rows: [] };
+      },
+    },
+    loadPairings: () => ({
+      [bridgeId]: { name: 'My Bridge', category: 2, address: '192.168.1.10', port: 51826, longTermData: {}, protocol: 'homekit' },
+    }),
+    getAllDiscoveredAccessories: () => [
+      { accessory_id: `${bridgeId}:2`, parent_device_id: bridgeId, accessory_name: 'Child 2', services: [], watched_service_types: [] },
+      { accessory_id: `${bridgeId}:3`, parent_device_id: bridgeId, accessory_name: 'Child 3', services: [], watched_service_types: [] },
+    ],
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  assert.ok(Array.isArray(jsonBody), 'Response should be an array');
+  // 1 dbRow (:4) + 1 neverSeen (bridge) + 2 discovered (:2, :3)
+  assert.equal(jsonBody.length, 4, `Expected 4 accessories, got ${jsonBody.length}: ${jsonBody.map((r) => r.accessory_id).join(', ')}`);
+
+  const ids = jsonBody.map((r) => r.accessory_id);
+  assert.ok(ids.includes(`${bridgeId}:2`), 'Child :2 should appear from discovered');
+  assert.ok(ids.includes(`${bridgeId}:3`), 'Child :3 should appear from discovered');
+  assert.ok(ids.includes(`${bridgeId}:4`), 'Child :4 should appear from dbRows');
+  assert.ok(ids.includes(bridgeId), 'Bridge should appear in neverSeen');
+
+  const child2 = jsonBody.find((r) => r.accessory_id === `${bridgeId}:2`);
+  assert.equal(child2.event_count, 0, 'Discovered children should have event_count: 0');
+  assert.equal(child2.last_seen, null, 'Discovered children should have last_seen: null');
+});
+
+test('GET /accessories — deduplicates discovered children already in dbRows', async () => {
+  const bridgeId = 'aa:bb:cc:dd:ee:ff';
+  let queryCallCount = 0;
+  const router = makeRouter({
+    pool: {
+      async query() {
+        queryCallCount++;
+        if (queryCallCount === 1) {
+          return {
+            rows: [{
+              accessory_id: `${bridgeId}:2`,
+              accessory_name: 'Child 2',
+              room_name: null,
+              service_type: 'Switch',
+              protocol: 'homekit',
+              last_seen: new Date().toISOString(),
+              event_count: 5,
+            }],
+          };
+        }
+        return { rows: [] };
+      },
+    },
+    loadPairings: () => ({
+      [bridgeId]: { name: 'My Bridge', category: 2, address: '192.168.1.10', port: 51826, longTermData: {}, protocol: 'homekit' },
+    }),
+    // Child :2 is both in dbRows AND in discovered
+    getAllDiscoveredAccessories: () => [
+      { accessory_id: `${bridgeId}:2`, parent_device_id: bridgeId, accessory_name: 'Child 2', services: [], watched_service_types: [] },
+    ],
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  const ids = jsonBody.map((r) => r.accessory_id);
+  const child2Instances = ids.filter((id) => id === `${bridgeId}:2`);
+  assert.equal(child2Instances.length, 1, 'Child :2 should appear only once (deduplication from dbRows takes precedence)');
+
+  const child2 = jsonBody.find((r) => r.accessory_id === `${bridgeId}:2`);
+  assert.equal(child2.event_count, 5, 'dbRow version should have event_count from DB');
+});
+
+test('GET /accessories — on-demand metadata fetch for bridges with no cached children', async () => {
+  const bridgeId = 'aa:bb:cc:dd:ee:ff';
+  const cachedChildren = [];
+  let getAccessoriesCalled = false;
+  let cacheMetadataCalled = false;
+
+  const router = makeRouter({
+    pool: {
+      async query() { return { rows: [] }; },
+    },
+    loadPairings: () => ({
+      [bridgeId]: { name: 'My Bridge', category: 2, address: '192.168.1.10', port: 51826, longTermData: {}, protocol: 'homekit' },
+    }),
+    // Initially empty; after on-demand fetch it returns children
+    getAllDiscoveredAccessories: () => [...cachedChildren],
+    cacheAccessoryMetadata: ({ deviceId }) => {
+      cacheMetadataCalled = true;
+      // Simulate the cache being populated
+      cachedChildren.push(
+        { accessory_id: `${deviceId}:2`, parent_device_id: deviceId, accessory_name: 'Child A', services: [], watched_service_types: [] },
+        { accessory_id: `${deviceId}:3`, parent_device_id: deviceId, accessory_name: 'Child B', services: [], watched_service_types: [] },
+        { accessory_id: `${deviceId}:4`, parent_device_id: deviceId, accessory_name: 'Child C', services: [], watched_service_types: [] },
+      );
+    },
+    HttpClient: class MockHttpClient {
+      constructor(id) { this._id = id; }
+      async getAccessories() {
+        getAccessoriesCalled = true;
+        return {
+          accessories: [
+            { aid: 1, services: [] },
+            { aid: 2, services: [] },
+            { aid: 3, services: [] },
+            { aid: 4, services: [] },
+          ],
+        };
+      }
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  assert.ok(getAccessoriesCalled, 'HttpClient.getAccessories() should be called for bridge with no cached children');
+  assert.ok(cacheMetadataCalled, 'cacheAccessoryMetadata() should be called to populate the cache');
+
+  const ids = jsonBody.map((r) => r.accessory_id);
+  assert.ok(ids.includes(`${bridgeId}:2`), 'On-demand fetched child :2 should appear in response');
+  assert.ok(ids.includes(`${bridgeId}:3`), 'On-demand fetched child :3 should appear in response');
+  assert.ok(ids.includes(`${bridgeId}:4`), 'On-demand fetched child :4 should appear in response');
+});

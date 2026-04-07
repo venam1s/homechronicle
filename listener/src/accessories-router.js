@@ -244,6 +244,23 @@ export function createAccessoriesRouter({
           };
         });
 
+      // On-demand: populate metadata cache for HomeKit bridges that have no cached children.
+      // This handles the case where the subscriber hasn't connected yet or the cache was
+      // cleared during a reconnect cycle.
+      const discoveredBefore = getAllDiscoveredAccessories();
+      const cachedBridgeIds = new Set(discoveredBefore.map((d) => d.parent_device_id));
+      for (const [id, p] of Object.entries(currentPairings)) {
+        if (p.category === 2 && !cachedBridgeIds.has(id) && isHomeKitPairing(p)) {
+          try {
+            const client = new HttpClient(id, p.address, p.port, p.longTermData);
+            const accessories = await client.getAccessories();
+            cacheAccessoryMetadata({ deviceId: id, pairingName: p.name, accessories });
+          } catch (err) {
+            log.debug(`[api] on-demand metadata fetch failed for ${p.name ?? id}: ${err.message}`);
+          }
+        }
+      }
+
       // Include bridge children discovered via getAccessories() that have
       // no events yet and aren't in pairings (only the bridge itself is paired).
       const allIds = new Set([...seenIds, ...neverSeen.map((r) => r.accessory_id)]);
