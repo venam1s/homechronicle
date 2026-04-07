@@ -971,48 +971,28 @@ export default function SettingsTab({ setup }) {
 
               {/* Remove all pairings */}
               {(paired.length + matterPairings.length) > 0 && (
-                <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
-                  {removeAllState.phase === 'idle' && removeAllState !== 'confirming' && (
+                <div className="border-t border-red-100 dark:border-red-800 bg-red-50/50 dark:bg-red-900/20 px-4 py-4">
+                  {removeAllState.phase === 'idle' && (
                     <>
-                      {removeAllConfirmText === '' && (
+                      <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-2">
+                        Remove all pairings ({paired.length + matterPairings.length}) — type <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">DELETE</code> to confirm
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Type DELETE to confirm"
+                          value={removeAllConfirmText === '_' ? '' : removeAllConfirmText}
+                          onChange={(e) => setRemoveAllConfirmText(e.target.value || '_')}
+                          className="flex-1 text-xs border border-red-200 dark:border-red-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-red-400 bg-white dark:bg-gray-700 dark:text-gray-100 placeholder-red-200 dark:placeholder-red-600"
+                        />
                         <button
-                          onClick={() => setRemoveAllConfirmText('_')}
-                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                          onClick={handleRemoveAll}
+                          disabled={removeAllConfirmText !== 'DELETE'}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                         >
-                          <Trash2 size={13} />
-                          Remove All Pairings ({paired.length + matterPairings.length})
+                          Remove all
                         </button>
-                      )}
-                      {removeAllConfirmText !== '' && (
-                        <div className="space-y-2">
-                          <p className="text-xs text-red-700 dark:text-red-300">
-                            This will remove all HomeKit and Matter pairings ({paired.length + matterPairings.length} total).
-                            Type <strong>DELETE</strong> to confirm.
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              placeholder="Type DELETE to confirm"
-                              value={removeAllConfirmText === '_' ? '' : removeAllConfirmText}
-                              onChange={(e) => setRemoveAllConfirmText(e.target.value || '_')}
-                              className="text-xs border border-red-300 dark:border-red-700 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1 w-44 focus:outline-none focus:ring-1 focus:ring-red-400"
-                            />
-                            <button
-                              onClick={handleRemoveAll}
-                              disabled={removeAllConfirmText !== 'DELETE'}
-                              className="text-xs px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setRemoveAllConfirmText('')}
-                              className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </>
                   )}
                   {removeAllState.phase === 'running' && (
