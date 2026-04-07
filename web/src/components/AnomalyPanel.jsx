@@ -1,12 +1,20 @@
+import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { useAnomalies } from '../hooks/useEvents.js';
+import { useAnomalies, useAccessories } from '../hooks/useEvents.js';
 
 function labelFor(scopeType) {
   return scopeType === 'room' ? 'Room' : 'Device';
 }
 
-export default function AnomalyPanel() {
+export default function AnomalyPanel({ onSelectAccessory, onSelectRoom }) {
   const { data, isLoading, isError } = useAnomalies();
+  const { data: accessories } = useAccessories();
+
+  const nameToId = useMemo(() => {
+    const map = new Map();
+    for (const a of accessories ?? []) map.set(a.accessory_name, a.accessory_id);
+    return map;
+  }, [accessories]);
 
   const header = (
     <div className="flex items-baseline justify-between mb-3">
@@ -39,7 +47,18 @@ export default function AnomalyPanel() {
       {header}
       <div className="space-y-2">
         {rows.map((row) => (
-          <div key={`${row.scopeType}:${row.scopeName}:${row.hour}:${row.kind}`} className="rounded-lg border border-amber-100 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/10 px-3 py-2">
+          <div
+            key={`${row.scopeType}:${row.scopeName}:${row.hour}:${row.kind}`}
+            onClick={() => {
+              if (row.scopeType === 'device') {
+                const id = nameToId.get(row.scopeName);
+                if (id) onSelectAccessory?.(id);
+              } else {
+                onSelectRoom?.(row.scopeName);
+              }
+            }}
+            className="rounded-lg border border-amber-100 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/10 px-3 py-2 cursor-pointer hover:bg-amber-100/80 dark:hover:bg-amber-500/20 transition-colors"
+          >
             <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
               <AlertTriangle size={12} />
               <span className="uppercase tracking-wide font-semibold">{labelFor(row.scopeType)}</span>

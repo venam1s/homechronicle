@@ -12,7 +12,7 @@ function isBridgeParent(device) {
   return idParts.length === 6 && Number(device?.category) === 2;
 }
 
-export default function StaleDevicesPanel() {
+export default function StaleDevicesPanel({ onSelectAccessory }) {
   const { data: accessories, isLoading } = useAccessories();
 
   if (isLoading) {
@@ -36,7 +36,7 @@ export default function StaleDevicesPanel() {
       </div>
       <div className="space-y-2">
         {staleRows.map((device) => (
-          <div key={device.accessory_id} className="rounded-lg border border-amber-100 dark:border-amber-500/20 bg-amber-50/70 dark:bg-amber-500/10 px-3 py-2">
+          <div key={device.accessory_id} onClick={() => onSelectAccessory?.(device.accessory_id)} className="rounded-lg border border-amber-100 dark:border-amber-500/20 bg-amber-50/70 dark:bg-amber-500/10 px-3 py-2 cursor-pointer hover:bg-amber-100/80 dark:hover:bg-amber-500/20 transition-colors">
             <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
               <AlertTriangle size={12} />
               <span className="uppercase tracking-wide font-semibold">Device</span>
