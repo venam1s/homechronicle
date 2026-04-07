@@ -45,9 +45,9 @@ These settings control how the Timeline tab groups raw events into episodes.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| **Episode capture interval** | 5 min | Events within this window are grouped into timeline episodes |
+| **Episode capture interval** | 3 min | Events within this window are grouped into timeline episodes |
 | **Scene grouping window** | 5 sec | Events within this many seconds are clustered into a single scene |
-| **Episode minimum events** | 2 | Minimum events for a scene cluster to be promoted to an episode |
+| **Episode minimum events** | 3 | Minimum events for a scene cluster to be promoted to an episode |
 
 ## Appearance
 

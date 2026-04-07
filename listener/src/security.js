@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual, createHmac } from 'crypto';
 import { lookup as dnsLookup } from 'dns/promises';
 import { isIP } from 'net';
 
@@ -83,10 +83,12 @@ export function secureTokenEquals(expectedToken, providedToken) {
   const expected = String(expectedToken ?? '').trim();
   const provided = String(providedToken ?? '').trim();
   if (!expected || !provided) return false;
-  const expectedBuffer = Buffer.from(expected, 'utf8');
-  const providedBuffer = Buffer.from(provided, 'utf8');
-  if (expectedBuffer.length !== providedBuffer.length) return false;
-  return timingSafeEqual(expectedBuffer, providedBuffer);
+  // HMAC-hash both values to normalize length, preventing a length oracle
+  // that would let an attacker determine the exact API_TOKEN length via timing.
+  const key = Buffer.from('homechronicle-token-compare');
+  const expectedHash = createHmac('sha256', key).update(expected).digest();
+  const providedHash = createHmac('sha256', key).update(provided).digest();
+  return timingSafeEqual(expectedHash, providedHash);
 }
 
 export function validateWebhookTargetUrl(rawUrl, { allowPrivateTargets = true } = {}) {

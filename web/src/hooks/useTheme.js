@@ -40,11 +40,14 @@ function applyTheme(theme) {
 
 export function useTheme() {
   const [preference, setPreference] = useState(getStoredPreference);
-
-  const resolvedTheme = useMemo(
-    () => getResolvedTheme(preference),
-    [preference]
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-color-scheme: dark)').matches
   );
+
+  const resolvedTheme = preference === 'system'
+    ? (systemDark ? 'dark' : 'light')
+    : preference;
 
   useEffect(() => {
     applyTheme(resolvedTheme);
@@ -61,13 +64,12 @@ export function useTheme() {
   }, [preference]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || preference !== 'system') return;
-    if (typeof window.matchMedia !== 'function') return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const listener = () => applyTheme(media.matches ? 'dark' : 'light');
+    const listener = (e) => setSystemDark(e.matches);
     media.addEventListener('change', listener);
     return () => media.removeEventListener('change', listener);
-  }, [preference]);
+  }, []);
 
   return { preference, resolvedTheme, setPreference };
 }

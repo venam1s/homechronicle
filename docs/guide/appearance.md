@@ -16,7 +16,7 @@ The active mode is shown as the button icon: monitor (system), sun (light), or m
 
 ## Accent Colors
 
-Click the paintbrush button (below the theme button) to open the color picker. Six accent themes are available:
+Click the paintbrush button (below the theme button) to open the color picker. Eight accent themes are available:
 
 | Theme | Color |
 |-------|-------|
@@ -26,6 +26,8 @@ Click the paintbrush button (below the theme button) to open the color picker. S
 | **Red** | Red |
 | **Yellow** | Amber |
 | **Purple** | Purple |
+| **Slate** | Grey |
+| **Pink** | Pink |
 
 The accent color tints charts, active tabs, checkboxes, badges, and the background gradient.
 
@@ -36,6 +38,6 @@ Both settings are stored in browser `localStorage`:
 | Key | Values |
 |-----|--------|
 | `hc_theme_preference` | `system`, `light`, `dark` |
-| `hc_ui_skin` | `ocean`, `graphite`, `sunrise`, `red`, `yellow`, `purple` |
+| `hc_ui_skin` | `ocean`, `graphite`, `sunrise`, `red`, `yellow`, `purple`, `slate`, `pink` |
 
 Each browser/device keeps its own preference. Clearing site data resets to defaults (system theme, ocean accent).

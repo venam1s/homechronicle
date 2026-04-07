@@ -4,6 +4,9 @@ set -e
 # ── Defaults ────────────────────────────────────────────────────────────────
 : "${POSTGRES_USER:=homekit}"
 : "${POSTGRES_PASSWORD:=changeme}"
+if [ "$POSTGRES_PASSWORD" = "changeme" ]; then
+  echo "WARNING: Using default POSTGRES_PASSWORD=changeme. Set a strong password via -e POSTGRES_PASSWORD=<secret>"
+fi
 : "${POSTGRES_DB:=homekit_events}"
 : "${API_PORT:=3001}"
 : "${WEB_PORT:=80}"
@@ -102,7 +105,7 @@ if [ "${_WRITE_TOKEN:-}" = "1" ]; then
   chmod 600 "$TOKEN_FILE"
   echo "============================================================"
   echo "  AUTO-GENERATED API TOKEN (saved to $TOKEN_FILE):"
-  echo "  $API_TOKEN"
+  echo "  ${API_TOKEN:0:8}...$(echo -n "$API_TOKEN" | tail -c 4) (truncated — full token in $TOKEN_FILE)"
   echo ""
   echo "  Pass -e API_TOKEN=<token> to use your own token instead."
   echo "============================================================"

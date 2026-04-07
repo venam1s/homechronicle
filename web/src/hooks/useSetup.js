@@ -7,7 +7,7 @@ import { fetchJson } from '../lib/api.js';
 // PIN vault — persists entered PINs in localStorage so they survive refresh
 // ---------------------------------------------------------------------------
 function loadSavedPins() {
-  try { return JSON.parse(localStorage.getItem('hc_pins') ?? '{}'); }
+  try { return JSON.parse(sessionStorage.getItem('hc_pins') ?? '{}'); }
   catch { return {}; }
 }
 
@@ -306,14 +306,14 @@ export function useSetup() {
   function savePin(id, pin) {
     const next = { ...savedPins, [id]: pin };
     setSavedPins(next);
-    localStorage.setItem('hc_pins', JSON.stringify(next));
+    try { sessionStorage.setItem('hc_pins', JSON.stringify(next)); } catch { /* private browsing */ }
   }
 
   function clearPin(id) {
     const next = { ...savedPins };
     delete next[id];
     setSavedPins(next);
-    localStorage.setItem('hc_pins', JSON.stringify(next));
+    try { sessionStorage.setItem('hc_pins', JSON.stringify(next)); } catch { /* private browsing */ }
   }
 
   function resolvePin(id) {

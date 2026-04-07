@@ -24,15 +24,14 @@ export class JsonObjectStore {
   }
 
   getByKey(key) {
-    return this.cache[key];
+    const val = this.cache[key];
+    return val !== undefined ? clone(val) : undefined;
   }
 
   async refresh() {
     try {
-      const meta = await stat(this.filePath);
-      if (meta.mtimeMs <= this.lastMtimeMs) return this.getSnapshot();
-
       const raw = await readFile(this.filePath, 'utf8');
+      const meta = await stat(this.filePath);
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         this.cache = parsed;
@@ -49,6 +48,10 @@ export class JsonObjectStore {
     }
   }
 
+  async modify(fn) {
+    return this.write(fn(this.getSnapshot()));
+  }
+
   async write(nextValue) {
     // Serialize writes to prevent concurrent read-modify-write races.
     const prev = this._writeLock;
@@ -58,6 +61,9 @@ export class JsonObjectStore {
     try {
       await prev;
       return await this._doWrite(nextValue);
+    } catch (err) {
+      log.error('[store] write failed:', err.message);
+      throw err;
     } finally {
       releaseLock();
     }

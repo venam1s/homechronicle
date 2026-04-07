@@ -179,6 +179,7 @@ export function stopSubscriber(deviceId) {
   if (session.client) {
     if (session.eventHandler) session.client.off('event', session.eventHandler);
     if (session.disconnectHandler) session.client.off('event-disconnect', session.disconnectHandler);
+    try { session.client.close?.(); } catch (e) { log.debug('[subscriber] client close error:', e.message); }
     session.client = null;
   }
 
@@ -330,6 +331,7 @@ function connectAccessory(session, pairing) {
 
           const timeoutId = setTimeout(async () => {
             delayedOffTimers.delete(timerKey);
+            if (session.stopped) return;
             try {
               const inserted = await insertEvent(eventPayload);
               await processAlertsSafe(eventPayload, inserted);

@@ -52,7 +52,7 @@ When alerts are enabled (`ALERTS_ENABLED=true`), webhook targets are validated:
 | Target | Default | Override |
 |--------|---------|----------|
 | Public IPs | Allowed | — |
-| Private IPs (RFC 1918) | Blocked | `ALERTS_ALLOW_PRIVATE_TARGETS=true` |
+| Private IPs (RFC 1918) | Allowed | `ALERTS_ALLOW_PRIVATE_TARGETS=false` to block |
 | Loopback / link-local | Always blocked | — |
 
 Set `ALERTS_ALLOW_PRIVATE_TARGETS=true` if your webhook endpoints are on your LAN (e.g., Home Assistant, Node-RED).

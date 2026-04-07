@@ -1,7 +1,14 @@
+import { useEffect } from 'react';
 import { X, Sparkles } from 'lucide-react';
 import CHANGELOG from '../changelog.js';
 
 export default function ChangelogModal({ onClose }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"

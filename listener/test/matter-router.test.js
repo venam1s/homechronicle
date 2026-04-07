@@ -442,7 +442,7 @@ test('POST /setup/matter/commission returns 400 on commission error', async () =
     body: { setupCode: 'MT:1234' },
   });
   assert.equal(response.statusCode, 400);
-  assert.match(response.jsonBody.error, /timed out/i);
+  assert.match(response.jsonBody.error, /commissioning failed/i);
 });
 
 // --- POST /setup/matter/pair edge cases ---
@@ -481,7 +481,7 @@ test('POST /setup/matter/pair returns 400 when commissioning fails', async () =>
     body: { nodeId: '100', name: 'Test Device', setupCode: 'MT:1234' },
   });
   assert.equal(response.statusCode, 400);
-  assert.match(response.jsonBody.error, /network unreachable/i);
+  assert.match(response.jsonBody.error, /pairing failed/i);
 });
 
 test('POST /setup/matter/pair uses actual nodeId from commissioning result', async () => {

@@ -116,11 +116,20 @@ async function sendWebhook(rule, event) {
   try {
     const firedAt = new Date().toISOString();
     const payload = buildPayload(rule, event, firedAt);
-    const response = await fetch(target.normalizedUrl, {
+    // Pin the resolved IP to prevent DNS rebinding (TOCTOU between validation
+    // and fetch). Set the Host header to the original hostname for TLS/SNI.
+    const fetchUrl = new URL(target.normalizedUrl);
+    const originalHost = fetchUrl.host;
+    if (target.resolvedAddresses?.length) {
+      const ip = target.resolvedAddresses[0];
+      fetchUrl.hostname = ip.includes(':') ? `[${ip}]` : ip;
+    }
+    const response = await fetch(fetchUrl.toString(), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'host': originalHost },
       body: JSON.stringify(payload),
       signal: controller.signal,
+      redirect: 'manual',
     });
 
     if (!response.ok) {

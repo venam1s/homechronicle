@@ -22,6 +22,7 @@ export function useLiveEventToasts({ activeTab, retentionConfig }) {
   const sinceRef = useRef(new Date().toISOString());
 
   const toastAccessories = retentionConfig?.toastAccessories ?? [];
+  const toastAccessoriesKey = JSON.stringify(toastAccessories);
 
   const enabled =
     (retentionConfig?.toastsEnabled ?? true) &&
@@ -30,8 +31,8 @@ export function useLiveEventToasts({ activeTab, retentionConfig }) {
     activeTab !== 'timeline';
 
   const accessorySet = useMemo(
-    () => new Set(toastAccessories),
-    [toastAccessories]
+    () => new Set(JSON.parse(toastAccessoriesKey)),
+    [toastAccessoriesKey]
   );
 
   const { data } = useQuery({

@@ -67,3 +67,47 @@ Open `http://localhost:3000` in your browser. See [Standalone Docker](standalone
 - A machine on the same network as your HomeKit accessories (NAS, Raspberry Pi, desktop, etc.)
 - HomeKit accessory PINs (the 8-digit code from the device label or Apple Home)
 - **Homebridge users:** Enable insecure mode (`-I` flag) in Homebridge settings to allow HomeChronicle to pair alongside Apple Home. See [Device Setup](devices.md#multiple-controllers-homekit) for details.
+
+## Installation Steps
+
+For the **Docker Compose** multi-container setup:
+
+```bash
+# Clone the repository
+git clone https://gitlab.com/havuq/homechronicle.git
+cd homechronicle
+
+# Create the persistent data directory
+mkdir -p listener/data
+
+# Copy the example environment file and configure it
+cp .env.example .env
+
+# Generate a secure API token and set it in .env
+openssl rand -hex 32
+# Edit .env: paste the token as API_TOKEN=<generated-value>
+# Also set POSTGRES_PASSWORD to something other than 'changeme'
+
+# Start all services
+docker compose up -d
+```
+
+For the **standalone** single-container setup, see the Quick Start above. No cloning required.
+
+## Common Setup Issues
+
+**Devices not discovered after first run**
+
+The listener must run on the same network segment as your HomeKit accessories. On Linux, set `LISTENER_NETWORK_MODE=host` in `.env` so the container can use mDNS. On macOS, use `DISCOVER_IFACE=<interface>` (e.g., `en0`) to specify the network interface. Verify with `docker compose logs listener | grep -i discover`.
+
+**Pairing fails with `M2: Error: 6`**
+
+This means the device is already paired to another controller (such as Apple Home) and is rejecting a new pair-setup. If you use Homebridge, enable insecure mode (`-I` flag) in Homebridge settings — this allows HomeChronicle to register as an additional controller. For native HomeKit devices (TP-Link, Ecobee, etc.), use the **Add as Controller** panel in the Manage tab instead. See [Troubleshooting](troubleshooting.md#m2-error-6--device-already-paired-to-another-controller) for full details.
+
+**`API_TOKEN` left empty causes write endpoints to be unprotected**
+
+Generate a token with `openssl rand -hex 32` and set `API_TOKEN=<value>` in `.env` before exposing the listener to any network beyond localhost. The listener will accept unauthenticated write requests if `API_TOKEN` is unset.
+
+**Port conflicts on startup**
+
+If `WEB_PORT=3000` or `POSTGRES_PORT=5432` is already in use, edit those values in `.env` and run `docker compose up -d` again. Check running containers with `docker compose ps`.

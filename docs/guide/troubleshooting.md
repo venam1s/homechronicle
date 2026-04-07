@@ -212,22 +212,21 @@ If `docker compose pull` fails:
 ### Webhook delivery fails
 
 - Check the `error` field in the delivery log
-- By default, private IP targets are blocked (`ALERTS_ALLOW_PRIVATE_TARGETS=false`). Set to `true` if your webhooks target LAN services. Loopback and link-local are always blocked
+- By default, private IP targets are allowed (`ALERTS_ALLOW_PRIVATE_TARGETS=true`). Set to `false` to block RFC1918 targets. Loopback and link-local are always blocked
 - Timeout defaults to 5 seconds (`ALERTS_WEBHOOK_TIMEOUT_MS`)
 
 ## Performance
 
 ### Web UI is slow
 
-- The read cache is enabled by default (`READ_CACHE_ENABLED=true`)
 - Reduce the dashboard date range if the dataset is very large
 - Check database query performance: long queries may indicate missing indexes (should auto-create on first run)
+- Expensive queries (stats, heartbeat) are cached server-side with stale-while-revalidate
 
 ### High memory usage on listener
 
-- Reduce `READ_CACHE_MAX_ENTRIES` (default 200)
-- Reduce `READ_CACHE_MAX_PAYLOAD_BYTES` (default 2MB)
 - If you have many paired devices, memory usage scales with the number of active HAP connections
+- The in-memory value cache and accessory metadata cache grow with the number of subscribed characteristics
 
 ## Logs
 

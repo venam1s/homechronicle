@@ -50,8 +50,9 @@ export default function Timeline() {
   const { data, isLoading, isError } = useEvents(filters, page);
   const { data: anomalies }          = useAnomalies();
   const { muted, mute, unmute }      = useMutedDevices();
+  const mutedKey = useMemo(() => [...muted].sort().join(','), [muted]);
   const { data: retentionConfig }    = useQuery({
-    queryKey: ['retention-config'],
+    queryKey: ['setup', 'retention'],
     queryFn: () => fetchJson('/api/setup/retention'),
     staleTime: 5 * 60_000,
   });
@@ -116,7 +117,7 @@ export default function Timeline() {
     return () => {
       cancelled = true;
     };
-  }, [data?.events, data?.pages, filters, muted, page]);
+  }, [data?.events, data?.pages, filters, mutedKey, page]);
 
   // Filter muted devices after combining the current page + backfilled events.
   const { visibleEvents, droppedInvalidCount } = useMemo(() => {
@@ -214,7 +215,7 @@ export default function Timeline() {
   // changes and scrolls as soon as the element appears in the DOM.
   useEffect(() => {
     if (!pendingJumpId.current || !scrollRef.current || isLoading) return;
-    const el = scrollRef.current.querySelector(`[data-scene-id="${pendingJumpId.current}"]`);
+    const el = scrollRef.current.querySelector(`[data-scene-id="${CSS.escape(pendingJumpId.current)}"]`);
     if (el) {
       pendingJumpId.current = null;
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -273,7 +274,7 @@ export default function Timeline() {
       } else {
         // Already on the correct page — scroll immediately after heatmap collapses
         setTimeout(() => {
-          const el = scrollRef.current?.querySelector(`[data-scene-id="${eventId}"]`);
+          const el = scrollRef.current?.querySelector(`[data-scene-id="${CSS.escape(eventId)}"]`);
           if (el) {
             pendingJumpId.current = null;
             el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -281,7 +282,7 @@ export default function Timeline() {
         }, 120);
       }
     } catch (err) {
-      console.error('[timeline] jump failed:', err);
+      if (import.meta.env.DEV) console.error('[timeline] jump failed:', err);
     } finally {
       setIsJumping(false);
     }

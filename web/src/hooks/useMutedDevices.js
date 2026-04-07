@@ -17,7 +17,7 @@ export function useMutedDevices() {
     setMuted((prev) => {
       const next = new Set(prev);
       next.add(name);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...next])); } catch { /* private browsing */ }
       return next;
     });
   }, []);
@@ -26,14 +26,14 @@ export function useMutedDevices() {
     setMuted((prev) => {
       const next = new Set(prev);
       next.delete(name);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...next])); } catch { /* private browsing */ }
       return next;
     });
   }, []);
 
   const unmuteAll = useCallback(() => {
     setMuted(new Set());
-    localStorage.removeItem(STORAGE_KEY);
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* private browsing */ }
   }, []);
 
   return { muted, mute, unmute, unmuteAll };

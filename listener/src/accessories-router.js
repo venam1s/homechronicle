@@ -5,6 +5,7 @@ import { rateLimitKeyGenerator } from './security.js';
 import { parseIntInRange as _parseIntInRange, parentBridgeId } from './utils.js';
 import { isHomeKitPairing, mapReliabilityStats } from './setup-helpers.js';
 import { deriveDeviceHealth } from './device-health.js';
+import { cached } from './query-cache.js';
 
 const ACCESSORIES_RATE_LIMIT_WINDOW_MS = _parseIntInRange(
   process.env.ACCESSORIES_RATE_LIMIT_WINDOW_MS,
@@ -42,8 +43,18 @@ export function createAccessoriesRouter({
     message: { error: 'Too many requests' },
   });
 
+  function validateAccessoryId(req, res) {
+    const id = String(req.params.accessoryId ?? '').trim();
+    if (!id || id.length > 256) {
+      res.status(400).json({ error: 'Invalid accessoryId' });
+      return null;
+    }
+    return id;
+  }
+
   router.get('/accessories/:accessoryId/capabilities', accessoriesReadLimiter, async (req, res) => {
-    const accessoryId = String(req.params.accessoryId ?? '');
+    const accessoryId = validateAccessoryId(req, res);
+    if (!accessoryId) return;
     const bridgeId = parentBridgeId(accessoryId);
 
     const capability = getAccessoryCapabilities(accessoryId);
@@ -106,7 +117,7 @@ export function createAccessoriesRouter({
         JOIN counts USING (accessory_id)
         ORDER BY latest.last_seen DESC
       `);
-      const heartbeatResult = await pool.query(`
+      const heartbeatResult = await cached('accessories:heartbeat', () => pool.query(`
         WITH recent AS (
           SELECT accessory_id, timestamp
           FROM (
@@ -140,7 +151,7 @@ export function createAccessoriesRouter({
         FROM deltas
         WHERE gap_seconds IS NOT NULL AND gap_seconds > 0
         GROUP BY accessory_id
-      `);
+      `), 60_000);
 
       const rooms = loadRooms();
       const currentPairings = loadPairings();
@@ -284,8 +295,8 @@ export function createAccessoriesRouter({
   });
 
   router.get('/accessories/:accessoryId/detail', accessoriesReadLimiter, async (req, res) => {
-    const accessoryId = String(req.params.accessoryId ?? '').trim();
-    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
+    const accessoryId = validateAccessoryId(req, res);
+    if (!accessoryId) return;
 
     const days = _parseIntInRange(req.query.days, 30, 7, 365);
     const page = _parseIntInRange(req.query.page, 1, 1, 1_000_000);
@@ -463,11 +474,12 @@ export function createAccessoriesRouter({
   });
 
   router.get('/accessories/:accessoryId/characteristics/:characteristic/trend', accessoriesReadLimiter, async (req, res) => {
-    const accessoryId = String(req.params.accessoryId ?? '').trim();
+    const accessoryId = validateAccessoryId(req, res);
+    if (!accessoryId) return;
     const characteristic = String(req.params.characteristic ?? '').trim();
     const days = _parseIntInRange(req.query.days, 30, 1, 365);
-    if (!accessoryId || !characteristic) {
-      return res.status(400).json({ error: 'accessoryId and characteristic are required' });
+    if (!characteristic) {
+      return res.status(400).json({ error: 'characteristic is required' });
     }
     try {
       const result = await pool.query(
@@ -491,8 +503,8 @@ export function createAccessoriesRouter({
   // Accessory heatmap: event counts by day-of-week × hour-of-day
   // ---------------------------------------------------------------------------
   router.get('/accessories/:accessoryId/heatmap', accessoriesReadLimiter, async (req, res) => {
-    const accessoryId = String(req.params.accessoryId ?? '').trim();
-    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
+    const accessoryId = validateAccessoryId(req, res);
+    if (!accessoryId) return;
     const days = _parseIntInRange(req.query.days, 90, 7, 365);
     try {
       const result = await pool.query(
@@ -518,8 +530,8 @@ export function createAccessoriesRouter({
   // Accessory state duration: time spent in each state per characteristic
   // ---------------------------------------------------------------------------
   router.get('/accessories/:accessoryId/state-duration', accessoriesReadLimiter, async (req, res) => {
-    const accessoryId = String(req.params.accessoryId ?? '').trim();
-    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
+    const accessoryId = validateAccessoryId(req, res);
+    if (!accessoryId) return;
     const days = _parseIntInRange(req.query.days, 30, 1, 365);
     try {
       const result = await pool.query(
@@ -548,8 +560,8 @@ export function createAccessoriesRouter({
   // Accessory characteristic summary: min/max/avg/count per characteristic
   // ---------------------------------------------------------------------------
   router.get('/accessories/:accessoryId/char-summary', accessoriesReadLimiter, async (req, res) => {
-    const accessoryId = String(req.params.accessoryId ?? '').trim();
-    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
+    const accessoryId = validateAccessoryId(req, res);
+    if (!accessoryId) return;
     const days = _parseIntInRange(req.query.days, 30, 1, 365);
     try {
       const result = await pool.query(

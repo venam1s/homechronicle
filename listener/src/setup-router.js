@@ -179,7 +179,7 @@ export function createSetupRouter({
       res.json(children);
     } catch (err) {
       log.error(`[setup] bridge-children error for ${deviceId}:`, err.message ?? err.stack ?? err);
-      res.status(500).json({ error: 'Could not query bridge: ' + err.message });
+      res.status(500).json({ error: 'Could not query bridge accessories' });
     }
   });
 

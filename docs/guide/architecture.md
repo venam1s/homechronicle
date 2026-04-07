@@ -194,3 +194,43 @@ The schema is managed by versioned migrations in `listener/migrations/`. On the 
 - **Web**: Runs in bridge network. Nginx proxies `/api/*` to the listener. The `LISTENER_HOST` variable controls routing.
 - **PostgreSQL**: Bridge network, port bound to `127.0.0.1` by default.
 - **D-Bus**: The listener container mounts the host's D-Bus socket for avahi-daemon integration.
+
+## Key Abstractions
+
+These are the most significant design patterns used across the codebase.
+
+**`JsonObjectStore`** (`listener/src/store.js`): Atomic read/write of JSON config files with filesystem mtime-based cache invalidation. The constructor takes a file path and a default value. `init()` loads from disk; `refresh()` re-reads only when the file's mtime has advanced; `write()` does an atomic rename via a temp file to prevent partial writes. Used for pairings, rooms, display names, notes, and retention settings — all of which must survive container restarts without a database.
+
+**`cached(key, queryFn, ttlMs)`** (`listener/src/query-cache.js`): Lightweight in-memory TTL cache for expensive PostgreSQL aggregation queries. Returns a cached value immediately if fresh; serves the stale value while triggering a background refresh if expired (stale-while-revalidate); blocks only on the very first call. Used by the stats, heatmap, and anomaly detection endpoints.
+
+**Router factories** (`listener/src/events-router.js`, `alerts-router.js`, `matter-router.js`, `retention-router.js`, `setup-router.js`, `stats-router.js`, `accessories-router.js`, `archive-router.js`, `health-router.js`): Each domain owns its own `createXxxRouter({ pool, ...deps })` function that returns an `express.Router()` with its own rate limiters. This keeps `index.js` from growing into a monolith and makes each router independently testable.
+
+**Query hooks** (`web/src/hooks/`): Custom React hooks (`useEvents`, `useSetup`, `useAlerts`, `useSkin`, `useTheme`, etc.) wrap TanStack Query with domain-specific configuration (stale time, refetch interval, query keys). Components never call `fetch` directly; all server state flows through these hooks.
+
+**`ApiError`** (`web/src/lib/api.js`): The `fetchJson()` wrapper throws a typed `ApiError` on non-2xx responses. The error carries `status`, `statusText`, and `url` so that TanStack Query error boundaries and toast notifications can surface actionable messages (including user-friendly hints for 502/503/504 gateway errors).
+
+## Directory Structure Rationale
+
+The project is split into two independent npm packages — `listener/` and `web/` — with no shared root package. This reflects the deployment reality: the listener runs in a Node.js container with native addon dependencies (HAP, Matter, avahi), while the web is a static build artifact served by Nginx. Keeping them separate means each can be built, tested, and updated independently.
+
+```
+homechronicle/
+├── listener/               # Node.js service: device comms + REST API
+│   ├── src/                # All application source (ES modules, kebab-case filenames)
+│   ├── migrations/         # Versioned SQL migration files (0001_baseline.sql, ...)
+│   ├── test/               # Node built-in test runner tests (*.test.js)
+│   └── data/               # Runtime JSON stores (gitignored: pairings.json, etc.)
+├── web/                    # React SPA: built by Vite, served by Nginx
+│   ├── src/
+│   │   ├── components/     # One component per file, PascalCase
+│   │   ├── hooks/          # TanStack Query wrappers (use* prefix)
+│   │   └── lib/            # Pure utilities: api.js, episodes.js, queryKeys.js
+│   └── ...
+├── db/                     # Historical schema reference (not used at runtime)
+├── e2e/                    # Playwright end-to-end specs (*.spec.js)
+├── docker/                 # Supplementary Docker configs (standalone, supervisord)
+├── docs/                   # Docsify documentation site
+└── scripts/                # Dev helper scripts (dev-local.sh, etc.)
+```
+
+Source files inside `listener/src/` follow kebab-case naming (`events-router.js`, `matter-controller.js`) while React components in `web/src/components/` use PascalCase (`Timeline.jsx`, `StatsCards.jsx`). There are no barrel files — every import targets its source file directly, which keeps dependency graphs explicit and avoids circular import issues.

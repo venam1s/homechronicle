@@ -70,15 +70,6 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 | `DISCOVERY_SCAN_ENABLED` | `true` | listener | Enable periodic HomeKit discovery scans. |
 | `DISCOVER_IFACE` | auto | listener | Interface for mDNS discovery (example: `en0`). If Matter devices are on a separate VLAN, set this to the VLAN sub-interface (e.g. `bond0.20`). See [limitations.md](../limitations.md#platform-note-vlan--segregated-iot-networks). |
 
-## Listener Performance/Memory
-
-| Variable | Default | Used by | Description |
-|---|---|---|---|
-| `READ_CACHE_ENABLED` | `true` | listener | Enable in-memory cache for expensive GET routes. |
-| `READ_CACHE_TTL_MS` | `15000` | listener | Cache TTL in milliseconds. |
-| `READ_CACHE_MAX_ENTRIES` | `200` | listener | Max number of cached responses (LRU-like eviction). |
-| `READ_CACHE_MAX_PAYLOAD_BYTES` | `2097152` | listener | Skip caching payloads larger than this size. |
-
 ## Listener Retention/Health
 
 | Variable | Default | Used by | Description |
@@ -94,7 +85,7 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 |---|---|---|---|
 | `ALERTS_ENABLED` | `false` | listener | Enable alert rule processing. |
 | `ALERTS_WEBHOOK_TIMEOUT_MS` | `5000` | listener | Timeout for alert webhook delivery. |
-| `ALERTS_ALLOW_PRIVATE_TARGETS` | `false` | listener | Allow webhook targets on RFC1918/private ranges. Set to `true` for self-hosted setups where webhooks target LAN services. Loopback/link-local targets are always blocked. |
+| `ALERTS_ALLOW_PRIVATE_TARGETS` | `true` | listener | Allow webhook targets on RFC1918/private ranges. Set to `false` to block private IPs. Loopback/link-local targets are always blocked. |
 | `RUN_CYCLE_OFF_DELAY_MS` | `900000` | listener | Delay synthetic OFF for run-cycle switches. |
 | `RECONNECT_BASE_MS` | `5000` | listener | Initial reconnect delay for HomeKit subscribers. |
 | `RECONNECT_MAX_MS` | `60000` | listener | Max reconnect delay for HomeKit subscribers. |

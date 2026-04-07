@@ -60,14 +60,19 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
       'protocol', 'transport', 'endpoint_id', 'cluster_id', 'attribute_id', 'archived_at',
     ];
 
-    function csvRow(row) {
-      return columns.map((col) => {
-        const val = row[col];
-        if (val == null) return '';
-        const str = val instanceof Date ? val.toISOString() : String(val);
-        return /[,"\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-      }).join(',');
+    function csvCell(val) {
+      if (val == null) return '';
+      const str = val instanceof Date ? val.toISOString() : String(val);
+      // Prevent CSV injection: prefix formula-triggering characters with a single quote
+      const safe = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+      return /[,"\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
     }
+
+    function csvRow(row) {
+      return columns.map((col) => csvCell(row[col])).join(',');
+    }
+
+    const MAX_EXPORT_ROWS = parseIntInRange(process.env.ARCHIVE_MAX_EXPORT_ROWS, 500_000, 1_000, 10_000_000);
 
     try {
       const countResult = await pool.query('SELECT COUNT(*) AS cnt FROM event_logs_archive');
@@ -82,16 +87,19 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
       const BATCH = 5000;
       let offset = 0;
       let hasMore = true;
-      while (hasMore) {
+      let totalExported = 0;
+      while (hasMore && totalExported < MAX_EXPORT_ROWS) {
+        const batchLimit = Math.min(BATCH, MAX_EXPORT_ROWS - totalExported);
         const batch = await pool.query(
           `SELECT ${columns.join(', ')} FROM event_logs_archive ORDER BY timestamp ASC LIMIT $1 OFFSET $2`,
-          [BATCH, offset]
+          [batchLimit, offset]
         );
         for (const row of batch.rows) {
           res.write(csvRow(row) + '\n');
         }
+        totalExported += batch.rows.length;
         offset += batch.rows.length;
-        hasMore = batch.rows.length === BATCH;
+        hasMore = batch.rows.length === batchLimit;
       }
       res.end();
     } catch (err) {

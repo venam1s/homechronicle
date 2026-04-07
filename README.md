@@ -85,7 +85,7 @@ If your Matter accessory is already in Apple Home, you can add it to homechronic
 4. Enter a label + the setup code from Apple Home.
 5. homechronicle commissions its own Matter controller entry and auto-allocates a `nodeId`.
 
-> **VLAN users:** Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your IoT devices are on a separate VLAN, you need a VLAN sub-interface on the host. See [VLAN / segregated IoT networks](limitations.md#platform-note-vlan--segregated-iot-networks).
+> **VLAN users:** Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your IoT devices are on a separate VLAN, you need a VLAN sub-interface on the host. See the [Networking guide](https://homechronicle.net/guide/#/networking) for VLAN configuration.
 
 ## Update homechronicle
 
@@ -107,9 +107,9 @@ docker compose up -d
 
 Full documentation is available at [homechronicle.net/guide](https://homechronicle.net/guide/).
 
-## Limitations & Troubleshooting
+## Troubleshooting
 
-See [limitations.md](limitations.md) for current constraints, supported Matter clusters, and troubleshooting steps.
+See the [Troubleshooting guide](https://homechronicle.net/guide/#/troubleshooting) for common issues and fixes.
 
 ## License
 

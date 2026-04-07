@@ -2,39 +2,22 @@
 
 All notable changes to homechronicle are documented in this file.
 
-## [0.1.6-beta.3] — 2026-04-06
-
-### Added
-- **Clickable brand logo** — HomeChronicle logo in the header now links to the GitLab project page
-- **Settings guide page** — new documentation page covering all Manage > Settings sections (Device Management, Data & Retention, Alerts, Timeline, Appearance, Advanced, Danger Zone)
-- **Toast center positions** — added top-center and bottom-center toast position options
-- **Sticky header** — app header now sticks to the top and collapses on scroll
-- **Episode/scene card styling** — distinct card styles for episode and scene groups on the Timeline
-
-### Changed
-- **Settings tab reorganization** — reordered and renamed sections: Device Management, Data & Retention, Alerts & Quiet Hours, Timeline, Appearance, Advanced, Danger Zone
-
-### Fixed
-- **Matter live toast notifications** — toast matching only handled HAP-style accessory IDs; Matter devices using `nodeId:endpointId` format were silently skipped
-- **Toast offset** — adjusted toast top position to clear the new sticky header
-
-## [0.1.6-beta.2] — 2026-04-03
+## [0.1.6] — 2026-04-06
 
 ### Added
 - **Scheduled repair** — daily automated repair cycle for stale HomeKit pairings; configurable hour in Settings, REST API at `GET/PATCH /api/setup/repair`
 - **Firmware version tracking** — detects firmware changes on reconnect, logs them as `FirmwareRevision` events, and shows update history in Accessory Detail
-
-### Changed
-- Removed dead code and unused exports from listener source files
-
-## [0.1.6-beta.1] — 2026-04-03
-
-### Added
 - **Formal database migration system** — `node-pg-migrate` v8 replaces `CREATE IF NOT EXISTS`; versioned migration files in `listener/migrations/`
 - **Alert deliveries retention sweep** — automatic cleanup of old alert delivery records (default 90 days)
 - **Process-level error handlers** — `unhandledRejection` and `uncaughtException` handlers prevent silent failures
 - **Global Express error middleware** — structured JSON error responses for unhandled route errors
 - **COUNT optimization** — unfiltered `/api/events` uses `pg_class.reltuples` estimate instead of full table scan
+- **Clickable brand logo** — HomeChronicle logo in the header navigates to the Dashboard
+- **Settings guide page** — new documentation page covering all Manage > Settings sections
+- **Toast center positions** — added top-center and bottom-center toast position options
+- **Sticky header** — app header now sticks to the top and collapses on scroll
+- **Episode/scene card styling** — distinct card styles for episode and scene groups on the Timeline
+- **Pink color scheme** — replaces Alabaster with a pink accent theme
 - **Integration tests** for archive-router, stats-router, health-router, accessories-router, setup-router (80+ new tests)
 - **Unit tests** for setup-helpers pure functions (32 new tests)
 
@@ -52,6 +35,40 @@ All notable changes to homechronicle are documented in this file.
 - Silent `catch {}` blocks replaced with `log.debug()` calls across discovery and Matter cleanup paths
 - `db/init.sql` retired — migrations are the sole schema source for fresh and upgraded installs
 - Pure functions (isHomeKitPairing, mapReliabilityStats, etc.) now imported directly by routers instead of injected as callbacks
+- **Settings tab reorganization** — reordered and renamed sections: Device Management, Data & Retention, Alerts & Quiet Hours, Timeline, Appearance, Advanced, Danger Zone
+- Removed dead code and unused exports from listener source files
+
+### Security
+- **Webhook SSRF hardening** — pin resolved IP in fetch to prevent DNS rebinding; disable redirect following
+- **Token comparison** — HMAC-hash both values before timing-safe comparison to prevent length oracle
+- **CSP hardened** — removed `unsafe-inline` from `script-src` in Nginx config
+- **Error message sanitization** — generic error responses for bridge-children and Matter endpoints
+- **CSV injection protection** — prefix formula-triggering characters in archive export
+- **PIN storage** — moved from `localStorage` to `sessionStorage` (cleared on tab close)
+- **DOM selector sanitization** — `CSS.escape()` on event IDs in Timeline querySelector
+- **Security headers** — added COOP and CORP headers to Express middleware
+- **Default DB password warning** — standalone entrypoint warns when using `changeme`
+- **API token truncated in logs** — only prefix+suffix shown in container stdout
+
+### Technical debt
+- `JsonObjectStore` — fixed TOCTOU between stat/readFile, clone `getByKey` return values, added `modify()` for atomic read-modify-write
+- `useTheme` — `resolvedTheme` now tracks system theme changes via React state
+- Timeline query key unified to canonical `['setup', 'retention']`
+- Timeline backfill effect dependency stabilized with string key
+- `useLiveEventToasts` accessorySet memo stabilized via JSON key
+- `useMutedDevices` and PIN helpers wrapped in try/catch for private browsing
+- `accessoryId` length validation (256 char max) on all accessory routes
+- HAP client connections explicitly closed on subscriber stop
+- ChangelogModal dismissible via Escape key
+- Archive export capped at 500K rows (configurable via `ARCHIVE_MAX_EXPORT_ROWS`)
+
+### Fixed
+- **PairingHealthBanner** — "View Details" button now correctly navigates to the Manage tab
+- **Matter live toast notifications** — Matter devices using `nodeId:endpointId` format were silently skipped by toast matching
+- **Toast offset** — adjusted toast position to clear sticky header
+- **Room autocomplete** — replaced native datalist with custom themed dropdown
+- **Pink theme dark mode** — saturated accent colors for solid logo appearance; reduced gradient contrast
+- **Remove pairings button** — matched style to wipe all event data pattern
 
 ## [0.1.5] — 2026-03-31
 
@@ -143,8 +160,7 @@ All notable changes to homechronicle are documented in this file.
 ### Added
 - Initial release: HomeKit discovery/pairing (HAP), Matter commissioning, event timeline, dashboard analytics, accessory management, webhook alerts, Docker Compose deployment, dark mode, PWA
 
-[0.1.6-beta.2]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.6-beta.1...v0.1.6-beta.2
-[0.1.6-beta.1]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.5...v0.1.6-beta.1
+[0.1.6]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.5...v0.1.6
 [0.1.5]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4...v0.1.5
 [0.1.4]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.3...v0.1.4
 [0.1.3]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.2...v0.1.3

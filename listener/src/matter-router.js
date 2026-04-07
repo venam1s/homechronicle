@@ -119,7 +119,8 @@ export function createMatterRouter({
         stderr: result.stderr,
       });
     } catch (err) {
-      return res.status(400).json({ error: err.message ?? String(err) });
+      log.error('[matter] Commission failed:', err.message ?? err.stack ?? err);
+      return res.status(400).json({ error: 'Matter commissioning failed' });
     }
   });
 
@@ -174,7 +175,8 @@ export function createMatterRouter({
           }
         }
       } catch (err) {
-        return res.status(400).json({ error: err.message ?? String(err) });
+        log.error('[matter] Pair/commission failed:', err.message ?? err.stack ?? err);
+        return res.status(400).json({ error: 'Matter pairing failed' });
       }
     } else if (setupCode && !matterRuntime) {
       return res.status(503).json({

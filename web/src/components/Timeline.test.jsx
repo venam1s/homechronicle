@@ -50,7 +50,7 @@ vi.mock('@tanstack/react-query', async () => {
   return {
     ...actual,
     useQuery: (options) => {
-      if (options.queryKey?.[0] === 'retention-config') {
+      if (options.queryKey?.[0] === 'setup' && options.queryKey?.[1] === 'retention') {
         return { data: { episodeWindowMinutes: 3 } };
       }
       return actual.useQuery(options);
