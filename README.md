@@ -1,7 +1,7 @@
 # homechronicle
 
-![Last Commit](https://img.shields.io/gitlab/last-commit/homechronicle/homechronicle?gitlab_url=https://gitlab.com)![Docker Pulls](https://img.shields.io/docker/pulls/havuq/homechronicle-standalone?logo=docker)![Self Hosted](https://img.shields.io/badge/self--hosted-yes-purple)![HomeKit](https://img.shields.io/badge/apple-homekit-black?logo=apple)
-![License](https://img.shields.io/gitlab/license/homechronicle/homechronicle?gitlab_url=https://gitlab.com)
+![Last Commit](https://img.shields.io/gitlab/last-commit/homechronicle/homechronicle?gitlab_url=https://gitlab.com) ![Docker Pulls](https://img.shields.io/docker/pulls/havuq/homechronicle-standalone?logo=docker) ![Self Hosted](https://img.shields.io/badge/self--hosted-yes-purple) ![HomeKit](https://img.shields.io/badge/apple-homekit-black?logo=apple)
+ ![License](https://img.shields.io/gitlab/license/homechronicle/homechronicle?gitlab_url=https://gitlab.com)
 
 homechronicle is a self-hosted event log for Apple HomeKit.
 It shows what happened in your home over time, not just the current state.
