@@ -94,7 +94,8 @@ validate-release:
     - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USER" --password-stdin
     # Register QEMU emulators for cross-platform builds (arm64 on amd64 runner)
     - docker run --rm --privileged tonistiigi/binfmt --install all
-    - docker buildx create --name multiarch --driver docker-container --use
+    - docker context create dind-ctx --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
+    - docker buildx create --name multiarch --driver docker-container --driver-opt "network=host" dind-ctx --use
     - docker buildx inspect --bootstrap
     # Install Trivy
     - |
