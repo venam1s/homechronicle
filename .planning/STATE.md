@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-03)
 Phase: 09
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-06 - Completed quick task 260406-lo7: Reorganize Settings tab
+Last activity: 2026-04-07 - Completed quick task 260407-p92: Show all bridge child accessories in Accessories tab
 
 ```
 Progress: [░░░░░░░░░░] 0% (0/2 phases)
@@ -57,6 +57,10 @@ None yet.
 | 260403-2fx | Firmware version tracking — log and surface firmware version changes | 2026-04-03 | bd176bd | [260403-2fx-firmware-version-tracking-log-and-surfac](./quick/260403-2fx-firmware-version-tracking-log-and-surfac/) |
 | 260406-lo7 | Reorganize Settings tab - full layout rethink with improved visual hierarchy, section merging, and reordering | 2026-04-06 | 73fc185 | [260406-lo7-reorganize-settings-tab-full-layout-reth](./quick/260406-lo7-reorganize-settings-tab-full-layout-reth/) |
 | 260406-nm4 | Make top banner sticky with scroll-collapse to a thinner version | 2026-04-06 | 8d28cb2 | [260406-nm4-make-top-banner-sticky-with-scroll-colla](./quick/260406-nm4-make-top-banner-sticky-with-scroll-colla/) |
+| 260407-c76 | Add GitLab issues link and documentation link to the Settings tab in the web UI | 2026-04-07 | aedd6c0 | [260407-c76-add-gitlab-issues-link-and-documentation](./quick/260407-c76-add-gitlab-issues-link-and-documentation/) |
+| 260407-e5i | Make dashboard stale devices and outlier rows clickable with navigation | 2026-04-07 | 2e975aa | [260407-e5i-make-dashboard-stale-devices-and-outlier](./quick/260407-e5i-make-dashboard-stale-devices-and-outlier/) |
+| 260407-en9 | Fix State Duration chart for high-cardinality characteristics - aggregate into Other bucket | 2026-04-07 | bc5ab5b | [260407-en9-fix-state-duration-chart-for-high-cardin](./quick/260407-en9-fix-state-duration-chart-for-high-cardin/) |
+| 260407-p92 | Show all bridge child accessories in Accessories tab via on-demand metadata cache refresh | 2026-04-07 | 8f34a19 | [260407-p92-show-all-bridge-child-accessories-in-acc](./quick/260407-p92-show-all-bridge-child-accessories-in-acc/) |
 
 ### Blockers/Concerns
 
