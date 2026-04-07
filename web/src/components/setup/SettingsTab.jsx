@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, CheckCircle2, ChevronDown, Download, Loader, Loader2, Trash2, X } from 'lucide-react';
+import { AlertTriangle, BookOpen, Bug, CheckCircle2, ChevronDown, Download, ExternalLink, Loader, Loader2, Trash2, X } from 'lucide-react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
@@ -842,6 +842,42 @@ export default function SettingsTab({ setup }) {
             Could not update log level: {saveLogLevelMutation.error?.message}
           </p>
         )}
+      </div>
+
+      {/* — Links — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Links</h3>
+
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
+        <a
+          href="https://homechronicle.net"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <BookOpen size={16} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Documentation</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Setup guides, configuration reference, and tips</p>
+            </div>
+          </div>
+          <ExternalLink size={14} className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 flex-shrink-0 transition-colors" />
+        </a>
+        <a
+          href="https://gitlab.com/havuq/homechronicle/-/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <Bug size={16} className="text-orange-500 dark:text-orange-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Report an issue</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Bug reports, feature requests, and feedback</p>
+            </div>
+          </div>
+          <ExternalLink size={14} className="text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 flex-shrink-0 transition-colors" />
+        </a>
       </div>
 
       {/* Danger Zone */}
