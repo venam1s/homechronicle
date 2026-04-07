@@ -117,6 +117,7 @@ const DONUT_COLORS = [
   '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
   '#06b6d4', '#f97316', '#6366f1', '#84cc16', '#ef4444',
 ];
+const MAX_SLICES = 6;
 
 function stateLabel(characteristic, value) {
   const v = String(value ?? '').toLowerCase();
@@ -144,15 +145,29 @@ function StateDurationDonut({ accessoryId, days }) {
 
     // Rank: prefer binary (2 states), then fewer states, then by total duration
     return Array.from(byChar.entries())
-      .map(([char, states]) => ({
-        characteristic: char,
-        states: states.map((s) => ({
+      .map(([char, states]) => {
+        const mapped = states.map((s) => ({
           name: stateLabel(char, s.new_value),
           value: Math.round(s.duration_seconds),
           raw: s.new_value,
-        })),
-        total: states.reduce((sum, s) => sum + s.duration_seconds, 0),
-      }))
+        }));
+        const total = states.reduce((sum, s) => sum + s.duration_seconds, 0);
+
+        let finalStates = mapped;
+        if (mapped.length > MAX_SLICES) {
+          const sorted = [...mapped].sort((a, b) => b.value - a.value);
+          const kept = sorted.slice(0, MAX_SLICES - 1);
+          const rest = sorted.slice(MAX_SLICES - 1);
+          const otherValue = rest.reduce((sum, s) => sum + s.value, 0);
+          finalStates = [...kept, { name: 'Other', value: otherValue, raw: '__other__' }];
+        }
+
+        return {
+          characteristic: char,
+          states: finalStates,
+          total,
+        };
+      })
       .sort((a, b) => {
         // prefer 2-state characteristics (binary on/off)
         const aDist = Math.abs(a.states.length - 2);
@@ -194,7 +209,7 @@ function StateDurationDonut({ accessoryId, days }) {
                     strokeWidth={0}
                   >
                     {group.states.map((state, i) => (
-                      <Cell key={state.name} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                      <Cell key={state.name} fill={state.raw === '__other__' ? '#9CA3AF' : DONUT_COLORS[i % DONUT_COLORS.length]} />
                     ))}
                   </Pie>
                   <Legend
