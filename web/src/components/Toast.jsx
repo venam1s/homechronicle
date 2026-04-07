@@ -34,10 +34,11 @@ export function ToastProvider({ children }) {
     });
   }, []);
 
-  const addToast = useCallback((message, type = 'success', duration = settings.duration) => {
+  const addToast = useCallback((message, type = 'success', opts = {}) => {
+    const { duration = settings.duration, onClick } = typeof opts === 'number' ? { duration: opts } : opts;
     const id = ++nextId;
     setToasts((prev) => {
-      const next = [...prev, { id, message, type, removing: false }];
+      const next = [...prev, { id, message, type, removing: false, onClick }];
       const visible = next.filter((t) => !t.removing);
       if (visible.length > settings.maxVisible) {
         const toDrop = visible.slice(0, visible.length - settings.maxVisible).map((t) => t.id);
@@ -84,9 +85,14 @@ export function ToastProvider({ children }) {
             return (
               <div
                 key={toast.id}
+                role={toast.onClick ? 'button' : undefined}
+                tabIndex={toast.onClick ? 0 : undefined}
+                onClick={toast.onClick ? () => { dismiss(toast.id); toast.onClick(); } : undefined}
+                onKeyDown={toast.onClick ? (e) => { if (e.key === 'Enter') { dismiss(toast.id); toast.onClick(); } } : undefined}
                 className={clsx(
                   'hc-toast pointer-events-auto flex items-center gap-2.5 pl-3 pr-2 py-2 rounded-full text-sm font-medium max-w-md w-full sm:w-auto',
                   'shadow-md backdrop-blur-sm border transition-all duration-400 ease-out',
+                  toast.onClick && 'cursor-pointer',
                   toast.removing
                     ? 'opacity-0 scale-95'
                     : isTop ? 'opacity-100 scale-100 animate-toast-in-top' : 'opacity-100 scale-100 animate-toast-in-bottom',
