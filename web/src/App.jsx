@@ -54,7 +54,7 @@ const STYLES = [
   { id: 'yellow', label: 'Yellow' },
   { id: 'purple', label: 'Purple' },
   { id: 'slate', label: 'Slate' },
-  { id: 'alabaster', label: 'Alabaster' },
+  { id: 'pink', label: 'Pink' },
 ];
 
 // Inline gradients avoid Tailwind purge issues with dynamic class names
@@ -66,7 +66,7 @@ const SKIN_SWATCH = {
   yellow:   'linear-gradient(135deg, #facc15, #f59e0b)',
   purple:   'linear-gradient(135deg, #8b5cf6, #9333ea)',
   slate:    'linear-gradient(135deg, #475569, #64748b)',
-  alabaster:'linear-gradient(135deg, #78716c, #a8a29e)',
+  pink:     'linear-gradient(135deg, #ec4899, #f472b6)',
 };
 
 const SKIN_SWATCH_DARK = {
@@ -77,7 +77,7 @@ const SKIN_SWATCH_DARK = {
   yellow:   'linear-gradient(135deg, #fde047, #fbbf24)',
   purple:   'linear-gradient(135deg, #a78bfa, #c084fc)',
   slate:    'linear-gradient(135deg, #94a3b8, #cbd5e1)',
-  alabaster:'linear-gradient(135deg, #a8a29e, #d6d3d1)',
+  pink:     'linear-gradient(135deg, #f472b6, #fbcfe8)',
 };
 
 export default function App() {

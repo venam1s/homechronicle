@@ -44,7 +44,7 @@ const CHANGELOG = [
     title: 'Themes, dark mode, accessories overhaul & standalone Docker image',
     items: [
       'Standalone Docker image: single container with PostgreSQL, listener, and web UI',
-      'Themes: Slate Grey, Alabaster, Bubblegum, Coral, Golden, Violet, and Teal skins',
+      'Themes: Slate Grey, Pink, Bubblegum, Coral, Golden, Violet, and Teal skins',
       'Dark mode: consistent CSS variable theming, chart/tooltip visibility fixes',
       'Accessories: show all discovered bridge children, including those without standard HomeKit characteristics',
       'Accessories: show bridge names instead of MAC addresses, protocol badges (Matter / HomeKit)',

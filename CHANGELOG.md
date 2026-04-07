@@ -95,7 +95,7 @@ All notable changes to homechronicle are documented in this file.
 - Standalone Docker image (all-in-one: PostgreSQL + listener + web)
 - Auto-generate API token on first standalone run
 - Protocol badges on device cards
-- Slate and Alabaster themes
+- Slate and Pink themes
 - Scene/episode tuning settings, accent-themed heatmap
 
 ### Changed
