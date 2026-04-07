@@ -32,8 +32,8 @@ function groupByDay(events) {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export default function Timeline() {
-  const [filters, setFilters]         = useState({});
+export default function Timeline({ initialFilters, onSelectAccessory }) {
+  const [filters, setFilters]         = useState(initialFilters ?? {});
   const [page, setPage]               = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [heatmapOpen, setHeatmapOpen] = useState(false);
@@ -74,6 +74,15 @@ export default function Timeline() {
     }
     return { byDeviceHour, byRoomHour };
   }, [anomalies]);
+
+  // Reset filters when initialFilters prop changes (e.g. navigating from dashboard panels)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setFilters(initialFilters ?? {});
+    setPage(1);
+  // JSON.stringify comparison avoids infinite loops on object identity changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(initialFilters)]);
 
   // When muting removes many rows, pull additional pages to keep this page full.
   useEffect(() => {

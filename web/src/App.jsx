@@ -148,6 +148,11 @@ export default function App() {
     () => (alertsEnabled ? [...TABS.slice(0, 3), ALERTS_TAB, ...TABS.slice(3)] : TABS),
     [alertsEnabled]
   );
+  const [timelineInitialFilters, setTimelineInitialFilters] = useState(null);
+  const handleSelectRoom = useCallback((roomName) => {
+    setTimelineInitialFilters({ room: roomName });
+    setTab('timeline');
+  }, []);
   const handleSelectAccessory = useCallback((accessoryId) => {
     if (!accessoryId) return;
     if (typeof window !== 'undefined') {
@@ -284,7 +289,7 @@ export default function App() {
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
+              onClick={() => { if (tab === 'timeline' && id !== 'timeline') setTimelineInitialFilters(null); setTab(id); }}
               className={clsx(
                 'hc-tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap',
                 tab === id
@@ -302,7 +307,7 @@ export default function App() {
       {/* Content */}
       <main className={clsx('flex-1 overflow-hidden', isStandalonePwa && 'hc-pwa-main')}>
         <div key={tab} className="animate-tab-enter">
-        {tab === 'timeline' && <ErrorBoundary key="timeline"><Timeline onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} /></ErrorBoundary>}
+        {tab === 'timeline' && <ErrorBoundary key="timeline"><Timeline initialFilters={timelineInitialFilters} onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} /></ErrorBoundary>}
 
         {tab === 'dashboard' && (<ErrorBoundary key="dashboard">
           <div className="max-w-5xl mx-auto py-4 sm:py-6 px-3 sm:px-4 space-y-4">
@@ -390,10 +395,10 @@ export default function App() {
             {/* 2-col: active outliers + stale devices */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5">
-                <AnomalyPanel />
+                <AnomalyPanel onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} onSelectRoom={handleSelectRoom} />
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5">
-                <StaleDevicesPanel />
+                <StaleDevicesPanel onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} />
               </div>
             </div>
 
