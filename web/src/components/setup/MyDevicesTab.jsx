@@ -9,6 +9,49 @@ import { useToast } from '../Toast.jsx';
 import PairingHealthBanner from '../PairingHealthBanner.jsx';
 import RepairFlow from './RepairFlow.jsx';
 
+function RoomAutocomplete({ value, onChange, onBlur, onKeyDown, rooms, placeholder, className }) {
+  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const wrapperRef = useRef(null);
+  const filtered = rooms.filter((r) => r.toLowerCase().includes((value ?? '').toLowerCase()) && r !== value);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => { onChange(e); setOpen(true); }}
+        onFocus={() => { setFocused(true); setOpen(true); }}
+        onBlur={(e) => { setFocused(false); setTimeout(() => setOpen(false), 150); onBlur?.(e); }}
+        onKeyDown={onKeyDown}
+        className={className}
+      />
+      {open && focused && filtered.length > 0 && (
+        <ul className="absolute z-50 mt-0.5 left-0 w-40 max-h-40 overflow-y-auto rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-lg text-xs">
+          {filtered.map((room) => (
+            <li
+              key={room}
+              className="px-2 py-1 cursor-pointer text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/40"
+              onMouseDown={(e) => { e.preventDefault(); onChange({ target: { value: room } }); setOpen(false); }}
+            >
+              {room}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function summarizeMatterError(raw) {
   const text = String(raw ?? '').trim();
   if (!text) return '';
@@ -296,16 +339,15 @@ export default function MyDevicesTab({ setup }) {
                   </div>
                   <div className="flex items-center gap-1 mt-1.5">
                     <MapPin size={10} className="text-gray-300 flex-shrink-0" />
-                    <input
-                      type="text"
+                    <RoomAutocomplete
                       placeholder="Add room name..."
                       value={roomVal}
-                      list="hc-room-list"
+                      rooms={uniqueRooms}
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [acc.id]: e.target.value }))}
                       onBlur={() => onRoomBlurWithFlash(acc.id)}
                       onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(acc.id)}
                       className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
-                 />
+                    />
                     {savedFlash[`room-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                   </div>
                   {acc.category !== 2 && (
@@ -448,16 +490,15 @@ export default function MyDevicesTab({ setup }) {
                   </div>
                   <div className="flex items-center gap-1 mt-1.5">
                     <MapPin size={10} className="text-gray-300 flex-shrink-0" />
-                    <input
-                      type="text"
+                    <RoomAutocomplete
                       placeholder="Add room name..."
                       value={roomVal}
-                      list="hc-room-list"
+                      rooms={uniqueRooms}
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [nodeId]: e.target.value }))}
                       onBlur={() => onRoomBlurWithFlash(nodeId)}
                       onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(nodeId)}
                       className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
-                 />
+                    />
                     {savedFlash[`room-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                   </div>
                   {endpointCount === 0 && (
@@ -579,16 +620,15 @@ export default function MyDevicesTab({ setup }) {
                           </span>
                           <div className="flex items-center gap-1">
                             <MapPin size={10} className="text-gray-300 flex-shrink-0" />
-                            <input
-                              type="text"
+                            <RoomAutocomplete
                               placeholder="Add room name..."
                               value={endpointRoom}
-                              list="hc-room-list"
+                              rooms={uniqueRooms}
                               onChange={(e) => setRoomInputs((r) => ({ ...r, [endpointId]: e.target.value }))}
                               onBlur={() => onRoomBlurWithFlash(endpointId)}
                               onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(endpointId)}
                               className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
-                         />
+                            />
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-[7.5rem]">
@@ -613,11 +653,6 @@ export default function MyDevicesTab({ setup }) {
         })}
       </div>
 
-      <datalist id="hc-room-list">
-        {uniqueRooms.map((room) => (
-          <option key={room} value={room} />
-        ))}
-      </datalist>
 
       {repairingDevice && (
         <RepairFlow
