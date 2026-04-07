@@ -16,7 +16,7 @@ function parentDeviceId(id) {
   return String(id ?? '');
 }
 
-export function useLiveEventToasts({ activeTab, retentionConfig, onNavigateToAccessory }) {
+export function useLiveEventToasts({ activeTab, retentionConfig }) {
   const { addToast } = useToast();
   const seenIds = useRef(new Set());
   const sinceRef = useRef(new Date().toISOString());
@@ -57,10 +57,7 @@ export function useLiveEventToasts({ activeTab, retentionConfig, onNavigateToAcc
     for (const event of newEvents.slice().reverse()) {
       seenIds.current.add(event.id);
       const label = `${event.accessory_name} — ${event.characteristic}: ${event.new_value}`;
-      const name = event.accessory_name;
-      addToast(label, 'info', {
-        onClick: onNavigateToAccessory ? () => onNavigateToAccessory(name) : undefined,
-      });
+      addToast(label, 'info');
     }
 
     // Advance the timestamp to the newest event
