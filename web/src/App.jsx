@@ -100,7 +100,12 @@ export default function App() {
 
   const { configure: configureToasts } = useToast();
 
-  useLiveEventToasts({ activeTab: tab, retentionConfig });
+  const handleToastNavigateToAccessory = useCallback((accessoryName) => {
+    setTimelineInitialFilters({ accessory: accessoryName });
+    setTab('timeline');
+  }, []);
+
+  useLiveEventToasts({ activeTab: tab, retentionConfig, onNavigateToAccessory: handleToastNavigateToAccessory });
 
   useEffect(() => {
     if (retentionConfig) {
