@@ -20,6 +20,7 @@ export function deriveDeviceHealth({
   heartbeatSeconds = null,
   heartbeatSamples = 0,
   staleThresholdSeconds = 12 * 60 * 60,
+  subscriberConnectedAt = null,
   now = Date.now(),
 } = {}) {
   const nowMs = Number.isFinite(now) ? now : Date.now();
@@ -66,6 +67,14 @@ export function deriveDeviceHealth({
     }
   }
 
+  if (subscriberConnectedAt && (status === 'stale' || status === 'offline' || status === 'unknown')) {
+    const subscriberAgeSeconds = safeSecondsBetween(nowMs, subscriberConnectedAt);
+    if (subscriberAgeSeconds != null && subscriberAgeSeconds <= onlineThresholdSeconds) {
+      status = 'online';
+      staleReason = null;
+    }
+  }
+
   return {
     status,
     heartbeatSeconds: baselineSeconds,
@@ -76,5 +85,6 @@ export function deriveDeviceHealth({
     missedHeartbeats,
     isStale: status === 'stale',
     staleReason,
+    subscriberConnectedAt,
   };
 }
