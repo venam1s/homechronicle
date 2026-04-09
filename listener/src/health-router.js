@@ -39,7 +39,7 @@ export function createHealthRouter({
       db: dbOk ? 'ok' : 'unreachable',
       subscribers,
       paired: Object.keys(loadPairings()).length,
-      alertsEnabled,
+      alertsEnabled: alertsEnabled(),
       matter: runtimeStatus ? {
         commissionConfigured: runtimeStatus.commissionConfigured,
         pollingConfigured: runtimeStatus.pollingConfigured,

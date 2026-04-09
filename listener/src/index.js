@@ -24,6 +24,8 @@ import { createHealthRouter } from './health-router.js';
 import { createSetupRouter } from './setup-router.js';
 import { createRepairScheduler } from './repair-scheduler.js';
 import { createRepairRouter } from './repair-router.js';
+import { createAlertsSettingsRouter } from './alerts-settings-router.js';
+import { setAlertsEnabledFn } from './subscriber.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { cached } from './query-cache.js';
@@ -62,6 +64,8 @@ const RETENTION_FILE = process.env.RETENTION_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/retention.json' : './data/retention.json');
 const REPAIR_FILE = process.env.REPAIR_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/repair.json' : './data/repair.json');
+const ALERTS_SETTINGS_FILE = process.env.ALERTS_SETTINGS_FILE
+  || (process.env.NODE_ENV === 'production' ? '/app/data/alerts-settings.json' : './data/alerts-settings.json');
 const REPAIR_HOUR_DEFAULT = parseIntInRange(process.env.REPAIR_HOUR, 3, 0, 23);
 
 const PORT = Number(process.env.API_PORT ?? 3001);
@@ -115,6 +119,11 @@ const repairStore = new JsonObjectStore(REPAIR_FILE, {
   lastRunAt: null,
   lastRunResult: null,
 });
+const alertsSettingsStore = new JsonObjectStore(ALERTS_SETTINGS_FILE, {
+  enabled: ALERTS_ENABLED,
+  defaultQuietMinutes: 0,
+  webhookTimeoutMs: 5000,
+});
 let matterRuntime = null;
 
 const {
@@ -165,6 +174,8 @@ await displayNamesStore.init();
 await notesStore.init();
 await retentionStore.init();
 await repairStore.init();
+await alertsSettingsStore.init();
+setAlertsEnabledFn(() => alertsSettingsStore.getSnapshot().enabled);
 await initMatterController();
 matterRuntime = createMatterRuntime({
   insertEvent,
@@ -201,6 +212,9 @@ if (Number.isFinite(STORE_REFRESH_INTERVAL_MS) && STORE_REFRESH_INTERVAL_MS >= 5
       });
     void repairStore.refresh().catch((err) => {
       log.warn('[store] repair refresh failed:', err.message ?? err.stack ?? err);
+    });
+    void alertsSettingsStore.refresh().catch((err) => {
+      log.warn('[store] alerts-settings refresh failed:', err.message ?? err.stack ?? err);
     });
   }, STORE_REFRESH_INTERVAL_MS);
 }
@@ -430,9 +444,15 @@ app.use('/api', createEventsRouter({
   pool,
   getRooms: loadRooms,
 }));
-if (ALERTS_ENABLED) {
-  app.use('/api/alerts', createAlertsRouter({ pool }));
-}
+app.use('/api/alerts', createAlertsRouter({ pool }));
+
+app.use('/api/setup', createAlertsSettingsRouter({
+  getSettings: () => alertsSettingsStore.getSnapshot(),
+  saveSettings: async (s) => alertsSettingsStore.write(s),
+  onSettingsChange: (next) => {
+    log.info(`[alerts-settings] Alerts ${next.enabled ? 'enabled' : 'disabled'}`);
+  },
+}));
 let matterDiscoveryCache = [];
 app.use('/api', createMatterRouter({
   insertEvent,
@@ -483,7 +503,7 @@ app.use('/api', createHealthRouter({
   getSubscriberHealth,
   getMatterRuntime: () => matterRuntime,
   loadPairings,
-  alertsEnabled: ALERTS_ENABLED,
+  alertsEnabled: () => alertsSettingsStore.getSnapshot().enabled,
 }));
 
 // ─── Global error handler — MUST remain the final app.use() in index.js ───
@@ -512,7 +532,7 @@ app.listen(PORT, API_BIND_ADDRESS, () => {
   } else {
     log.warn('[api] CORS denies all browser origins (CORS_ALLOW_LOCALHOST=false and no allow-list)');
   }
-  if (!ALERTS_ENABLED) {
-    log.info('[api] Alerts feature disabled (ALERTS_ENABLED=false)');
+  if (!alertsSettingsStore.getSnapshot().enabled) {
+    log.info('[api] Alerts feature disabled (toggle in Settings to enable)');
   }
 });

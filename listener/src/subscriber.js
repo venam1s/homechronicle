@@ -17,7 +17,15 @@ import {
 } from './accessory-metadata.js';
 import { log } from './logger.js';
 
-const ALERTS_ENABLED = !/^(0|false|no|off)$/i.test(process.env.ALERTS_ENABLED ?? 'false');
+let isAlertsEnabled = () => false;
+
+/**
+ * Set the function used to check whether alerts are enabled at runtime.
+ * Called from index.js after the alerts settings store is initialised.
+ */
+export function setAlertsEnabledFn(fn) {
+  isAlertsEnabled = fn;
+}
 
 // Milliseconds before attempting reconnect after a lost connection
 let reconnectBaseMs = Number.parseInt(process.env.RECONNECT_BASE_MS ?? '5000', 10);
@@ -95,7 +103,7 @@ function isConnectionError(err) {
 }
 
 async function processAlertsSafe(eventPayload, insertedRow) {
-  if (!ALERTS_ENABLED) return;
+  if (!isAlertsEnabled()) return;
   try {
     await processAlertsForEvent(pool, {
       ...eventPayload,

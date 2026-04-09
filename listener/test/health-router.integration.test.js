@@ -44,7 +44,7 @@ test('GET /health — healthy returns 200 with ok status', async () => {
     getSubscriberHealth: () => ({ total: 2, connected: 2, lastConnectedAt: null }),
     getMatterRuntime: () => null,
     loadPairings: () => ({ a1: {} }),
-    alertsEnabled: true,
+    alertsEnabled: () => true,
   });
   const handler = getRouteHandler(router, 'GET', '/health');
   const { statusCode, jsonBody } = await invoke(handler);
@@ -71,7 +71,7 @@ test('GET /health — DB down returns 503 with unhealthy status', async () => {
     getSubscriberHealth: () => ({ total: 2, connected: 2, lastConnectedAt: null }),
     getMatterRuntime: () => null,
     loadPairings: () => ({}),
-    alertsEnabled: false,
+    alertsEnabled: () => false,
   });
   const handler = getRouteHandler(router, 'GET', '/health');
   const { statusCode, jsonBody } = await invoke(handler);
@@ -101,7 +101,7 @@ test('GET /health — matter runtime present reports matter status', async () =>
       }),
     }),
     loadPairings: () => ({}),
-    alertsEnabled: true,
+    alertsEnabled: () => true,
   });
   const handler = getRouteHandler(router, 'GET', '/health');
   const { statusCode, jsonBody } = await invoke(handler);
@@ -130,7 +130,7 @@ test('GET /health — recently disconnected subscriber is within grace period', 
     }),
     getMatterRuntime: () => null,
     loadPairings: () => ({}),
-    alertsEnabled: false,
+    alertsEnabled: () => false,
   });
   const handler = getRouteHandler(router, 'GET', '/health');
   const { statusCode, jsonBody } = await invoke(handler);
