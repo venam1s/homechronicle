@@ -370,8 +370,34 @@ export default function SettingsTab({ setup }) {
   return (
     <div className="space-y-4">
 
+      {/* — Help & Links — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-1">Help & Links</h3>
+
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 flex flex-col gap-2">
+        <a
+          href="https://homechronicle.net/guide/#/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          <BookOpen size={14} />
+          Documentation
+          <ExternalLink size={11} className="opacity-50" />
+        </a>
+        <a
+          href="https://gitlab.com/havuq/homechronicle/-/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          <MessageSquare size={14} />
+          Report an issue
+          <ExternalLink size={11} className="opacity-50" />
+        </a>
+      </div>
+
       {/* — Device Management — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-1">Device Management</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Device Management</h3>
 
       {/* HomeKit auto-scan */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
@@ -894,32 +920,6 @@ export default function SettingsTab({ setup }) {
             <option value={5}>5</option>
           </select>
         </div>
-      </div>
-
-      {/* — Help & Links — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Help & Links</h3>
-
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 flex flex-col gap-2">
-        <a
-          href="https://homechronicle.net/guide/#/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          <BookOpen size={14} />
-          Documentation
-          <ExternalLink size={11} className="opacity-50" />
-        </a>
-        <a
-          href="https://gitlab.com/havuq/homechronicle/-/issues"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          <MessageSquare size={14} />
-          Report an issue
-          <ExternalLink size={11} className="opacity-50" />
-        </a>
       </div>
 
       {/* — Advanced — */}
