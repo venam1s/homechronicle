@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, CheckCircle2, ChevronDown, Download, Loader, Loader2, Trash2, X } from 'lucide-react';
+import { AlertTriangle, BookOpen, CheckCircle2, ChevronDown, Download, ExternalLink, Loader, Loader2, MessageSquare, Trash2, X } from 'lucide-react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
@@ -809,6 +809,32 @@ export default function SettingsTab({ setup }) {
             <option value={5}>5</option>
           </select>
         </div>
+      </div>
+
+      {/* — Help & Links — */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 pt-3">Help & Links</h3>
+
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 flex flex-col gap-2">
+        <a
+          href="/guide/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          <BookOpen size={14} />
+          Documentation
+          <ExternalLink size={11} className="opacity-50" />
+        </a>
+        <a
+          href="https://gitlab.com/havuq/homechronicle/-/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          <MessageSquare size={14} />
+          Report an issue
+          <ExternalLink size={11} className="opacity-50" />
+        </a>
       </div>
 
       {/* — Advanced — */}
