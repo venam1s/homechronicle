@@ -2,6 +2,24 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.1.7] — 2026-04-09
+
+### Added
+- **Device health: subscriber-aware staleness** — `deriveDeviceHealth()` now factors in active subscriber connections; devices reconnected by nightly repair no longer show as stale when they haven't produced new events yet
+- **Clickable live event toasts** — tapping a live event toast navigates to the Timeline filtered by that accessory
+- **Clickable dashboard rows** — stale devices and anomaly outlier rows navigate to Accessory Detail on click
+- **Bridge child accessories** — all bridge children now appear in the Accessories tab via on-demand metadata cache refresh
+- **Help & Links in Settings** — Documentation and Report an Issue links added to the Settings tab for easy access
+- **CI: auto-create GitLab releases** — version tags now automatically generate GitLab releases
+
+### Changed
+- **State Duration chart** — high-cardinality characteristics capped at 6 slices with an "Other" aggregate bucket
+
+### Fixed
+- **Scene group accent color** — replaced hardcoded blue with theme accent variable for consistent theming
+- **Toast navigation** — restored clickable toast navigation that was lost during a worktree merge
+- **CI runner** — switched from Docker-in-Docker to host Docker socket for self-hosted runner; fixed TLS context error
+
 ## [0.1.6] — 2026-04-06
 
 ### Added

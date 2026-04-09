@@ -10,6 +10,22 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.1.7',
+    title: 'Smarter device health, clickable toasts & dashboard rows',
+    items: [
+      'Device health: subscriber-aware staleness — repaired devices no longer show as stale without new events',
+      'Clickable live event toasts: tap a toast to jump to Timeline filtered by that accessory',
+      'Clickable dashboard rows: stale devices and anomaly outliers navigate to Accessory Detail',
+      'Bridge child accessories: all bridge children now appear in the Accessories tab',
+      'Help & Links section added to Settings tab with Documentation and Report an Issue links',
+      'State Duration chart: high-cardinality characteristics capped at 6 slices with Other bucket',
+      'CI: auto-create GitLab releases from version tags',
+      'Fix: scene group accent color now uses theme variable instead of hardcoded blue',
+      'Fix: restored clickable toast navigation lost during worktree merge',
+      'Fix: CI runner switched from Docker-in-Docker to host Docker socket',
+    ],
+  },
+  {
     version: 'v0.1.6',
     title: 'Code health overhaul, scheduled repair & UI polish',
     items: [
