@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutList, BarChart2, Home, Settings, Monitor, Sun, Moon, Paintbrush2, Bell, Link2, Unlink2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { LayoutList, BarChart2, Home, Settings, Monitor, Sun, Moon, Paintbrush2, Link2, Unlink2 } from 'lucide-react';
 import clsx from 'clsx';
 import Timeline from './components/Timeline.jsx';
 import StatsCards from './components/StatsCards.jsx';
@@ -15,7 +15,6 @@ import QuietHoursPanel from './components/QuietHoursPanel.jsx';
 import AccessoryList from './components/AccessoryList.jsx';
 import AccessoryDetail from './components/AccessoryDetail.jsx';
 import Setup from './components/Setup.jsx';
-import Alerts from './components/Alerts.jsx';
 import BrandLogo from './components/BrandLogo.jsx';
 import ChangelogModal from './components/ChangelogModal.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
@@ -37,7 +36,6 @@ const TABS = [
   { id: 'accessories',label: 'Accessories', icon: Home },
   { id: 'setup',      label: 'Manage',      icon: Settings },
 ];
-const ALERTS_TAB = { id: 'alerts', label: 'Alerts', icon: Bell };
 const DASHBOARD_WINDOWS = [
   { label: '7d', days: 7 },
   { label: '30d', days: 30 },
@@ -118,7 +116,6 @@ export default function App() {
   }, [retentionConfig?.toastPosition, retentionConfig?.toastDuration, retentionConfig?.toastMaxVisible, configureToasts]);
 
   const [selectedAccessoryId, setSelectedAccessoryId] = useState(null);
-  const [alertsEnabled, setAlertsEnabled] = useState(false);
   const [isSkinPickerOpen, setIsSkinPickerOpen] = useState(false);
   const [isStandalonePwa, setIsStandalonePwa] = useState(false);
   const [dashboardDays, setDashboardDays] = useState(() => {
@@ -149,10 +146,6 @@ export default function App() {
     preference === 'system' ? 'light' :
     preference === 'light' ? 'dark' :
     'system';
-  const tabs = useMemo(
-    () => (alertsEnabled ? [...TABS.slice(0, 3), ALERTS_TAB, ...TABS.slice(3)] : TABS),
-    [alertsEnabled]
-  );
   const [timelineInitialFilters, setTimelineInitialFilters] = useState(null);
   const handleSelectRoom = useCallback((roomName) => {
     setTimelineInitialFilters({ room: roomName });
@@ -173,27 +166,6 @@ export default function App() {
     }
     setSelectedAccessoryId(null);
   }, []);
-
-  useEffect(() => {
-    if (typeof fetch !== 'function') return;
-    let active = true;
-    fetch('/api/health')
-      .then((res) => res.json())
-      .then((data) => {
-        if (!active) return;
-        if (typeof data?.alertsEnabled === 'boolean') {
-          setAlertsEnabled(data.alertsEnabled);
-        }
-      })
-      .catch(() => {
-        // Keep current default if health probe fails.
-      });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    if (!alertsEnabled && tab === 'alerts') setTab('timeline');
-  }, [alertsEnabled, tab]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -291,7 +263,7 @@ export default function App() {
         {!isStandalonePwa && <span className="flex-1 hidden md:block" />}
 
         <nav className={clsx('hc-tab-nav flex gap-1 overflow-x-auto pb-1 -mb-1', scrolled ? 'md:order-none md:w-auto' : 'order-3 md:order-none w-full md:w-auto')}>
-          {tabs.map(({ id, label, icon: Icon }) => (
+          {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => { if (tab === 'timeline' && id !== 'timeline') setTimelineInitialFilters(null); setTab(id); }}
@@ -416,7 +388,6 @@ export default function App() {
             : <AccessoryList onSelectAccessory={handleSelectAccessory} />
           }
         </ErrorBoundary>)}
-        {tab === 'alerts' && <ErrorBoundary key="alerts"><Alerts /></ErrorBoundary>}
         {tab === 'setup' && <ErrorBoundary key="setup"><Setup /></ErrorBoundary>}
         </div>
       </main>
