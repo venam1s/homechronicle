@@ -816,7 +816,7 @@ export default function SettingsTab({ setup }) {
 
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 flex flex-col gap-2">
         <a
-          href="/guide/"
+          href="https://homechronicle.net/guide/#/"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
