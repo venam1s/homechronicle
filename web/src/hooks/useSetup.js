@@ -72,6 +72,12 @@ export function useSetup() {
     refetchInterval: 60_000,
   });
 
+  const { data: alertsConfig } = useQuery({
+    queryKey: ['setup', 'alerts'],
+    queryFn: () => fetchJson('/api/setup/alerts'),
+    refetchInterval: 60_000,
+  });
+
   const {
     data: matterRuntime = null,
     isError: matterRuntimeError,
@@ -239,6 +245,19 @@ export function useSetup() {
     },
   });
 
+  const saveAlertsMutation = useMutation({
+    mutationFn: (settingsPatch) =>
+      fetchJson('/api/setup/alerts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsPatch),
+      }),
+    onSuccess: (next) => {
+      queryClient.setQueryData(['setup', 'alerts'], next);
+      queryClient.invalidateQueries({ queryKey: ['health'] });
+    },
+  });
+
   const deleteAccessoryMutation = useMutation({
     mutationFn: (accessoryId) =>
       fetchJson('/api/data/accessory', {
@@ -397,6 +416,7 @@ export function useSetup() {
     retentionConfig,
     logLevelConfig,
     repairConfig,
+    alertsConfig,
     matterRuntime,
     matterRuntimeError,
     matterRuntimeErrorValue,
@@ -427,6 +447,7 @@ export function useSetup() {
     saveRetentionMutation,
     saveLogLevelMutation,
     saveRepairMutation,
+    saveAlertsMutation,
     deleteAccessoryMutation,
     pairMatterMutation,
     deleteMatterPairingMutation,
