@@ -289,6 +289,48 @@ html.hc-standalone .hc-fab {
   bottom: calc(5.75rem + env(safe-area-inset-bottom) + 1rem);
 }
 
+/* Mobile browser: bottom tab bar (mirrors standalone/PWA behavior) */
+@media (max-width: 767px) and (not (display-mode: standalone)) {
+  html:not(.hc-standalone) .hc-app-header {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    min-height: 0;
+  }
+
+  html:not(.hc-standalone) .hc-tab-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    margin-bottom: 0;
+    padding: 0.5rem 0.75rem calc(env(safe-area-inset-bottom) + 0.9rem);
+    border-top: 1px solid var(--hc-panel-border);
+    background-color: color-mix(in srgb, var(--hc-panel) 92%, transparent);
+    backdrop-filter: blur(10px);
+    justify-content: space-around;
+    overflow-x: hidden;
+  }
+
+  html:not(.hc-standalone) .hc-tab-btn {
+    flex: 1 1 0%;
+    justify-content: center;
+  }
+
+  html:not(.hc-standalone) .hc-tab-label {
+    display: none;
+  }
+
+  html:not(.hc-standalone) .hc-pwa-main {
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+  }
+
+  html:not(.hc-standalone) .hc-fab {
+    bottom: calc(5.75rem + env(safe-area-inset-bottom) + 1rem);
+  }
+}
+
 @layer utilities {
   .hc-filter-toggle:hover {
     background-color: rgba(var(--hc-accent-rgb), 0.06);

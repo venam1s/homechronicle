@@ -118,6 +118,9 @@ export default function App() {
   const [selectedAccessoryId, setSelectedAccessoryId] = useState(null);
   const [isSkinPickerOpen, setIsSkinPickerOpen] = useState(false);
   const [isStandalonePwa, setIsStandalonePwa] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768
+  );
   const [dashboardDays, setDashboardDays] = useState(() => {
     if (typeof window === 'undefined') return 30;
     try {
@@ -202,6 +205,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mobileQuery = window.matchMedia('(max-width: 767px)');
+    const onResize = () => setIsMobileViewport(mobileQuery.matches);
+    mobileQuery.addEventListener('change', onResize);
+    return () => mobileQuery.removeEventListener('change', onResize);
+  }, []);
+
+  const isBottomNav = isStandalonePwa || isMobileViewport;
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       window.localStorage.setItem(DASHBOARD_RANGE_STORAGE_KEY, String(dashboardDays));
@@ -255,12 +268,12 @@ export default function App() {
         'hc-app-header sticky top-0 z-50 transition-all duration-200 border-b px-3 sm:px-4 flex items-center gap-3 bg-[var(--hc-panel)] border-[var(--hc-panel-border)]',
         scrolled ? 'py-1.5 shadow-sm' : 'py-3 flex-wrap',
       )}>
-        {!isStandalonePwa && (
+        {!isBottomNav && (
           <button type="button" onClick={() => setTab('dashboard')} className="flex-shrink-0 cursor-pointer">
             <BrandLogo className={clsx('w-auto transition-all duration-200', scrolled ? 'h-8 max-w-[200px]' : 'h-12 sm:h-14 max-w-[260px] sm:max-w-[300px]')} />
           </button>
         )}
-        {!isStandalonePwa && <span className="flex-1 hidden md:block" />}
+        {!isBottomNav && <span className="flex-1 hidden md:block" />}
 
         <nav className={clsx('hc-tab-nav flex gap-1 overflow-x-auto pb-1 -mb-1', scrolled ? 'md:order-none md:w-auto' : 'order-3 md:order-none w-full md:w-auto')}>
           {TABS.map(({ id, label, icon: Icon }) => (
@@ -274,7 +287,7 @@ export default function App() {
                   : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
               )}
             >
-              <Icon size={isStandalonePwa ? 20 : 15} />
+              <Icon size={isBottomNav ? 20 : 15} />
               <span className="hc-tab-label">{label}</span>
             </button>
           ))}
@@ -282,7 +295,7 @@ export default function App() {
       </header>
 
       {/* Content */}
-      <main className={clsx('flex-1 overflow-hidden', isStandalonePwa && 'hc-pwa-main')}>
+      <main className={clsx('flex-1 overflow-hidden', isBottomNav && 'hc-pwa-main')}>
         <div key={tab} className="animate-tab-enter">
         {tab === 'timeline' && <ErrorBoundary key="timeline"><Timeline initialFilters={timelineInitialFilters} onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} /></ErrorBoundary>}
 
