@@ -267,7 +267,7 @@ async function main() {
   await pwaLightPage.waitForTimeout(1500);
   await pwaLightPage.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'pwa-lite.jpeg'),
-    fullPage: true,
+    fullPage: false,
     type: 'jpeg',
     quality: 90,
   });
@@ -290,7 +290,7 @@ async function main() {
   await pwaDarkPage.waitForTimeout(1500);
   await pwaDarkPage.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'pwa-dark.jpeg'),
-    fullPage: true,
+    fullPage: false,
     type: 'jpeg',
     quality: 90,
   });
