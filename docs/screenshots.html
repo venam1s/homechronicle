@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screenshots — homechronicle</title>
+  <meta name="description" content="Screenshot gallery showcasing homechronicle's features: 8 color themes, dark mode, device details, analytics, mobile views, and more.">
+  <link rel="icon" href="assets/icon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #2563eb;
+      --primary-light: #3b82f6;
+      --primary-dark: #1d4ed8;
+      --accent: #10b981;
+      --accent-light: #34d399;
+      --bg: #ffffff;
+      --bg-alt: #f8fafc;
+      --bg-dark: #0f172a;
+      --bg-dark-card: #1e293b;
+      --text: #1e293b;
+      --text-secondary: #64748b;
+      --text-light: #94a3b8;
+      --text-on-dark: #f1f5f9;
+      --border: #e2e8f0;
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+      --shadow-screenshot: 0 25px 50px -12px rgba(0,0,0,0.15);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --max-width: 1200px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text);
+      line-height: 1.6;
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    img { max-width: 100%; height: auto; display: block; }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { color: var(--primary-light); }
+    .container { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
+
+    /* ── Navigation ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+    }
+
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-logo svg.brand-svg { height: 48px; width: auto; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--primary); font-weight: 600; }
+
+    .github-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      background: var(--text);
+      color: white !important;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .github-btn:hover { background: #e24329; color: white !important; }
+    .github-btn svg { width: 22px; height: 22px; fill: currentColor; }
+
+    /* ── Section Styles ── */
+    .section-label {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      font-size: 17px;
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: 1.7;
+      margin-bottom: 48px;
+    }
+
+    .screenshot {
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-screenshot);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    /* ── Hero ── */
+    .page-hero {
+      padding: 80px 0 60px;
+      text-align: center;
+    }
+
+    .page-hero h1 {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    .page-hero p {
+      font-size: 18px;
+      color: var(--text-secondary);
+      max-width: 640px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    .page-hero .jump-links {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 32px;
+    }
+
+    .jump-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+
+    .jump-link:hover {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    /* ── Skin Picker ── */
+    .skins-section {
+      padding: 80px 0;
+      background: var(--bg-alt);
+    }
+
+    .skins-section .section-label,
+    .skins-section .section-title,
+    .skins-section .section-desc { text-align: center; }
+
+    .skins-section .section-desc {
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .skin-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+    }
+
+    .skin-dots {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .skin-dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .skin-dot:hover { transform: scale(1.15); }
+
+    .skin-dot[aria-pressed="true"] {
+      border-color: var(--text);
+      box-shadow: 0 0 0 2px white, 0 0 0 4px var(--text);
+    }
+
+    .skin-dot-inner {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+
+    .controls-divider {
+      width: 1px;
+      height: 32px;
+      background: var(--border);
+    }
+
+    .theme-toggle {
+      display: flex;
+      gap: 4px;
+    }
+
+    .theme-toggle button {
+      border: 2px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 8px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .theme-toggle button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+    .theme-toggle button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+
+    .theme-toggle button[aria-pressed="true"] {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .theme-toggle button:hover:not([aria-pressed="true"]) {
+      border-color: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .skin-active-name {
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: capitalize;
+      color: var(--text);
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .skin-preview {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .skin-preview img {
+      width: 100%;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-screenshot);
+      border: 1px solid var(--border);
+      transition: opacity 0.25s ease;
+    }
+
+    /* ── Feature Gallery ── */
+    .features-section {
+      padding: 80px 0;
+    }
+
+    .feature-gallery {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .gallery-card {
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+
+    .gallery-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .gallery-card.wide {
+      grid-column: 1 / -1;
+    }
+
+    .gallery-card img {
+      width: 100%;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gallery-card .card-caption {
+      padding: 16px 20px;
+    }
+
+    .gallery-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .gallery-card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ── Dark Mode Section ── */
+    .dark-section {
+      background: var(--bg-dark);
+      padding: 80px 0;
+      color: var(--text-on-dark);
+    }
+
+    .dark-section .section-label { color: var(--accent-light); }
+    .dark-section .section-title { color: var(--text-on-dark); }
+    .dark-section .section-desc { color: var(--text-light); }
+    .dark-section .screenshot { border-color: rgba(255,255,255,0.1); }
+
+    .dark-skin-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+
+    .dark-skin-dots {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .dark-skin-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.15);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .dark-skin-dot:hover { transform: scale(1.15); }
+
+    .dark-skin-dot[aria-pressed="true"] {
+      border-color: white;
+      box-shadow: 0 0 0 2px var(--bg-dark), 0 0 0 4px white;
+    }
+
+    .dark-skin-name {
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: capitalize;
+      color: var(--text-on-dark);
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .dark-preview {
+      max-width: 900px;
+      margin: 0 auto 40px;
+    }
+
+    .dark-preview img {
+      width: 100%;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: opacity 0.25s ease;
+    }
+
+    .dark-pages-label {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-light);
+      margin-bottom: 20px;
+    }
+
+    .dark-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .dark-card {
+      background: var(--bg-dark-card);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+
+    .dark-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+
+    .dark-card img {
+      width: 100%;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .dark-card .card-caption {
+      padding: 16px 20px;
+    }
+
+    .dark-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text-on-dark);
+    }
+
+    .dark-card p {
+      font-size: 13px;
+      color: var(--text-light);
+      line-height: 1.5;
+    }
+
+    /* ── Mobile Section ── */
+    .mobile-section {
+      padding: 80px 0;
+      background: var(--bg-alt);
+    }
+
+    .mobile-section .section-label,
+    .mobile-section .section-title,
+    .mobile-section .section-desc { text-align: center; }
+
+    .mobile-section .section-desc {
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .mobile-grid {
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .mobile-card {
+      width: 220px;
+      flex-shrink: 0;
+    }
+
+    .mobile-card img {
+      width: 100%;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+    }
+
+    .mobile-card .card-caption {
+      text-align: center;
+      padding: 12px 0;
+    }
+
+    .mobile-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .mobile-card p {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--bg-dark);
+      color: var(--text-light);
+      padding: 48px 0;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    footer a { color: var(--text-on-dark); }
+    footer a:hover { color: var(--accent-light); }
+
+    .footer-links {
+      display: flex;
+      gap: 32px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .footer-license { color: var(--text-light); }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .nav-links a:not(.github-btn) { display: none; }
+      .skins-grid { grid-template-columns: repeat(2, 1fr); }
+      .feature-gallery { grid-template-columns: 1fr; }
+      .dark-grid { grid-template-columns: 1fr; }
+      .mobile-card { width: 160px; }
+      .page-hero { padding: 48px 0 40px; }
+    }
+
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .skins-grid { grid-template-columns: repeat(2, 1fr); }
+      .dark-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ════════ Navigation ════════ -->
+  <nav>
+    <div class="container">
+      <a href="./" class="nav-logo">
+        <svg viewBox="0 0 420 120" role="img" aria-label="homechronicle" class="brand-svg">
+          <defs>
+            <linearGradient id="hcNavAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1d4ed8" />
+              <stop offset="100%" stop-color="#1e40af" />
+            </linearGradient>
+          </defs>
+          <g transform="translate(4 8)">
+            <path d="M18 45.5L62 12.5C64.6 10.5 68.2 10.5 70.8 12.5L114.8 45.5" fill="none" stroke="url(#hcNavAccent)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M24 53V84C24 89.5 28.5 94 34 94H100C105.5 94 110 89.5 110 84V53" fill="none" stroke="url(#hcNavAccent)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M40 74L57 57L74 67L91 49" fill="none" stroke="url(#hcNavAccent)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="57" cy="57" r="5.5" fill="#ffffff" stroke="url(#hcNavAccent)" stroke-width="5"/>
+            <circle cx="74" cy="67" r="5.5" fill="#ffffff" stroke="url(#hcNavAccent)" stroke-width="5"/>
+            <circle cx="91" cy="49" r="5.5" fill="#ffffff" stroke="url(#hcNavAccent)" stroke-width="5"/>
+          </g>
+          <text x="136" y="58" font-size="50" font-weight="700" letter-spacing="0.2" font-family="Inter, -apple-system, sans-serif" fill="#0f172a">home</text>
+          <text x="136" y="98" font-size="50" font-weight="700" letter-spacing="0.2" font-family="Inter, -apple-system, sans-serif" fill="#1d4ed8">chronicle</text>
+        </svg>
+      </a>
+      <div class="nav-links">
+        <a href="./">Home</a>
+        <a href="screenshots.html" class="active">Screenshots</a>
+        <a href="guide/">Docs</a>
+        <a href="https://gitlab.com/havuq/homechronicle" class="github-btn">
+          <svg viewBox="85 85 210 155" aria-hidden="true"><path d="M282.83 170.73l-.27-.69-26.14-68.22a6.81 6.81 0 00-2.69-3.24 7 7 0 00-8 .43 7 7 0 00-2.32 3.52l-17.65 54h-71.47l-17.65-54a6.86 6.86 0 00-2.32-3.53 7 7 0 00-8-.43 6.87 6.87 0 00-2.69 3.24L97.44 170l-.26.69a48.54 48.54 0 0016.1 56.07l.09.07.24.17 39.82 29.82 19.7 14.91 12 9.06a8.07 8.07 0 009.76 0l12-9.06 19.7-14.91 40.06-30 .1-.08a48.56 48.56 0 0016.08-56.04z"/></svg>
+          GitLab
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ════════ Page Hero ════════ -->
+  <section class="page-hero">
+    <div class="container">
+      <h1>Screenshot Gallery</h1>
+      <p>
+        Explore homechronicle's full feature set across 8 color themes, dark mode,
+        device analytics, and mobile views.
+      </p>
+      <div class="jump-links">
+        <a href="#skins" class="jump-link">Color Themes</a>
+        <a href="#features" class="jump-link">Feature Details</a>
+        <a href="#dark-mode" class="jump-link">Dark Mode</a>
+        <a href="#mobile" class="jump-link">Mobile / PWA</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ Theme Skins ════════ -->
+  <section id="skins" class="skins-section">
+    <div class="container">
+      <div class="section-label">Appearance</div>
+      <div class="section-title">8 color themes, light and dark</div>
+      <div class="section-desc">
+        Every theme works in both light and dark mode. Click a color to preview it.
+      </div>
+
+      <div class="skin-controls">
+        <div class="skin-dots" role="radiogroup" aria-label="Select color theme">
+          <button type="button" class="skin-dot" aria-pressed="true" data-skin="ocean" title="Ocean" style="background:#2563eb;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="graphite" title="Graphite" style="background:#14b8a6;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="sunrise" title="Sunrise" style="background:#ea580c;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="red" title="Red" style="background:#dc2626;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="yellow" title="Yellow" style="background:#ca8a04;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="purple" title="Purple" style="background:#9333ea;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="slate" title="Slate" style="background:#475569;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="pink" title="Pink" style="background:#ec4899;"></button>
+        </div>
+        <div class="controls-divider"></div>
+        <div class="theme-toggle" role="group" aria-label="Toggle light or dark mode">
+          <button type="button" aria-pressed="true" data-theme-show="light">Light</button>
+          <button type="button" aria-pressed="false" data-theme-show="dark">Dark</button>
+        </div>
+        <div class="controls-divider"></div>
+        <span class="skin-active-name" id="skin-active-name">Ocean</span>
+      </div>
+
+      <div class="skin-preview">
+        <img id="skin-preview-img" src="screenshots/skin-ocean-light.png" alt="Ocean theme, light mode">
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ Feature Details ════════ -->
+  <section id="features" class="features-section">
+    <div class="container">
+      <div class="section-label">Feature Details</div>
+      <div class="section-title">A closer look at what homechronicle offers</div>
+      <div class="section-desc">
+        Deep-dive screenshots showing device analytics, bridge management, connection reliability, and more.
+      </div>
+
+      <div class="feature-gallery">
+        <div class="gallery-card wide">
+          <img src="screenshots/feature-device-detail-full.png" alt="Full device detail page with event history and stats" loading="lazy">
+          <div class="card-caption">
+            <h3>Device Detail Page</h3>
+            <p>Complete view of a single accessory: event history, activity charts, connection stats, and device metadata.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/feature-device-info.png" alt="Device info section showing metadata" loading="lazy">
+          <div class="card-caption">
+            <h3>Device Info</h3>
+            <p>Accessory metadata at a glance: manufacturer, model, firmware version, bridge attribution, and pairing timestamp.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/feature-connection-reliability.png" alt="Connection reliability metrics" loading="lazy">
+          <div class="card-caption">
+            <h3>Connection Reliability</h3>
+            <p>Track how reliably each device stays connected with uptime percentages and reconnect history.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/feature-stale-devices.png" alt="Stale devices detection panel" loading="lazy">
+          <div class="card-caption">
+            <h3>Stale Device Detection</h3>
+            <p>Accessories that have gone silent are flagged with last-seen timestamps and missed heartbeat counts.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card wide">
+          <img src="screenshots/feature-bridge-children.png" alt="Bridge child devices expanded" loading="lazy">
+          <div class="card-caption">
+            <h3>Bridge Child Devices</h3>
+            <p>Expand any HomeKit bridge to see all child accessories it manages, with room assignments and event activity.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/feature-add-devices.png" alt="Add Accessories pairing wizard" loading="lazy">
+          <div class="card-caption">
+            <h3>Add Accessories</h3>
+            <p>Discover accessories on your network via mDNS, enter PINs, and pair directly from the browser.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/feature-scheduled-repair.png" alt="Scheduled repair settings" loading="lazy">
+          <div class="card-caption">
+            <h3>Scheduled Repair</h3>
+            <p>Configure automatic repair cycles for stale pairings. The listener re-pairs disconnected devices on a schedule.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ Dark Mode ════════ -->
+  <section id="dark-mode" class="dark-section">
+    <div class="container">
+      <div class="section-label">Dark Mode</div>
+      <div class="section-title">Every page, beautifully dark</div>
+      <div class="section-desc">
+        Full dark mode support across all pages. Click a color to see each theme in dark mode.
+      </div>
+
+      <div class="dark-skin-controls">
+        <div class="dark-skin-dots" role="radiogroup" aria-label="Select dark mode color theme">
+          <button type="button" class="dark-skin-dot" aria-pressed="true" data-dark-skin="ocean" title="Ocean" style="background:#2563eb;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="graphite" title="Graphite" style="background:#14b8a6;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="sunrise" title="Sunrise" style="background:#ea580c;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="red" title="Red" style="background:#dc2626;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="yellow" title="Yellow" style="background:#ca8a04;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="purple" title="Purple" style="background:#9333ea;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="slate" title="Slate" style="background:#475569;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="pink" title="Pink" style="background:#ec4899;"></button>
+        </div>
+        <span class="dark-skin-name" id="dark-skin-name">Ocean</span>
+      </div>
+
+      <div class="dark-preview">
+        <img id="dark-preview-img" src="screenshots/skin-ocean-dark.png" alt="Ocean theme, dark mode" loading="lazy">
+      </div>
+
+      <div class="dark-pages-label">Page previews (Ocean theme)</div>
+
+      <div class="dark-grid">
+        <div class="dark-card">
+          <img src="screenshots/feature-timeline-dark.png" alt="Timeline in dark mode" loading="lazy">
+          <div class="card-caption">
+            <h3>Timeline</h3>
+            <p>Event feed with dark backgrounds and high-contrast text for comfortable viewing.</p>
+          </div>
+        </div>
+        <div class="dark-card">
+          <img src="screenshots/feature-accessories-dark.png" alt="Accessories page in dark mode" loading="lazy">
+          <div class="card-caption">
+            <h3>Accessories</h3>
+            <p>Device inventory with dark cards, activity indicators, and room grouping.</p>
+          </div>
+        </div>
+        <div class="dark-card">
+          <img src="screenshots/feature-manage-dark.png" alt="Manage page in dark mode" loading="lazy">
+          <div class="card-caption">
+            <h3>Manage</h3>
+            <p>Device management, pairing, and settings all fully themed for dark mode.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ Mobile / PWA ════════ -->
+  <section id="mobile" class="mobile-section">
+    <div class="container">
+      <div class="section-label">Mobile / PWA</div>
+      <div class="section-title">Works on your phone, too</div>
+      <div class="section-desc">
+        Install homechronicle as a Progressive Web App on iOS or Android.
+        The responsive layout adapts to any screen size.
+      </div>
+
+      <div class="mobile-grid">
+        <div class="mobile-card">
+          <img src="screenshots/pwa-lite.jpeg" alt="PWA dashboard, light mode" loading="lazy">
+          <div class="card-caption">
+            <h3>Dashboard (Light)</h3>
+            <p>Full analytics on mobile</p>
+          </div>
+        </div>
+        <div class="mobile-card">
+          <img src="screenshots/pwa-dark.jpeg" alt="PWA dashboard, dark mode" loading="lazy">
+          <div class="card-caption">
+            <h3>Dashboard (Dark)</h3>
+            <p>Dark mode on mobile</p>
+          </div>
+        </div>
+        <div class="mobile-card">
+          <img src="screenshots/mobile-timeline.png" alt="Mobile timeline view" loading="lazy">
+          <div class="card-caption">
+            <h3>Timeline</h3>
+            <p>Scrollable event feed</p>
+          </div>
+        </div>
+        <div class="mobile-card">
+          <img src="screenshots/mobile-accessories.png" alt="Mobile accessories view" loading="lazy">
+          <div class="card-caption">
+            <h3>Accessories</h3>
+            <p>Device inventory on the go</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ Footer ════════ -->
+  <footer>
+    <div class="container">
+      <div class="footer-links">
+        <a href="./">Home</a>
+        <a href="https://gitlab.com/havuq/homechronicle">GitLab</a>
+        <a href="guide/">Documentation</a>
+        <a href="https://gitlab.com/havuq/homechronicle/issues">Issues</a>
+      </div>
+      <p class="footer-license">
+        AGPL-3.0 License &middot; homechronicle is not affiliated with or endorsed by Apple Inc.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      // ── Skin picker (Color Themes section) ──
+      var skinDots = document.querySelectorAll('.skin-dot[data-skin]');
+      var themeButtons = document.querySelectorAll('.theme-toggle button[data-theme-show]');
+      var previewImg = document.getElementById('skin-preview-img');
+      var activeName = document.getElementById('skin-active-name');
+
+      var currentSkin = 'ocean';
+      var currentMode = 'light';
+
+      var cacheBust = '?v=' + Date.now();
+
+      function updateSkinPreview() {
+        var src = 'screenshots/skin-' + currentSkin + '-' + currentMode + '.png' + cacheBust;
+        var alt = currentSkin.charAt(0).toUpperCase() + currentSkin.slice(1) + ' theme, ' + currentMode + ' mode';
+        previewImg.src = src;
+        previewImg.alt = alt;
+        activeName.textContent = currentSkin.charAt(0).toUpperCase() + currentSkin.slice(1);
+
+        skinDots.forEach(function (dot) {
+          dot.setAttribute('aria-pressed', dot.getAttribute('data-skin') === currentSkin ? 'true' : 'false');
+        });
+        themeButtons.forEach(function (btn) {
+          btn.setAttribute('aria-pressed', btn.getAttribute('data-theme-show') === currentMode ? 'true' : 'false');
+        });
+      }
+
+      skinDots.forEach(function (dot) {
+        dot.addEventListener('click', function () {
+          currentSkin = dot.getAttribute('data-skin');
+          updateSkinPreview();
+        });
+      });
+
+      themeButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          currentMode = btn.getAttribute('data-theme-show');
+          updateSkinPreview();
+        });
+      });
+
+      // ── Dark mode skin picker ──
+      var darkDots = document.querySelectorAll('.dark-skin-dot[data-dark-skin]');
+      var darkPreviewImg = document.getElementById('dark-preview-img');
+      var darkName = document.getElementById('dark-skin-name');
+
+      var currentDarkSkin = 'ocean';
+
+      function updateDarkPreview() {
+        var src = 'screenshots/skin-' + currentDarkSkin + '-dark.png' + cacheBust;
+        var alt = currentDarkSkin.charAt(0).toUpperCase() + currentDarkSkin.slice(1) + ' theme, dark mode';
+        darkPreviewImg.src = src;
+        darkPreviewImg.alt = alt;
+        darkName.textContent = currentDarkSkin.charAt(0).toUpperCase() + currentDarkSkin.slice(1);
+
+        darkDots.forEach(function (dot) {
+          dot.setAttribute('aria-pressed', dot.getAttribute('data-dark-skin') === currentDarkSkin ? 'true' : 'false');
+        });
+      }
+
+      darkDots.forEach(function (dot) {
+        dot.addEventListener('click', function () {
+          currentDarkSkin = dot.getAttribute('data-dark-skin');
+          updateDarkPreview();
+        });
+      });
+    })();
+  </script>
+
+</body>
+</html>
