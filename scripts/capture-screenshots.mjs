@@ -272,6 +272,26 @@ async function main() {
     quality: 90,
   });
   console.log('  ✓ pwa-lite.jpeg');
+
+  // Mobile Timeline (light) — labels hidden on mobile, click by button index
+  const pwaLightTabs = pwaLightPage.locator('.hc-tab-btn');
+  await pwaLightTabs.nth(1).click();
+  await pwaLightPage.waitForTimeout(1500);
+  await pwaLightPage.screenshot({
+    path: path.join(SCREENSHOTS_DIR, 'mobile-timeline.png'),
+    fullPage: false,
+  });
+  console.log('  ✓ mobile-timeline.png');
+
+  // Mobile Accessories (light)
+  await pwaLightTabs.nth(2).click();
+  await pwaLightPage.waitForTimeout(1500);
+  await pwaLightPage.screenshot({
+    path: path.join(SCREENSHOTS_DIR, 'mobile-accessories.png'),
+    fullPage: false,
+  });
+  console.log('  ✓ mobile-accessories.png');
+
   await pwaLightCtx.close();
 
   // PWA dark
