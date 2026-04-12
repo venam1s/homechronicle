@@ -5,8 +5,13 @@ export function parseIntInRange(value, fallback, min, max) {
 }
 
 export function parentBridgeId(id) {
-  const parts = String(id ?? '').split(':');
-  return parts.length > 6 ? parts.slice(0, 6).join(':') : String(id ?? '');
+  const str = String(id ?? '');
+  const parts = str.split(':');
+  // HomeKit bridge child: "AA:BB:CC:DD:EE:FF:aid" → rejoin first 6 parts (MAC)
+  if (parts.length > 6) return parts.slice(0, 6).join(':');
+  // Matter endpoint: "nodeId:endpointId" → return nodeId
+  if (parts.length === 2 && /^\d+$/.test(parts[0])) return parts[0];
+  return str;
 }
 
 export function isLoopbackHostname(hostname) {

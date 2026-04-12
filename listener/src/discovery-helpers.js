@@ -59,7 +59,7 @@ export function createDiscoveryHelpers({
       try {
         discovery = new IPDiscovery(discoverIface);
       } catch (err) {
-        return reject(err);
+        return fail(err);
       }
 
       discovery.on('serviceUp', (service) => {

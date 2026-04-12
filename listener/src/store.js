@@ -30,8 +30,11 @@ export class JsonObjectStore {
 
   async refresh() {
     try {
-      const raw = await readFile(this.filePath, 'utf8');
       const meta = await stat(this.filePath);
+      // Skip if file hasn't changed since our last write/read — prevents
+      // overwriting in-flight writes with stale data (CR-01).
+      if (meta.mtimeMs <= this.lastMtimeMs) return this.getSnapshot();
+      const raw = await readFile(this.filePath, 'utf8');
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         this.cache = parsed;
@@ -42,8 +45,10 @@ export class JsonObjectStore {
       return this.getSnapshot();
     } catch (err) {
       log.debug('[store] read error, using default:', err.message);
-      this.cache = clone(this.defaultValue);
-      this.lastMtimeMs = 0;
+      // Don't reset cache on read error if we already have valid data
+      if (this.lastMtimeMs === 0) {
+        this.cache = clone(this.defaultValue);
+      }
       return this.getSnapshot();
     }
   }

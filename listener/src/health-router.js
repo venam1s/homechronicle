@@ -1,5 +1,7 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
+import { rateLimitKeyGenerator } from './security.js';
 
 export function createHealthRouter({
   pool,
@@ -10,7 +12,17 @@ export function createHealthRouter({
 }) {
   const router = express.Router();
 
-  router.get('/health', async (_req, res) => {
+  const healthReadLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: false,
+    keyGenerator: rateLimitKeyGenerator,
+    message: { error: 'Too many requests' },
+  });
+
+  router.get('/health', healthReadLimiter, async (_req, res) => {
     // Verify DB connectivity with a lightweight query
     let dbOk = false;
     try {

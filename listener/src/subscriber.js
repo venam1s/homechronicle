@@ -213,6 +213,18 @@ function connectAccessory(session, pairing) {
     log.debug(`[subscriber] ${pairing.name}: skipping connect, auto re-pair in progress`);
     return;
   }
+
+  // Close any existing client to prevent duplicate event handlers and
+  // leaked TCP connections (CR-02).
+  if (session.client) {
+    if (session.eventHandler) session.client.off('event', session.eventHandler);
+    if (session.disconnectHandler) session.client.off('event-disconnect', session.disconnectHandler);
+    try { session.client.close?.(); } catch (e) { log.debug('[subscriber] previous client close error:', e.message); }
+    session.client = null;
+    session.eventHandler = null;
+    session.disconnectHandler = null;
+  }
+
   const { deviceId, rooms, getPairing, stats } = session;
   const { name: accessoryName, address, port, longTermData } = pairing;
   session.pairingName = accessoryName;
@@ -589,9 +601,14 @@ async function attemptAutoRepair(session, pairing) {
     }
 
     // Attempt pair-setup with stored PIN (uses top-level HttpClient import)
-    const client = new HttpClient(session.deviceId, discovered.address, discovered.port);
-    await client.pairSetup(pairing.pin);
-    const longTermData = client.getLongTermData();
+    const repairClient = new HttpClient(session.deviceId, discovered.address, discovered.port);
+    let longTermData;
+    try {
+      await repairClient.pairSetup(pairing.pin);
+      longTermData = repairClient.getLongTermData();
+    } finally {
+      try { repairClient.close?.(); } catch (e) { /* ignore */ }
+    }
 
     // Save updated pairing
     await savePairing(session.deviceId, {

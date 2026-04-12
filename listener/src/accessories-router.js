@@ -248,11 +248,14 @@ export function createAccessoriesRouter({
 
       // On-demand: populate metadata cache for HomeKit bridges that have no cached children.
       // This handles the case where the subscriber hasn't connected yet or the cache was
-      // cleared during a reconnect cycle.
+      // cleared during a reconnect cycle. Fetches run in parallel to avoid blocking the
+      // response for the sum of all HAP round-trips (WR-04).
       const discoveredBefore = getAllDiscoveredAccessories();
       const cachedBridgeIds = new Set(discoveredBefore.map((d) => d.parent_device_id));
-      for (const [id, p] of Object.entries(currentPairings)) {
-        if (p.category === 2 && !cachedBridgeIds.has(id) && isHomeKitPairing(p)) {
+      const bridgesToFetch = Object.entries(currentPairings)
+        .filter(([id, p]) => p.category === 2 && !cachedBridgeIds.has(id) && isHomeKitPairing(p));
+      if (bridgesToFetch.length) {
+        await Promise.allSettled(bridgesToFetch.map(async ([id, p]) => {
           try {
             const client = new HttpClient(id, p.address, p.port, p.longTermData);
             const accessories = await client.getAccessories();
@@ -260,7 +263,7 @@ export function createAccessoriesRouter({
           } catch (err) {
             log.debug(`[api] on-demand metadata fetch failed for ${p.name ?? id}: ${err.message}`);
           }
-        }
+        }));
       }
 
       // Include bridge children discovered via getAccessories() that have

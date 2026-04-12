@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
+import { rateLimitKeyGenerator } from './security.js';
 
 const RETENTION_DAYS_DEFAULT = Number.parseInt(process.env.RETENTION_DAYS ?? '365', 10);
 const RETENTION_ARCHIVE_DEFAULT = /^(1|true|yes|on)$/i.test(process.env.RETENTION_ARCHIVE ?? 'true');
@@ -75,11 +77,21 @@ function settingsToJson(settings, sweepMs) {
 export function createRetentionRouter({ getSettings, saveSettings, sweepMs = 0 }) {
   const router = Router();
 
+  const retentionWriteLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: false,
+    keyGenerator: rateLimitKeyGenerator,
+    message: { error: 'Too many requests' },
+  });
+
   router.get('/retention', (_req, res) => {
     res.json(settingsToJson(getSettings(), sweepMs));
   });
 
-  router.patch('/retention', async (req, res) => {
+  router.patch('/retention', retentionWriteLimiter, async (req, res) => {
     const body = req.body ?? {};
     const updates = {};
 

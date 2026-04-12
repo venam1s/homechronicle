@@ -271,7 +271,7 @@ export async function poll(nodeId) {
   if (!node) throw new Error(`Node ${nodeId} not found in controller`);
 
   if (!node.isConnected) {
-    node.connect();
+    await node.connect();
   }
   if (!node.initialized) {
     await node.events.initializedFromRemote;
@@ -333,7 +333,7 @@ export async function subscribe(nodeId, callback) {
   if (!node) throw new Error(`Node ${nodeId} not found in controller`);
 
   if (!node.isConnected) {
-    node.connect();
+    await node.connect();
   }
   if (!node.initialized) {
     await node.events.initializedFromRemote;

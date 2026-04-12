@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchJson } from '../lib/api.js';
+import { API_BASE as BASE, fetchJson } from '../lib/api.js';
 import { queryKeys } from '../lib/queryKeys.js';
-
-const BASE = '/api';
 
 function buildQueryString(params) {
   const qs = new URLSearchParams();

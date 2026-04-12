@@ -59,6 +59,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
   const episodeWindowMs = (retentionConfig?.episodeWindowMinutes ?? 3) * 60_000;
   const sceneWindowMs = (retentionConfig?.sceneWindowSeconds ?? 5) * 1000;
   const episodeMinEventCount = retentionConfig?.episodeMinEventCount ?? 3;
+  const filtersKey = JSON.stringify(filters);
 
   const anomalyMap = useMemo(() => {
     const byDeviceHour = new Map();
@@ -126,7 +127,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
     return () => {
       cancelled = true;
     };
-  }, [data?.events, data?.pages, filters, mutedKey, page]);
+  }, [data?.events, data?.pages, filtersKey, mutedKey, page]);
 
   // Filter muted devices after combining the current page + backfilled events.
   const { visibleEvents, droppedInvalidCount } = useMemo(() => {

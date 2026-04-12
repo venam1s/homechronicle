@@ -76,5 +76,5 @@ export function useLiveEventToasts({ activeTab, retentionConfig, onNavigateToAcc
       const entries = [...seenIds.current];
       seenIds.current = new Set(entries.slice(entries.length - MAX_SEEN_IDS));
     }
-  }, [data, enabled, accessorySet, addToast]);
+  }, [data, enabled, accessorySet, addToast, onNavigateToAccessory]);
 }

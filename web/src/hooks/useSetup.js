@@ -4,7 +4,7 @@ import { useAccessories } from './useEvents.js';
 import { fetchJson } from '../lib/api.js';
 
 // ---------------------------------------------------------------------------
-// PIN vault — persists entered PINs in localStorage so they survive refresh
+// PIN vault — persists entered PINs in sessionStorage for the current tab session
 // ---------------------------------------------------------------------------
 function loadSavedPins() {
   try { return JSON.parse(sessionStorage.getItem('hc_pins') ?? '{}'); }
@@ -14,7 +14,7 @@ function loadSavedPins() {
 export function useSetup() {
   const queryClient = useQueryClient();
 
-  // PIN vault (localStorage-backed)
+  // PIN vault (sessionStorage-backed)
   const [savedPins, setSavedPins] = useState(loadSavedPins);
 
   // Room inputs (shared between MyDevicesTab + BridgeChildrenRow)
@@ -165,7 +165,7 @@ export function useSetup() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pairings'] });
+      queryClient.invalidateQueries({ queryKey: ['setup', 'pairings'] });
       queryClient.invalidateQueries({ queryKey: ['accessories'] });
       queryClient.invalidateQueries({ queryKey: ['health'] });
     },
@@ -470,7 +470,6 @@ export function useSetup() {
     // Display name editing
     displayNameInputs,
     setDisplayNameInputs,
-    savedDisplayNames,
     handleDisplayNameBlur,
 
     // Pairing

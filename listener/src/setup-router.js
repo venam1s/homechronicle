@@ -69,7 +69,7 @@ export function createSetupRouter({
       res.status(502).json({
         accessories: getDiscoveryCache(),
         cachedAt: new Date().toISOString(),
-        warning: `mDNS scan failed: ${err.message}. Check DISCOVER_IFACE setting.`,
+        warning: 'mDNS scan failed. Check DISCOVER_IFACE setting.',
       });
     }
   });

@@ -21,7 +21,7 @@ function utcHoursToLocal(apiRows = []) {
       : localH < 12 ? `${localH}am`
       : localH === 12 ? 'noon'
       : `${localH - 12}pm`;
-    return { hour: label, localH, count: utc[Math.round(utcH)] };
+    return { hour: label, localH, count: utc[Math.floor(utcH) % 24] };
   });
 }
 

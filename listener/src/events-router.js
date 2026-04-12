@@ -131,6 +131,9 @@ export function createEventsRouter({ pool, getRooms }) {
       const countConditions = [
         '(timestamp > $1 OR (timestamp = $1 AND id > $2))',
       ];
+      // Include accessory filter so page number matches the filtered /events view
+      countParams.push(`%${accessory}%`);
+      countConditions.push(`accessory_name ILIKE $${countParams.length}`);
       if (room) { countParams.push(room); countConditions.push(`room_name = $${countParams.length}`); }
       if (from) { countParams.push(from); countConditions.push(`timestamp >= $${countParams.length}`); }
       if (to) { countParams.push(to); countConditions.push(`timestamp <= $${countParams.length}`); }

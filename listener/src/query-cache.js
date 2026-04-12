@@ -9,6 +9,9 @@ import { log } from './logger.js';
 
 const store = new Map();
 
+// Maximum time stale data can be served before forcing a synchronous refresh.
+const MAX_STALE_MS = 5 * 60_000;
+
 /**
  * Get a cached value or execute the query function.
  *
@@ -25,8 +28,10 @@ export async function cached(key, queryFn, ttlMs) {
     return entry.value;
   }
 
-  // Stale-while-revalidate: return stale data immediately, refresh in background
-  if (entry && !entry.refreshing) {
+  // Stale-while-revalidate: return stale data immediately, refresh in background.
+  // If data is too stale (background refreshes kept failing), fall through to
+  // a synchronous refresh below.
+  if (entry && !entry.refreshing && (now - entry.expiresAt) < MAX_STALE_MS) {
     entry.refreshing = true;
     queryFn()
       .then((value) => {
@@ -39,7 +44,7 @@ export async function cached(key, queryFn, ttlMs) {
     return entry.value;
   }
 
-  // No cached value at all — must wait for the query
+  // No cached value, or data exceeded max staleness — must wait for the query
   const value = await queryFn();
   store.set(key, { value, expiresAt: now + ttlMs, refreshing: false });
   return value;

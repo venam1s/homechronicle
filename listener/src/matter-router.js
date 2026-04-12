@@ -1,6 +1,8 @@
 import express from 'express';
 import { randomBytes } from 'crypto';
+import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
+import { rateLimitKeyGenerator } from './security.js';
 import { toOptionalText, toOptionalInt, normalizeNodeId, isMatterPairing } from './matter-utils.js';
 
 function generateNodeId(pairings) {
@@ -34,6 +36,16 @@ export function createMatterRouter({
 }) {
   const router = express.Router();
 
+  const matterWriteLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: false,
+    keyGenerator: rateLimitKeyGenerator,
+    message: { error: 'Too many requests' },
+  });
+
   router.get('/setup/matter/runtime', (_req, res) => {
     if (!matterRuntime) {
       return res.status(503).json({ error: 'Matter runtime unavailable' });
@@ -53,7 +65,7 @@ export function createMatterRouter({
     res.json({ devices, cachedAt: new Date().toISOString() });
   });
 
-  router.post('/setup/matter/scan', async (_req, res) => {
+  router.post('/setup/matter/scan', matterWriteLimiter, async (_req, res) => {
     if (!matterRuntime) {
       return res.status(503).json({ error: 'Matter runtime unavailable' });
     }
@@ -89,12 +101,12 @@ export function createMatterRouter({
       res.status(200).json({
         devices: cache,
         cachedAt: new Date().toISOString(),
-        warning: `Matter scan failed: ${err.message}. Is the matter.js controller initialized?`,
+        warning: 'Matter scan failed. Is the matter.js controller initialized?',
       });
     }
   });
 
-  router.post('/setup/matter/commission', async (req, res) => {
+  router.post('/setup/matter/commission', matterWriteLimiter, async (req, res) => {
     if (!matterRuntime) {
       return res.status(503).json({ error: 'Matter runtime unavailable' });
     }
@@ -142,7 +154,7 @@ export function createMatterRouter({
 
   // Phase 1 import path: register a pre-commissioned Matter node.
   // Commissioning workflows (BLE/thread dataset orchestration) are handled later.
-  router.post('/setup/matter/pair', async (req, res) => {
+  router.post('/setup/matter/pair', matterWriteLimiter, async (req, res) => {
     const requestedNodeId = normalizeNodeId(req.body?.nodeId);
     const name = toOptionalText(req.body?.name);
     if (!name) {
@@ -199,7 +211,9 @@ export function createMatterRouter({
       deviceType: toOptionalText(req.body?.deviceType) ?? existing?.deviceType ?? null,
       pairedAt: existing?.pairedAt ?? nowIso,
       commissionedAt: nowIso,
-      credentials: req.body?.credentials ?? existing?.credentials ?? null,
+      credentials: (typeof req.body?.credentials === 'string' && req.body.credentials.length <= 4096)
+        ? req.body.credentials
+        : existing?.credentials ?? null,
       ...(manualImport ? { manualImport: true } : {}),
     };
 
@@ -216,7 +230,7 @@ export function createMatterRouter({
     });
   });
 
-  router.delete('/setup/matter/pairing/:nodeId', async (req, res) => {
+  router.delete('/setup/matter/pairing/:nodeId', matterWriteLimiter, async (req, res) => {
     const nodeId = normalizeNodeId(req.params.nodeId);
     if (!nodeId) return res.status(400).json({ error: 'nodeId is required' });
 
@@ -258,7 +272,7 @@ export function createMatterRouter({
     return res.json({ success: true, deletedEvents });
   });
 
-  router.post('/matter/events', async (req, res) => {
+  router.post('/matter/events', matterWriteLimiter, async (req, res) => {
     const rawEvents = Array.isArray(req.body?.events)
       ? req.body.events
       : (req.body?.event ? [req.body.event] : []);

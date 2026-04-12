@@ -74,14 +74,16 @@ const STORE_REFRESH_INTERVAL_MS = Number.parseInt(process.env.STORE_REFRESH_INTE
 const API_TOKEN = (process.env.API_TOKEN ?? '').trim();
 const API_TOKEN_READS_ENABLED = /^(1|true|yes|on)$/i.test(process.env.API_TOKEN_READS_ENABLED ?? 'false');
 const API_JSON_LIMIT = (process.env.API_JSON_LIMIT ?? '256kb').trim() || '256kb';
+const IS_PRODUCTION = String(process.env.NODE_ENV ?? 'production').trim().toLowerCase() === 'production';
 const CORS_ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS ?? '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
-const CORS_ALLOW_LOCALHOST = /^(1|true|yes|on)$/i.test(process.env.CORS_ALLOW_LOCALHOST ?? 'true');
+const CORS_ALLOW_LOCALHOST = /^(1|true|yes|on)$/i.test(
+  process.env.CORS_ALLOW_LOCALHOST ?? (IS_PRODUCTION ? 'false' : 'true')
+);
 const ALERTS_ENABLED = !/^(0|false|no|off)$/i.test(process.env.ALERTS_ENABLED ?? 'false');
 const DISCOVERY_SCAN_ENABLED = !/^(0|false|no|off)$/i.test(process.env.DISCOVERY_SCAN_ENABLED ?? 'true');
-const IS_PRODUCTION = String(process.env.NODE_ENV ?? 'production').trim().toLowerCase() === 'production';
 
 const RETENTION_SWEEP_MS = Number.parseInt(process.env.RETENTION_SWEEP_MS ?? `${24 * 60 * 60 * 1000}`, 10);
 const RETENTION_DAYS_DEFAULT = Number.parseInt(process.env.RETENTION_DAYS ?? '365', 10);
@@ -93,8 +95,8 @@ if (IS_PRODUCTION && !API_TOKEN) {
   log.error('[api] API_TOKEN is required when NODE_ENV=production');
   process.exit(1);
 }
-if (IS_PRODUCTION && CORS_ALLOW_LOCALHOST && !process.env.CORS_ALLOW_LOCALHOST) {
-  log.warn('[api] CORS_ALLOW_LOCALHOST defaults to true — set to false in production if not needed');
+if (IS_PRODUCTION && CORS_ALLOW_LOCALHOST) {
+  log.warn('[api] CORS_ALLOW_LOCALHOST is enabled in production — set to false if not needed');
 }
 
 const pairingsStore = new JsonObjectStore(PAIRINGS_FILE, {});

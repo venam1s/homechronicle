@@ -7,7 +7,9 @@ function getRouteHandler(router, method, path) {
     if (!layer.route) continue;
     if (layer.route.path !== path) continue;
     if (!layer.route.methods[method.toLowerCase()]) continue;
-    return layer.route.stack[0].handle;
+    // Return the last handler in the stack (skip middleware like rate limiters)
+    const stack = layer.route.stack;
+    return stack[stack.length - 1].handle;
   }
   throw new Error(`Route not found: ${method} ${path}`);
 }
@@ -707,7 +709,7 @@ test('POST /setup/matter/scan returns cached devices on error', async () => {
   // Returns 200 with warning, not 500
   assert.equal(response.statusCode, 200);
   assert.ok(response.jsonBody.warning);
-  assert.match(response.jsonBody.warning, /mDNS failed/);
+  assert.match(response.jsonBody.warning, /Matter scan failed/);
   assert.equal(response.jsonBody.devices.length, 1);
 });
 

@@ -49,12 +49,25 @@ export default function AnomalyPanel({ onSelectAccessory, onSelectRoom }) {
         {rows.map((row) => (
           <div
             key={`${row.scopeType}:${row.scopeName}:${row.hour}:${row.kind}`}
+            role="button"
+            tabIndex={0}
             onClick={() => {
               if (row.scopeType === 'device') {
                 const id = nameToId.get(row.scopeName);
                 if (id) onSelectAccessory?.(id);
               } else {
                 onSelectRoom?.(row.scopeName);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (row.scopeType === 'device') {
+                  const id = nameToId.get(row.scopeName);
+                  if (id) onSelectAccessory?.(id);
+                } else {
+                  onSelectRoom?.(row.scopeName);
+                }
               }
             }}
             className="rounded-lg border border-amber-100 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/10 px-3 py-2 cursor-pointer hover:bg-amber-100/80 dark:hover:bg-amber-500/20 transition-colors"

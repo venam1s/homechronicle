@@ -82,7 +82,8 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
 
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="homechronicle-archive.csv"');
-      res.write(columns.join(',') + '\n');
+      // UTF-8 BOM prefix for Excel compatibility with accented characters
+      res.write('\xEF\xBB\xBF' + columns.join(',') + '\n');
 
       const BATCH = 5000;
       let offset = 0;
@@ -130,15 +131,14 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
       const result = await pool.query(
         'DELETE FROM event_logs WHERE accessory_id = $1', [accessoryId]
       );
-      const rooms = loadRooms();
-      delete rooms[accessoryId];
-      await saveRooms(rooms);
-      const names = loadDisplayNames();
-      delete names[accessoryId];
-      await saveDisplayNames(names);
-      const notes = loadNotes();
-      delete notes[accessoryId];
-      await saveNotes(notes);
+      // Best-effort cleanup of JSON stores — log failures but don't fail the response
+      for (const [label, load, save] of [['room', loadRooms, saveRooms], ['display-name', loadDisplayNames, saveDisplayNames], ['note', loadNotes, saveNotes]]) {
+        try {
+          const data = load();
+          delete data[accessoryId];
+          await save(data);
+        } catch (err) { log.warn(`[data] Failed to clean ${label} for ${accessoryId}:`, err.message); }
+      }
       log.info(`[data] Deleted ${result.rowCount} event(s) for accessory ${accessoryId}`);
       res.json({ success: true, deleted: result.rowCount });
     } catch (err) {
@@ -153,9 +153,10 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
     }
     try {
       const result = await pool.query('DELETE FROM event_logs');
-      await saveRooms({});
-      await saveDisplayNames({});
-      await saveNotes({});
+      // Best-effort cleanup of JSON stores
+      for (const [label, save] of [['rooms', saveRooms], ['display-names', saveDisplayNames], ['notes', saveNotes]]) {
+        try { await save({}); } catch (err) { log.warn(`[data] Failed to clear ${label}:`, err.message); }
+      }
       log.info(`[data] Wiped all data — ${result.rowCount} event(s) deleted`);
       res.json({ success: true, deleted: result.rowCount });
     } catch (err) {

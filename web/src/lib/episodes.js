@@ -22,21 +22,23 @@ function isTruthyOff(value) {
 }
 
 export function groupIntoScenes(events, { sceneWindowMs = SCENE_WINDOW_MS } = {}) {
-  if (!events.length) return [];
+  // Filter out events with invalid timestamps before grouping so they
+  // don't silently end up in scene groups with unrelated events (WR-06).
+  const valid = events.filter((e) => asTimestamp(e.timestamp) != null);
+  if (!valid.length) return [];
 
   const groups = [];
-  let current = [events[0]];
+  let current = [valid[0]];
 
-  for (let i = 1; i < events.length; i += 1) {
-    const prevTs = asTimestamp(events[i - 1].timestamp);
-    const nextTs = asTimestamp(events[i].timestamp);
-    if (prevTs == null || nextTs == null) continue;
+  for (let i = 1; i < valid.length; i += 1) {
+    const prevTs = asTimestamp(valid[i - 1].timestamp);
+    const nextTs = asTimestamp(valid[i].timestamp);
 
     if (prevTs - nextTs <= sceneWindowMs) {
-      current.push(events[i]);
+      current.push(valid[i]);
     } else {
       groups.push(current);
-      current = [events[i]];
+      current = [valid[i]];
     }
   }
 

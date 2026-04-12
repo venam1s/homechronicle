@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -20,6 +20,11 @@ export function ToastProvider({ children }) {
     maxVisible: 3,
   });
 
+  // Keep a ref to settings so addToast always reads the latest values
+  // without needing to be recreated when settings change (WR-01).
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
   const configure = useCallback((newSettings) => {
     setSettings((prev) => {
       const next = {
@@ -35,13 +40,13 @@ export function ToastProvider({ children }) {
   }, []);
 
   const addToast = useCallback((message, type = 'success', opts = {}) => {
-    const { duration = settings.duration, onClick } = typeof opts === 'number' ? { duration: opts } : opts;
+    const { duration = settingsRef.current.duration, onClick } = typeof opts === 'number' ? { duration: opts } : opts;
     const id = ++nextId;
     setToasts((prev) => {
       const next = [...prev, { id, message, type, removing: false, onClick }];
       const visible = next.filter((t) => !t.removing);
-      if (visible.length > settings.maxVisible) {
-        const toDrop = visible.slice(0, visible.length - settings.maxVisible).map((t) => t.id);
+      if (visible.length > settingsRef.current.maxVisible) {
+        const toDrop = visible.slice(0, visible.length - settingsRef.current.maxVisible).map((t) => t.id);
         return next.filter((t) => !toDrop.includes(t.id));
       }
       return next;
@@ -51,7 +56,7 @@ export function ToastProvider({ children }) {
       setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 400);
     }, duration);
     return id;
-  }, [settings.duration, settings.maxVisible]);
+  }, []);
 
   const dismiss = useCallback((id) => {
     setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, removing: true } : t)));
