@@ -521,6 +521,51 @@ test('GET /accessories — deduplicates discovered children already in dbRows', 
   assert.equal(child2.event_count, 5, 'dbRow version should have event_count from DB');
 });
 
+test('GET /accessories — splits multi-service accessory into separate rows', async () => {
+  let queryCallCount = 0;
+  const router = makeRouter({
+    pool: {
+      async query() {
+        queryCallCount++;
+        if (queryCallCount === 1) {
+          return {
+            rows: [
+              {
+                accessory_id: 'aa:bb:cc:dd:ee:ff:2',
+                accessory_name: 'Multi Sensor',
+                room_name: 'Bedroom',
+                service_type: 'TemperatureSensor',
+                protocol: 'homekit',
+                last_seen: new Date().toISOString(),
+                event_count: 20,
+              },
+              {
+                accessory_id: 'aa:bb:cc:dd:ee:ff:2',
+                accessory_name: 'Multi Sensor',
+                room_name: 'Bedroom',
+                service_type: 'HumiditySensor',
+                protocol: 'homekit',
+                last_seen: new Date().toISOString(),
+                event_count: 15,
+              },
+            ],
+          };
+        }
+        return { rows: [] };
+      },
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  assert.equal(jsonBody.length, 2, 'Multi-service accessory should produce 2 rows');
+  const types = jsonBody.map((r) => r.service_type).sort();
+  assert.deepEqual(types, ['HumiditySensor', 'TemperatureSensor']);
+  assert.equal(jsonBody.find((r) => r.service_type === 'TemperatureSensor').event_count, 20);
+  assert.equal(jsonBody.find((r) => r.service_type === 'HumiditySensor').event_count, 15);
+});
+
 test('GET /accessories — on-demand metadata fetch for bridges with no cached children', async () => {
   const bridgeId = 'aa:bb:cc:dd:ee:ff';
   const cachedChildren = [];

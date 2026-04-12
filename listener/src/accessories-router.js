@@ -90,7 +90,7 @@ export function createAccessoriesRouter({
       const retentionSettings = getRetentionSettings();
       const result = await pool.query(`
         WITH latest AS (
-          SELECT DISTINCT ON (accessory_id)
+          SELECT DISTINCT ON (accessory_id, service_type)
             accessory_id,
             accessory_name,
             room_name,
@@ -98,12 +98,12 @@ export function createAccessoriesRouter({
             protocol,
             timestamp AS last_seen
           FROM event_logs
-          ORDER BY accessory_id, timestamp DESC, id DESC
+          ORDER BY accessory_id, service_type, timestamp DESC, id DESC
         ),
         counts AS (
-          SELECT accessory_id, COUNT(*)::int AS event_count
+          SELECT accessory_id, service_type, COUNT(*)::int AS event_count
           FROM event_logs
-          GROUP BY accessory_id
+          GROUP BY accessory_id, service_type
         )
         SELECT
           latest.accessory_id,
@@ -114,7 +114,7 @@ export function createAccessoriesRouter({
           latest.last_seen,
           counts.event_count
         FROM latest
-        JOIN counts USING (accessory_id)
+        JOIN counts USING (accessory_id, service_type)
         ORDER BY latest.last_seen DESC
       `);
       const heartbeatResult = await cached('accessories:heartbeat', () => pool.query(`
