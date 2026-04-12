@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertTriangle, BookOpen, CheckCircle2, ChevronDown, Download, ExternalLink, Loader, Loader2, MessageSquare, Trash2, X } from 'lucide-react';
+import { AlertTriangle, BookOpen, Check, CheckCircle2, ChevronDown, Download, ExternalLink, Loader, Loader2, MessageSquare, Save, Trash2, X } from 'lucide-react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
@@ -1242,26 +1242,34 @@ export default function SettingsTab({ setup }) {
         )}
       </section>
 
-      {/* Sticky save bar */}
+      {/* Floating save button */}
       <div
         className={clsx(
-          'sticky bottom-0 z-30 transition-all duration-300 -mx-4 px-4 hc-standalone:bottom-16',
-          isDirty ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none',
+          'fixed bottom-6 right-6 z-30 transition-all duration-300 hc-standalone:bottom-20',
+          isDirty ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none',
         )}
       >
-        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 shadow-lg flex items-center justify-between gap-3">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {saveFeedback === 'saved'
-              ? <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"><CheckCircle2 size={14} /> Saved</span>
-              : 'You have unsaved changes'}
-          </span>
+        <div className="group relative">
           <button
             onClick={handleSaveSettings}
             disabled={savePending || !inputsReady || !isDirty}
-            className="px-4 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className={clsx(
+              'w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200',
+              'disabled:opacity-40 disabled:cursor-not-allowed',
+              saveFeedback === 'saved'
+                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200 dark:shadow-emerald-900/40'
+                : 'bg-blue-600 hover:bg-blue-700 hover:shadow-xl hover:scale-105 text-white shadow-blue-200 dark:shadow-blue-900/40',
+            )}
           >
-            {savePending ? 'Saving\u2026' : 'Save settings'}
+            {savePending
+              ? <Loader2 size={22} className="animate-spin" />
+              : saveFeedback === 'saved'
+                ? <Check size={22} />
+                : <Save size={22} />}
           </button>
+          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap bg-gray-900 dark:bg-gray-700 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            {savePending ? 'Saving\u2026' : saveFeedback === 'saved' ? 'Saved!' : 'Save settings'}
+          </span>
         </div>
       </div>
     </div>
