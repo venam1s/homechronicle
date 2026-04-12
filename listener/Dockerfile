@@ -17,8 +17,8 @@ RUN npm install --omit=dev
 FROM node:22-trixie-slim
 
 # Runtime shared libs (no -dev headers), dbus client for host avahi,
-# and common troubleshooting tools.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# and common troubleshooting tools. Security patches applied via upgrade.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libavahi-compat-libdnssd1 dbus \
     libbluetooth3 \
     dnsutils iputils-ping curl \

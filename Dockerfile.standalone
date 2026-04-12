@@ -44,7 +44,7 @@ LABEL org.opencontainers.image.title="homechronicle Standalone" \
 # ── Install PostgreSQL 16, Nginx, supervisord, and runtime libs ─────────────
 # PostgreSQL 16 is not in Debian Trixie's default repos — add the PGDG apt
 # repository so we get the exact major version we need.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     gnupg curl ca-certificates \
   && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
      | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg \
