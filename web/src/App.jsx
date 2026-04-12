@@ -380,7 +380,7 @@ export default function App() {
             </div>
 
             {/* Quiet hours */}
-            <QuietHoursPanel />
+            <QuietHoursPanel onNavigateToAccessory={handleToastNavigateToAccessory} />
 
             {/* 2-col: active outliers + stale devices */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

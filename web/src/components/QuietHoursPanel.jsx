@@ -22,7 +22,7 @@ function formatLastSeen(ts) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function QuietHoursPanel() {
+export default function QuietHoursPanel({ onNavigateToAccessory }) {
   const { data, isLoading, isError } = useQuietHours();
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === '1');
   const queryClient = useQueryClient();
@@ -130,11 +130,12 @@ export default function QuietHoursPanel() {
         {events.map((row) => (
           <div
             key={`${row.accessoryId ?? row.accessoryName}:${row.lastSeenAt}`}
-            className="rounded-lg px-3 py-2"
+            className={`rounded-lg px-3 py-2${onNavigateToAccessory ? ' cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-[filter]' : ''}`}
             style={{
               border: '1px solid rgba(var(--hc-accent-rgb), 0.15)',
               backgroundColor: 'rgba(var(--hc-accent-rgb), 0.06)',
             }}
+            onClick={onNavigateToAccessory ? () => onNavigateToAccessory(row.accessoryName) : undefined}
           >
             <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--hc-accent-strong)' }}>
               <Moon size={12} />
