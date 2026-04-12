@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-03)
 Phase: 09
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-07 - Completed quick task 260407-qzp: Fix scene group blue color to use theme accent
+Last activity: 2026-04-12 - Completed quick task 260411-uqw: Split multi-service HomeKit accessories into separate rows in GET /accessories
 
 ```
 Progress: [░░░░░░░░░░] 0% (0/2 phases)
@@ -62,6 +62,7 @@ None yet.
 | 260407-en9 | Fix State Duration chart for high-cardinality characteristics - aggregate into Other bucket | 2026-04-07 | bc5ab5b | [260407-en9-fix-state-duration-chart-for-high-cardin](./quick/260407-en9-fix-state-duration-chart-for-high-cardin/) |
 | 260407-p92 | Show all bridge child accessories in Accessories tab via on-demand metadata cache refresh | 2026-04-07 | 8f34a19 | [260407-p92-show-all-bridge-child-accessories-in-acc](./quick/260407-p92-show-all-bridge-child-accessories-in-acc/) |
 | 260407-qzp | Fix scene group blue color to use theme accent variable | 2026-04-07 | de001d8 | [260407-qzp-fix-scene-group-blue-color-to-use-theme-](./quick/260407-qzp-fix-scene-group-blue-color-to-use-theme-/) |
+| 260411-uqw | Split multi-service HomeKit accessories into separate rows in GET /accessories | 2026-04-12 | 359088b | [260411-uqw-split-multi-service-homekit-accessories-](./quick/260411-uqw-split-multi-service-homekit-accessories-/) |
 
 ### Blockers/Concerns
 
