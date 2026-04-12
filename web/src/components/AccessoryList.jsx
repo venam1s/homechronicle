@@ -234,7 +234,7 @@ export default function AccessoryList({ onSelectAccessory }) {
 
               return (
                 <button
-                  key={accessory.accessory_id}
+                  key={accessory.accessory_id + ':' + (accessory.service_type ?? '')}
                   type="button"
                   onClick={() => onSelectAccessory?.(accessory.accessory_id)}
                   className={clsx(
