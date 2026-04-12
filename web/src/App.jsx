@@ -84,7 +84,11 @@ export default function App() {
 
   useEffect(() => {
     const onScroll = () => {
-      setScrolled(window.scrollY > 50);
+      const y = window.scrollY;
+      setScrolled(prev => {
+        if (prev) return y > 20;   // collapse → expand only when near top
+        return y > 50;              // expand → collapse at original threshold
+      });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
