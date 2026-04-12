@@ -4,13 +4,11 @@ All notable changes to homechronicle are documented in this file.
 
 ## [0.1.8] — 2026-04-11
 
+### Added
+- **Multi-service accessory splitting** — accessories with multiple HomeKit services (e.g. TemperatureSensor + HumiditySensor) now appear as separate rows in the Accessories tab with independent event counts
+
 ### Security
-- **Docker image security patches** — `apt-get upgrade` (Debian) and `apk upgrade` (Alpine) applied to all Dockerfiles; fixes OpenSSL, libxml2, curl, libpng, libexpat CVEs on rebuild
-- **Rate limiters added** — Matter router (30/min), retention router (20/min), and health router (120/min) endpoints now rate-limited
-- **CORS production default** — `CORS_ALLOW_LOCALHOST` now defaults to `false` in production (set to `true` explicitly if needed)
-- **Matter credentials validation** — `credentials` field constrained to string type, max 4096 chars
-- **Error message sanitization** — scan warning responses no longer expose internal `err.message` details
-- **Standalone entrypoint fix** — removed broken `init.sql` reference; schema handled by `migrateDb()`
+- Security fixes and housekeeping
 
 ### Fixed
 - **Store race condition** — `refresh()` now checks file mtime before overwriting cache, preventing data loss from concurrent writes

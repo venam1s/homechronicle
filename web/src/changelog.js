@@ -13,11 +13,8 @@ const CHANGELOG = [
     version: 'v0.1.8',
     title: 'Security hardening & bug fix sweep',
     items: [
-      'Security: Docker images patched — OpenSSL, libxml2, curl, libpng, libexpat CVEs fixed on rebuild',
-      'Security: rate limiters added to Matter, retention, and health endpoints',
-      'Security: CORS localhost disabled by default in production',
-      'Security: Matter credentials field validated (string, max 4096 chars)',
-      'Security: scan error responses no longer leak internal details',
+      'Multi-service accessory splitting: devices with multiple services now appear as separate rows with independent event counts',
+      'Security fixes and housekeeping',
       'Fix: store race condition — refresh no longer overwrites in-flight writes',
       'Fix: subscriber connection leak — previous client closed before reconnect',
       'Fix: repair mutation now correctly refreshes pairings list after success',
