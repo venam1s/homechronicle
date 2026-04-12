@@ -10,6 +10,29 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.1.8',
+    title: 'Security hardening & bug fix sweep',
+    items: [
+      'Security: Docker images patched — OpenSSL, libxml2, curl, libpng, libexpat CVEs fixed on rebuild',
+      'Security: rate limiters added to Matter, retention, and health endpoints',
+      'Security: CORS localhost disabled by default in production',
+      'Security: Matter credentials field validated (string, max 4096 chars)',
+      'Security: scan error responses no longer leak internal details',
+      'Fix: store race condition — refresh no longer overwrites in-flight writes',
+      'Fix: subscriber connection leak — previous client closed before reconnect',
+      'Fix: repair mutation now correctly refreshes pairings list after success',
+      'Fix: Timeline jump accuracy — page calculation now accounts for accessory filter',
+      'Fix: query cache enforces 5-minute max staleness instead of serving indefinitely stale data',
+      'Fix: bridge metadata fetches run in parallel instead of blocking sequentially',
+      'Fix: Matter node.connect() now properly awaited',
+      'Fix: Activity chart hour bars correct for half-hour timezones (India, Nepal)',
+      'Fix: scene grouping filters invalid timestamps before processing',
+      'Fix: toast settings no longer stale after config change',
+      'Fix: CSV export includes UTF-8 BOM for Excel compatibility',
+      'Accessibility: anomaly and stale device panels now keyboard-navigable',
+    ],
+  },
+  {
     version: 'v0.1.7',
     title: 'Smarter device health, clickable toasts & dashboard rows',
     items: [

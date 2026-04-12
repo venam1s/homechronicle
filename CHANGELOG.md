@@ -2,6 +2,42 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.1.8] — 2026-04-11
+
+### Security
+- **Docker image security patches** — `apt-get upgrade` (Debian) and `apk upgrade` (Alpine) applied to all Dockerfiles; fixes OpenSSL, libxml2, curl, libpng, libexpat CVEs on rebuild
+- **Rate limiters added** — Matter router (30/min), retention router (20/min), and health router (120/min) endpoints now rate-limited
+- **CORS production default** — `CORS_ALLOW_LOCALHOST` now defaults to `false` in production (set to `true` explicitly if needed)
+- **Matter credentials validation** — `credentials` field constrained to string type, max 4096 chars
+- **Error message sanitization** — scan warning responses no longer expose internal `err.message` details
+- **Standalone entrypoint fix** — removed broken `init.sql` reference; schema handled by `migrateDb()`
+
+### Fixed
+- **Store race condition** — `refresh()` now checks file mtime before overwriting cache, preventing data loss from concurrent writes
+- **Subscriber connection leak** — `connectAccessory()` closes previous HAP client and removes event handlers before creating a new connection
+- **Subscriber auto-repair leak** — repair client explicitly closed after pair-setup completes
+- **Matter ID room lookup** — `parentBridgeId()` now handles Matter `nodeId:endpointId` format for correct room fallback
+- **Timeline jump accuracy** — `/events/jump` count query now includes accessory name filter for correct page numbers
+- **Cache staleness bound** — query cache enforces 5-minute max staleness; forces synchronous refresh when exceeded
+- **Bridge metadata fetch** — on-demand HAP metadata fetches run in parallel via `Promise.allSettled` instead of sequentially blocking
+- **Matter connect race** — `node.connect()` now awaited in both `poll()` and `subscribe()`
+- **Archive delete resilience** — DELETE endpoints use best-effort JSON store cleanup with per-store error handling
+- **Discovery error handling** — `IPDiscovery` constructor failure uses consistent `fail()` path
+- **Repair cache invalidation** — `repairPairingMutation` now invalidates correct query key `['setup', 'pairings']`
+- **Toast stale closure** — `addToast` uses ref for settings to avoid stale duration/maxVisible after config change
+- **Timeline backfill stability** — backfill effect uses stringified `filtersKey` instead of object reference in dependency array
+- **Live toast dependency** — `onNavigateToAccessory` added to `useLiveEventToasts` effect dependency array
+- **Scene grouping** — `groupIntoScenes` filters invalid timestamps before grouping instead of silently including them
+- **Activity chart timezone** — UTC-to-local hour conversion uses `Math.floor` instead of `Math.round` for half-hour timezone correctness
+- **API base URL consistency** — `useEvents.js` now imports `API_BASE` from `api.js` instead of hardcoded `/api`
+- **CSV export BOM** — archive CSV export includes UTF-8 BOM for Excel compatibility with accented characters
+- **PIN vault comments** — corrected misleading `localStorage` references to match actual `sessionStorage` implementation
+- **Duplicate return value** — removed duplicate `savedDisplayNames` from `useSetup` return object
+
+### Accessibility
+- **AnomalyPanel** — clickable outlier cards now have `role="button"`, `tabIndex`, and keyboard event handlers
+- **StaleDevicesPanel** — clickable device cards now have `role="button"`, `tabIndex`, and keyboard event handlers
+
 ## [0.1.7] — 2026-04-09
 
 ### Added
@@ -178,6 +214,8 @@ All notable changes to homechronicle are documented in this file.
 ### Added
 - Initial release: HomeKit discovery/pairing (HAP), Matter commissioning, event timeline, dashboard analytics, accessory management, webhook alerts, Docker Compose deployment, dark mode, PWA
 
+[0.1.8]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.7...v0.1.8
+[0.1.7]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.6...v0.1.7
 [0.1.6]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.5...v0.1.6
 [0.1.5]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4...v0.1.5
 [0.1.4]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.3...v0.1.4
