@@ -2,10 +2,20 @@
 
 All notable changes to homechronicle are documented in this file.
 
-## [0.1.8] — 2026-04-11
+## [0.1.8] — 2026-04-12
 
 ### Added
 - **Multi-service accessory splitting** — accessories with multiple HomeKit services (e.g. TemperatureSensor + HumiditySensor) now appear as separate rows in the Accessories tab with independent event counts
+- **Device health: subscriber-aware staleness** — `deriveDeviceHealth()` now factors in active subscriber connections; devices reconnected by nightly repair no longer show as stale when they haven't produced new events yet
+- **Clickable live event toasts** — tapping a live event toast navigates to the Timeline filtered by that accessory
+- **Clickable dashboard rows** — stale devices and anomaly outlier rows navigate to Accessory Detail on click
+- **Clickable quiet hours events** — clicking a quiet hours event row navigates to the Timeline filtered by that accessory
+- **Bridge child accessories** — all bridge children now appear in the Accessories tab via on-demand metadata cache refresh
+- **Help & Links in Settings** — Documentation and Report an Issue links added to the Settings tab for easy access
+- **CI: auto-create GitLab releases** — version tags now automatically generate GitLab releases
+
+### Changed
+- **State Duration chart** — high-cardinality characteristics capped at 6 slices with an "Other" aggregate bucket
 
 ### Security
 - Security fixes and housekeeping
@@ -26,33 +36,18 @@ All notable changes to homechronicle are documented in this file.
 - **Timeline backfill stability** — backfill effect uses stringified `filtersKey` instead of object reference in dependency array
 - **Live toast dependency** — `onNavigateToAccessory` added to `useLiveEventToasts` effect dependency array
 - **Scene grouping** — `groupIntoScenes` filters invalid timestamps before grouping instead of silently including them
+- **Scene group accent color** — replaced hardcoded blue with theme accent variable for consistent theming
 - **Activity chart timezone** — UTC-to-local hour conversion uses `Math.floor` instead of `Math.round` for half-hour timezone correctness
 - **API base URL consistency** — `useEvents.js` now imports `API_BASE` from `api.js` instead of hardcoded `/api`
 - **CSV export BOM** — archive CSV export includes UTF-8 BOM for Excel compatibility with accented characters
 - **PIN vault comments** — corrected misleading `localStorage` references to match actual `sessionStorage` implementation
 - **Duplicate return value** — removed duplicate `savedDisplayNames` from `useSetup` return object
+- **Toast navigation** — restored clickable toast navigation that was lost during a worktree merge
+- **CI runner** — switched from Docker-in-Docker to host Docker socket for self-hosted runner; fixed TLS context error
 
 ### Accessibility
 - **AnomalyPanel** — clickable outlier cards now have `role="button"`, `tabIndex`, and keyboard event handlers
 - **StaleDevicesPanel** — clickable device cards now have `role="button"`, `tabIndex`, and keyboard event handlers
-
-## [0.1.7] — 2026-04-09
-
-### Added
-- **Device health: subscriber-aware staleness** — `deriveDeviceHealth()` now factors in active subscriber connections; devices reconnected by nightly repair no longer show as stale when they haven't produced new events yet
-- **Clickable live event toasts** — tapping a live event toast navigates to the Timeline filtered by that accessory
-- **Clickable dashboard rows** — stale devices and anomaly outlier rows navigate to Accessory Detail on click
-- **Bridge child accessories** — all bridge children now appear in the Accessories tab via on-demand metadata cache refresh
-- **Help & Links in Settings** — Documentation and Report an Issue links added to the Settings tab for easy access
-- **CI: auto-create GitLab releases** — version tags now automatically generate GitLab releases
-
-### Changed
-- **State Duration chart** — high-cardinality characteristics capped at 6 slices with an "Other" aggregate bucket
-
-### Fixed
-- **Scene group accent color** — replaced hardcoded blue with theme accent variable for consistent theming
-- **Toast navigation** — restored clickable toast navigation that was lost during a worktree merge
-- **CI runner** — switched from Docker-in-Docker to host Docker socket for self-hosted runner; fixed TLS context error
 
 ## [0.1.6] — 2026-04-06
 
@@ -212,8 +207,7 @@ All notable changes to homechronicle are documented in this file.
 ### Added
 - Initial release: HomeKit discovery/pairing (HAP), Matter commissioning, event timeline, dashboard analytics, accessory management, webhook alerts, Docker Compose deployment, dark mode, PWA
 
-[0.1.8]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.7...v0.1.8
-[0.1.7]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.6...v0.1.7
+[0.1.8]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.6...v0.1.8
 [0.1.6]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.5...v0.1.6
 [0.1.5]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4...v0.1.5
 [0.1.4]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.3...v0.1.4
