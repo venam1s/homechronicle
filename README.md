@@ -90,6 +90,35 @@ If your Matter accessory is already in Apple Home, you can add it to homechronic
 
 > **VLAN users:** Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your IoT devices are on a separate VLAN, you need a VLAN sub-interface on the host. See the [Networking guide](https://homechronicle.net/guide/#/networking) for VLAN configuration.
 
+## Alerts
+
+homechronicle can send webhook notifications when device events match rules you define.
+
+### Enabling Alerts
+
+1. Open **Manage > Settings** in the web UI.
+2. Under **Alerts & Quiet Hours**, toggle alerts on.
+3. Optionally set a **default quiet period** (suppresses duplicate alerts for N minutes after one fires) and a **webhook timeout**.
+
+### Creating Alert Rules
+
+1. Open the **Manage > Alerts** tab.
+2. Click **New Alert Rule**.
+3. Configure the rule:
+   - **Name** — a label for this rule
+   - **Webhook URL** — the endpoint to call when the rule fires
+   - **Scope** — target all devices, a specific room, a specific accessory, or a specific characteristic
+   - **Characteristic filter** — optionally narrow to one characteristic (e.g. `On`, `CurrentTemperature`)
+   - **Condition** — equals / not equals / contains + a match value
+   - **Quiet period** — per-rule override for the default quiet period
+4. Save the rule and toggle it enabled or disabled at any time.
+
+### Delivery History
+
+The **Alerts** tab shows recent deliveries with `sent`, `suppressed`, or `failed` status and supports pagination. Delivery history retention is controlled by the `ALERT_RETENTION_DAYS` environment variable (default 90 days).
+
+For a full list of alert-related environment variables, see [docs/environment-variables.md](docs/environment-variables.md).
+
 ## Update homechronicle
 
 **Standalone:**
