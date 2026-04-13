@@ -18,6 +18,7 @@ test:
   image: node:${NODE_VERSION}-alpine
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
   cache:
     - key: listener-$CI_COMMIT_REF_SLUG
       paths: [listener/node_modules/]
