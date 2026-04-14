@@ -1,37 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
+milestone: v1.2
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 09-01-PLAN.md (scheduled repair UI)
-last_updated: "2026-04-03T16:36:43.065Z"
-last_activity: 2026-04-03
+status: executing
+stopped_at: Phase 10 UI-SPEC approved
+last_updated: "2026-04-14T18:59:34.865Z"
+last_activity: 2026-04-14
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 0
+  total_phases: 6
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-03)
+See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 09 — scheduled-repair-ui
+**Current focus:** Phase 10 — design-token-foundation
 
 ## Current Position
 
-Phase: 09
+Phase: 11
 Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-12 - Completed quick task 260412-gx7: Update README.md alerts documentation for web UI
+Status: Executing Phase 10
+Last activity: 2026-04-14
 
 ```
-Progress: [░░░░░░░░░░] 0% (0/2 phases)
+Progress: [░░░░░░░░░░] 0% (0/6 phases)
 ```
 
 ## Accumulated Context
@@ -45,10 +45,19 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 08-02]: onSettingsChange always calls stop() before conditional start() to handle hour changes as well as enable/disable
 - [Phase 09-scheduled-repair-ui]: repairConfig query uses 60s refetchInterval to auto-refresh last-run status
 - [Phase 09-scheduled-repair-ui]: Direct saveRepairMutation.mutate() on toggle/hour change — no debounce needed for repair config
+- [Roadmap v1.2]: Design tokens phase comes first — 339 hardcoded dark: classes must be replaced before any new component is written
+- [Roadmap v1.2]: Sidebar collapse uses CSS transform/grid-template-columns toggle, never transition: width — prevents chart ResizeObserver re-renders on RPi
+- [Roadmap v1.2]: --hc-accent-rgb preserved as alias in new token layer — 5 chart components using useAccentRgb() depend on it
+- [Roadmap v1.2]: Phase 15 (Chart Styling) depends only on Phase 10, not Phase 14 — can parallelize with 13-14 if needed
+- [Roadmap v1.2]: Staying on Recharts, upgrading v2 → v3 in-place (not replacing with another library)
 
 ### Pending Todos
 
-None yet.
+- Grep audit of 339 dark: class instances before Phase 10 planning — some may be intentional badge/status colors
+- Validate exact shadcn sidebar source files to copy (Vite-specific, no Next.js cookies()) before Phase 11 planning
+- Trace isMobileViewport / isStandalonePwa PWA detection logic in App.jsx before Phase 13 planning
+- Confirm --hc-accent-rgb usage count before Phase 10 (research cites ~50 locations)
+- Verify react-is override need for Recharts v3 peer dep before Phase 15
 
 ### Quick Tasks Completed
 
@@ -71,6 +80,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T16:33:50.595Z
-Stopped at: Completed 09-01-PLAN.md (scheduled repair UI)
-Resume file: None
+Last session: 2026-04-14T13:43:42.499Z
+Stopped at: Phase 10 UI-SPEC approved
+Resume file: .planning/phases/10-design-token-foundation/10-UI-SPEC.md

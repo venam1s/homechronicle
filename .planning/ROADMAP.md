@@ -14,7 +14,7 @@ v1.1 (Scheduled Repair) ended at Phase 9. v1.2 continues from Phase 10.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 10: Design Token Foundation** - Replace all hardcoded Tailwind color classes with semantic CSS custom property tokens; establish light/dark/accent system
+- [x] **Phase 10: Design Token Foundation** - Replace all hardcoded Tailwind color classes with semantic CSS custom property tokens; establish light/dark/accent system (completed 2026-04-14)
 - [ ] **Phase 11: Sidebar Navigation Shell** - Replace top tab bar with collapsible vertical sidebar; App.jsx becomes thin shell
 - [ ] **Phase 12: Page Extraction & Card Layout** - Extract tab content into page components; apply modern card-based layout
 - [ ] **Phase 13: Responsive Sidebar** - Auto-collapse at mobile breakpoints; sheet drawer overlay on mobile
@@ -33,12 +33,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User's chosen mode and accent color are still applied after closing and reopening the browser tab
   4. Existing chart gradient fills (using --hc-accent-rgb) render correctly in both light and dark modes after the skin system is removed
   5. A grep for hardcoded `dark:bg-gray-` and `dark:text-gray-` classes returns zero results across all web source files
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 Plans:
-- [ ] 10-01-PLAN.md — Token layer: @theme registration, status/interactive tokens, CSS shim extension
-- [ ] 10-02-PLAN.md — Accent rename: useSkin->useAccent hook, data-skin->data-accent CSS/JS/HTML, localStorage migration
-- [ ] 10-03-PLAN.md — Direct refactor: SettingsTab, AddDevicesTab, MyDevicesTab, AccessoryDetail (269 dark: classes)
-- [ ] 10-04-PLAN.md — Final cleanup: remaining 20 files (89 dark: classes) + visual verification checkpoint
+- [x] 10-01-PLAN.md — Token layer: @theme registration, status/interactive tokens, CSS shim extension
+- [x] 10-02-PLAN.md — Accent rename: useSkin->useAccent hook, data-skin->data-accent CSS/JS/HTML, localStorage migration
+- [x] 10-03-PLAN.md — Direct refactor: SettingsTab, AddDevicesTab, MyDevicesTab, AccessoryDetail (269 dark: classes)
+- [x] 10-04-PLAN.md — Final cleanup: remaining 20 files (89 dark: classes) + visual verification checkpoint
 **UI hint**: yes
 
 ### Phase 11: Sidebar Navigation Shell
@@ -110,7 +110,7 @@ Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 10. Design Token Foundation | 0/4 | Planned | - |
+| 10. Design Token Foundation | 4/4 | Complete    | 2026-04-14 |
 | 11. Sidebar Navigation Shell | 0/? | Not started | - |
 | 12. Page Extraction & Card Layout | 0/? | Not started | - |
 | 13. Responsive Sidebar | 0/? | Not started | - |
