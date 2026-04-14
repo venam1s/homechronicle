@@ -195,35 +195,51 @@ export default function Sidebar({
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-between px-4">
-            <button
-              type="button"
-              onClick={handleThemeToggle}
-              aria-label={getThemeToggleLabel(preference)}
-              className={clsx(
-                'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
-                FOCUS_RING,
-              )}
-            >
-              <ThemeIcon preference={preference} />
-            </button>
-            <div className="flex items-center gap-1">
-              {STYLES.map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setAccent(id)}
-                  aria-label={`${label} accent`}
-                  style={{
-                    background: swatchMap[id],
-                    outline: accent === id ? `2px solid var(--hc-accent-strong)` : undefined,
-                    outlineOffset: accent === id ? '2px' : undefined,
-                    opacity: accent === id ? 1 : 0.7,
-                  }}
-                  className={clsx('w-5 h-5 rounded-full', FOCUS_RING)}
-                />
-              ))}
+          <div className="flex flex-col gap-2 px-4">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={handleThemeToggle}
+                aria-label={getThemeToggleLabel(preference)}
+                className={clsx(
+                  'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
+                  FOCUS_RING,
+                )}
+              >
+                <ThemeIcon preference={preference} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccentOpen((o) => !o)}
+                aria-label={accentOpen ? 'Hide accent colors' : 'Show accent colors'}
+                aria-expanded={accentOpen}
+                className={clsx(
+                  'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
+                  FOCUS_RING,
+                )}
+              >
+                <Paintbrush2 size={18} />
+              </button>
             </div>
+            {accentOpen && (
+              <div className="flex items-center gap-1 transition-all">
+                {STYLES.map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setAccent(id)}
+                    aria-label={`${label} accent`}
+                    style={{
+                      background: swatchMap[id],
+                      outline: accent === id ? `2px solid var(--hc-accent-strong)` : undefined,
+                      outlineOffset: accent === id ? '2px' : undefined,
+                      opacity: accent === id ? 1 : 0.7,
+                    }}
+                    className={clsx('w-5 h-5 rounded-full', FOCUS_RING)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
