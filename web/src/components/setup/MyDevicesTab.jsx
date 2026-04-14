@@ -36,11 +36,11 @@ function RoomAutocomplete({ value, onChange, onBlur, onKeyDown, rooms, placehold
         className={className}
       />
       {open && focused && filtered.length > 0 && (
-        <ul className="absolute z-50 mt-0.5 left-0 w-40 max-h-40 overflow-y-auto rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-lg text-xs">
+        <ul className="absolute z-50 mt-0.5 left-0 w-40 max-h-40 overflow-y-auto rounded border border-hc-panel-border bg-white bg-hc-panel-mid shadow-lg text-xs">
           {filtered.map((room) => (
             <li
               key={room}
-              className="px-2 py-1 cursor-pointer text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/40"
+              className="px-2 py-1 cursor-pointer text-hc-fg hover:bg-blue-50 "
               onMouseDown={(e) => { e.preventDefault(); onChange({ target: { value: room } }); setOpen(false); }}
             >
               {room}
@@ -208,7 +208,7 @@ export default function MyDevicesTab({ setup }) {
 
   const repairAllNonOk = repairAllState.results?.filter((r) => r.status !== 'ok') ?? [];
   const repairAllFailureDetails = repairAllNonOk.length > 0 ? (
-    <div className="text-[11px] text-gray-500 dark:text-gray-400 pl-1">
+    <div className="text-[11px] text-hc-muted pl-1">
       {repairAllNonOk.some((r) => r.status === 'skipped') && (
         <p>Skipped: {repairAllNonOk.filter((r) => r.status === 'skipped').map((r) => r.name).join(', ')} (use per-device repair)</p>
       )}
@@ -238,9 +238,9 @@ export default function MyDevicesTab({ setup }) {
       </p>
 
       {devicesWithoutRoom.length > 0 && (
-        <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
+        <div className="flex items-start gap-2 rounded-lg bg-hc-warning-bg border border-hc-warning-border px-3 py-2.5">
           <AlertCircle size={15} className="text-amber-500 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-800 dark:text-amber-300">
+          <p className="text-xs text-amber-800 ">
             {devicesWithoutRoom.length === 1
               ? '1 accessory doesn\u2019t have a room assigned yet.'
               : `${devicesWithoutRoom.length} accessories don\u2019t have rooms assigned yet.`}{' '}
@@ -259,9 +259,9 @@ export default function MyDevicesTab({ setup }) {
               className={clsx(
                 'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
                 repairAllState.phase === 'done'
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
-                  : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800',
-                repairAllState.phase === 'idle' && 'hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer',
+                  ? 'bg-hc-success-bg text-hc-success-text border-hc-success-border'
+                  : 'bg-hc-warning-bg text-hc-warning-text border-hc-warning-border',
+                repairAllState.phase === 'idle' && 'hover:bg-hc-warning-bg cursor-pointer',
                 'disabled:opacity-40 disabled:cursor-not-allowed',
               )}
             >
@@ -297,8 +297,8 @@ export default function MyDevicesTab({ setup }) {
           className={clsx(
             'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
             retentionConfig?.liveEventToastsEnabled
-              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40'
-              : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700',
+              ? 'bg-hc-accent-soft text-blue-700  border-hc-panel-border hover:bg-blue-100 '
+              : 'bg-hc-panel-soft text-hc-muted border-hc-panel-border hover:bg-hc-panel-mid',
           )}
         >
           {retentionConfig?.liveEventToastsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
@@ -306,7 +306,7 @@ export default function MyDevicesTab({ setup }) {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm divide-y divide-gray-100 dark:divide-gray-700">
+      <div className="bg-hc-panel rounded-xl shadow-sm divide-y divide-hc-panel-border">
 
         {/* HomeKit paired accessories */}
         {paired.map((acc) => {
@@ -318,7 +318,7 @@ export default function MyDevicesTab({ setup }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
-                      <Pencil size={10} className="text-gray-300 dark:text-gray-500 flex-shrink-0" />
+                      <Pencil size={10} className="text-gray-300 text-hc-muted flex-shrink-0" />
                       <input
                         type="text"
                         placeholder={acc.name}
@@ -326,11 +326,11 @@ export default function MyDevicesTab({ setup }) {
                         onChange={(e) => setDisplayNameInputs((d) => ({ ...d, [acc.id]: e.target.value }))}
                         onBlur={() => onDisplayNameBlurWithFlash(acc.id)}
                         onKeyDown={(e) => e.key === 'Enter' && onDisplayNameBlurWithFlash(acc.id)}
-                        className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-400 focus:outline-none px-0 py-0 w-full truncate placeholder-gray-400 dark:placeholder-gray-500"
+                        className="font-medium text-hc-fg-strong text-sm bg-transparent border-0 border-b border-transparent hover:border-hc-panel-border focus:border-blue-400 focus:outline-none px-0 py-0 w-full truncate placeholder-hc-muted"
                       />
                       {savedFlash[`name-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 flex-shrink-0">
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-hc-accent-soft text-hc-accent-strong border border-hc-panel-border flex-shrink-0">
                       HomeKit
                     </span>
                   </div>
@@ -346,7 +346,7 @@ export default function MyDevicesTab({ setup }) {
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [acc.id]: e.target.value }))}
                       onBlur={() => onRoomBlurWithFlash(acc.id)}
                       onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(acc.id)}
-                      className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                      className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                     />
                     {savedFlash[`room-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                   </div>
@@ -360,7 +360,7 @@ export default function MyDevicesTab({ setup }) {
                         onChange={(e) => setNoteInputs((n) => ({ ...n, [acc.id]: e.target.value }))}
                         onBlur={() => onNoteBlurWithFlash(acc.id)}
                         onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(acc.id)}
-                        className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                        className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                    />
                       {savedFlash[`note-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
@@ -392,19 +392,19 @@ export default function MyDevicesTab({ setup }) {
                     {(() => {
                       const ds = deviceStatus[acc.id];
                       if (ds?.needsRepair) return (
-                        <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">Needs Repair</span>
+                        <span className="text-xs bg-hc-danger-bg text-hc-danger-text border border-hc-danger-border px-2 py-0.5 rounded-full">Needs Repair</span>
                       );
                       if (ds?.isStale) return (
-                        <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">Stale</span>
+                        <span className="text-xs bg-hc-warning-bg text-hc-warning-text border border-hc-warning-border px-2 py-0.5 rounded-full">Stale</span>
                       );
                       return (
-                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded-full">Logging</span>
+                        <span className="text-xs bg-hc-success-bg text-hc-success-text border border-hc-success-border px-2 py-0.5 rounded-full">Logging</span>
                       );
                     })()}
                     <button
                       onClick={() => setRepairingDevice({ device: acc, bridgeId: acc.id })}
                       title="Repair pairing"
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50  transition-colors"
                     >
                       <Wrench size={14} />
                     </button>
@@ -412,7 +412,7 @@ export default function MyDevicesTab({ setup }) {
                       <button
                         type="button"
                         onClick={() => toggleToastAccessory(acc.id)}
-                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="p-1 rounded hover:bg-hc-panel-mid transition-colors"
                         title={
                           (retentionConfig?.toastAccessories ?? []).includes(acc.id)
                             ? 'Disable live event toasts'
@@ -421,7 +421,7 @@ export default function MyDevicesTab({ setup }) {
                       >
                         {(retentionConfig?.toastAccessories ?? []).includes(acc.id)
                           ? <Bell size={14} className="text-blue-500" />
-                          : <BellOff size={14} className="text-gray-400 dark:text-gray-500" />
+                          : <BellOff size={14} className="text-hc-muted" />
                         }
                       </button>
                     )}
@@ -467,7 +467,7 @@ export default function MyDevicesTab({ setup }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
-                      <Pencil size={10} className="text-gray-300 dark:text-gray-500 flex-shrink-0" />
+                      <Pencil size={10} className="text-gray-300 text-hc-muted flex-shrink-0" />
                       <input
                         type="text"
                         placeholder={pairing.name ?? nodeId}
@@ -475,11 +475,11 @@ export default function MyDevicesTab({ setup }) {
                         onChange={(e) => setDisplayNameInputs((d) => ({ ...d, [nodeId]: e.target.value }))}
                         onBlur={() => onDisplayNameBlurWithFlash(nodeId)}
                         onKeyDown={(e) => e.key === 'Enter' && onDisplayNameBlurWithFlash(nodeId)}
-                        className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-400 focus:outline-none px-0 py-0 w-full truncate placeholder-gray-400 dark:placeholder-gray-500"
+                        className="font-medium text-hc-fg-strong text-sm bg-transparent border-0 border-b border-transparent hover:border-hc-panel-border focus:border-blue-400 focus:outline-none px-0 py-0 w-full truncate placeholder-hc-muted"
                       />
                       {savedFlash[`name-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex-shrink-0">
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-hc-success-bg text-hc-success-text border border-hc-success-border flex-shrink-0">
                       Matter
                     </span>
                   </div>
@@ -497,7 +497,7 @@ export default function MyDevicesTab({ setup }) {
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [nodeId]: e.target.value }))}
                       onBlur={() => onRoomBlurWithFlash(nodeId)}
                       onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(nodeId)}
-                      className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                      className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                     />
                     {savedFlash[`room-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                   </div>
@@ -511,7 +511,7 @@ export default function MyDevicesTab({ setup }) {
                         onChange={(e) => setNoteInputs((n) => ({ ...n, [nodeId]: e.target.value }))}
                         onBlur={() => onNoteBlurWithFlash(nodeId)}
                         onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(nodeId)}
-                        className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                        className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                    />
                       {savedFlash[`note-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
@@ -551,7 +551,7 @@ export default function MyDevicesTab({ setup }) {
                         </button>
                       </div>
                       {isErrorExpanded && (
-                        <pre className="mt-1.5 p-2 rounded bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-[11px] text-red-700 dark:text-red-400 whitespace-pre-wrap break-all max-h-40 overflow-auto">
+                        <pre className="mt-1.5 p-2 rounded bg-hc-danger-bg border border-hc-danger-border text-[11px] text-hc-danger-text whitespace-pre-wrap break-all max-h-40 overflow-auto">
                           {nodeStatus.lastError}
                         </pre>
                       )}
@@ -579,20 +579,20 @@ export default function MyDevicesTab({ setup }) {
                     {(() => {
                       const ds = deviceStatus[nodeId];
                       if (ds?.needsRepair) return (
-                        <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">Needs Repair</span>
+                        <span className="text-xs bg-hc-danger-bg text-hc-danger-text border border-hc-danger-border px-2 py-0.5 rounded-full">Needs Repair</span>
                       );
                       if (ds?.isStale) return (
-                        <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">Stale</span>
+                        <span className="text-xs bg-hc-warning-bg text-hc-warning-text border border-hc-warning-border px-2 py-0.5 rounded-full">Stale</span>
                       );
                       return (
-                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded-full">Logging</span>
+                        <span className="text-xs bg-hc-success-bg text-hc-success-text border border-hc-success-border px-2 py-0.5 rounded-full">Logging</span>
                       );
                     })()}
                     {retentionConfig?.liveEventToastsEnabled && (
                       <button
                         type="button"
                         onClick={() => toggleToastAccessory(nodeId)}
-                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="p-1 rounded hover:bg-hc-panel-mid transition-colors"
                         title={
                           (retentionConfig?.toastAccessories ?? []).includes(nodeId)
                             ? 'Disable live event toasts'
@@ -601,7 +601,7 @@ export default function MyDevicesTab({ setup }) {
                       >
                         {(retentionConfig?.toastAccessories ?? []).includes(nodeId)
                           ? <Bell size={14} className="text-blue-500" />
-                          : <BellOff size={14} className="text-gray-400 dark:text-gray-500" />
+                          : <BellOff size={14} className="text-hc-muted" />
                         }
                       </button>
                     )}
@@ -627,7 +627,7 @@ export default function MyDevicesTab({ setup }) {
                               onChange={(e) => setRoomInputs((r) => ({ ...r, [endpointId]: e.target.value }))}
                               onBlur={() => onRoomBlurWithFlash(endpointId)}
                               onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(endpointId)}
-                              className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                              className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                             />
                           </div>
                         </div>
@@ -640,7 +640,7 @@ export default function MyDevicesTab({ setup }) {
                             onChange={(e) => setNoteInputs((n) => ({ ...n, [endpointId]: e.target.value }))}
                             onBlur={() => onNoteBlurWithFlash(endpointId)}
                             onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(endpointId)}
-                            className="text-xs border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                            className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
                        />
                         </div>
                       </div>

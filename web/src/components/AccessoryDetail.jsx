@@ -185,7 +185,7 @@ function StateDurationDonut({ accessoryId, days }) {
 
   return (
     <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+      <h3 className="text-sm font-semibold text-hc-fg mb-3 flex items-center gap-2">
         <PieChartIcon size={14} className="text-gray-400" />
         State Duration
       </h3>
@@ -273,7 +273,7 @@ function ActivityHeatmap({ accessoryId, days }) {
 
   return (
     <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+      <h3 className="text-sm font-semibold text-hc-fg mb-3 flex items-center gap-2">
         <Grid3x3 size={14} className="text-gray-400" />
         Activity Heatmap
       </h3>
@@ -331,7 +331,7 @@ function CharSummaryTable({ accessoryId, days }) {
 
   return (
     <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+      <h3 className="text-sm font-semibold text-hc-fg mb-3 flex items-center gap-2">
         <BarChart3 size={14} className="text-gray-400" />
         Characteristic Summary
       </h3>
@@ -473,11 +473,11 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
 
           {/* Feature 3: Stale reason banner */}
           {health.isStale && health.staleReason && (
-            <section className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 flex items-start gap-2.5">
-              <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <section className="rounded-xl border border-hc-warning-border bg-hc-warning-bg px-4 py-3 flex items-start gap-2.5">
+              <AlertTriangle size={16} className="text-hc-warning-text shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Device is stale</p>
-                <p className="text-xs text-amber-600 dark:text-amber-300 mt-0.5">{health.staleReason}</p>
+                <p className="text-sm font-medium text-hc-warning-text">Device is stale</p>
+                <p className="text-xs text-hc-warning-text mt-0.5">{health.staleReason}</p>
               </div>
             </section>
           )}
@@ -521,7 +521,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Feature 2: Device Metadata */}
           {metadataFields.length > 0 && (
             <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-hc-fg mb-3 flex items-center gap-2">
                 <Info size={14} className="text-gray-400" />
                 Device Info
               </h3>
@@ -543,18 +543,18 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
 
           {/* Firmware History */}
           {firmwareEvents.length > 0 && (
-            <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
-                <Info size={14} className="text-gray-400 dark:text-gray-500" />
+            <section className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
+              <h3 className="text-sm font-semibold text-hc-fg mb-3 flex items-center gap-2">
+                <Info size={14} className="text-hc-muted" />
                 Firmware History
               </h3>
               <div className="space-y-1">
                 {firmwareEvents.map((event) => (
                   <div key={event.id} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700 dark:text-gray-300">
+                    <span className="text-hc-fg">
                       {event.old_value} &rarr; {event.new_value}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-hc-muted">
                       {new Date(event.timestamp).toLocaleDateString()}
                     </span>
                   </div>
@@ -569,7 +569,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
               'bg-white rounded-xl shadow-sm p-4 sm:p-5',
               (reliability.disconnects > 0 || reliability.resubscribe_failures > 0) && 'border border-amber-100'
             )}>
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-hc-fg mb-3 flex items-center gap-2">
                 {reliability.disconnects > 0 || reliability.resubscribe_failures > 0
                   ? <WifiOff size={14} className="text-amber-500" />
                   : <Wifi size={14} className="text-green-500" />
@@ -617,11 +617,11 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 )}
               </div>
               {reliability.last_error && (
-                <div className="mt-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 px-3 py-2">
-                  <p className="text-[11px] text-red-400 dark:text-red-300">Last Error</p>
-                  <p className="text-xs text-red-700 dark:text-red-300 mt-0.5 break-all">{reliability.last_error}</p>
+                <div className="mt-3 rounded-lg bg-hc-danger-bg border border-hc-danger-border px-3 py-2">
+                  <p className="text-[11px] text-hc-danger-text">Last Error</p>
+                  <p className="text-xs text-hc-danger-text mt-0.5 break-all">{reliability.last_error}</p>
                   {reliability.last_error_at && (
-                    <p className="text-[10px] text-red-400 dark:text-red-400 mt-1">
+                    <p className="text-[10px] text-red-400  mt-1">
                       {formatDistanceToNow(new Date(reliability.last_error_at), { addSuffix: true })}
                     </p>
                   )}
@@ -633,7 +633,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Feature 4: Anomaly Indicators */}
           {outliers.length > 0 && (
             <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-hc-fg mb-3 flex items-center gap-2">
                 <AlertTriangle size={14} className="text-amber-500" />
                 Anomalies (last 24h)
               </h3>
@@ -643,26 +643,26 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                     key={`${o.hour}:${o.kind}`}
                     className={clsx(
                       'rounded-lg border px-3 py-2',
-                      o.severity === 'critical' ? 'border-red-200 dark:border-red-500/20 bg-red-50/70 dark:bg-red-500/10' :
-                      o.severity === 'high' ? 'border-amber-200 dark:border-amber-500/20 bg-amber-50/70 dark:bg-amber-500/10' :
-                      'border-yellow-100 dark:border-yellow-500/20 bg-yellow-50/50 dark:bg-yellow-500/10'
+                      o.severity === 'critical' ? 'border-hc-danger-border bg-hc-danger-bg' :
+                      o.severity === 'high' ? 'border-hc-warning-border bg-hc-warning-bg' :
+                      'border-hc-warning-border bg-hc-warning-bg'
                     )}
                   >
                     <div className="flex items-center gap-2 text-xs">
                       <span className={clsx(
                         'uppercase tracking-wide font-semibold',
-                        o.severity === 'critical' ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'
+                        o.severity === 'critical' ? 'text-hc-danger-text' : 'text-hc-warning-text'
                       )}>
                         {o.severity}
                       </span>
-                      <span className={o.severity === 'critical' ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}>
+                      <span className={o.severity === 'critical' ? 'text-hc-danger-text' : 'text-hc-warning-text'}>
                         {o.kind}
                       </span>
                       <span className="ml-auto text-gray-500">score {o.score}</span>
                     </div>
                     <p className={clsx(
                       'text-sm mt-1',
-                      o.severity === 'critical' ? 'text-red-900 dark:text-red-200' : 'text-amber-900 dark:text-amber-200'
+                      o.severity === 'critical' ? 'text-hc-danger-text' : 'text-hc-warning-text'
                     )}>
                       {o.message}
                     </p>
@@ -678,7 +678,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Activity Over Time chart */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-hc-fg flex items-center gap-2">
                 <TrendingUp size={14} className="text-gray-400" />
                 Activity Over Time
               </h3>
@@ -745,7 +745,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
 
           {/* Current State with Features 6 (protocol details) and 5 (characteristic trends) */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-hc-fg mb-3 flex items-center gap-2">
               <Layers size={14} className="text-gray-400" />
               Current State
             </h3>
@@ -813,7 +813,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Full History */}
           <section className="bg-white rounded-xl shadow-sm p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-hc-fg flex items-center gap-2">
                 <ScrollText size={14} className="text-gray-400" />
                 Full History
               </h3>
