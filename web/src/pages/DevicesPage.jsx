@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import { useSetup } from '../hooks/useSetup.js';
+import AccessoryList from '../components/AccessoryList.jsx';
 import AddDevicesTab from '../components/setup/AddDevicesTab.jsx';
 import MyDevicesTab from '../components/setup/MyDevicesTab.jsx';
 
 const DEVICE_TABS = [
+  { id: 'browse', label: 'Browse' },
   { id: 'add', label: 'Add Accessories' },
   { id: 'devices', label: 'Manage Accessories' },
 ];
 
-export default function DevicesPage() {
-  const [activeTab, setActiveTab] = useState('devices');
+export default function DevicesPage({ onSelectAccessory }) {
+  const [activeTab, setActiveTab] = useState('browse');
   const setup = useSetup();
 
   return (
@@ -32,6 +34,7 @@ export default function DevicesPage() {
           </button>
         ))}
       </nav>
+      {activeTab === 'browse' && <AccessoryList onSelectAccessory={onSelectAccessory} />}
       {activeTab === 'add' && <AddDevicesTab setup={setup} onSwitchTab={setActiveTab} />}
       {activeTab === 'devices' && <MyDevicesTab setup={setup} />}
     </div>

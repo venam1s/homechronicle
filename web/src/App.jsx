@@ -81,7 +81,7 @@ export default function App() {
           ) : (
             <ErrorBoundary key={activePage}>
               {activePage === 'dashboard' && <DashboardPage onSelectAccessory={handleSelectAccessory} onSelectRoom={handleSelectRoom} onNavigateToAccessory={handleToastNav} onViewDeviceRepair={() => setActivePage('devices')} />}
-              {activePage === 'devices' && <DevicesPage />}
+              {activePage === 'devices' && <DevicesPage onSelectAccessory={handleSelectAccessory} />}
               {activePage === 'timeline' && <TimelinePage initialFilters={timelineFilters} onSelectAccessory={handleSelectAccessory} />}
               {activePage === 'alerts' && <AlertsPage />}
               {activePage === 'settings' && <SettingsPage />}
