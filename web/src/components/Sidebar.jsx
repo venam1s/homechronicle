@@ -1,0 +1,301 @@
+import { useState } from 'react';
+import {
+  BarChart2, Monitor, LayoutList, Bell, Settings,
+  ChevronLeft, ChevronRight, Paintbrush2, Sun, Moon,
+  ExternalLink, Sparkles, ArrowUpCircle,
+} from 'lucide-react';
+import clsx from 'clsx';
+import BrandLogo from './BrandLogo.jsx';
+import { useTheme } from '../hooks/useTheme.js';
+import { useAccent } from '../hooks/useAccent.js';
+
+// -- Constants --
+
+const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart2 },
+  { id: 'devices',   label: 'Devices',   icon: Monitor },
+  { id: 'timeline',  label: 'Timeline',  icon: LayoutList },
+  { id: 'alerts',    label: 'Alerts',    icon: Bell },
+  { id: 'settings',  label: 'Settings',  icon: Settings },
+];
+
+const STYLES = [
+  { id: 'ocean',    label: 'Ocean' },
+  { id: 'graphite', label: 'Graphite' },
+  { id: 'sunrise',  label: 'Sunrise' },
+  { id: 'red',      label: 'Red' },
+  { id: 'yellow',   label: 'Yellow' },
+  { id: 'purple',   label: 'Purple' },
+  { id: 'slate',    label: 'Slate' },
+  { id: 'pink',     label: 'Pink' },
+];
+
+const ACCENT_SWATCH = {
+  ocean:    'linear-gradient(135deg, #0ea5e9, #0891b2)',
+  graphite: 'linear-gradient(135deg, #14b8a6, #64748b)',
+  sunrise:  'linear-gradient(135deg, #fb923c, #ec4899)',
+  red:      'linear-gradient(135deg, #ef4444, #e11d48)',
+  yellow:   'linear-gradient(135deg, #facc15, #f59e0b)',
+  purple:   'linear-gradient(135deg, #8b5cf6, #9333ea)',
+  slate:    'linear-gradient(135deg, #475569, #64748b)',
+  pink:     'linear-gradient(135deg, #ec4899, #f472b6)',
+};
+
+const ACCENT_SWATCH_DARK = {
+  ocean:    'linear-gradient(135deg, #38bdf8, #67e8f9)',
+  graphite: 'linear-gradient(135deg, #5eead4, #94a3b8)',
+  sunrise:  'linear-gradient(135deg, #fdba74, #f472b6)',
+  red:      'linear-gradient(135deg, #f87171, #fb7185)',
+  yellow:   'linear-gradient(135deg, #fde047, #fbbf24)',
+  purple:   'linear-gradient(135deg, #a78bfa, #c084fc)',
+  slate:    'linear-gradient(135deg, #94a3b8, #cbd5e1)',
+  pink:     'linear-gradient(135deg, #f472b6, #fbcfe8)',
+};
+
+const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2';
+
+// -- Theme cycle helpers --
+
+function getNextPreference(preference) {
+  if (preference === 'system') return 'light';
+  if (preference === 'light') return 'dark';
+  return 'system';
+}
+
+function getThemeToggleLabel(preference) {
+  if (preference === 'system') return 'Switch to light mode';
+  if (preference === 'light') return 'Switch to dark mode';
+  return 'Switch to system mode';
+}
+
+function ThemeIcon({ preference }) {
+  if (preference === 'light') return <Sun size={20} />;
+  if (preference === 'dark') return <Moon size={20} />;
+  return <Sun size={20} />;
+}
+
+// -- Sidebar component --
+
+export default function Sidebar({
+  collapsed,
+  onToggle,
+  activePage,
+  onNavigate,
+  showChangelog,
+  hasNewVersion,
+  onOpenChangelog,
+  buildVersion,
+  availableUpdate,
+  onDismissUpdate,
+}) {
+  const { preference, resolvedTheme, setPreference } = useTheme();
+  const { accent, setAccent } = useAccent();
+  const [accentOpen, setAccentOpen] = useState(false);
+
+  const isDark = resolvedTheme === 'dark';
+  const swatchMap = isDark ? ACCENT_SWATCH_DARK : ACCENT_SWATCH;
+
+  function handleThemeToggle() {
+    setPreference(getNextPreference(preference));
+  }
+
+  return (
+    <aside
+      role="navigation"
+      aria-label="Main navigation"
+      className="group relative flex flex-col h-full bg-hc-panel border-r border-hc-panel-border"
+    >
+      {/* Header */}
+      <div className={clsx('flex py-6', collapsed ? 'justify-center px-2' : 'px-4')}>
+        <BrandLogo collapsed={collapsed} className="h-8" />
+      </div>
+
+      {/* Nav list */}
+      <nav className="flex flex-col gap-1 px-2">
+        {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+          const isActive = activePage === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onNavigate(id)}
+              aria-current={isActive ? 'page' : undefined}
+              title={collapsed ? label : undefined}
+              className={clsx(
+                'flex items-center w-full rounded-lg px-3 h-[40px] text-sm transition-colors duration-150',
+                FOCUS_RING,
+                collapsed ? 'justify-center gap-0' : 'gap-3',
+                isActive
+                  ? 'bg-hc-interactive-hover text-hc-accent-strong font-semibold'
+                  : 'text-hc-fg hover:bg-hc-interactive',
+              )}
+            >
+              <Icon
+                size={20}
+                className={clsx(
+                  isActive ? 'text-hc-accent-strong' : 'text-hc-muted',
+                )}
+              />
+              {!collapsed && <span>{label}</span>}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Footer */}
+      <div className="flex flex-col gap-2 py-4">
+        {/* Theme controls */}
+        {collapsed ? (
+          <div className="relative flex justify-center px-2">
+            <button
+              type="button"
+              onClick={() => setAccentOpen((o) => !o)}
+              aria-label="Open theme and accent settings"
+              className={clsx(
+                'flex items-center justify-center w-10 h-10 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
+                FOCUS_RING,
+              )}
+            >
+              <Paintbrush2 size={20} />
+            </button>
+            {accentOpen && (
+              <div className="absolute left-full bottom-0 ml-2 z-20 bg-hc-panel border border-hc-panel-border rounded-lg p-3 shadow-lg flex flex-col gap-2 min-w-[160px]">
+                <div className="flex flex-wrap gap-1">
+                  {STYLES.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setAccent(id)}
+                      aria-label={`${label} accent`}
+                      style={{
+                        background: swatchMap[id],
+                        outline: accent === id ? `2px solid var(--hc-accent-strong)` : undefined,
+                        outlineOffset: accent === id ? '2px' : undefined,
+                        opacity: accent === id ? 1 : 0.7,
+                      }}
+                      className={clsx('w-5 h-5 rounded-full', FOCUS_RING)}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleThemeToggle}
+                  aria-label={getThemeToggleLabel(preference)}
+                  className={clsx(
+                    'flex items-center gap-2 text-sm text-hc-muted hover:text-hc-fg transition-colors',
+                    FOCUS_RING,
+                  )}
+                >
+                  <ThemeIcon preference={preference} />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-4">
+            <button
+              type="button"
+              onClick={handleThemeToggle}
+              aria-label={getThemeToggleLabel(preference)}
+              className={clsx(
+                'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
+                FOCUS_RING,
+              )}
+            >
+              <ThemeIcon preference={preference} />
+            </button>
+            <div className="flex items-center gap-1">
+              {STYLES.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setAccent(id)}
+                  aria-label={`${label} accent`}
+                  style={{
+                    background: swatchMap[id],
+                    outline: accent === id ? `2px solid var(--hc-accent-strong)` : undefined,
+                    outlineOffset: accent === id ? '2px' : undefined,
+                    opacity: accent === id ? 1 : 0.7,
+                  }}
+                  className={clsx('w-5 h-5 rounded-full', FOCUS_RING)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Version/links */}
+        {!collapsed && (
+          <div className="flex flex-col gap-1 px-4">
+            {availableUpdate && (
+              <a
+                href={availableUpdate.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={clsx(
+                  'flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors',
+                  FOCUS_RING,
+                )}
+              >
+                <ArrowUpCircle size={14} />
+                <span>{availableUpdate.tag} available</span>
+              </a>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onOpenChangelog}
+                className={clsx(
+                  'text-xs text-hc-muted hover:text-hc-fg transition-colors',
+                  FOCUS_RING,
+                )}
+              >
+                {buildVersion}
+              </button>
+              {hasNewVersion && (
+                <Sparkles size={12} className="text-amber-500" />
+              )}
+            </div>
+            <a
+              href="https://gitlab.com/havuq/homechronicle/-/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={clsx(
+                'flex items-center gap-1 text-xs text-hc-muted hover:text-hc-fg transition-colors',
+                FOCUS_RING,
+              )}
+            >
+              <ExternalLink size={12} />
+              <span>Report issue</span>
+            </a>
+          </div>
+        )}
+        {collapsed && availableUpdate && (
+          <div className="flex justify-center px-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+          </div>
+        )}
+      </div>
+
+      {/* Edge handle */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className={clsx(
+          'absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2',
+          'flex items-center justify-center w-5 h-8 rounded-full',
+          'bg-hc-panel border border-hc-panel-border',
+          'opacity-0 group-hover:opacity-100 transition-opacity duration-150',
+          'z-10 cursor-pointer',
+          FOCUS_RING,
+        )}
+      >
+        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+      </button>
+    </aside>
+  );
+}
