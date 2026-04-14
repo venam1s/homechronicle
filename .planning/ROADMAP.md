@@ -51,7 +51,11 @@ Plans:
   3. The sidebar's expanded/collapsed state is preserved after a page refresh
   4. The currently active page has a distinct visual highlight in the sidebar that is unambiguous from the other items
   5. App.jsx renders in under 100 lines — all tab content remains behind the same pages but the file is now a layout shell
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
+- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
+- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
 **UI hint**: yes
 
 ### Phase 12: Page Extraction & Card Layout
@@ -62,7 +66,11 @@ Plans:
   1. All four original content areas (Dashboard, Timeline, Accessories, Manage/Settings) are reachable and fully functional through the sidebar navigation
   2. Every content panel uses card surfaces with soft shadows and consistent spacing — there are no raw colored div blocks or flat ungrouped lists
   3. All existing features (event filter, accessory detail, alerts management, settings) work identically to v1.1 with no regressions
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
+- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
+- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
 **UI hint**: yes
 
 ### Phase 13: Responsive Sidebar
@@ -74,7 +82,11 @@ Plans:
   2. On a viewport between 768px and 1024px, the sidebar auto-collapses to icon-only without user action
   3. Dashboard widgets reflow to a single-column stack on mobile viewports
   4. Resizing the browser window from desktop to mobile and back does not leave the sidebar in an inconsistent state
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
+- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
+- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
 **UI hint**: yes
 
 ### Phase 14: Dashboard Widgets
@@ -87,7 +99,11 @@ Plans:
   3. User sees a live activity feed widget displaying the most recent events; the feed updates as new events arrive
   4. When the user scrolls up to read older feed entries, the feed stops auto-scrolling until the user scrolls back to the bottom
   5. User sees a room-by-room grid of cards each showing the device count and health status badge for that room
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
+- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
+- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
 **UI hint**: yes
 
 ### Phase 15: Chart Styling
@@ -99,7 +115,11 @@ Plans:
   2. KPI cards include a sparkline mini-chart that visualizes the trend data supporting the delta indicator
   3. All chart colors update correctly when the user switches between light mode, dark mode, or accent color presets
   4. No Recharts v2 reference remains in package.json — the upgrade is complete in one phase
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
+- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
+- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
 **UI hint**: yes
 
 ## Progress
