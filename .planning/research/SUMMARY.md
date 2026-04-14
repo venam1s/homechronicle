@@ -1,200 +1,170 @@
 # Project Research Summary
 
-**Project:** HomeChronicle — Code Health Milestone
-**Domain:** Node.js / Express production code health (migrations, query optimization, router extraction, error handling)
-**Researched:** 2026-04-02
+**Project:** HomeChronicle v1.2 UI Redesign
+**Domain:** React SPA dashboard overhaul — sidebar navigation, design token system, chart improvements, new dashboard widgets
+**Researched:** 2026-04-14
 **Confidence:** HIGH
 
 ## Executive Summary
 
-HomeChronicle's listener service has grown to a 2,103-line `index.js` monolith that successfully runs in production but carries four compounding risks: unhandled promise rejections that crash silently, a COUNT(*) query that will become the primary latency bottleneck beyond ~500K events, an IF NOT EXISTS migration pattern that cannot express schema evolution, and untestable route handlers because everything lives in one file. All four problems have well-understood fixes that require zero new architectural concepts — only disciplined application of Express's established router factory pattern, PostgreSQL's statistics tables, and one new dependency (`node-pg-migrate`).
+HomeChronicle v1.2 is a visual and structural overhaul of an existing React 19 + Tailwind v4 SPA. The existing backend, API, and data-fetching hooks are untouched; all work is confined to the frontend shell, navigation, theming, and dashboard widget layer. The recommended approach is an incremental, phase-by-phase extraction: replace App.jsx's navigation shell with a collapsible sidebar, migrate the CSS custom property system to clean semantic tokens, extract existing tab content into page components, add new dashboard widgets using existing hooks, then improve chart styling. Every phase has a working, testable state at its end — no big-bang rewrites.
 
-The recommended approach is sequential, lowest-risk-first: land global error handlers and silent-catch logging first (two process.on calls, no tests broken), adopt a versioned migration system second (one-time bootstrap before any new schema changes land), fix the COUNT query and alert_deliveries retention in parallel as their first migration, then extract routers in dependency order from simplest (archive, data, stats) to most complex (accessories, setup). Each extracted router gets an integration test before the next extraction begins. The full extraction target is an `index.js` of 300–400 lines that only bootstraps and mounts.
+The core stack decision is to stay entirely within the existing dependency set plus targeted additions. Recharts upgrades to v3 (not replaced). The sidebar is built from shadcn/ui copy-paste source files backed by Radix UI primitives (5 packages + class-variance-authority). Theming uses Tailwind v4's `@theme inline` directive with CSS custom properties — no new theming library. This keeps the bundle impact minimal and preserves all existing chart components' theme integration, which depends heavily on `--hc-*` CSS variables read at render time.
 
-The primary risks are all in the transition mechanics, not the destination. The `discoveryCache` stale-reference trap will silently break pairing if accessor functions are not used. The migration bootstrap on existing installations will re-run destructive one-off migrations if the `--fake` flag is misapplied. The estimated COUNT optimization returns zero on fresh installs if a fallback branch is omitted. Each risk has a concrete prevention strategy documented in PITFALLS.md and must be enforced at PR review time, not discovered in production.
-
----
+The two highest risks are (1) the 339 hardcoded `dark:bg-gray-*` / `dark:text-gray-*` Tailwind classes scattered across 30+ components that will produce inconsistent dark mode if not replaced with semantic tokens before new components are built, and (2) the `useAccentRgb()` hook that reads `--hc-accent-rgb` via `getComputedStyle` for SVG gradient fills in 5 chart components — this breaks silently if the skin system is removed without keeping the variable as an alias. Both risks are addressed by making the theming migration the first phase and establishing a firm rule against hardcoded Tailwind color classes in any new component.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The project already runs on the correct stack (Node 22, Express 5, PostgreSQL 16, raw `pg` driver, `node:test`). Only one new dependency is warranted: `node-pg-migrate` v8 (released December 2025, ESM-native, requires Node 20+). All other work — router extraction, error handling, COUNT optimization, query-cache LRU bounds — uses existing libraries and patterns. Nothing else should be added this milestone.
+The stack requires three targeted additions on top of what is already installed. Recharts upgrades from v2.12.7 to v3.8.1 — it is already in the project, natively integrates with shadcn/ui's chart layer, and v3 adds gradient fills and smooth D3 curves. The sidebar uses shadcn/ui's copy-paste pattern (not an npm package) backed by 5 Radix UI primitives and `class-variance-authority`. Theming is handled entirely by Tailwind v4's `@theme inline` directive with no third-party theme library. Total new installs: 7 packages.
 
 **Core technologies:**
-- `node-pg-migrate` v8: migration runner — ESM-only, programmatic API, runs inline at startup via `runMigrations()` in `db.js`, avoids the separate-process complexity of Go-based tools like dbmate
-- `express.Router()` factory pattern: already established in four routers — `createXxxRouter({ deps })` returning a router; no new library needed
-- `pg_class.reltuples`: fast unfiltered row count — avoid full index scan on every paginated request; fallback to exact COUNT when `reltuples <= 0` or filters are active
-- `process.on('unhandledRejection')` + `process.on('uncaughtException')`: process-level error containment — log-and-continue for rejections (HAP subscriptions must not be torn down on non-critical rejections), exit(1) for uncaught exceptions
-
-**What NOT to add:** Knex (adds ORM coupling for migration-only use), dbmate (Go binary, cannot run programmatically), Prometheus client (out of scope), `express-async-errors` (Express 5 handles async propagation natively), table partitioning (premature at self-hosted scale).
+- `recharts ^3`: Charting — upgrade in-place, shadcn integration, D3 curves, CSS var theming; existing 8 chart components preserved
+- `@radix-ui/react-slot`, `react-separator`, `react-dialog`, `react-tooltip`, `react-collapsible`: Sidebar primitives — accessibility and interaction baked in; copy-paste into `components/layout/`
+- `class-variance-authority`: Sidebar variant logic — framework-agnostic, no peer dep conflicts
+- Tailwind v4 `@theme inline` directive (no install): Semantic token system — generates `bg-surface`, `text-text-muted` etc. as utility classes referencing CSS variables; zero runtime overhead
+- `localStorage` for sidebar and theme state persistence — no Next.js server context needed; pattern already used by existing `useTheme` and `useSkin` hooks
 
 ### Expected Features
 
-Research confirmed these as the complete and prioritized feature set for this milestone. The ordering below maps directly to phase sequence.
+**Must have (table stakes — v1.2 launch blockers):**
+- Collapsible sidebar (expanded/icon-only) with persistent collapse state — top tabs feel dated in 2026; 240–280px expanded, 64–72px icon-only
+- Responsive sidebar: full at 1024px+, icon-only at 768–1024px, sheet drawer overlay on mobile
+- Active nav item highlight with `aria-current="page"` — users must always know their location
+- Semantic design token system (light + dark modes) replacing 8-skin system — foundational for all other visual work
+- Consistent card surface system via design tokens — eliminates `dark:bg-gray-800` scatter
+- KPI stat cards with trend delta indicators (today vs yesterday percentage) — users expect at-a-glance metrics
+- Chart visual upgrade: gradient fills, smooth curves via Recharts v3 — current charts look dated
+- Light/dark mode toggle visible in sidebar footer (not hidden FAB)
 
-**Must have (table stakes) — in priority order:**
-- Global `unhandledRejection` and `uncaughtException` handlers — Node 15+ crashes on unhandled rejections; Docker restart recovers but loses crash context
-- Silent catch block logging in discovery and Matter cleanup paths — currently `catch {}` makes the two hardest debugging areas completely opaque
-- Versioned migration numbering — IF NOT EXISTS cannot express column renames or constraint changes; rollback is impossible; must land before any new schema changes
-- `alert_deliveries` retention sweep + `sent_at` index — table grows unboundedly; at scale the sweep and the COUNT(*) share the same root cause
-- Estimated COUNT for unfiltered `/api/events` pagination — full index scan on every timeline load is the most visible perf regression path
-- Router extraction: setup-router (~600 lines, HomeKit pairing + rooms + display-names + notes + log-level)
-- Router extraction: accessories-router (~400 lines, per-device detail and characteristic history)
-- Router extraction: stats-router (~300 lines, dashboard aggregations)
-- Router extraction: archive-router + data-router + health-router (smaller groups, extract first for momentum)
-- Integration tests for each extracted router (one file per router, following existing mock-pool + invoke() pattern)
+**Should have (differentiators, add in v1.2.x if time allows):**
+- Live activity feed widget with scroll-lock pause behavior — surfaces the event log's core value on the dashboard
+- Room-by-room device health widget grid — home automation users think in rooms; no new API needed (join existing endpoints client-side)
+- Device health KPI card (online/offline/stale counts) — promotes product from chart viewer to reliability monitor
+- Single accent color picker with 5–8 preset swatches replacing skin picker — simpler than 8 skins
 
-**Should have (differentiators — defer if extraction runs long):**
-- Optional JSON log format (`LOG_FORMAT=json` env var) — enables Loki/structured log parsing without code change to deployment
-- Request ID middleware (`x-request-id` header) — correlates log lines across HAP/Matter concurrent subscription events
-- Pool configuration via env vars (`DB_POOL_MAX`, `DB_STATEMENT_TIMEOUT`) — lets RPi operators tune without code changes
-- LRU eviction for query-cache Map — current unbounded Map is safe now but becomes a hidden memory leak if dynamic keys are added
-- Centralized `config.js` module — eliminates duplicated env-var parsing; PROJECT.md explicitly marks this out-of-scope for this milestone
-
-**Defer (not this milestone):**
-- Table partitioning for `event_logs` — premature at self-hosted volumes
-- Prometheus metrics endpoint — operational concern; structured JSON logs are the observability path
-- Frontend test coverage expansion — separate concern
-- HTTPS termination / TLS — documentation concern, no code change
-- Keyset/cursor pagination — breaking API change requiring frontend coordination; two-tier COUNT solves the problem within existing API contract
+**Defer (v1.3+):**
+- Draggable/rearrangeable widgets — layout persistence complexity not worth it for single-user home server
+- Sidebar section accordion groups — only needed when nav items exceed 6–7
+- Dashboard layout density toggle (compact/comfortable)
+- Keyboard navigation shortcuts
 
 ### Architecture Approach
 
-The extraction follows a strict factory-function dependency injection pattern already proven by four existing routers. `index.js` owns all state (store instances, discoveryCache, matterRuntime, retentionSettings) and threads it into routers exclusively as closure callbacks or plain objects — never as snapshot values that can go stale. Routers have no knowledge of `index.js` and do not import from it. The dependency direction is always `index.js → router`.
+The architecture is a shell replacement with content preservation. App.jsx (535 lines, 7+ mixed concerns) is replaced by a thin shell (~80 lines) that renders `ThemeProvider`, `Sidebar`, and conditional page components. All existing hooks, chart components, and content components are extracted unchanged into `pages/` — `DashboardPage`, `TimelinePage`, `DevicesPage`, `AlertsPage`, `SettingsPage`. New structural files live in `components/layout/` and `contexts/`. The CSS custom property system is extended, not replaced: new sidebar tokens (`--hc-sidebar-width-open`, `--hc-sidebar-bg`, etc.) delegate to existing `--hc-panel-*` tokens. `useTheme()` and `useSkin()` hooks remain unchanged and are wrapped by a new `ThemeContext` to eliminate prop drilling to the sidebar.
 
-**Major components after full extraction:**
-
-1. `index.js` (300–400 lines) — bootstrap only: store init, Matter/HAP startup, background job intervals, Express middleware registration, router mounting, `app.listen()`
-2. `setup-router.js` (NEW) — HomeKit pairing discovery, pair/repair/add-pairing endpoints, rooms/display-names/notes CRUD, log-level; owns `getDiscoveryCache`/`setDiscoveryCache` callbacks
-3. `accessories-router.js` (NEW) — `/api/accessories` list and all per-device detail endpoints; heaviest dependency surface (subscriber stats, device health, accessory metadata)
-4. `stats-router.js` (NEW) — `/api/stats/*` aggregations; cleanest extraction; pure pool + query-cache + anomaly-detection
-5. `archive-router.js` (NEW) — CSV export streaming; two endpoints, two deps
-6. `data-router.js` (NEW) — destructive delete endpoints; pool + store closures
-7. `health-router.js` (NEW) — single cross-cutting read; pool + subscriber health + matterRuntime status
-8. `utils.js` (NEW) — `parseIntInRange` and `parentBridgeId` moved here from `events-router.js`; must be created before any new routers are extracted to break the existing `alerts-router.js` → `events-router.js` coupling
-
-Existing routers (`events-router.js`, `alerts-router.js`, `matter-router.js`, `retention-router.js`) are not refactored this milestone — only new extractions follow the updated pattern.
+**Major components:**
+1. `Sidebar.jsx` + `SidebarItem.jsx` — vertical nav, collapse/expand, theme controls in footer; collapse state isolated in `useSidebarState.js`
+2. `ThemeContext.jsx` — wraps app, exposes `{preference, resolvedTheme, skin, setSkin}` so sidebar can access without prop drilling through App.jsx
+3. `pages/` (5 components) — `DashboardPage`, `TimelinePage`, `DevicesPage`, `AlertsPage`, `SettingsPage` extracted from App.jsx and Setup.jsx with zero internal changes
+4. `KpiCards.jsx` + `LiveFeed.jsx` — new dashboard widgets composed from existing `useAccessories` and `useEvents` hooks with shared query keys
+5. `index.css` modifications — `@theme inline` semantic tokens, `--hc-sidebar-*` tokens, removal of FAB skin-picker CSS
 
 ### Critical Pitfalls
 
-1. **Migration bootstrap destroys existing data** — The initial migration file must be fake-applied on existing installs using `--fake`. If run for real against a live DB that has IF NOT EXISTS schema, the `initial_poll_cleanup` migration re-runs and deletes legitimate events. Test the bootstrap against both a fresh Postgres 16 container AND a copy of the production DB before merging.
-
-2. **Stale in-memory state in extracted routers** — `discoveryCache` is a module-level array that gets *reassigned*, not mutated. Any router that receives it as a value at construction time will hold the original empty array forever. Every mutable variable must be threaded in as a getter function: `getDiscoveryCache: () => discoveryCache`. Also applies to `retentionSettings`. Write at least one integration test per router that exercises a route after simulating a state update.
-
-3. **Circular import from utilities in `events-router.js`** — `alerts-router.js` already imports `parseIntInRange` from `events-router.js`. New routers needing this function must not add another import from `events-router.js`. Create `utils.js` first, move the helpers there atomically (update all import sites in the same commit), and run `npm test` before proceeding to any router extraction.
-
-4. **Estimated COUNT returns zero on fresh install** — `pg_class.reltuples` defaults to `-1` on a newly created table until autovacuum runs ANALYZE. Add `GREATEST(reltuples::bigint, 0)` with a fallback to exact COUNT when the result is `<= 0`. Fresh install CI tests must run against an empty schema, not a pre-seeded one.
-
-5. **`uncaughtException` handler that does not exit** — Logging but continuing after an uncaught exception leaves the process in undefined state. HAP subscriptions appear alive but process no events. Health endpoint returns 200. Docker restart never fires. Always call `process.exit(1)` in the `uncaughtException` handler. Only `unhandledRejection` should log-and-continue (to avoid tearing down HAP subscriptions on non-critical async leaks in `hap-controller`).
-
----
+1. **Hardcoded `dark:bg-gray-*` classes survive theming migration** — establish a no-hardcoded-colors rule before writing any new component; audit 339 existing instances with grep before Phase 1; all colors must use `--hc-*` tokens
+2. **`useAccentRgb()` breaks when skin system is removed** — keep `--hc-accent-rgb` as an alias in the new token layer; SVG `stopColor` cannot use CSS `var()` directly; 5 chart components using this hook must be verified in both modes after skin removal
+3. **App.jsx monolith not restructured before sidebar work** — extract `useSidebarState` and define clean component boundaries before visual sidebar work; sidebar must receive only 3 props; prop-drilling `setTab` is the warning sign
+4. **Sidebar width CSS transition causes chart re-renders on Raspberry Pi** — animate with `transform` or CSS Grid `grid-template-columns` toggle, never `transition: width`; `ResponsiveContainer` fires `ResizeObserver` on every pixel change
+5. **`localStorage` key conflicts on upgrade from v1.1** — users have `hc_ui_skin='ocean'` (and other old skin names) stored; `useSkin()` must validate against new valid set on first load and migrate/clear invalid keys
 
 ## Implications for Roadmap
 
-### Phase 1: Error Handler Foundation
-**Rationale:** Two `process.on()` calls with zero behavior change risk and highest reliability impact per line written. Independent of all other work. Establishes the catch-all safety net before any structural changes begin.
-**Delivers:** `unhandledRejection` (log, continue), `uncaughtException` (log, exit 1), silent-catch logging in discovery and Matter cleanup paths
-**Addresses:** Table stakes items 1 and 2 from FEATURES.md
-**Avoids:** Pitfalls 5 and 6 (error middleware position, zombie process)
-**Research flag:** None — patterns are fully specified in STACK.md Domain 4 and PITFALLS.md
+Based on combined research, the natural phase structure is dictated by component dependencies: tokens before components, shell before pages, pages before widgets, styling last.
 
-### Phase 2: Migration System + Schema Fixes
-**Rationale:** Must land before any new schema changes. The `alert_deliveries` index and retention sweep that follow are the first real migrations and must follow the versioned convention from day one. Doing this second means the error handlers are already in place if the bootstrap fails.
-**Delivers:** `node-pg-migrate` v8 wired to `db.js` startup, `0001_initial_schema.js` fake-applied on existing installs, `0002_alert_deliveries_retention.js` adding the `sent_at` index and the sweep logic, `ALERT_DELIVERY_RETENTION_DAYS` env var
-**Addresses:** Table stakes items 3 and 4 (versioned migrations, alert_deliveries retention)
-**Avoids:** Pitfall 1 (bootstrap destroys data), Pitfall 7 (sweep fires duplicate webhooks), Pitfall 9 (dual schema source drift — pick one source of truth in this PR)
-**Research flag:** Medium — bootstrap against existing install requires care; test plan must include both fresh-install and existing-install scenarios
+### Phase 1: Design Token Foundation
+**Rationale:** Every subsequent component needs consistent surface, border, and accent tokens or the dark mode regression (Pitfall 1) is guaranteed. This is a hard prerequisite — no new UI code should be written without it.
+**Delivers:** `@theme inline` semantic token system in `index.css`; all 339 `dark:bg-gray-*` instances replaced with token-based classes; `--hc-accent-rgb` preserved as alias; `localStorage` migration for old skin keys
+**Addresses:** Semantic design token system (table stakes), consistent card dark mode (table stakes)
+**Avoids:** Pitfall 1 (mixed token/Tailwind dark mode), Pitfall 2 (useAccentRgb break), Pitfall 6 (localStorage key conflicts)
 
-### Phase 3: COUNT Optimization
-**Rationale:** Independent of router extraction; can be applied to `events-router.js` immediately and delivers visible perf improvement with one addition to an existing, tested file. The fresh-install fallback branch must be included in the same PR.
-**Delivers:** Two-tier count strategy in `events-router.js` (estimated for unfiltered, exact for filtered), `estimated: true` flag in API response, fallback branch for `reltuples <= 0`
-**Addresses:** Table stakes item 5 (estimated COUNT)
-**Avoids:** Pitfall 4 (zero count on fresh install)
-**Research flag:** None — fully specified in STACK.md Domain 2 and PITFALLS.md
+### Phase 2: Sidebar Navigation Shell
+**Rationale:** Navigation restructure is the highest-risk change because it touches the shell every component renders inside. Do it second, immediately after tokens are stable, so all new sidebar components use the token system from day one.
+**Delivers:** `useSidebarState.js`, `Sidebar.jsx`, `SidebarItem.jsx`, App.jsx replaced as thin shell, `--hc-sidebar-*` CSS tokens, sidebar collapse animation using transform (not width), ARIA landmark and `aria-current` on sidebar items, theme toggle moved to sidebar footer, FAB removed
+**Uses:** Radix UI primitives, class-variance-authority, shadcn sidebar copy-paste pattern, Tailwind v4 tokens from Phase 1
+**Avoids:** Pitfall 3 (App.jsx monolith), Pitfall 4 (layout thrash on RPi), accessibility regressions
 
-### Phase 4: Router Extraction — Simple Groups First
-**Rationale:** Establish the dep injection pattern on low-dependency routers before tackling the complex ones. Each extraction confirms the pattern works before the next begins. `utils.js` creation is the first task of this phase — it unblocks all extractions.
-**Delivers:** `utils.js` (parseIntInRange, parentBridgeId), `archive-router.js` (2 endpoints), `data-router.js` (2 destructive endpoints), `stats-router.js` (~9 stat aggregation endpoints), `health-router.js` (1 endpoint); integration tests for each
-**Addresses:** Table stakes items 8–10 (router extraction and tests for simpler groups)
-**Avoids:** Pitfall 3 (circular import — utils.js must exist before any extraction), Pitfall 2 (stale state — stats and health use `getRetentionSettings` callback)
-**Research flag:** None — extraction order and dep interface fully documented in ARCHITECTURE.md
+### Phase 3: Page Extraction
+**Rationale:** App.jsx still contains all tab content after Phase 2's shell replacement. Extracting to page components reduces App.jsx to its proper responsibility (layout + routing) and creates clean boundaries for adding widgets in Phase 4.
+**Delivers:** `DashboardPage.jsx`, `TimelinePage.jsx`, `DevicesPage.jsx`, `AlertsPage.jsx`, `SettingsPage.jsx`; App.jsx at ~80 lines; `ThemeContext.jsx` wrapping existing hooks; all existing functionality identical with zero behavior change
+**Implements:** Shell replacement + content preserved pattern; ThemeProvider context eliminating prop drilling
 
-### Phase 5: Router Extraction — Accessories
-**Rationale:** Heaviest read router; depends on subscriber stats, device health, and accessory metadata. Extracting after simpler routers confirms that the dep injection pattern and test harness are solid.
-**Delivers:** `accessories-router.js` (~7 endpoints), integration tests; `index.js` now under 800 lines
-**Addresses:** Table stakes item 7 (accessories-router extraction)
-**Avoids:** Pitfall 2 (stale pairings snapshot), Pitfall 8 (pool mock hiding query shape changes)
-**Research flag:** None — dependency surface fully mapped in ARCHITECTURE.md Group 4
+### Phase 4: Responsive Sidebar
+**Rationale:** Responsive behavior is a distinct concern from base navigation — different breakpoints, sheet/drawer pattern, bottom-nav removal. Separating it from Phase 2 reduces scope and allows mobile testing in isolation.
+**Delivers:** Auto-collapse below 768px, sheet/drawer overlay on mobile, sidebar breakpoints aligned with `isMobileViewport` detection, old `isBottomNav` / `isStandalonePwa` bottom-nav logic removed
+**Addresses:** Responsive layout (table stakes)
+**Avoids:** UX pitfall of sidebar pushing content on mobile (must overlay, not push)
 
-### Phase 6: Router Extraction — Setup (HomeKit Pairing)
-**Rationale:** Most complex extraction: owns `discoveryCache`, subscriber lifecycle callbacks, add-pairing flow, pairing normalization helpers. Extract last so all dep injection patterns are confirmed and `index.js` history is clean.
-**Delivers:** `setup-router.js` (~12 endpoints covering pairing, repair, rooms, display-names, notes, log-level), integration tests; `index.js` reaches target 300–400 lines
-**Addresses:** Table stakes item 6 (setup-router extraction and tests)
-**Avoids:** Pitfall 2 (discoveryCache must use getter/setter callbacks — this is the highest-risk instance of this pitfall)
-**Research flag:** Medium — subscriber lifecycle callbacks (startSubscribers, stopSubscriber) that close over the pairingsStore instance require careful injection design; verify the callback construction pattern with a real pairing test scenario
+### Phase 5: Dashboard Widgets
+**Rationale:** New widgets compose from existing hooks using existing query keys — no structural risk. Comes after page extraction so widgets slot cleanly into `DashboardPage.jsx`.
+**Delivers:** `KpiCards.jsx` (online/offline/stale device counts with trend deltas), `LiveFeed.jsx` (scrollable recent events with scroll-lock pause), room-by-room health widget grid, per-widget `ErrorBoundary` wrappers
+**Uses:** Existing `useAccessories`, `useEvents`, `useDailyStats`, `useRoomStats` hooks; no new API endpoints; shared TanStack Query keys to prevent duplicate requests
+**Addresses:** KPI cards (table stakes), device health KPI (differentiator), live activity feed (differentiator), room breakdown (differentiator)
+
+### Phase 6: Chart Styling
+**Rationale:** Chart improvements have no dependencies on layout work and are entirely cosmetic. If the Recharts v3 upgrade introduces peer dep conflicts, it does not block any other phase.
+**Delivers:** Recharts upgraded to ^3.8.1; gradient fills and smooth curves (`type="natural"`) on TrendChart and ActivityChart; improved axis and tick styling; heatmap components evaluated for D3 upgrade if needed; `react-is` override in package.json if peer dep conflict arises
+**Avoids:** Pitfall 5 (bundle bloat from two chart libraries — complete Recharts v3 migration in one phase, remove v2 reference in same PR)
 
 ### Phase Ordering Rationale
 
-- Error handlers come first because they are zero-risk and provide a safety net for all subsequent changes.
-- Migrations come before any new schema changes so the first real migration (alert_deliveries) is the first to follow the versioned convention — avoiding a situation where schema fixes use the old IF NOT EXISTS pattern that the migration system was adopted to replace.
-- COUNT optimization is independent and delivers visible user-facing improvement quickly; it does not block or depend on router extraction.
-- Simple router extractions before complex ones: each extraction validates the pattern and test harness before the next one begins. `utils.js` creation unblocks all extractions and resolves the existing `alerts-router.js` → `events-router.js` utility coupling before it can proliferate.
-- Setup router last because `discoveryCache` ownership is the highest-risk instance of the stale-state pitfall and the subscriber lifecycle callbacks require the most careful injection design.
+- Tokens must come first. The 339 hardcoded Tailwind color classes create a trap for every component written without the token system. This sequence rule cannot be bent.
+- Sidebar before page extraction because App.jsx must become a thin shell before content extraction is clean. Extracting pages from a 535-line monolith that still controls navigation is harder to reason about than extracting from an ~80-line shell.
+- Page extraction before new widgets because new widgets need to live inside their page component, and those files don't exist until Phase 3.
+- Responsive sidebar isolated in Phase 4 because the mobile breakpoint logic (auto-collapse, sheet drawer, bottom-nav removal) deserves its own verification pass at every viewport width.
+- Charts last because they are cosmetic, have no layout dependencies, and Recharts v3 peer dep risk should not gate layout work.
 
 ### Research Flags
 
-Phases needing closer attention during execution:
-- **Phase 2 (Migration System):** Bootstrap on existing installs is tricky. Test plan must explicitly include a Postgres 16 container restored from a production dump, not just a fresh container. The `--fake` flag application and `_migrations` reconciliation require a documented step-by-step upgrade script.
-- **Phase 6 (Setup Router):** Subscriber lifecycle callback injection design is the one architectural decision not fully resolved in research. The callback must be constructed in `index.js` (because it closes over the store instance) and injected as a named dep. Verify this works with a real pairing flow test, not just a unit mock.
+Phases likely needing deeper research during planning:
+- **Phase 1 (Design Tokens):** The full audit of 339 `dark:` class instances needs manual review — some may be intentional badge/status colors that should not be converted to semantic tokens. Requires a grep + review pass before writing the phase plan.
+- **Phase 2 (Sidebar):** The exact shadcn sidebar source files to copy and any Vite-specific adjustments (no Next.js `cookies()`, no `@` path aliases) need validation. A minimal working sidebar prototype is recommended before writing the phase plan. MEDIUM confidence.
+- **Phase 4 (Responsive):** The interaction between new sidebar breakpoints and the existing `isMobileViewport` / `isStandalonePwa` PWA detection logic in App.jsx needs tracing before planning. Live references in current codebase.
 
-Phases with fully documented patterns (no additional research needed):
-- **Phase 1 (Error Handlers):** Implementation fully specified in STACK.md Domain 4.
-- **Phase 3 (COUNT Optimization):** SQL and JS implementation fully specified in STACK.md Domain 2 and PITFALLS.md Pitfall 4.
-- **Phase 4 (Simple Routers):** Extraction order and dep interfaces fully documented in ARCHITECTURE.md.
-- **Phase 5 (Accessories Router):** Dependency surface fully mapped; follows same pattern as Phase 4.
-
----
+Phases with standard, well-documented patterns (skip research-phase):
+- **Phase 3 (Page Extraction):** Pure mechanical extraction — move code into new files, verify imports. Architecture research already specifies exactly what state goes where.
+- **Phase 5 (Dashboard Widgets):** Existing hooks cover all data needs. Standard React component composition with shared query keys.
+- **Phase 6 (Chart Styling):** Recharts v3 migration guide is published. Standard in-place upgrade.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All recommendations verified against official documentation or primary source code; only one new dependency (`node-pg-migrate` v8) |
-| Features | HIGH | Derived entirely from direct codebase analysis of `listener/src/index.js`, existing routers, and `.planning/codebase/CONCERNS.md`; no inference needed |
-| Architecture | HIGH | Route groups, dependency surfaces, and extraction order documented from direct code inspection of all 2,103 lines of `index.js` and all four existing router modules |
-| Pitfalls | HIGH | Most pitfalls are confirmed failure modes observed in the existing code or in well-documented Node.js/PostgreSQL literature; not speculative |
+| Stack | HIGH | Recharts v3 release confirmed (April 2026); shadcn/ui Tailwind v4 + React 19 support confirmed by official docs; only MEDIUM flag is Vite-specific sidebar localStorage state (vs Next.js cookies) |
+| Features | HIGH | Patterns drawn from Home Assistant, Grafana, Linear plus direct codebase analysis; feature dependencies mapped against existing API endpoints — no backend gaps |
+| Architecture | HIGH | Based entirely on direct codebase inspection of App.jsx, index.css, hooks, and chart components; every component boundary and state location verified against actual source files |
+| Pitfalls | HIGH | All 6 critical pitfalls grounded in specific counted instances from the actual codebase (339 `dark:` classes, 5 `useAccentRgb` usages, specific localStorage key names) — not speculative |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Migration bootstrap test environment:** Research specifies the approach but cannot pre-validate it against a real production dump. The PR for Phase 2 must include evidence of a successful bootstrap test against both fresh-install and existing-install scenarios before merging.
-- **Subscriber callback injection design:** The exact interface for injecting `startSubscribers` into `setup-router.js` is described at the pattern level but not yet designed in code. This is the one place where the extraction may surface an interface decision not anticipated in research. Flag for review during Phase 6 planning.
-- **`alert_deliveries` quiet-period sweep math:** PITFALLS.md recommends keeping the last N deliveries per rule regardless of age, but the exact N value and the interaction with the maximum configurable quiet period (10,080 minutes) should be validated against the actual schema constraints in `db/init.sql` during Phase 2 implementation.
-- **Estimated COUNT: `reltuples` behavior with small tables:** On an RPi with conservative autovacuum settings, `reltuples` may lag longer than expected on low-event-rate installs. The exact threshold for "switch to exact count" may need tuning in the wild; document a manual `ANALYZE event_logs;` escape hatch in the operator docs.
-
----
+- **Sidebar copy-paste file list:** The exact set of shadcn sidebar source files to copy should be validated with a minimal working prototype in a branch before writing the Phase 2 plan.
+- **`--hc-accent-rgb` usage count:** PITFALLS.md cites ~50 locations; confirm with a grep before Phase 1 to scope migration work accurately.
+- **PWA bottom-nav removal impact:** The `isStandalonePwa` detection serves existing PWA-installed users. Removing bottom nav in Phase 4 needs explicit changelog communication and should be evaluated for whether a sidebar sheet adequately serves PWA mode.
+- **Recharts v3 peer dep conflict:** The `react-is` override may be needed in `web/package.json`. Verify as the first step of Phase 6.
 
 ## Sources
 
-### Primary (HIGH confidence — official documentation or direct code analysis)
-- `listener/src/index.js` (2,103 lines) — route inventory, env-var parsing, state ownership, error handler absence
-- `listener/src/events-router.js`, `alerts-router.js`, `matter-router.js`, `retention-router.js` — established factory pattern
-- `listener/test/events-router.integration.test.js`, `alerts-router.integration.test.js` — established test pattern
-- `.planning/PROJECT.md`, `.planning/codebase/CONCERNS.md` — severity ratings and milestone scope
-- node-pg-migrate GitHub releases (v8.0.4, December 2025): https://github.com/salsita/node-pg-migrate/releases
-- node-pg-migrate programmatic API docs: https://salsita.github.io/node-pg-migrate/api
-- PostgreSQL count estimation wiki: https://wiki.postgresql.org/wiki/Count_estimate
-- Express 5 error handling and routing docs: https://expressjs.com/en/guide/error-handling.html
-- Node.js process events documentation: https://nodejs.org/api/process.html
+### Primary (HIGH confidence)
+- Direct codebase inspection: `web/src/App.jsx`, `web/src/index.css`, `web/src/hooks/`, `web/src/components/` — all architecture findings verified against source
+- Recharts GitHub releases — v3.8.1 confirmed published April 2026: https://github.com/recharts/recharts/releases
+- shadcn/ui official docs — Tailwind v4 + React 19 confirmed: https://ui.shadcn.com/docs/tailwind-v4
+- shadcn/ui sidebar blocks — 16 variants including icon-collapse: https://ui.shadcn.com/blocks/sidebar
+- Tailwind v4 `@theme` directive official docs: https://tailwindcss.com/docs/theme
+- Tailwind v4 theming best practices — official team discussion: https://github.com/tailwindlabs/tailwindcss/discussions/18471
 
-### Secondary (MEDIUM confidence — community-validated patterns)
-- Faster PostgreSQL Counting (Citus Data): https://www.citusdata.com/blog/2016/10/12/count-performance/
-- CYBERTEC: PostgreSQL count(*) made fast: https://www.cybertec-postgresql.com/en/postgresql-count-made-fast/
-- BetterStack Express error handling patterns: https://betterstack.com/community/guides/scaling-nodejs/error-handling-express/
-- Node.js project architecture best practices (LogRocket): https://blog.logrocket.com/node-js-project-architecture-best-practices/
+### Secondary (MEDIUM confidence)
+- shadcn Vite + localStorage sidebar state pattern (community): https://adiletsatylganov.medium.com/how-to-keep-shadcn-sidebar-state-when-reloading-a-page-client-side-90310a146fe0
+- Dashboard design patterns 2026: https://artofstyleframe.com/blog/dashboard-design-patterns-web-apps/
+- KPI card best practices: https://tabulareditor.com/blog/kpi-card-best-practices-dashboard-design
+- Sidebar layout pitfalls: https://akashhamirwasia.com/blog/how-to-and-not-to-build-sidebar-layouts/
+- Recharts 3.0 migration guide: https://github.com/recharts/recharts/wiki/3.0-migration-guide
+
+### Tertiary (LOW confidence)
+- W3C ARIA keyboard interface practices — standard patterns applied to sidebar: https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/
 
 ---
-*Research completed: 2026-04-02*
+*Research completed: 2026-04-14*
 *Ready for roadmap: yes*
