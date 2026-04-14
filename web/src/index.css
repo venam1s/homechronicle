@@ -2,6 +2,44 @@
 
 @custom-variant dark (&:where(.theme-dark, .theme-dark *));
 
+@theme {
+  /* Surface tokens */
+  --color-hc-bg: var(--hc-bg);
+  --color-hc-fg: var(--hc-fg);
+  --color-hc-muted: var(--hc-muted);
+  --color-hc-fg-strong: var(--hc-fg-strong);
+  --color-hc-muted-light: var(--hc-muted-light);
+  --color-hc-panel: var(--hc-panel);
+  --color-hc-panel-soft: var(--hc-panel-soft);
+  --color-hc-panel-mid: var(--hc-panel-mid);
+  --color-hc-panel-hover: var(--hc-panel-hover);
+  --color-hc-panel-border: var(--hc-panel-border);
+  --color-hc-border-strong: var(--hc-border-strong);
+
+  /* Accent tokens */
+  --color-hc-accent-soft: var(--hc-accent-soft);
+  --color-hc-accent-strong: var(--hc-accent-strong);
+  --color-hc-accent-stronger: var(--hc-accent-stronger);
+
+  /* Status tokens */
+  --color-hc-success-bg: var(--hc-success-bg);
+  --color-hc-success-text: var(--hc-success-text);
+  --color-hc-success-border: var(--hc-success-border);
+  --color-hc-warning-bg: var(--hc-warning-bg);
+  --color-hc-warning-text: var(--hc-warning-text);
+  --color-hc-warning-border: var(--hc-warning-border);
+  --color-hc-danger-bg: var(--hc-danger-bg);
+  --color-hc-danger-text: var(--hc-danger-text);
+  --color-hc-danger-border: var(--hc-danger-border);
+
+  /* Interactive tokens */
+  --color-hc-interactive: var(--hc-interactive);
+  --color-hc-interactive-hover: var(--hc-interactive-hover);
+  --color-hc-disabled: var(--hc-disabled);
+  --color-hc-disabled-text: var(--hc-disabled-text);
+  --color-hc-focus-ring: var(--hc-focus-ring);
+}
+
 @layer base {
   :root {
     --hc-bg: #f8fafc;
@@ -40,6 +78,23 @@
     --hc-room-fallback: #64748b;
 
     --hc-toast-error-rgb: 185, 28, 28;
+
+    /* Status tokens */
+    --hc-success-bg: #f0fdf4;
+    --hc-success-text: #15803d;
+    --hc-success-border: #bbf7d0;
+    --hc-warning-bg: #fffbeb;
+    --hc-warning-border: #fde68a;
+    --hc-danger-bg: #fef2f2;
+    --hc-danger-text: #b91c1c;
+    --hc-danger-border: #fecaca;
+
+    /* Interactive tokens */
+    --hc-interactive: rgba(var(--hc-accent-rgb), 0.08);
+    --hc-interactive-hover: rgba(var(--hc-accent-rgb), 0.14);
+    --hc-focus-ring: rgba(var(--hc-accent-rgb), 0.35);
+    --hc-disabled: var(--hc-panel-mid);
+    --hc-disabled-text: var(--hc-muted);
   }
 
   html,
@@ -91,6 +146,16 @@
     --hc-room-fallback: #94a3b8;
 
     --hc-toast-error-rgb: 248, 113, 113;
+
+    /* Status tokens - dark */
+    --hc-success-bg: rgba(16, 185, 129, 0.15);
+    --hc-success-text: #6ee7b7;
+    --hc-success-border: rgba(16, 185, 129, 0.25);
+    --hc-warning-bg: rgba(217, 119, 6, 0.15);
+    --hc-warning-border: rgba(217, 119, 6, 0.25);
+    --hc-danger-bg: rgba(220, 38, 38, 0.15);
+    --hc-danger-text: #f87171;
+    --hc-danger-border: rgba(220, 38, 38, 0.25);
   }
 
   html[data-skin='ocean'] {
@@ -552,6 +617,54 @@ html.hc-standalone .hc-fab {
 
   html.theme-dark .text-slate-500 {
     color: var(--hc-muted-light) !important;
+  }
+
+  /* -- Phase 10 shim extensions (dark: gray/blue coverage) -- */
+
+  html.theme-dark .bg-gray-700 {
+    background-color: var(--hc-panel-mid) !important;
+  }
+
+  html.theme-dark .bg-gray-800 {
+    background-color: var(--hc-panel) !important;
+  }
+
+  html.theme-dark .bg-gray-900 {
+    background-color: var(--hc-bg) !important;
+  }
+
+  html.theme-dark .border-gray-600,
+  html.theme-dark .border-gray-700 {
+    border-color: var(--hc-border-strong) !important;
+  }
+
+  html.theme-dark .text-gray-100 {
+    color: var(--hc-fg-strong) !important;
+  }
+
+  html.theme-dark .text-gray-200 {
+    color: var(--hc-fg) !important;
+  }
+
+  html.theme-dark .text-gray-300 {
+    color: var(--hc-muted-light) !important;
+  }
+
+  html.theme-dark .hover\:bg-gray-700:hover {
+    background-color: var(--hc-panel-mid) !important;
+  }
+
+  html.theme-dark .hover\:text-gray-300:hover {
+    color: var(--hc-muted-light) !important;
+  }
+
+  html.theme-dark .hover\:text-blue-300:hover,
+  html.theme-dark .hover\:text-blue-400:hover {
+    color: var(--hc-accent-soft) !important;
+  }
+
+  html.theme-dark .text-blue-400 {
+    color: var(--hc-accent-soft) !important;
   }
 }
 
