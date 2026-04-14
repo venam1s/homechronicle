@@ -22,7 +22,7 @@ import PairingHealthBanner from './components/PairingHealthBanner.jsx';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from './lib/api.js';
 import { useTheme } from './hooks/useTheme.js';
-import { useSkin } from './hooks/useSkin.js';
+import { useAccent } from './hooks/useAccent.js';
 import { useUpdateCheck } from './hooks/useUpdateCheck.js';
 import { useLiveEventToasts } from './hooks/useLiveEventToasts.js';
 import { useToast } from './components/Toast.jsx';
@@ -56,7 +56,7 @@ const STYLES = [
 ];
 
 // Inline gradients avoid Tailwind purge issues with dynamic class names
-const SKIN_SWATCH = {
+const ACCENT_SWATCH = {
   ocean:    'linear-gradient(135deg, #0ea5e9, #0891b2)',
   graphite: 'linear-gradient(135deg, #14b8a6, #64748b)',
   sunrise:  'linear-gradient(135deg, #fb923c, #ec4899)',
@@ -67,7 +67,7 @@ const SKIN_SWATCH = {
   pink:     'linear-gradient(135deg, #ec4899, #f472b6)',
 };
 
-const SKIN_SWATCH_DARK = {
+const ACCENT_SWATCH_DARK = {
   ocean:    'linear-gradient(135deg, #38bdf8, #67e8f9)',
   graphite: 'linear-gradient(135deg, #5eead4, #94a3b8)',
   sunrise:  'linear-gradient(135deg, #fdba74, #f472b6)',
@@ -120,7 +120,7 @@ export default function App() {
   }, [retentionConfig?.toastPosition, retentionConfig?.toastDuration, retentionConfig?.toastMaxVisible, configureToasts]);
 
   const [selectedAccessoryId, setSelectedAccessoryId] = useState(null);
-  const [isSkinPickerOpen, setIsSkinPickerOpen] = useState(false);
+  const [isAccentPickerOpen, setIsAccentPickerOpen] = useState(false);
   const [isStandalonePwa, setIsStandalonePwa] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== 'undefined' && window.innerWidth < 768
@@ -146,7 +146,7 @@ export default function App() {
   const [showChangelog, setShowChangelog] = useState(false);
   const [hasNewVersion, setHasNewVersion] = useState(false);
   const { preference, resolvedTheme, setPreference } = useTheme();
-  const { skin, setSkin } = useSkin();
+  const { accent, setAccent } = useAccent();
   const { update: availableUpdate, dismiss: dismissUpdate } = useUpdateCheck(__BUILD_VERSION__);
   const isDarkTheme = resolvedTheme === 'dark';
   const nextPreference =
@@ -460,21 +460,21 @@ export default function App() {
           <div
             className={clsx(
               'absolute right-11 bottom-0 z-10 flex items-center gap-1 rounded-full border border-gray-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur transition-all duration-300 ease-out',
-              isSkinPickerOpen
+              isAccentPickerOpen
                 ? 'translate-x-0 opacity-100 pointer-events-auto'
                 : 'translate-x-8 opacity-0 pointer-events-none'
             )}
             style={isDarkTheme ? { backgroundColor: 'rgba(30,41,59,0.95)', borderColor: 'rgba(71,85,105,0.7)' } : undefined}
-            aria-hidden={!isSkinPickerOpen}
+            aria-hidden={!isAccentPickerOpen}
           >
             {STYLES.map((style) => (
               <button
                 key={style.id}
                 type="button"
-                onClick={() => setSkin(style.id)}
+                onClick={() => setAccent(style.id)}
                 className={clsx(
                   'h-6 w-6 rounded-full p-0.5 transition-all',
-                  skin === style.id
+                  accent === style.id
                     ? 'ring-2 ring-blue-500'
                     : isDarkTheme
                       ? 'ring-1 ring-slate-300 hover:ring-slate-400'
@@ -487,7 +487,7 @@ export default function App() {
                 <span
                   className="block h-full w-full rounded-full"
                   style={{
-                    background: isDarkTheme ? SKIN_SWATCH_DARK[style.id] : SKIN_SWATCH[style.id],
+                    background: isDarkTheme ? ACCENT_SWATCH_DARK[style.id] : ACCENT_SWATCH[style.id],
                     ...(isDarkTheme ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' } : {}),
                   }}
                 />
@@ -512,18 +512,18 @@ export default function App() {
           </button>
           <button
             type="button"
-            onClick={() => setIsSkinPickerOpen((current) => !current)}
+            onClick={() => setIsAccentPickerOpen((current) => !current)}
             className={clsx(
               'relative z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm backdrop-blur transition-all duration-200',
               isDarkTheme
                 ? 'border-gray-600 bg-gray-800/90 text-gray-300'
                 : 'border-gray-200 bg-white/95 text-gray-500',
-              isSkinPickerOpen
+              isAccentPickerOpen
                 ? isDarkTheme ? 'text-blue-400 border-blue-500' : 'text-blue-600 border-blue-300'
                 : isDarkTheme ? 'hover:text-gray-100 hover:bg-gray-700/90' : 'hover:text-gray-700 hover:bg-gray-50'
             )}
-            aria-label={isSkinPickerOpen ? 'Hide color themes' : 'Show color themes'}
-            aria-expanded={isSkinPickerOpen}
+            aria-label={isAccentPickerOpen ? 'Hide accent colors' : 'Show accent colors'}
+            aria-expanded={isAccentPickerOpen}
             title="Color themes"
           >
             <Paintbrush2 size={15} />
