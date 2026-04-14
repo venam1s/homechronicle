@@ -15,7 +15,7 @@ v1.1 (Scheduled Repair) ended at Phase 9. v1.2 continues from Phase 10.
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 10: Design Token Foundation** - Replace all hardcoded Tailwind color classes with semantic CSS custom property tokens; establish light/dark/accent system (completed 2026-04-14)
-- [ ] **Phase 11: Sidebar Navigation Shell** - Replace top tab bar with collapsible vertical sidebar; App.jsx becomes thin shell
+- [x] **Phase 11: Sidebar Navigation Shell** - Replace top tab bar with collapsible vertical sidebar; App.jsx becomes thin shell (completed 2026-04-14)
 - [ ] **Phase 12: Page Extraction & Card Layout** - Extract tab content into page components; apply modern card-based layout
 - [ ] **Phase 13: Responsive Sidebar** - Auto-collapse at mobile breakpoints; sheet drawer overlay on mobile
 - [ ] **Phase 14: Dashboard Widgets** - KPI health cards, live activity feed, room-by-room breakdown
@@ -51,11 +51,11 @@ Plans:
   3. The sidebar's expanded/collapsed state is preserved after a page refresh
   4. The currently active page has a distinct visual highlight in the sidebar that is unambiguous from the other items
   5. App.jsx renders in under 100 lines — all tab content remains behind the same pages but the file is now a layout shell
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
-- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
-- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
-- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
+- [x] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
+- [x] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
+- [x] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
 **UI hint**: yes
 
 ### Phase 12: Page Extraction & Card Layout
@@ -68,9 +68,9 @@ Plans:
   3. All existing features (event filter, accessory detail, alerts management, settings) work identically to v1.1 with no regressions
 **Plans:** 3 plans
 Plans:
-- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
-- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
-- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
+- [x] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
+- [x] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
+- [x] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
 **UI hint**: yes
 
 ### Phase 13: Responsive Sidebar
@@ -84,9 +84,9 @@ Plans:
   4. Resizing the browser window from desktop to mobile and back does not leave the sidebar in an inconsistent state
 **Plans:** 3 plans
 Plans:
-- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
-- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
-- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
+- [x] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
+- [x] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
+- [x] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
 **UI hint**: yes
 
 ### Phase 14: Dashboard Widgets
@@ -131,7 +131,7 @@ Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 10. Design Token Foundation | 4/4 | Complete    | 2026-04-14 |
-| 11. Sidebar Navigation Shell | 0/? | Not started | - |
+| 11. Sidebar Navigation Shell | 3/3 | Complete   | 2026-04-14 |
 | 12. Page Extraction & Card Layout | 0/? | Not started | - |
 | 13. Responsive Sidebar | 0/? | Not started | - |
 | 14. Dashboard Widgets | 0/? | Not started | - |
