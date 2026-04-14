@@ -43,7 +43,7 @@ export default function ActivityChart() {
   if (!data?.length) {
     return (
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Events by Hour</h3>
+        <h3 className="text-sm font-semibold text-hc-fg mb-3">Events by Hour</h3>
         <div className="h-48 flex items-center justify-center text-sm text-gray-400">No activity in the last 30 days.</div>
       </div>
     );
@@ -52,7 +52,7 @@ export default function ActivityChart() {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Events by Hour</h3>
+        <h3 className="text-sm font-semibold text-hc-fg">Events by Hour</h3>
         <span className="text-xs text-gray-400">last 30 days · local time</span>
       </div>
       <ResponsiveContainer width="100%" height={180}>

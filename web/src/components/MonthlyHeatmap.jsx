@@ -67,7 +67,7 @@ export default function MonthlyHeatmap() {
   if (!data.length) {
     return (
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Monthly Heatmap</h3>
+        <h3 className="text-sm font-semibold text-hc-fg mb-2">Monthly Heatmap</h3>
         <div className="h-24 flex items-center justify-center text-sm text-gray-400">No activity in the last 12 months.</div>
       </div>
     );
@@ -79,7 +79,7 @@ export default function MonthlyHeatmap() {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Monthly Heatmap</h3>
+        <h3 className="text-sm font-semibold text-hc-fg">Monthly Heatmap</h3>
         <span className="text-xs text-gray-400">last 12 months</span>
       </div>
       <p className="text-xs text-gray-500 mb-2 min-h-4">

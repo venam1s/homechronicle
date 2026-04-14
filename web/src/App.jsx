@@ -388,10 +388,10 @@ export default function App() {
 
             {/* 2-col: active outliers + stale devices */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5">
+              <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
                 <AnomalyPanel onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} onSelectRoom={handleSelectRoom} />
               </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5">
+              <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
                 <StaleDevicesPanel onSelectAccessory={(id) => { setTab('accessories'); handleSelectAccessory(id); }} />
               </div>
             </div>
@@ -427,7 +427,7 @@ export default function App() {
               href={availableUpdate.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hc-update-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors"
+              className="hc-update-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-hc-success-bg border border-hc-success-border text-hc-success-text hover:opacity-90 transition-opacity"
             >
               <ArrowUpCircle size={11} />
               <span>{availableUpdate.tag} available</span>

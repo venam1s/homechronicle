@@ -75,7 +75,7 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
   if (!hasData) {
     return (
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Daily Activity</h3>
+        <h3 className="text-sm font-semibold text-hc-fg mb-3">Daily Activity</h3>
         <div className="h-48 flex items-center justify-center text-sm text-gray-400">No activity in the last {days} days.</div>
       </div>
     );
@@ -84,7 +84,7 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Daily Activity</h3>
+        <h3 className="text-sm font-semibold text-hc-fg">Daily Activity</h3>
         <div className="flex gap-1">
           {WINDOWS.map(({ label, days: d }) => (
             <button

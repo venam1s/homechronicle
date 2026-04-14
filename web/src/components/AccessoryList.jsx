@@ -309,7 +309,7 @@ export default function AccessoryList({ onSelectAccessory }) {
                   {(accessory.event_count > 0 || showStale) && (
                     <div className="flex flex-col items-end gap-1">
                       {showStale && (
-                        <div className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-full px-2 py-0.5 whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1 text-[11px] text-hc-warning-text bg-hc-warning-bg border border-hc-warning-border rounded-full px-2 py-0.5 whitespace-nowrap">
                           <AlertTriangle size={11} />
                           stale device
                         </div>

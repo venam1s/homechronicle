@@ -64,7 +64,7 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
               <span className="font-medium text-gray-900 truncate">{event.accessory_name}</span>
             )}
             {anomalyLabel && (
-              <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <span className="inline-flex items-center gap-1 text-xs text-hc-warning-text bg-hc-warning-bg border border-hc-warning-border px-1.5 py-0.5 rounded-full flex-shrink-0">
                 ⚠ {anomalyLabel}
               </span>
             )}

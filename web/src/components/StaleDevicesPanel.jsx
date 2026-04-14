@@ -31,23 +31,23 @@ export default function StaleDevicesPanel({ onSelectAccessory }) {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Stale Devices</h3>
+        <h3 className="text-sm font-semibold text-hc-fg">Stale Devices</h3>
         <span className="text-xs text-gray-400">heartbeat lagging</span>
       </div>
       <div className="space-y-2">
         {staleRows.map((device) => (
-          <div key={device.accessory_id} role="button" tabIndex={0} onClick={() => onSelectAccessory?.(device.accessory_id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectAccessory?.(device.accessory_id); } }} className="rounded-lg border border-amber-100 dark:border-amber-500/20 bg-amber-50/70 dark:bg-amber-500/10 px-3 py-2 cursor-pointer hover:bg-amber-100/80 dark:hover:bg-amber-500/20 transition-colors">
-            <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+          <div key={device.accessory_id} role="button" tabIndex={0} onClick={() => onSelectAccessory?.(device.accessory_id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectAccessory?.(device.accessory_id); } }} className="rounded-lg border border-hc-warning-border bg-hc-warning-bg px-3 py-2 cursor-pointer hover:opacity-90 transition-opacity">
+            <div className="flex items-center gap-2 text-xs text-hc-warning-text">
               <AlertTriangle size={12} />
               <span className="uppercase tracking-wide font-semibold">Device</span>
               {device.health?.status && (
-                <span className="text-amber-500 dark:text-amber-400">{device.health.status}</span>
+                <span className="text-hc-warning-text opacity-80">{device.health.status}</span>
               )}
             </div>
-            <div className="text-sm text-amber-900 dark:text-amber-200 mt-1">
+            <div className="text-sm text-hc-fg mt-1">
               {device.accessory_name}
             </div>
-            <div className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+            <div className="text-xs text-hc-warning-text mt-0.5">
               {Number.isFinite(device?.health?.missedHeartbeats) ? `${device.health.missedHeartbeats} missed heartbeat${device.health.missedHeartbeats === 1 ? '' : 's'}` : 'heartbeat missing'}
             </div>
           </div>
