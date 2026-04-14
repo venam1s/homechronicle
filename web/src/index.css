@@ -41,6 +41,13 @@
 }
 
 @layer base {
+  .app-layout {
+    display: grid;
+    grid-template-rows: 100dvh;
+    min-height: 100dvh;
+    transition: grid-template-columns 200ms ease;
+  }
+
   :root {
     --hc-bg: #f8fafc;
     --hc-fg: #0f172a;
