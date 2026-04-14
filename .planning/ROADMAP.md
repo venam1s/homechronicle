@@ -1,10 +1,10 @@
-# Roadmap: HomeChronicle — v1.1 Scheduled Repair
+# Roadmap: HomeChronicle — v1.2 UI Redesign
 
 ## Overview
 
-Two sequential phases deliver the scheduled repair feature. The backend phase establishes the daily repair timer, persistence, and logging — everything that runs whether the user is watching or not. The frontend phase wires the toggle and explanatory text into the existing Settings UI, turning the backend capability on and off from the browser.
+Six sequential phases deliver the v1.2 UI overhaul. The ordering is dictated by component dependencies: design tokens must exist before any new component is written, the sidebar shell must exist before pages are extracted from it, pages must exist before new widgets slot into them, and chart styling is cosmetic with no layout dependencies so it comes last.
 
-v1.0 (Code Health) ended at Phase 7. v1.1 continues from Phase 8.
+v1.1 (Scheduled Repair) ended at Phase 9. v1.2 continues from Phase 10.
 
 ## Phases
 
@@ -14,45 +14,105 @@ v1.0 (Code Health) ended at Phase 7. v1.1 continues from Phase 8.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 8: Scheduled Repair Backend** - Persist repair toggle, run daily repair cycle for needs_repair devices, log outcomes (completed 2026-04-03)
-- [x] **Phase 9: Scheduled Repair UI** - Toggle in Manage > Settings with explanatory text, wired to the backend setting (completed 2026-04-03)
+- [ ] **Phase 10: Design Token Foundation** - Replace all hardcoded Tailwind color classes with semantic CSS custom property tokens; establish light/dark/accent system
+- [ ] **Phase 11: Sidebar Navigation Shell** - Replace top tab bar with collapsible vertical sidebar; App.jsx becomes thin shell
+- [ ] **Phase 12: Page Extraction & Card Layout** - Extract tab content into page components; apply modern card-based layout
+- [ ] **Phase 13: Responsive Sidebar** - Auto-collapse at mobile breakpoints; sheet drawer overlay on mobile
+- [ ] **Phase 14: Dashboard Widgets** - KPI health cards, live activity feed, room-by-room breakdown
+- [ ] **Phase 15: Chart Styling** - Recharts v3 upgrade with gradient fills, smooth curves, sparklines
 
 ## Phase Details
 
-### Phase 8: Scheduled Repair Backend
-**Goal**: The listener automatically repairs stale HomeKit pairings on a daily schedule when the feature is enabled
-**Depends on**: Phase 7 (v1.0 complete)
-**Requirements**: SREP-02, SREP-03, SREP-05
+### Phase 10: Design Token Foundation
+**Goal**: Every component uses semantic design tokens — the CSS property system is the single source of truth for all colors in light and dark modes
+**Depends on**: Phase 9 (v1.1 complete)
+**Requirements**: THEME-01, THEME-02, THEME-03, THEME-04, THEME-05
 **Success Criteria** (what must be TRUE):
-  1. When the setting is enabled, the listener runs a repair pass once every 24 hours without manual intervention
-  2. The repair pass only attempts to re-pair devices whose `needs_repair` flag is set — healthy devices are untouched
-  3. Each repair run logs which devices were repaired, which were skipped, and which failed, visible in `docker compose logs`
-  4. The enabled/disabled state survives a container restart — restarting the listener with the feature on resumes scheduled repair automatically
-**Plans:** 2/2 plans complete
+  1. User can toggle between light and dark mode from any accessible control and the entire UI switches without any components showing wrong background or text colors
+  2. User can choose from 3-5 accent color presets and every themed element (buttons, highlights, active states) updates to reflect the chosen accent
+  3. User's chosen mode and accent color are still applied after closing and reopening the browser tab
+  4. Existing chart gradient fills (using --hc-accent-rgb) render correctly in both light and dark modes after the skin system is removed
+  5. A grep for hardcoded `dark:bg-gray-` and `dark:text-gray-` classes returns zero results across all web source files
+**Plans:** 4 plans
 Plans:
-- [x] 08-01-PLAN.md — Repair scheduler module + getRepairTargets export + unit tests
-- [x] 08-02-PLAN.md — Repair router API + index.js wiring + integration tests
-**UI hint**: no
+- [ ] 10-01-PLAN.md — Token layer: @theme registration, status/interactive tokens, CSS shim extension
+- [ ] 10-02-PLAN.md — Accent rename: useSkin->useAccent hook, data-skin->data-accent CSS/JS/HTML, localStorage migration
+- [ ] 10-03-PLAN.md — Direct refactor: SettingsTab, AddDevicesTab, MyDevicesTab, AccessoryDetail (269 dark: classes)
+- [ ] 10-04-PLAN.md — Final cleanup: remaining 20 files (89 dark: classes) + visual verification checkpoint
+**UI hint**: yes
 
-### Phase 9: Scheduled Repair UI
-**Goal**: Users can enable or disable scheduled repair from the Settings panel and understand what it does
-**Depends on**: Phase 8
-**Requirements**: SREP-01, SREP-04
+### Phase 11: Sidebar Navigation Shell
+**Goal**: Users navigate the app via a collapsible vertical sidebar that replaces the top tab bar, and App.jsx is a thin orchestration shell
+**Depends on**: Phase 10
+**Requirements**: NAV-01, NAV-02, NAV-03, NAV-05, LAYOUT-02
 **Success Criteria** (what must be TRUE):
-  1. A toggle labeled for scheduled repair is visible in Manage > Settings and reflects the current enabled/disabled state on page load
-  2. Toggling the switch immediately persists the change — a page refresh shows the same state the user set
-  3. Explanatory text adjacent to the toggle describes what scheduled repair does and when a user would want to enable it
-**Plans:** 1/1 plans complete
-Plans:
-- [x] 09-01-PLAN.md — Repair query/mutation in useSetup.js + Scheduled Repair section in SettingsTab + unit tests
+  1. User sees a vertical sidebar with named navigation sections (Dashboard, Devices, Timeline, Alerts, Settings) instead of the horizontal top tab bar
+  2. User can click a collapse control and the sidebar shrinks to icon-only width; clicking again restores full labels
+  3. The sidebar's expanded/collapsed state is preserved after a page refresh
+  4. The currently active page has a distinct visual highlight in the sidebar that is unambiguous from the other items
+  5. App.jsx renders in under 100 lines — all tab content remains behind the same pages but the file is now a layout shell
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 12: Page Extraction & Card Layout
+**Goal**: All existing functionality is accessible through extracted page components, and every content area uses a modern card-based layout
+**Depends on**: Phase 11
+**Requirements**: LAYOUT-01, LAYOUT-03
+**Success Criteria** (what must be TRUE):
+  1. All four original content areas (Dashboard, Timeline, Accessories, Manage/Settings) are reachable and fully functional through the sidebar navigation
+  2. Every content panel uses card surfaces with soft shadows and consistent spacing — there are no raw colored div blocks or flat ungrouped lists
+  3. All existing features (event filter, accessory detail, alerts management, settings) work identically to v1.1 with no regressions
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 13: Responsive Sidebar
+**Goal**: The sidebar behaves correctly at every viewport width — icon-only on tablet, sheet drawer on mobile
+**Depends on**: Phase 11
+**Requirements**: NAV-04, RESP-01, RESP-02
+**Success Criteria** (what must be TRUE):
+  1. On a viewport narrower than 768px, the sidebar disappears and a hamburger/menu control opens a slide-out sheet drawer that overlays content (does not push it)
+  2. On a viewport between 768px and 1024px, the sidebar auto-collapses to icon-only without user action
+  3. Dashboard widgets reflow to a single-column stack on mobile viewports
+  4. Resizing the browser window from desktop to mobile and back does not leave the sidebar in an inconsistent state
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 14: Dashboard Widgets
+**Goal**: The dashboard surfaces actionable device health information through KPI cards, a live activity feed, and a room-by-room breakdown
+**Depends on**: Phase 12
+**Requirements**: WIDGET-01, WIDGET-02, WIDGET-03, WIDGET-04, WIDGET-05
+**Success Criteria** (what must be TRUE):
+  1. User sees KPI cards on the dashboard showing online, offline, and stale device counts at a glance
+  2. Each KPI card shows a trend delta (e.g., "+2 from yesterday") so the user knows if their device health is improving or worsening
+  3. User sees a live activity feed widget displaying the most recent events; the feed updates as new events arrive
+  4. When the user scrolls up to read older feed entries, the feed stops auto-scrolling until the user scrolls back to the bottom
+  5. User sees a room-by-room grid of cards each showing the device count and health status badge for that room
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 15: Chart Styling
+**Goal**: All charts use Recharts v3 with gradient fills, smooth curves, and theme-aware colors; existing chart types are preserved
+**Depends on**: Phase 10
+**Requirements**: CHART-01, CHART-02, CHART-03
+**Success Criteria** (what must be TRUE):
+  1. Charts (activity, heatmap, state duration, event history) visually use gradient fills and smooth curves instead of flat stepped lines
+  2. KPI cards include a sparkline mini-chart that visualizes the trend data supporting the delta indicator
+  3. All chart colors update correctly when the user switches between light mode, dark mode, or accent color presets
+  4. No Recharts v2 reference remains in package.json — the upgrade is complete in one phase
+**Plans**: TBD
 **UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 8 → 9
+Phases execute in numeric order: 10 → 11 → 12 → 13 → 14 → 15
+Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with 13-14 if needed.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 8. Scheduled Repair Backend | 2/2 | Complete   | 2026-04-03 |
-| 9. Scheduled Repair UI | 1/1 | Complete   | 2026-04-03 |
+| 10. Design Token Foundation | 0/4 | Planned | - |
+| 11. Sidebar Navigation Shell | 0/? | Not started | - |
+| 12. Page Extraction & Card Layout | 0/? | Not started | - |
+| 13. Responsive Sidebar | 0/? | Not started | - |
+| 14. Dashboard Widgets | 0/? | Not started | - |
+| 15. Chart Styling | 0/? | Not started | - |
