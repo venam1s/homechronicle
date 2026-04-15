@@ -1262,7 +1262,7 @@ export default function SettingsTab({ setup }) {
       {/* Floating save button */}
       <div
         className={clsx(
-          'fixed bottom-6 right-6 z-30 transition-all duration-300 hc-standalone:bottom-20',
+          'fixed bottom-6 right-6 z-30 transition-all duration-300',
           isDirty ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none',
         )}
       >
