@@ -17,8 +17,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 10: Design Token Foundation** - Replace all hardcoded Tailwind color classes with semantic CSS custom property tokens; establish light/dark/accent system (completed 2026-04-14)
 - [x] **Phase 11: Sidebar Navigation Shell** - Replace top tab bar with collapsible vertical sidebar; App.jsx becomes thin shell (completed 2026-04-14)
 - [x] **Phase 12: Page Extraction & Card Layout** - Extract tab content into page components; apply modern card-based layout (completed 2026-04-15)
-- [ ] **Phase 13: Responsive Sidebar** - Auto-collapse at mobile breakpoints; sheet drawer overlay on mobile
-- [ ] **Phase 14: Dashboard Widgets** - KPI health cards, live activity feed, room-by-room breakdown
+- [x] **Phase 13: Responsive Sidebar** - Auto-collapse at mobile breakpoints; sheet drawer overlay on mobile (completed 2026-04-15)
+- [x] **Phase 14: Dashboard Widgets** - KPI health cards, live activity feed, room-by-room breakdown (completed 2026-04-15)
 - [ ] **Phase 15: Chart Styling** - Recharts v3 upgrade with gradient fills, smooth curves, sparklines
 
 ## Phase Details
@@ -82,11 +82,11 @@ Plans:
   2. On a viewport between 768px and 1024px, the sidebar auto-collapses to icon-only without user action
   3. Dashboard widgets reflow to a single-column stack on mobile viewports
   4. Resizing the browser window from desktop to mobile and back does not leave the sidebar in an inconsistent state
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
-- [ ] 13-01-PLAN.md — useMediaQuery hook + dead CSS removal + drawer CSS rules
-- [ ] 13-02-PLAN.md — Sidebar inDrawer prop + StatsCards/ActivityChart responsive reflow
-- [ ] 13-03-PLAN.md — App.jsx integration (drawer, top bar, breakpoint logic) + visual verification
+- [x] 13-01-PLAN.md — useMediaQuery hook + dead CSS removal + drawer CSS rules
+- [x] 13-02-PLAN.md — Sidebar inDrawer prop + StatsCards/ActivityChart responsive reflow
+- [x] 13-03-PLAN.md — App.jsx integration (drawer, top bar, breakpoint logic) + visual verification
 **UI hint**: yes
 
 ### Phase 14: Dashboard Widgets
@@ -99,11 +99,11 @@ Plans:
   3. User sees a live activity feed widget displaying the most recent events; the feed updates as new events arrive
   4. When the user scrolls up to read older feed entries, the feed stops auto-scrolling until the user scrolls back to the bottom
   5. User sees a room-by-room grid of cards each showing the device count and health status badge for that room
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
-- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
-- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
-- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
+- [x] 14-01-PLAN.md — KpiCards component + useEvents limit parameter extension
+- [x] 14-02-PLAN.md — ActivityFeed with scroll-lock + RoomBreakdown with health badges
+- [x] 14-03-PLAN.md — DashboardPage integration, StatsCards deletion, visual verification
 **UI hint**: yes
 
 ### Phase 15: Chart Styling
@@ -117,9 +117,9 @@ Plans:
   4. No Recharts v2 reference remains in package.json — the upgrade is complete in one phase
 **Plans:** 3 plans
 Plans:
-- [ ] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
-- [ ] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
-- [ ] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
+- [ ] 15-01-PLAN.md — Recharts v3 upgrade + test scaffolds
+- [ ] 15-02-PLAN.md — Chart gradient refactor + window selector token cleanup
+- [ ] 15-03-PLAN.md — KpiCards sparkline for Events Today card
 **UI hint**: yes
 
 ## Progress
@@ -133,6 +133,6 @@ Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with
 | 10. Design Token Foundation | 4/4 | Complete    | 2026-04-14 |
 | 11. Sidebar Navigation Shell | 3/3 | Complete   | 2026-04-14 |
 | 12. Page Extraction & Card Layout | 3/3 | Complete   | 2026-04-15 |
-| 13. Responsive Sidebar | 0/3 | Not started | - |
-| 14. Dashboard Widgets | 0/? | Not started | - |
-| 15. Chart Styling | 0/? | Not started | - |
+| 13. Responsive Sidebar | 3/3 | Complete    | 2026-04-15 |
+| 14. Dashboard Widgets | 3/3 | Complete    | 2026-04-15 |
+| 15. Chart Styling | 0/3 | Not started | - |
