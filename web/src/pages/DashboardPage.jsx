@@ -12,6 +12,7 @@ import AnomalyPanel from '../components/AnomalyPanel.jsx';
 import StaleDevicesPanel from '../components/StaleDevicesPanel.jsx';
 import QuietHoursPanel from '../components/QuietHoursPanel.jsx';
 import PairingHealthBanner from '../components/PairingHealthBanner.jsx';
+import Card from '../components/Card.jsx';
 
 const DASHBOARD_WINDOWS = [
   { label: '7d', days: 7 },
@@ -44,6 +45,10 @@ export default function DashboardPage({
   useEffect(() => { try { window.localStorage.setItem(SYNC_KEY, String(syncDashboardRanges)); } catch {} }, [syncDashboardRanges]);
   return (
     <div className="max-w-5xl mx-auto py-4 sm:py-6 px-3 sm:px-4 space-y-4">
+
+      <div className="mb-6">
+        <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Dashboard</h1>
+      </div>
 
       <PairingHealthBanner onViewDetails={onViewDeviceRepair} />
 
@@ -83,43 +88,53 @@ export default function DashboardPage({
       </div>
 
       {/* Full-width trend chart */}
-      <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
-        <TrendChart
-          forcedDays={syncDashboardRanges ? dashboardDays : null}
-          onDaysChange={syncDashboardRanges ? setDashboardDays : null}
-        />
-      </div>
-
-      {/* 2-col: hourly activity + room breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
-          <ActivityChart />
-        </div>
-        <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
-          <RoomChart
+      <Card>
+        <Card.Body>
+          <TrendChart
             forcedDays={syncDashboardRanges ? dashboardDays : null}
             onDaysChange={syncDashboardRanges ? setDashboardDays : null}
           />
-        </div>
+        </Card.Body>
+      </Card>
+
+      {/* 2-col: hourly activity + room breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <Card.Body>
+            <ActivityChart />
+          </Card.Body>
+        </Card>
+        <Card>
+          <Card.Body>
+            <RoomChart
+              forcedDays={syncDashboardRanges ? dashboardDays : null}
+              onDaysChange={syncDashboardRanges ? setDashboardDays : null}
+            />
+          </Card.Body>
+        </Card>
       </div>
 
       {/* 2-col: top devices + heatmaps */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
-          <TopDevices
-            forcedDays={syncDashboardRanges ? dashboardDays : null}
-            onDaysChange={syncDashboardRanges ? setDashboardDays : null}
-          />
-        </div>
-        <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
-          <WeekdayHeatmap
-            forcedDays={syncDashboardRanges ? dashboardDays : null}
-            onDaysChange={syncDashboardRanges ? setDashboardDays : null}
-          />
-          <div className="mt-4 pt-4 border-t border-hc-panel-border">
-            <MonthlyHeatmap />
-          </div>
-        </div>
+        <Card>
+          <Card.Body>
+            <TopDevices
+              forcedDays={syncDashboardRanges ? dashboardDays : null}
+              onDaysChange={syncDashboardRanges ? setDashboardDays : null}
+            />
+          </Card.Body>
+        </Card>
+        <Card>
+          <Card.Body>
+            <WeekdayHeatmap
+              forcedDays={syncDashboardRanges ? dashboardDays : null}
+              onDaysChange={syncDashboardRanges ? setDashboardDays : null}
+            />
+            <div className="mt-4 pt-4 border-t border-hc-panel-border">
+              <MonthlyHeatmap />
+            </div>
+          </Card.Body>
+        </Card>
       </div>
 
       {/* Quiet hours */}
@@ -127,12 +142,16 @@ export default function DashboardPage({
 
       {/* 2-col: active outliers + stale devices */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
-          <AnomalyPanel onSelectAccessory={onSelectAccessory} onSelectRoom={onSelectRoom} />
-        </div>
-        <div className="bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5">
-          <StaleDevicesPanel onSelectAccessory={onSelectAccessory} />
-        </div>
+        <Card>
+          <Card.Body>
+            <AnomalyPanel onSelectAccessory={onSelectAccessory} onSelectRoom={onSelectRoom} />
+          </Card.Body>
+        </Card>
+        <Card>
+          <Card.Body>
+            <StaleDevicesPanel onSelectAccessory={onSelectAccessory} />
+          </Card.Body>
+        </Card>
       </div>
 
     </div>
