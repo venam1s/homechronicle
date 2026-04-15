@@ -38,6 +38,13 @@
   --color-hc-disabled: var(--hc-disabled);
   --color-hc-disabled-text: var(--hc-disabled-text);
   --color-hc-focus-ring: var(--hc-focus-ring);
+
+  /* Typography tokens */
+  --font-size-hc-page-title: var(--hc-text-page-title);
+  --font-size-hc-section: var(--hc-text-section);
+  --font-size-hc-label: var(--hc-text-label);
+  --font-size-hc-body: var(--hc-text-body);
+  --font-size-hc-caption: var(--hc-text-caption);
 }
 
 @layer base {
@@ -102,6 +109,13 @@
     --hc-focus-ring: rgba(var(--hc-accent-rgb), 0.35);
     --hc-disabled: var(--hc-panel-mid);
     --hc-disabled-text: var(--hc-muted);
+
+    /* Typography scale */
+    --hc-text-page-title: 1.5rem;
+    --hc-text-section: 1.125rem;
+    --hc-text-label: 0.875rem;
+    --hc-text-body: 0.875rem;
+    --hc-text-caption: 0.75rem;
   }
 
   html,
