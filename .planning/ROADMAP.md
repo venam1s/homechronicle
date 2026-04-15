@@ -66,9 +66,9 @@ Plans:
   1. All four original content areas (Dashboard, Timeline, Accessories, Manage/Settings) are reachable and fully functional through the sidebar navigation
   2. Every content panel uses card surfaces with soft shadows and consistent spacing — there are no raw colored div blocks or flat ungrouped lists
   3. All existing features (event filter, accessory detail, alerts management, settings) work identically to v1.1 with no regressions
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 Plans:
-- [ ] 12-01-PLAN.md — Card compound component (Card/Card.Header/Card.Body) and typography token system
+- [x] 12-01-PLAN.md — Card compound component (Card/Card.Header/Card.Body) and typography token system
 - [ ] 12-02-PLAN.md — Card wrapping and page headers for Dashboard, Devices, and Alerts pages
 - [ ] 12-03-PLAN.md — Card wrapping and page headers for Timeline and Settings pages + visual verification
 **UI hint**: yes
@@ -132,7 +132,7 @@ Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with
 |-------|----------------|--------|-----------|
 | 10. Design Token Foundation | 4/4 | Complete    | 2026-04-14 |
 | 11. Sidebar Navigation Shell | 3/3 | Complete   | 2026-04-14 |
-| 12. Page Extraction & Card Layout | 0/3 | Not started | - |
+| 12. Page Extraction & Card Layout | 1/3 | In Progress|  |
 | 13. Responsive Sidebar | 0/? | Not started | - |
 | 14. Dashboard Widgets | 0/? | Not started | - |
 | 15. Chart Styling | 0/? | Not started | - |
