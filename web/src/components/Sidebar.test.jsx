@@ -20,6 +20,7 @@ vi.mock('../hooks/useAccent.js', () => ({
 const defaultProps = {
   collapsed: false,
   onToggle: vi.fn(),
+  inDrawer: false,
   activePage: 'dashboard',
   onNavigate: vi.fn(),
   showChangelog: false,
@@ -99,5 +100,15 @@ describe('Sidebar', () => {
   it('Test 9: sidebar has role="navigation" and aria-label="Main navigation"', () => {
     render(<Sidebar {...defaultProps} />);
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
+  });
+
+  it('Test 10: hides edge handle when inDrawer is true', () => {
+    render(<Sidebar {...defaultProps} inDrawer={true} />);
+    expect(screen.queryByRole('button', { name: /expand|collapse/i })).not.toBeInTheDocument();
+  });
+
+  it('Test 11: hides edge handle when onToggle is undefined', () => {
+    render(<Sidebar {...defaultProps} onToggle={undefined} />);
+    expect(screen.queryByRole('button', { name: /expand|collapse/i })).not.toBeInTheDocument();
   });
 });

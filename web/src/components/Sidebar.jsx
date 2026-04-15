@@ -79,6 +79,7 @@ function ThemeIcon({ preference }) {
 export default function Sidebar({
   collapsed,
   onToggle,
+  inDrawer = false,
   activePage,
   onNavigate,
   showChangelog,
@@ -297,21 +298,23 @@ export default function Sidebar({
       </div>
 
       {/* Edge handle */}
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        className={clsx(
-          'absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2',
-          'flex items-center justify-center w-5 h-8 rounded-full',
-          'bg-hc-panel border border-hc-panel-border',
-          'opacity-0 group-hover:opacity-100 transition-opacity duration-150',
-          'z-10 cursor-pointer',
-          FOCUS_RING,
-        )}
-      >
-        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-      </button>
+      {!inDrawer && onToggle && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className={clsx(
+            'absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2',
+            'flex items-center justify-center w-5 h-8 rounded-full',
+            'bg-hc-panel border border-hc-panel-border',
+            'opacity-0 group-hover:opacity-100 transition-opacity duration-150',
+            'z-10 cursor-pointer',
+            FOCUS_RING,
+          )}
+        >
+          {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        </button>
+      )}
     </aside>
   );
 }
