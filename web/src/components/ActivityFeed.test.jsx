@@ -6,11 +6,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mockObserve = vi.fn();
 const mockDisconnect = vi.fn();
 beforeAll(() => {
-  vi.stubGlobal('IntersectionObserver', vi.fn(() => ({
-    observe: mockObserve,
-    unobserve: vi.fn(),
-    disconnect: mockDisconnect,
-  })));
+  class MockIntersectionObserver {
+    constructor() {}
+    observe(el) { mockObserve(el); }
+    unobserve() {}
+    disconnect() { mockDisconnect(); }
+  }
+  vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
   // Mock scrollTo (jsdom does not implement it)
   window.HTMLElement.prototype.scrollTo = vi.fn();
 });
