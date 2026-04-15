@@ -115,10 +115,10 @@ Plans:
   2. KPI cards include a sparkline mini-chart that visualizes the trend data supporting the delta indicator
   3. All chart colors update correctly when the user switches between light mode, dark mode, or accent color presets
   4. No Recharts v2 reference remains in package.json — the upgrade is complete in one phase
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [x] 15-01-PLAN.md — Recharts v3 upgrade + test scaffolds
-- [ ] 15-02-PLAN.md — Chart gradient refactor + window selector token cleanup
+- [x] 15-02-PLAN.md — Chart gradient refactor + window selector token cleanup
 - [ ] 15-03-PLAN.md — KpiCards sparkline for Events Today card
 **UI hint**: yes
 
@@ -135,4 +135,4 @@ Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with
 | 12. Page Extraction & Card Layout | 3/3 | Complete   | 2026-04-15 |
 | 13. Responsive Sidebar | 3/3 | Complete    | 2026-04-15 |
 | 14. Dashboard Widgets | 3/3 | Complete    | 2026-04-15 |
-| 15. Chart Styling | 1/3 | In Progress|  |
+| 15. Chart Styling | 2/3 | In Progress|  |

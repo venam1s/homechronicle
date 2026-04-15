@@ -108,9 +108,9 @@ Requirements for milestone v1.2 — UI Redesign.
 
 ### Charts
 
-- [ ] **CHART-01**: Charts use modern styling with gradient fills, smooth curves, and theme-aware colors
+- [x] **CHART-01**: Charts use modern styling with gradient fills, smooth curves, and theme-aware colors
 - [ ] **CHART-02**: KPI cards include sparkline/mini trend visualizations
-- [ ] **CHART-03**: Existing chart types (activity, heatmap, state duration, event history) are preserved with updated styling
+- [x] **CHART-03**: Existing chart types (activity, heatmap, state duration, event history) are preserved with updated styling
 
 ### Responsive
 
@@ -172,9 +172,9 @@ Deferred to future milestones.
 | WIDGET-03 | Phase 14 | Pending |
 | WIDGET-04 | Phase 14 | Pending |
 | WIDGET-05 | Phase 14 | Pending |
-| CHART-01 | Phase 15 | Pending |
+| CHART-01 | Phase 15 | Complete |
 | CHART-02 | Phase 15 | Pending |
-| CHART-03 | Phase 15 | Pending |
+| CHART-03 | Phase 15 | Complete |
 | RESP-01 | Phase 13 | Pending |
 | RESP-02 | Phase 13 | Pending |
 
