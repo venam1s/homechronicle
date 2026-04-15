@@ -84,9 +84,9 @@ Plans:
   4. Resizing the browser window from desktop to mobile and back does not leave the sidebar in an inconsistent state
 **Plans:** 3 plans
 Plans:
-- [x] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
-- [x] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
-- [x] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
+- [ ] 13-01-PLAN.md — useMediaQuery hook + dead CSS removal + drawer CSS rules
+- [ ] 13-02-PLAN.md — Sidebar inDrawer prop + StatsCards/ActivityChart responsive reflow
+- [ ] 13-03-PLAN.md — App.jsx integration (drawer, top bar, breakpoint logic) + visual verification
 **UI hint**: yes
 
 ### Phase 14: Dashboard Widgets
@@ -133,6 +133,6 @@ Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with
 | 10. Design Token Foundation | 4/4 | Complete    | 2026-04-14 |
 | 11. Sidebar Navigation Shell | 3/3 | Complete   | 2026-04-14 |
 | 12. Page Extraction & Card Layout | 3/3 | Complete   | 2026-04-15 |
-| 13. Responsive Sidebar | 0/? | Not started | - |
+| 13. Responsive Sidebar | 0/3 | Not started | - |
 | 14. Dashboard Widgets | 0/? | Not started | - |
 | 15. Chart Styling | 0/? | Not started | - |
