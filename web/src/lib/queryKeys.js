@@ -1,5 +1,5 @@
 export const queryKeys = {
-  events: (filters, page) => ['events', filters, page],
+  events: (filters, page, limit) => ['events', filters, page, limit],
   accessories: () => ['accessories'],
   accessoryDetail: (id, days, page, limit) => ['accessory-detail', id, days, page, limit],
   accessoryAnomalies: (id) => ['accessory-anomalies', id],
