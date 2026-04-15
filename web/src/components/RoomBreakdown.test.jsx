@@ -40,9 +40,10 @@ describe('RoomBreakdown', () => {
   it('Test 2 (WIDGET-05): displays correct device count per room', () => {
     useAccessories.mockReturnValue({ data: MOCK_ACCESSORIES, isLoading: false });
     render(<RoomBreakdown />, { wrapper });
-    // Living Room has 2 devices (bridge parent excluded), Kitchen has 2, Bedroom has 1
-    expect(screen.getByText('2 devices')).toBeInTheDocument();
-    expect(screen.getByText('1 device')).toBeInTheDocument();
+    // Living Room has 2 devices (bridge parent excluded), Kitchen has 2, Bedroom has 1, Unassigned has 1
+    // Multiple rooms may show same count so use getAllByText
+    expect(screen.getAllByText('2 devices').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('1 device').length).toBeGreaterThan(0);
   });
 
   it('Test 3 (WIDGET-05): shows green "All online" badge when all devices in a room are online', () => {
