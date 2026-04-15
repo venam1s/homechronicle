@@ -4,6 +4,7 @@ import { AlertTriangle, BookOpen, Check, CheckCircle2, ChevronDown, Download, Ex
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
+import Card from '../Card.jsx';
 import { useToast } from '../Toast.jsx';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, h) => {
@@ -370,31 +371,34 @@ export default function SettingsTab({ setup }) {
   return (
     <div className="space-y-4">
 
-      {/* — Help & Links — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-1">Help & Links</h3>
-
-      <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3 flex flex-col gap-2">
-        <a
-          href="https://homechronicle.net/guide/#/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-hc-accent-strong hover:underline"
-        >
-          <BookOpen size={14} />
-          Documentation
-          <ExternalLink size={11} className="opacity-50" />
-        </a>
-        <a
-          href="https://gitlab.com/havuq/homechronicle/-/issues"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-hc-accent-strong hover:underline"
-        >
-          <MessageSquare size={14} />
-          Report an issue
-          <ExternalLink size={11} className="opacity-50" />
-        </a>
-      </div>
+      {/* — About — */}
+      <Card>
+        <Card.Header title="About" />
+        <Card.Body>
+          <div className="flex flex-col gap-2">
+            <a
+              href="https://homechronicle.net/guide/#/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-hc-accent-strong hover:underline"
+            >
+              <BookOpen size={14} />
+              Documentation
+              <ExternalLink size={11} className="opacity-50" />
+            </a>
+            <a
+              href="https://gitlab.com/havuq/homechronicle/-/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-hc-accent-strong hover:underline"
+            >
+              <MessageSquare size={14} />
+              Report an issue
+              <ExternalLink size={11} className="opacity-50" />
+            </a>
+          </div>
+        </Card.Body>
+      </Card>
 
       {/* — Device Management — */}
       <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-3">Device Management</h3>
@@ -423,64 +427,69 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* Scheduled Repair */}
-      <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3">
-        <p className="text-xs text-hc-muted mb-3">
-          Automatically re-pairs HomeKit devices that lose their connection overnight.
-          Enable this if you notice devices going offline and not reconnecting on their own.
-        </p>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm font-medium text-hc-fg">Scheduled Repair</p>
-          <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
-            <input
-              type="checkbox"
-              checked={repairEnabledInput}
-              onChange={(e) => {
-                const v = e.target.checked;
-                setRepairEnabledInput(v);
-                saveRepairMutation.mutate({ enabled: v });
-              }}
-            />
-            <span>{repairEnabledInput ? 'On' : 'Off'}</span>
-          </label>
-        </div>
-        {repairEnabledInput && (
-          <>
-            <div className="flex items-center gap-3 mt-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-hc-muted">Repair Hour</span>
-                <select
-                  value={repairHourInput}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setRepairHourInput(v);
-                    saveRepairMutation.mutate({ hour: localHourToUtc(v) });
-                  }}
-                  className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong"
-                >
-                  {HOURS_OPTIONS.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
+      <Card>
+        <Card.Header title="Scheduled Repair" />
+        <Card.Body>
+          <p className="text-xs text-hc-muted mb-3">
+            Automatically re-pairs HomeKit devices that lose their connection overnight.
+            Enable this if you notice devices going offline and not reconnecting on their own.
+          </p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm font-medium text-hc-fg">Scheduled Repair</p>
+            <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
+              <input
+                type="checkbox"
+                checked={repairEnabledInput}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setRepairEnabledInput(v);
+                  saveRepairMutation.mutate({ enabled: v });
+                }}
+              />
+              <span>{repairEnabledInput ? 'On' : 'Off'}</span>
+            </label>
+          </div>
+          {repairEnabledInput && (
+            <>
+              <div className="flex items-center gap-3 mt-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-hc-muted">Repair Hour</span>
+                  <select
+                    value={repairHourInput}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setRepairHourInput(v);
+                      saveRepairMutation.mutate({ hour: localHourToUtc(v) });
+                    }}
+                    className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong"
+                  >
+                    {HOURS_OPTIONS.map(({ value, label }) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
-            <div className="mt-3 text-xs text-hc-muted">
-              {repairConfig?.lastRunAt ? (
-                <span>Last run: {formatDistanceToNow(new Date(repairConfig.lastRunAt), { addSuffix: true })}</span>
-              ) : (
-                <span>No runs yet</span>
-              )}
-              {repairConfig?.lastRunResult && (
-                <span className="ml-2">
-                  &middot; {repairConfig.lastRunResult.repaired} repaired, {repairConfig.lastRunResult.failed} failed
-                </span>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+              <div className="mt-3 text-xs text-hc-muted">
+                {repairConfig?.lastRunAt ? (
+                  <span>Last run: {formatDistanceToNow(new Date(repairConfig.lastRunAt), { addSuffix: true })}</span>
+                ) : (
+                  <span>No runs yet</span>
+                )}
+                {repairConfig?.lastRunResult && (
+                  <span className="ml-2">
+                    &middot; {repairConfig.lastRunResult.repaired} repaired, {repairConfig.lastRunResult.failed} failed
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </Card.Body>
+      </Card>
 
-      {/* — Data & Retention — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-3">Data &amp; Retention</h3>
+      {/* — Data Management — */}
+      <Card>
+        <Card.Header title="Data Management" />
+        <Card.Body>
 
       {/* Retention cutoff */}
       <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3">
@@ -806,8 +815,13 @@ export default function SettingsTab({ setup }) {
         </div>
       </div>
 
-      {/* — Appearance — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-3">Appearance</h3>
+        </Card.Body>
+      </Card>
+
+      {/* — Toast Notifications — */}
+      <Card>
+        <Card.Header title="Toast Notifications" />
+        <Card.Body>
       {/* Toast notifications */}
       <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -921,6 +935,9 @@ export default function SettingsTab({ setup }) {
           </select>
         </div>
       </div>
+
+        </Card.Body>
+      </Card>
 
       {/* — Advanced — */}
       <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-3">Advanced</h3>
