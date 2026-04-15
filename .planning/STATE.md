@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: milestone
 status: executing
-stopped_at: Completed 15-02-PLAN.md
+stopped_at: Completed 15-03-PLAN.md (wave 2 complete)
 last_updated: "2026-04-15T16:56:23.392Z"
 last_activity: 2026-04-15
 progress:
@@ -53,6 +53,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 12]: Split Alerts.jsx into 3 Card sections (form, rules list, deliveries) for better visual hierarchy
 - [Phase 12]: Wrapped 4 SettingsTab sections in Cards (About, Scheduled Repair, Data Management, Toast Notifications) keeping Advanced/Danger Zone with existing headings
 - [Phase 15]: ActivityChart uses static gradient ID; AccessoryDetail aligned to TrendChart canonical 0.15/0 opacity
+- [Phase 15]: Static sparklineGradient ID safe since only one sparkline renders per page
 
 ### Pending Todos
 
@@ -84,5 +85,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-15T16:56:23.390Z
-Stopped at: Completed 15-02-PLAN.md
+Stopped at: Completed 15-03-PLAN.md (wave 2 complete)
 Resume file: None
