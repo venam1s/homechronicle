@@ -4,8 +4,8 @@ import { ToastProvider } from './components/Toast.jsx';
 import App from './App.jsx';
 
 vi.mock('./components/Sidebar.jsx', () => ({
-  default: ({ activePage, onNavigate }) => (
-    <nav data-testid="sidebar">
+  default: ({ activePage, onNavigate, inDrawer }) => (
+    <nav data-testid={inDrawer ? 'sidebar-drawer' : 'sidebar'}>
       {['dashboard', 'devices', 'timeline', 'alerts', 'settings'].map(id => (
         <button key={id} type="button" onClick={() => onNavigate(id)}>
           {id.charAt(0).toUpperCase() + id.slice(1)}
@@ -29,6 +29,10 @@ vi.mock('./components/AccessoryDetail.jsx', () => ({
 }));
 vi.mock('./hooks/useUpdateCheck.js', () => ({ useUpdateCheck: () => ({ update: null, dismiss: () => {} }) }));
 vi.mock('./hooks/useLiveEventToasts.js', () => ({ useLiveEventToasts: () => {} }));
+const mockUseMediaQuery = vi.fn(() => false);
+vi.mock('./hooks/useMediaQuery.js', () => ({
+  useMediaQuery: (...args) => mockUseMediaQuery(...args),
+}));
 
 function renderApp() {
   const queryClient = new QueryClient({
@@ -79,5 +83,22 @@ describe('App smoke', () => {
     await waitFor(() => {
       expect(screen.getByText('Accessory Detail for ACC-1')).toBeInTheDocument();
     });
+  });
+
+  it('renders mobile top bar when useMediaQuery returns mobile', () => {
+    // Override for this test only
+    mockUseMediaQuery.mockImplementation((query) => {
+      if (query === '(max-width: 767px)') return true;
+      return false;
+    });
+
+    renderApp();
+
+    expect(screen.getByLabelText('Open navigation')).toBeInTheDocument();
+    expect(screen.getByLabelText('Open navigation').closest('div')).toHaveTextContent('Dashboard');
+    expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
+
+    // Reset mock
+    mockUseMediaQuery.mockImplementation(() => false);
   });
 });
