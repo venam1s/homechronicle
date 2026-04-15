@@ -68,9 +68,9 @@ Plans:
   3. All existing features (event filter, accessory detail, alerts management, settings) work identically to v1.1 with no regressions
 **Plans:** 3 plans
 Plans:
-- [x] 11-01-PLAN.md — Sidebar component with nav, theme controls, edge handle collapse, and BrandLogo collapsed variant
-- [x] 11-02-PLAN.md — Extract 5 page components (DashboardPage, TimelinePage, DevicesPage, AlertsPage, SettingsPage)
-- [x] 11-03-PLAN.md — Rewrite App.jsx as thin grid shell, wire sidebar + pages, rewrite smoke test
+- [ ] 12-01-PLAN.md — Card compound component (Card/Card.Header/Card.Body) and typography token system
+- [ ] 12-02-PLAN.md — Card wrapping and page headers for Dashboard, Devices, and Alerts pages
+- [ ] 12-03-PLAN.md — Card wrapping and page headers for Timeline and Settings pages + visual verification
 **UI hint**: yes
 
 ### Phase 13: Responsive Sidebar
@@ -125,14 +125,14 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 10 → 11 → 12 → 13 → 14 → 15
+Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
 Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with 13-14 if needed.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 10. Design Token Foundation | 4/4 | Complete    | 2026-04-14 |
 | 11. Sidebar Navigation Shell | 3/3 | Complete   | 2026-04-14 |
-| 12. Page Extraction & Card Layout | 0/? | Not started | - |
+| 12. Page Extraction & Card Layout | 0/3 | Not started | - |
 | 13. Responsive Sidebar | 0/? | Not started | - |
 | 14. Dashboard Widgets | 0/? | Not started | - |
 | 15. Chart Styling | 0/? | Not started | - |
