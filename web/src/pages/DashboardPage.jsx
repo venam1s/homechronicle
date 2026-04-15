@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { Link2, Unlink2 } from 'lucide-react';
-import StatsCards from '../components/StatsCards.jsx';
+import KpiCards from '../components/KpiCards.jsx';
+import ActivityFeed from '../components/ActivityFeed.jsx';
+import RoomBreakdown from '../components/RoomBreakdown.jsx';
 import ActivityChart from '../components/ActivityChart.jsx';
 import TrendChart from '../components/TrendChart.jsx';
 import TopDevices from '../components/TopDevices.jsx';
@@ -53,7 +55,7 @@ export default function DashboardPage({
       <PairingHealthBanner onViewDetails={onViewDeviceRepair} />
 
       {/* KPI cards row */}
-      <StatsCards />
+      <KpiCards dashboardDays={dashboardDays} />
 
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-1 bg-hc-panel border border-hc-panel-border rounded-lg p-0.5 shadow-sm">
@@ -87,6 +89,12 @@ export default function DashboardPage({
         </button>
       </div>
 
+      {/* Live activity feed */}
+      <ActivityFeed
+        onNavigateToAccessory={onNavigateToAccessory}
+        onViewAll={() => onNavigateToAccessory?.(null)}
+      />
+
       {/* Full-width trend chart */}
       <Card>
         <Card.Body>
@@ -96,6 +104,9 @@ export default function DashboardPage({
           />
         </Card.Body>
       </Card>
+
+      {/* Room breakdown */}
+      <RoomBreakdown onSelectRoom={onSelectRoom} />
 
       {/* 2-col: hourly activity + room breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
