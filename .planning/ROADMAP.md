@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 10: Design Token Foundation** - Replace all hardcoded Tailwind color classes with semantic CSS custom property tokens; establish light/dark/accent system (completed 2026-04-14)
 - [x] **Phase 11: Sidebar Navigation Shell** - Replace top tab bar with collapsible vertical sidebar; App.jsx becomes thin shell (completed 2026-04-14)
-- [ ] **Phase 12: Page Extraction & Card Layout** - Extract tab content into page components; apply modern card-based layout
+- [x] **Phase 12: Page Extraction & Card Layout** - Extract tab content into page components; apply modern card-based layout (completed 2026-04-15)
 - [ ] **Phase 13: Responsive Sidebar** - Auto-collapse at mobile breakpoints; sheet drawer overlay on mobile
 - [ ] **Phase 14: Dashboard Widgets** - KPI health cards, live activity feed, room-by-room breakdown
 - [ ] **Phase 15: Chart Styling** - Recharts v3 upgrade with gradient fills, smooth curves, sparklines
@@ -66,11 +66,11 @@ Plans:
   1. All four original content areas (Dashboard, Timeline, Accessories, Manage/Settings) are reachable and fully functional through the sidebar navigation
   2. Every content panel uses card surfaces with soft shadows and consistent spacing — there are no raw colored div blocks or flat ungrouped lists
   3. All existing features (event filter, accessory detail, alerts management, settings) work identically to v1.1 with no regressions
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 12-01-PLAN.md — Card compound component (Card/Card.Header/Card.Body) and typography token system
 - [x] 12-02-PLAN.md — Card wrapping and page headers for Dashboard, Devices, and Alerts pages
-- [ ] 12-03-PLAN.md — Card wrapping and page headers for Timeline and Settings pages + visual verification
+- [x] 12-03-PLAN.md — Card wrapping and page headers for Timeline and Settings pages + visual verification
 **UI hint**: yes
 
 ### Phase 13: Responsive Sidebar
@@ -132,7 +132,7 @@ Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with
 |-------|----------------|--------|-----------|
 | 10. Design Token Foundation | 4/4 | Complete    | 2026-04-14 |
 | 11. Sidebar Navigation Shell | 3/3 | Complete   | 2026-04-14 |
-| 12. Page Extraction & Card Layout | 2/3 | In Progress|  |
+| 12. Page Extraction & Card Layout | 3/3 | Complete   | 2026-04-15 |
 | 13. Responsive Sidebar | 0/? | Not started | - |
 | 14. Dashboard Widgets | 0/? | Not started | - |
 | 15. Chart Styling | 0/? | Not started | - |
