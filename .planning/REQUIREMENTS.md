@@ -96,7 +96,7 @@ Requirements for milestone v1.2 — UI Redesign.
 
 - [x] **LAYOUT-01**: User sees a modern card-based layout with clean spacing, soft shadows, and contemporary typography
 - [ ] **LAYOUT-02**: App.jsx is restructured into a slim shell with extracted page components
-- [ ] **LAYOUT-03**: All existing functionality (Dashboard, Timeline, Accessories, Manage) remains accessible
+- [x] **LAYOUT-03**: All existing functionality (Dashboard, Timeline, Accessories, Manage) remains accessible
 
 ### Widgets
 
@@ -166,7 +166,7 @@ Deferred to future milestones.
 | NAV-05 | Phase 11 | Pending |
 | LAYOUT-01 | Phase 12 | Complete |
 | LAYOUT-02 | Phase 11 | Pending |
-| LAYOUT-03 | Phase 12 | Pending |
+| LAYOUT-03 | Phase 12 | Complete |
 | WIDGET-01 | Phase 14 | Pending |
 | WIDGET-02 | Phase 14 | Pending |
 | WIDGET-03 | Phase 14 | Pending |

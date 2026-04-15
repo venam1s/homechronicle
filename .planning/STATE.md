@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-04-15T00:53:17.246Z"
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-04-15T00:58:03.231Z"
 last_activity: 2026-04-15
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -50,6 +50,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Roadmap v1.2]: --hc-accent-rgb preserved as alias in new token layer — 5 chart components using useAccentRgb() depend on it
 - [Roadmap v1.2]: Phase 15 (Chart Styling) depends only on Phase 10, not Phase 14 — can parallelize with 13-14 if needed
 - [Roadmap v1.2]: Staying on Recharts, upgrading v2 → v3 in-place (not replacing with another library)
+- [Phase 12]: Split Alerts.jsx into 3 Card sections (form, rules list, deliveries) for better visual hierarchy
 
 ### Pending Todos
 
@@ -80,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T00:53:17.244Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-04-15T00:58:03.229Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
