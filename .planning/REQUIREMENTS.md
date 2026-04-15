@@ -96,7 +96,7 @@ Requirements for milestone v1.2 — UI Redesign.
 
 - [x] **LAYOUT-01**: User sees a modern card-based layout with clean spacing, soft shadows, and contemporary typography
 - [ ] **LAYOUT-02**: App.jsx is restructured into a slim shell with extracted page components
-- [x] **LAYOUT-03**: All existing functionality (Dashboard, Timeline, Accessories, Manage) remains accessible
+- [ ] **LAYOUT-03**: All existing functionality (Dashboard, Timeline, Accessories, Manage) remains accessible
 
 ### Widgets
 
@@ -109,7 +109,7 @@ Requirements for milestone v1.2 — UI Redesign.
 ### Charts
 
 - [x] **CHART-01**: Charts use modern styling with gradient fills, smooth curves, and theme-aware colors
-- [x] **CHART-02**: KPI cards include sparkline/mini trend visualizations
+- [ ] **CHART-02**: KPI cards include sparkline/mini trend visualizations
 - [x] **CHART-03**: Existing chart types (activity, heatmap, state duration, event history) are preserved with updated styling
 
 ### Responsive
@@ -155,32 +155,32 @@ Deferred to future milestones.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | THEME-01 | Phase 10 | Pending |
-| THEME-02 | Phase 10 | Pending |
+| THEME-02 | Phase 10, 17 | Pending |
 | THEME-03 | Phase 10 | Pending |
 | THEME-04 | Phase 10 | Pending |
 | THEME-05 | Phase 10 | Pending |
-| NAV-01 | Phase 11 | Pending |
-| NAV-02 | Phase 11 | Pending |
-| NAV-03 | Phase 11 | Pending |
+| NAV-01 | Phase 11, 16 | Pending |
+| NAV-02 | Phase 11, 16 | Pending |
+| NAV-03 | Phase 11, 16 | Pending |
 | NAV-04 | Phase 13 | Pending |
-| NAV-05 | Phase 11 | Pending |
-| LAYOUT-01 | Phase 12 | Complete |
-| LAYOUT-02 | Phase 11 | Pending |
-| LAYOUT-03 | Phase 12 | Complete |
+| NAV-05 | Phase 11, 16 | Pending |
+| LAYOUT-01 | Phase 12, 17 | Complete |
+| LAYOUT-02 | Phase 11, 16 | Pending |
+| LAYOUT-03 | Phase 12, 16 | Pending |
 | WIDGET-01 | Phase 14 | Pending |
 | WIDGET-02 | Phase 14 | Pending |
 | WIDGET-03 | Phase 14 | Pending |
 | WIDGET-04 | Phase 14 | Pending |
 | WIDGET-05 | Phase 14 | Pending |
 | CHART-01 | Phase 15 | Complete |
-| CHART-02 | Phase 15 | Complete |
-| CHART-03 | Phase 15 | Complete |
+| CHART-02 | Phase 15, 16 | Pending |
+| CHART-03 | Phase 15, 17 | Complete |
 | RESP-01 | Phase 13 | Pending |
 | RESP-02 | Phase 13 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 23 total
-- Mapped to phases: 23
+- Mapped to phases: 23 (7 also assigned to gap closure phases 16-17)
 - Unmapped: 0
 
 ---

@@ -19,7 +19,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 12: Page Extraction & Card Layout** - Extract tab content into page components; apply modern card-based layout (completed 2026-04-15)
 - [x] **Phase 13: Responsive Sidebar** - Auto-collapse at mobile breakpoints; sheet drawer overlay on mobile (completed 2026-04-15)
 - [x] **Phase 14: Dashboard Widgets** - KPI health cards, live activity feed, room-by-room breakdown (completed 2026-04-15)
-- [ ] **Phase 15: Chart Styling** - Recharts v3 upgrade with gradient fills, smooth curves, sparklines
+- [x] **Phase 15: Chart Styling** - Recharts v3 upgrade with gradient fills, smooth curves, sparklines (completed 2026-04-15)
+- [ ] **Phase 16: Verification Sweep & Requirements Update** - Create VERIFICATION.md for phases 11, 12, 15; update REQUIREMENTS.md checkboxes; fix ROADMAP inconsistencies
+- [ ] **Phase 17: Token Debt Cleanup** - Migrate AccessoryDetail.jsx to tokens/Card, fix chart text-gray-400, tokenize FAB buttons and shell div
 
 ## Phase Details
 
@@ -122,11 +124,39 @@ Plans:
 - [x] 15-03-PLAN.md — KpiCards sparkline for Events Today card
 **UI hint**: yes
 
+### Phase 16: Verification Sweep & Requirements Update
+**Goal**: All executed phases have VERIFICATION.md files and REQUIREMENTS.md accurately reflects the verified state of every v1.2 requirement
+**Depends on**: Phase 15
+**Requirements**: NAV-01, NAV-02, NAV-03, NAV-05, LAYOUT-02, LAYOUT-03, CHART-02
+**Gap Closure:** Closes 7 unsatisfied requirements from v1.2 milestone audit (process/documentation gaps, not code gaps)
+**Success Criteria** (what must be TRUE):
+  1. Phase 11 has a VERIFICATION.md that confirms NAV-01, NAV-02, NAV-03, NAV-05, and LAYOUT-02 are satisfied
+  2. Phase 12 has a VERIFICATION.md that confirms LAYOUT-03 is satisfied
+  3. Phase 15 has a VERIFICATION.md that confirms CHART-02 is satisfied
+  4. Every verified v1.2 requirement has `[x]` in REQUIREMENTS.md (currently 8 are unchecked despite being verified)
+  5. ROADMAP progress table is consistent (Phase 15 shows 3/3 Complete)
+**Plans:** 0/0
+**UI hint**: no
+
+### Phase 17: Token Debt Cleanup
+**Goal**: All remaining hardcoded color classes and non-tokenized panel wrappers are replaced with semantic design tokens or Card components
+**Depends on**: Phase 16
+**Requirements**: THEME-02, LAYOUT-01, CHART-03
+**Gap Closure:** Closes 3 partial integration items and 5 tech debt items from v1.2 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. AccessoryDetail.jsx uses Card compound component or semantic token classes instead of 15 hardcoded `bg-white rounded-xl shadow-sm` wrappers
+  2. ActivityChart and TrendChart empty/error states use semantic tokens instead of `text-gray-400`
+  3. App.jsx FAB buttons use semantic tokens instead of `isDarkTheme` JS ternaries with hardcoded gray-600/gray-800
+  4. Root shell div uses semantic token instead of `bg-gray-50`
+**Plans:** 0/0
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
+Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16 -> 17
 Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with 13-14 if needed.
+Phases 16-17 are gap closure phases from the v1.2 milestone audit.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -135,4 +165,6 @@ Note: Phase 15 depends only on Phase 10 (not 14), so it can run in parallel with
 | 12. Page Extraction & Card Layout | 3/3 | Complete   | 2026-04-15 |
 | 13. Responsive Sidebar | 3/3 | Complete    | 2026-04-15 |
 | 14. Dashboard Widgets | 3/3 | Complete    | 2026-04-15 |
-| 15. Chart Styling | 2/3 | In Progress|  |
+| 15. Chart Styling | 3/3 | Complete    | 2026-04-15 |
+| 16. Verification Sweep | 0/0 | Pending    |  |
+| 17. Token Debt Cleanup | 0/0 | Pending    |  |
