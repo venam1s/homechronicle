@@ -55,39 +55,41 @@ export default function ActivityChart() {
         <h3 className="text-sm font-semibold text-hc-fg">Events by Hour</h3>
         <span className="text-xs text-gray-400">last 30 days · local time</span>
       </div>
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--hc-chart-grid)" vertical={false} />
-          <XAxis
-            dataKey="hour"
-            tick={{ fontSize: 10, fill: 'var(--hc-chart-tick)' }}
-            interval={5}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis tick={{ fontSize: 10, fill: 'var(--hc-chart-tick)' }} tickLine={false} axisLine={false} />
-          <Tooltip
-            contentStyle={TOOLTIP_STYLE}
-            formatter={(val) => [val, 'events']}
-            labelStyle={{ fontWeight: 600, marginBottom: 2, color: 'var(--hc-tooltip-text)' }}
-            itemStyle={{ color: 'var(--hc-tooltip-text)' }}
-          />
-          <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={20}>
-            {chartData.map((entry) => (
-              <Cell
-                key={entry.localH}
-                fill={
-                  entry.count === maxCount
-                    ? `rgb(${accent[0]},${accent[1]},${accent[2]})`
-                    : entry.count > maxCount * 0.5
-                      ? `rgba(${accent[0]},${accent[1]},${accent[2]},0.6)`
-                      : `rgba(${accent[0]},${accent[1]},${accent[2]},0.25)`
-                }
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="h-[150px] md:h-[180px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--hc-chart-grid)" vertical={false} />
+            <XAxis
+              dataKey="hour"
+              tick={{ fontSize: 10, fill: 'var(--hc-chart-tick)' }}
+              interval={5}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis tick={{ fontSize: 10, fill: 'var(--hc-chart-tick)' }} tickLine={false} axisLine={false} />
+            <Tooltip
+              contentStyle={TOOLTIP_STYLE}
+              formatter={(val) => [val, 'events']}
+              labelStyle={{ fontWeight: 600, marginBottom: 2, color: 'var(--hc-tooltip-text)' }}
+              itemStyle={{ color: 'var(--hc-tooltip-text)' }}
+            />
+            <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={20}>
+              {chartData.map((entry) => (
+                <Cell
+                  key={entry.localH}
+                  fill={
+                    entry.count === maxCount
+                      ? `rgb(${accent[0]},${accent[1]},${accent[2]})`
+                      : entry.count > maxCount * 0.5
+                        ? `rgba(${accent[0]},${accent[1]},${accent[2]},0.6)`
+                        : `rgba(${accent[0]},${accent[1]},${accent[2]},0.25)`
+                  }
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
