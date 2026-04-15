@@ -6,6 +6,9 @@ vi.mock('../hooks/useEvents.js', () => ({
   useAccessories: vi.fn(),
   useDailyStats: vi.fn(),
 }));
+vi.mock('../hooks/useAccentRgb.js', () => ({
+  useAccentRgb: vi.fn(() => [37, 99, 235]),
+}));
 
 import { useAccessories, useDailyStats } from '../hooks/useEvents.js';
 import KpiCards from './KpiCards.jsx';
@@ -90,5 +93,17 @@ describe('KpiCards', () => {
     useDailyStats.mockReturnValue({ data: undefined, isLoading: true, isError: false });
     const { container } = render(<KpiCards dashboardDays={7} />);
     expect(container.querySelector('.skeleton')).not.toBeNull();
+  });
+
+  it('Test 8 (CHART-02): Events Today card renders sparkline container', () => {
+    const { container } = render(<KpiCards dashboardDays={7} />);
+    expect(container.querySelector('.recharts-responsive-container')).not.toBeNull();
+  });
+
+  it('Test 9 (CHART-02): Health cards (online, offline, stale) do not render sparkline', () => {
+    const { container } = render(<KpiCards dashboardDays={7} />);
+    // Only one ResponsiveContainer should exist (for the TODAY card sparkline)
+    const containers = container.querySelectorAll('.recharts-responsive-container');
+    expect(containers.length).toBe(1);
   });
 });
