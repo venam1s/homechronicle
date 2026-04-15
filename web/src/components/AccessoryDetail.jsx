@@ -100,7 +100,7 @@ function CharacteristicTrend({ accessoryId, characteristic, days }) {
           <Line
             type={chartData.isNumeric ? 'monotone' : 'stepAfter'}
             dataKey="value"
-            stroke="rgba(var(--hc-accent-rgb), 0.85)"
+            stroke="rgb(var(--hc-accent-rgb))"
             strokeWidth={1.5}
             dot={false}
           />
@@ -690,8 +690,8 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                     className={clsx(
                       'text-xs px-2 py-0.5 rounded-md transition-colors',
                       days === window.days
-                        ? 'bg-blue-100 text-blue-700 font-medium'
-                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                        ? 'bg-hc-accent-soft text-hc-accent-stronger font-medium'
+                        : 'text-hc-muted hover:text-hc-fg hover:bg-hc-panel-mid'
                     )}
                   >
                     {window.label}
@@ -703,8 +703,8 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
               <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <defs>
                   <linearGradient id="accessoryActivityGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="rgb(var(--hc-accent-rgb))" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="rgb(var(--hc-accent-rgb))" stopOpacity={0.01} />
+                    <stop offset="5%" stopColor="rgb(var(--hc-accent-rgb))" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="rgb(var(--hc-accent-rgb))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--hc-chart-grid)" vertical={false} />
@@ -795,7 +795,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                       </button>
                       {/* Feature 6: Characteristic trend chart */}
                       {isSelected && (
-                        <div className="border border-t-0 border-gray-100 rounded-b-lg px-3 py-2 -mt-px" style={{ borderColor: 'rgba(139,92,246,0.3)', backgroundColor: 'var(--hc-panel)' }}>
+                        <div className="border border-t-0 border-gray-100 rounded-b-lg px-3 py-2 -mt-px" style={{ borderColor: 'rgba(var(--hc-accent-rgb), 0.3)', backgroundColor: 'var(--hc-panel)' }}>
                           <CharacteristicTrend
                             accessoryId={accessoryId}
                             characteristic={state.characteristic}

@@ -98,8 +98,8 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
                 className={clsx(
                   'text-[10px] px-1.5 py-0.5 rounded-md transition-colors',
                   days === d
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                    ? 'bg-hc-accent-soft text-hc-accent-stronger font-medium'
+                    : 'text-hc-muted hover:text-hc-fg hover:bg-hc-panel-mid'
                 )}
               >
                 {label}
