@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { useHourlyStats } from '../hooks/useEvents.js';
 import { SkeletonChart } from './Skeleton.jsx';
@@ -29,10 +29,10 @@ const TOOLTIP_STYLE = { fontSize: 12, borderRadius: 8, border: '1px solid var(--
 
 export default function ActivityChart() {
   const accent = useAccentRgb();
+  const accentStr = `rgb(${accent[0]},${accent[1]},${accent[2]})`;
   const { data, isLoading, isError } = useHourlyStats();
 
   const chartData = useMemo(() => utcHoursToLocal(data ?? []), [data]);
-  const maxCount  = useMemo(() => Math.max(...chartData.map((d) => d.count), 1), [chartData]);
 
   if (isLoading) {
     return <SkeletonChart className="h-48" />;
@@ -58,6 +58,12 @@ export default function ActivityChart() {
       <div className="h-[150px] md:h-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <defs>
+              <linearGradient id="activityBarGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={accentStr} stopOpacity={0.85} />
+                <stop offset="95%" stopColor={accentStr} stopOpacity={0.35} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--hc-chart-grid)" vertical={false} />
             <XAxis
               dataKey="hour"
@@ -73,20 +79,8 @@ export default function ActivityChart() {
               labelStyle={{ fontWeight: 600, marginBottom: 2, color: 'var(--hc-tooltip-text)' }}
               itemStyle={{ color: 'var(--hc-tooltip-text)' }}
             />
-            <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={20}>
-              {chartData.map((entry) => (
-                <Cell
-                  key={entry.localH}
-                  fill={
-                    entry.count === maxCount
-                      ? `rgb(${accent[0]},${accent[1]},${accent[2]})`
-                      : entry.count > maxCount * 0.5
-                        ? `rgba(${accent[0]},${accent[1]},${accent[2]},0.6)`
-                        : `rgba(${accent[0]},${accent[1]},${accent[2]},0.25)`
-                  }
-                />
-              ))}
-            </Bar>
+            <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={20}
+                 fill="url(#activityBarGradient)" />
           </BarChart>
         </ResponsiveContainer>
       </div>
