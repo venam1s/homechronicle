@@ -4,6 +4,7 @@ import { useSetup } from '../hooks/useSetup.js';
 import AccessoryList from '../components/AccessoryList.jsx';
 import AddDevicesTab from '../components/setup/AddDevicesTab.jsx';
 import MyDevicesTab from '../components/setup/MyDevicesTab.jsx';
+import Card from '../components/Card.jsx';
 
 const DEVICE_TABS = [
   { id: 'browse', label: 'Browse' },
@@ -17,6 +18,9 @@ export default function DevicesPage({ onSelectAccessory }) {
 
   return (
     <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
+      <div className="mb-6">
+        <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Devices</h1>
+      </div>
       <nav className="flex gap-1 border-b border-hc-panel-border">
         {DEVICE_TABS.map(({ id, label }) => (
           <button
@@ -34,9 +38,27 @@ export default function DevicesPage({ onSelectAccessory }) {
           </button>
         ))}
       </nav>
-      {activeTab === 'browse' && <AccessoryList onSelectAccessory={onSelectAccessory} />}
-      {activeTab === 'add' && <AddDevicesTab setup={setup} onSwitchTab={setActiveTab} />}
-      {activeTab === 'devices' && <MyDevicesTab setup={setup} />}
+      {activeTab === 'browse' && (
+        <Card>
+          <Card.Body>
+            <AccessoryList onSelectAccessory={onSelectAccessory} />
+          </Card.Body>
+        </Card>
+      )}
+      {activeTab === 'add' && (
+        <Card>
+          <Card.Body>
+            <AddDevicesTab setup={setup} onSwitchTab={setActiveTab} />
+          </Card.Body>
+        </Card>
+      )}
+      {activeTab === 'devices' && (
+        <Card>
+          <Card.Body>
+            <MyDevicesTab setup={setup} />
+          </Card.Body>
+        </Card>
+      )}
     </div>
   );
 }
