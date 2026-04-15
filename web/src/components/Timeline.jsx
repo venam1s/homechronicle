@@ -11,6 +11,7 @@ import { formatGap } from '../lib/icons.js';
 import EpisodeGroup from './EpisodeGroup.jsx';
 import SceneGroup from './SceneGroup.jsx';
 import FilterBar from './FilterBar.jsx';
+import Card from './Card.jsx';
 
 const PAGE_SIZE = 50;
 
@@ -301,19 +302,23 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full">
-      <FilterBar
-        filters={filters}
-        onChange={handleFilterChange}
-        open={filtersOpen}
-        onToggle={() => setFiltersOpen((o) => !o)}
-        heatmapOpen={heatmapOpen}
-        onHeatmapToggle={() => { setHeatmapOpen((o) => !o); setLockedCell(null); }}
-        onHoverCell={handleHoverCell}
-        onHoverEnd={() => setHoveredCell(null)}
-        onClickCell={handleClickCell}
-        lockedCell={lockedCell}
-      />
+    <div className="flex flex-col flex-1 min-h-0">
+      <Card>
+        <Card.Body compact>
+          <FilterBar
+            filters={filters}
+            onChange={handleFilterChange}
+            open={filtersOpen}
+            onToggle={() => setFiltersOpen((o) => !o)}
+            heatmapOpen={heatmapOpen}
+            onHeatmapToggle={() => { setHeatmapOpen((o) => !o); setLockedCell(null); }}
+            onHoverCell={handleHoverCell}
+            onHoverEnd={() => setHoveredCell(null)}
+            onClickCell={handleClickCell}
+            lockedCell={lockedCell}
+          />
+        </Card.Body>
+      </Card>
 
       {/* Locked-cell banner — shows when a heatmap cell has been clicked */}
       {lockedCell && (
@@ -404,26 +409,32 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 px-4 mb-2">
                   {format(new Date(day), 'EEEE, MMMM d')}
                 </h2>
-                <div className="bg-white rounded-xl shadow-sm divide-y divide-gray-100">
+                <div className="space-y-3">
                   {groupScenesIntoEpisodes(groupIntoScenes(events, { sceneWindowMs }), { episodeWindowMs, episodeMinEventCount }).map((entry) => (
                     entry.kind === 'episode' ? (
-                      <EpisodeGroup
-                        key={entry.scenes[0][0].id}
-                        episode={entry.episode}
-                        scenes={entry.scenes}
-                        eventMetaMap={eventMetaMap}
-                        hoveredCell={activeCell}
-                        onMute={mute}
-                      />
+                      <Card key={entry.scenes[0][0].id}>
+                        <Card.Body>
+                          <EpisodeGroup
+                            episode={entry.episode}
+                            scenes={entry.scenes}
+                            eventMetaMap={eventMetaMap}
+                            hoveredCell={activeCell}
+                            onMute={mute}
+                          />
+                        </Card.Body>
+                      </Card>
                     ) : (
                       entry.scenes.map((group) => (
-                        <SceneGroup
-                          key={group[0].id}
-                          events={group}
-                          eventMetaMap={eventMetaMap}
-                          hoveredCell={activeCell}
-                          onMute={mute}
-                        />
+                        <Card key={group[0].id}>
+                          <Card.Body>
+                            <SceneGroup
+                              events={group}
+                              eventMetaMap={eventMetaMap}
+                              hoveredCell={activeCell}
+                              onMute={mute}
+                            />
+                          </Card.Body>
+                        </Card>
                       ))
                     )
                   ))}
