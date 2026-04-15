@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import { format, subDays } from 'date-fns';
 import { Wifi, WifiOff, AlertTriangle, Zap, TrendingUp, TrendingDown } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area } from 'recharts';
 import clsx from 'clsx';
 import Card from './Card.jsx';
 import { useAccessories, useDailyStats } from '../hooks/useEvents.js';
+import { useAccentRgb } from '../hooks/useAccentRgb.js';
 
 function toInt(value, fallback = 0) {
   const parsed = Number.parseInt(value, 10);
@@ -40,6 +43,17 @@ const KPI_DEFS = [
 export default function KpiCards({ dashboardDays = 7 }) {
   const { data: accessories, isLoading: accLoading } = useAccessories();
   const { data: daily, isLoading: dailyLoading } = useDailyStats(dashboardDays);
+  const { data: sparkDaily } = useDailyStats(7);
+  const accent = useAccentRgb();
+  const accentStr = `rgb(${accent[0]},${accent[1]},${accent[2]})`;
+
+  const sparkData = useMemo(() => {
+    const dayMap = new Map((sparkDaily ?? []).map((d) => [String(d.day).slice(0, 10), Number(d.count ?? 0)]));
+    return Array.from({ length: 7 }, (_, i) => {
+      const key = format(subDays(new Date(), 6 - i), 'yyyy-MM-dd');
+      return { i, count: dayMap.get(key) ?? 0 };
+    });
+  }, [sparkDaily]);
 
   const isLoading = accLoading && dailyLoading;
 
@@ -115,6 +129,29 @@ export default function KpiCards({ dashboardDays = 7 }) {
                 </div>
               </div>
             </div>
+            {def.key === 'today' && sparkData.length > 0 && (
+              <div className="mt-2 -mx-1">
+                <ResponsiveContainer width="100%" height={36}>
+                  <AreaChart data={sparkData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="sparklineGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor={accentStr} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={accentStr} stopOpacity={0}   />
+                      </linearGradient>
+                    </defs>
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke={accentStr}
+                      strokeWidth={1.5}
+                      fill="url(#sparklineGradient)"
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </Card.Body>
         </Card>
       ))}
