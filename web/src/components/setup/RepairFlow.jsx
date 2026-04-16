@@ -54,7 +54,7 @@ export default function RepairFlow({ device, deviceId, repairMutation, onClose }
           <div className="flex flex-col items-center py-6 gap-3">
             <Loader2 size={32} className="animate-spin text-blue-500" />
             <p className="text-sm text-hc-muted-light">Repairing {deviceName}...</p>
-            <p className="text-xs text-gray-400">This may take up to 20 seconds</p>
+            <p className="text-xs text-hc-muted">This may take up to 20 seconds</p>
           </div>
         )}
 

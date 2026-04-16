@@ -15,7 +15,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
 
   if (isLoading) {
     return (
-      <div className="ml-9 mt-2 pb-2 flex items-center gap-1.5 text-xs text-gray-400">
+      <div className="ml-9 mt-2 pb-2 flex items-center gap-1.5 text-xs text-hc-muted">
         <Loader size={11} className="animate-spin" /> Querying bridge…
       </div>
     );
@@ -30,9 +30,9 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
   if (children.length === 0) {
     return (
       <div className="ml-9 mt-2 pb-2 space-y-1.5">
-        <p className="text-xs text-gray-400 italic">No child accessories found on this bridge.</p>
+        <p className="text-xs text-hc-muted italic">No child accessories found on this bridge.</p>
         <div className="flex items-center gap-1">
-          <FileText size={10} className="text-gray-300 flex-shrink-0" />
+          <FileText size={10} className="text-hc-muted flex-shrink-0" />
           <input
             type="text"
             placeholder="Add note..."
@@ -48,7 +48,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
   }
 
   return (
-    <div className="ml-9 mt-2 pb-2 border-l-2 border-gray-100 pl-3 space-y-1.5">
+    <div className="ml-9 mt-2 pb-2 border-l-2 border-hc-panel-border pl-3 space-y-1.5">
       {children.map((child) => {
         const childRoom = roomInputs[child.childId] ?? savedRooms[child.childId] ?? '';
         const isInheriting = !childRoom && !!bridgeRoom;
@@ -56,11 +56,11 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
           <div key={child.childId} className="space-y-1">
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
-              <span className="text-xs text-gray-700 flex-1 truncate min-w-0">{child.name}</span>
+              <span className="text-xs text-hc-fg flex-1 truncate min-w-0">{child.name}</span>
             </div>
             <div className="flex flex-col gap-1 ml-3.5">
               <div className="flex items-center gap-1">
-                <MapPin size={9} className={isInheriting ? 'text-blue-300' : 'text-gray-300'} />
+                <MapPin size={9} className={isInheriting ? 'text-blue-300' : 'text-hc-muted'} />
                 <input
                   type="text"
                   placeholder={bridgeRoom ? `Inherits: ${bridgeRoom}` : 'Room…'}
@@ -78,7 +78,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                 />
               </div>
               <div className="flex items-center gap-1">
-                <FileText size={9} className="text-gray-300 flex-shrink-0" />
+                <FileText size={9} className="text-hc-muted flex-shrink-0" />
                 <input
                   type="text"
                   placeholder="Add note..."
@@ -95,7 +95,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
       })}
 
       {bridgeRoom && (
-        <p className="text-[10px] text-gray-400 pt-0.5">
+        <p className="text-[10px] text-hc-muted pt-0.5">
           Child accessories with no room set inherit the bridge room automatically.
         </p>
       )}
