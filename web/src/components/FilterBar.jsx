@@ -32,7 +32,7 @@ export default function FilterBar({
   const activeCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <div className="bg-white border-b border-gray-200">
+    <div className="bg-hc-panel border-b border-hc-panel-border">
       {/* ── Combined toggle bar ────────────────────────────────── */}
       <div className="max-w-2xl mx-auto px-4 flex items-center py-2">
         {/* Search & filters toggle */}
@@ -64,8 +64,8 @@ export default function FilterBar({
           disabled={!hasHeatmapData && !heatmapLoading}
           className="flex items-center gap-1.5 py-0.5 px-2 rounded-md transition-colors hc-filter-toggle disabled:cursor-default disabled:opacity-40"
         >
-          <BarChart2 size={13} style={hasHeatmapData ? { color: 'rgb(var(--hc-accent-rgb))' } : undefined} className={hasHeatmapData ? '' : 'text-gray-300'} />
-          <span className={`text-xs font-semibold ${hasHeatmapData ? '' : 'text-gray-300'}`} style={hasHeatmapData ? { color: 'var(--hc-accent-stronger)' } : undefined}>
+          <BarChart2 size={13} style={hasHeatmapData ? { color: 'rgb(var(--hc-accent-rgb))' } : undefined} className={hasHeatmapData ? '' : 'text-hc-muted'} />
+          <span className={`text-xs font-semibold ${hasHeatmapData ? '' : 'text-hc-muted'}`} style={hasHeatmapData ? { color: 'var(--hc-accent-stronger)' } : undefined}>
             Activity heatmap
           </span>
           {hasHeatmapData && (
@@ -73,7 +73,7 @@ export default function FilterBar({
               Jump view
             </span>
           )}
-          {heatmapLoading && <span className="text-[10px] text-gray-300">Loading…</span>}
+          {heatmapLoading && <span className="text-[10px] text-hc-muted">Loading…</span>}
           {hasHeatmapData && (
             heatmapOpen
               ? <ChevronUp size={12} style={{ color: 'var(--hc-accent-strong)' }} />
@@ -88,7 +88,7 @@ export default function FilterBar({
           <div className="flex flex-wrap gap-2 sm:gap-3">
             {/* Search by name */}
             <div className="relative w-full sm:w-56">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-hc-muted pointer-events-none" />
               <input
                 type="search"
                 placeholder="Search accessory…"

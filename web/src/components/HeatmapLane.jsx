@@ -28,10 +28,10 @@ export default function HeatmapLane() {
   const [hoveredCell, setHoveredCell] = useState(null);
 
   if (isLoading) {
-    return <p className="text-sm text-gray-400 py-2">Loading…</p>;
+    return <p className="text-sm text-hc-muted py-2">Loading…</p>;
   }
   if (!data.length) {
-    return <p className="text-sm text-gray-400 py-2">No data yet — events from the last 7 days will appear here.</p>;
+    return <p className="text-sm text-hc-muted py-2">No data yet — events from the last 7 days will appear here.</p>;
   }
 
   // Build per-device 24-hour arrays (UTC from DB)
@@ -56,10 +56,10 @@ export default function HeatmapLane() {
     <div>
       <div className="flex items-baseline justify-between mb-1">
         <h3 className="text-sm font-semibold text-hc-fg">Activity Heatmap</h3>
-        <span className="text-xs text-gray-400">last 7 days · local time</span>
+        <span className="text-xs text-hc-muted">last 7 days · local time</span>
       </div>
-      <p className="text-xs text-gray-400 mb-1">Events per device per hour</p>
-      <p className="text-xs text-gray-500 mb-4 min-h-4">
+      <p className="text-xs text-hc-muted mb-1">Events per device per hour</p>
+      <p className="text-xs text-hc-muted mb-4 min-h-4">
         {hoveredCell
           ? `${hoveredCell.device} · ${hoveredCell.hourLabel} · ${hoveredCell.count} event${hoveredCell.count !== 1 ? 's' : ''}`
           : 'Hover a cell for details'}

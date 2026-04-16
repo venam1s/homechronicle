@@ -76,7 +76,7 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
     return (
       <div>
         <h3 className="text-sm font-semibold text-hc-fg mb-3">Daily Activity</h3>
-        <div className="h-48 flex items-center justify-center text-sm text-gray-400">No activity in the last {days} days.</div>
+        <div className="h-48 flex items-center justify-center text-sm text-hc-muted">No activity in the last {days} days.</div>
       </div>
     );
   }

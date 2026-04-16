@@ -16,7 +16,7 @@ export default function StaleDevicesPanel({ onSelectAccessory }) {
   const { data: accessories, isLoading } = useAccessories();
 
   if (isLoading) {
-    return <div className="text-sm text-gray-400">Checking device heartbeat…</div>;
+    return <div className="text-sm text-hc-muted">Checking device heartbeat…</div>;
   }
 
   const staleRows = (accessories ?? [])
@@ -25,14 +25,14 @@ export default function StaleDevicesPanel({ onSelectAccessory }) {
     .slice(0, 8);
 
   if (!staleRows.length) {
-    return <p className="text-sm text-gray-400">No stale devices right now.</p>;
+    return <p className="text-sm text-hc-muted">No stale devices right now.</p>;
   }
 
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-sm font-semibold text-hc-fg">Stale Devices</h3>
-        <span className="text-xs text-gray-400">heartbeat lagging</span>
+        <span className="text-xs text-hc-muted">heartbeat lagging</span>
       </div>
       <div className="space-y-2">
         {staleRows.map((device) => (

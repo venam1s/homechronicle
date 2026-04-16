@@ -55,7 +55,7 @@ export default function RoomChart({ forcedDays = null, onDaysChange = null }) {
     return <div className="h-32 flex items-center justify-center text-red-500 text-sm">Failed to load room stats.</div>;
   }
   if (!data?.length) {
-    return <p className="text-sm text-gray-400">No room data yet.</p>;
+    return <p className="text-sm text-hc-muted">No room data yet.</p>;
   }
 
   const max = Math.max(...data.map((d) => toCount(d.count ?? d.event_count)), 1);
@@ -105,7 +105,7 @@ export default function RoomChart({ forcedDays = null, onDaysChange = null }) {
               </div>
 
               {/* Bar */}
-              <div className="flex-1 bg-gray-100 rounded-full h-2">
+              <div className="flex-1 bg-hc-panel-mid rounded-full h-2">
                 <div
                   className="h-2 rounded-full transition-all"
                   style={{
@@ -116,7 +116,7 @@ export default function RoomChart({ forcedDays = null, onDaysChange = null }) {
               </div>
 
               {/* Count */}
-              <div className="text-xs text-gray-400 w-10 text-right tabular-nums flex-shrink-0">
+              <div className="text-xs text-hc-muted w-10 text-right tabular-nums flex-shrink-0">
                 {count.toLocaleString()}
               </div>
             </div>

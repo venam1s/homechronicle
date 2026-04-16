@@ -69,7 +69,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
     return <div className="h-32 flex items-center justify-center text-red-500 text-sm">Failed to load weekday stats.</div>;
   }
   if (!data.length) {
-    return <p className="text-sm text-gray-400">No data yet.</p>;
+    return <p className="text-sm text-hc-muted">No data yet.</p>;
   }
 
   // Build grid[dow 0-6][localHour 0-23]
@@ -89,7 +89,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
       <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-sm font-semibold text-hc-fg">Weekday Heatmap</h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">last {days} days · local time</span>
+          <span className="text-xs text-hc-muted">last {days} days · local time</span>
           <div className="flex gap-1">
             {WINDOWS.map(({ label, days: d }) => (
               <button
@@ -108,7 +108,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
           </div>
         </div>
       </div>
-      <p className="text-xs text-gray-500 mb-3 min-h-4">
+      <p className="text-xs text-hc-muted mb-3 min-h-4">
         {hoveredCell
           ? `${hoveredCell.day} · ${hoveredCell.hourLabel} · ${hoveredCell.count} event${hoveredCell.count !== 1 ? 's' : ''}`
           : 'Hover a cell for details'}
