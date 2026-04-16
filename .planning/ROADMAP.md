@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 13: Responsive Sidebar** - Auto-collapse at mobile breakpoints; sheet drawer overlay on mobile (completed 2026-04-15)
 - [x] **Phase 14: Dashboard Widgets** - KPI health cards, live activity feed, room-by-room breakdown (completed 2026-04-15)
 - [x] **Phase 15: Chart Styling** - Recharts v3 upgrade with gradient fills, smooth curves, sparklines (completed 2026-04-15)
-- [ ] **Phase 16: Verification Sweep & Requirements Update** - Create VERIFICATION.md for phases 11, 12, 15; update REQUIREMENTS.md checkboxes; fix ROADMAP inconsistencies
+- [x] **Phase 16: Verification Sweep & Requirements Update** - Create VERIFICATION.md for phases 11, 12, 15; update REQUIREMENTS.md checkboxes; fix ROADMAP inconsistencies (completed 2026-04-16)
 - [ ] **Phase 17: Token Debt Cleanup** - Migrate AccessoryDetail.jsx to tokens/Card, fix chart text-gray-400, tokenize FAB buttons and shell div
 
 ## Phase Details
@@ -135,10 +135,10 @@ Plans:
   3. Phase 15 has a VERIFICATION.md that confirms CHART-02 is satisfied
   4. Every verified v1.2 requirement has `[x]` in REQUIREMENTS.md (currently 8 are unchecked despite being verified)
   5. ROADMAP progress table is consistent (Phase 15 shows 3/3 Complete)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 16-01-PLAN.md — Create VERIFICATION.md for phases 11, 12, 15
-- [ ] 16-02-PLAN.md — REQUIREMENTS.md sweep and ROADMAP.md audit
+- [x] 16-01-PLAN.md — Create VERIFICATION.md for phases 11, 12, 15
+- [x] 16-02-PLAN.md — REQUIREMENTS.md sweep and ROADMAP.md audit
 **UI hint**: no
 
 ### Phase 17: Token Debt Cleanup
@@ -151,7 +151,12 @@ Plans:
   2. ActivityChart and TrendChart empty/error states use semantic tokens instead of `text-gray-400`
   3. App.jsx FAB buttons use semantic tokens instead of `isDarkTheme` JS ternaries with hardcoded gray-600/gray-800
   4. Root shell div uses semantic token instead of `bg-gray-50`
-**Plans:** 0/0
+**Plans:** 4 plans
+Plans:
+- [ ] 17-01-PLAN.md — AccessoryDetail Card migration and token sweep
+- [ ] 17-02-PLAN.md — AccessoryList, help modals, and setup tabs token sweep
+- [ ] 17-03-PLAN.md — Remaining 17 component files token sweep (including CHART-03 targets)
+- [ ] 17-04-PLAN.md — Codebase-wide grep audit and visual verification
 **UI hint**: yes
 
 ## Progress
@@ -169,5 +174,5 @@ Phases 16-17 are gap closure phases from the v1.2 milestone audit.
 | 13. Responsive Sidebar | 3/3 | Complete    | 2026-04-15 |
 | 14. Dashboard Widgets | 3/3 | Complete    | 2026-04-15 |
 | 15. Chart Styling | 3/3 | Complete    | 2026-04-15 |
-| 16. Verification Sweep | 0/2 | Pending    |  |
-| 17. Token Debt Cleanup | 0/0 | Pending    |  |
+| 16. Verification Sweep | 2/2 | Complete    | 2026-04-16 |
+| 17. Token Debt Cleanup | 0/4 | Planned    |  |
