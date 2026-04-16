@@ -1,26 +1,15 @@
 import { useMemo } from 'react';
 import { format, subDays } from 'date-fns';
-import { Wifi, WifiOff, AlertTriangle, Zap, TrendingUp, TrendingDown } from 'lucide-react';
+import { Zap, Calendar, Activity, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area } from 'recharts';
 import clsx from 'clsx';
 import Card from './Card.jsx';
-import { useAccessories, useDailyStats } from '../hooks/useEvents.js';
+import { useDailyStats, useTopDevices, useRoomStats } from '../hooks/useEvents.js';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
 
 function toInt(value, fallback = 0) {
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function deriveHealthCounts(accessories = []) {
-  const counts = { online: 0, offline: 0, stale: 0 };
-  for (const acc of accessories) {
-    const status = acc?.health?.status;
-    if (status === 'online') counts.online++;
-    else if (status === 'offline') counts.offline++;
-    else if (status === 'stale') counts.stale++;
-  }
-  return counts;
 }
 
 function calcEventsTodayDelta(dailyData) {
@@ -34,16 +23,17 @@ function calcEventsTodayDelta(dailyData) {
 }
 
 const KPI_DEFS = [
-  { key: 'online', label: 'ONLINE', icon: Wifi, bgClass: 'bg-hc-success-bg', iconClass: 'text-hc-success-text' },
-  { key: 'offline', label: 'OFFLINE', icon: WifiOff, bgClass: 'bg-hc-danger-bg', iconClass: 'text-hc-danger-text' },
-  { key: 'stale', label: 'STALE', icon: AlertTriangle, bgClass: 'bg-hc-warning-bg', iconClass: 'text-hc-warning-text' },
   { key: 'today', label: 'TODAY', icon: Zap, bgClass: 'bg-hc-accent-soft', iconClass: 'text-hc-accent-strong' },
+  { key: 'week', label: 'THIS WEEK', icon: Calendar, bgClass: 'bg-hc-accent-soft', iconClass: 'text-hc-accent-strong' },
+  { key: 'topDevice', label: 'TOP DEVICE', icon: Activity, bgClass: 'bg-hc-accent-soft', iconClass: 'text-hc-accent-strong' },
+  { key: 'topRoom', label: 'TOP ROOM', icon: MapPin, bgClass: 'bg-hc-accent-soft', iconClass: 'text-hc-accent-strong' },
 ];
 
 export default function KpiCards({ dashboardDays = 7 }) {
-  const { data: accessories, isLoading: accLoading } = useAccessories();
   const { data: daily, isLoading: dailyLoading } = useDailyStats(dashboardDays);
   const { data: sparkDaily } = useDailyStats(7);
+  const { data: topDevices, isLoading: topLoading } = useTopDevices();
+  const { data: rooms, isLoading: roomsLoading } = useRoomStats(7);
   const accent = useAccentRgb();
   const accentStr = `rgb(${accent[0]},${accent[1]},${accent[2]})`;
 
@@ -55,11 +45,11 @@ export default function KpiCards({ dashboardDays = 7 }) {
     });
   }, [sparkDaily]);
 
-  const isLoading = accLoading && dailyLoading;
+  const isLoading = dailyLoading && topLoading && roomsLoading;
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {KPI_DEFS.map(def => (
           <Card key={def.key}>
             <Card.Body compact>
@@ -71,45 +61,47 @@ export default function KpiCards({ dashboardDays = 7 }) {
     );
   }
 
-  const healthCounts = deriveHealthCounts(accessories ?? []);
-
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   const todayRow = daily?.find(d => d.day?.startsWith(todayKey));
   const eventsToday = todayRow ? toInt(todayRow.count) : 0;
+  const eventsWeek = daily?.reduce((sum, d) => sum + toInt(d.count), 0) ?? null;
   const delta = calcEventsTodayDelta(daily);
 
+  const topDevice = topDevices?.[0];
+  const topRoom = rooms?.find((r) => r.room_name);
+
   function getTrendSubText() {
-    if (delta === null || delta === 0) return '—';
+    if (delta === null || delta === 0) return 'events';
     if (delta > 0) {
       return (
-        <span className="inline-flex items-center gap-0.5 text-hc-success-text">
-          +{delta} <TrendingUp size={12} />
+        <span className="inline-flex items-center gap-0.5">
+          events <span className="text-hc-success-text inline-flex items-center gap-0.5 ml-1">+{delta} <TrendingUp size={12} /></span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-0.5 text-hc-danger-text">
-        {delta} <TrendingDown size={12} />
+      <span className="inline-flex items-center gap-0.5">
+        events <span className="text-hc-danger-text inline-flex items-center gap-0.5 ml-1">{delta} <TrendingDown size={12} /></span>
       </span>
     );
   }
 
   const cardValues = {
-    online: accessories ? String(healthCounts.online) : '…',
-    offline: accessories ? String(healthCounts.offline) : '…',
-    stale: accessories ? String(healthCounts.stale) : '…',
-    today: daily ? String(eventsToday) : '…',
+    today: daily ? eventsToday.toLocaleString() : '…',
+    week: eventsWeek != null ? eventsWeek.toLocaleString() : '…',
+    topDevice: topDevices ? (topDevice?.accessory_name ?? 'None') : '…',
+    topRoom: rooms ? (topRoom?.room_name ?? 'Unknown') : '…',
   };
 
   const cardSubTexts = {
-    online: '—',
-    offline: '—',
-    stale: '—',
     today: getTrendSubText(),
+    week: 'last 7 days',
+    topDevice: topDevice ? `${toInt(topDevice.event_count).toLocaleString()} events` : null,
+    topRoom: topRoom ? `${toInt(topRoom.count).toLocaleString()} events` : null,
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {KPI_DEFS.map(def => (
         <Card key={def.key}>
           <Card.Body compact>
@@ -121,12 +113,14 @@ export default function KpiCards({ dashboardDays = 7 }) {
                 <div className="text-hc-caption font-semibold uppercase tracking-wider text-hc-muted mb-0.5">
                   {def.label}
                 </div>
-                <div className="text-2xl font-semibold text-hc-fg-strong leading-tight">
+                <div className="text-2xl font-semibold text-hc-fg-strong leading-tight truncate" title={String(cardValues[def.key])}>
                   {cardValues[def.key]}
                 </div>
-                <div className="text-hc-caption text-hc-muted mt-0.5">
-                  {cardSubTexts[def.key]}
-                </div>
+                {cardSubTexts[def.key] != null && (
+                  <div className="text-hc-caption text-hc-muted mt-0.5 truncate">
+                    {cardSubTexts[def.key]}
+                  </div>
+                )}
               </div>
             </div>
             {def.key === 'today' && sparkData.length > 0 && (

@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 14: Dashboard Widgets** - KPI health cards, live activity feed, room-by-room breakdown (completed 2026-04-15)
 - [x] **Phase 15: Chart Styling** - Recharts v3 upgrade with gradient fills, smooth curves, sparklines (completed 2026-04-15)
 - [x] **Phase 16: Verification Sweep & Requirements Update** - Create VERIFICATION.md for phases 11, 12, 15; update REQUIREMENTS.md checkboxes; fix ROADMAP inconsistencies (completed 2026-04-16)
-- [ ] **Phase 17: Token Debt Cleanup** - Migrate AccessoryDetail.jsx to tokens/Card, fix chart text-gray-400, tokenize FAB buttons and shell div
+- [x] **Phase 17: Token Debt Cleanup** - Migrate AccessoryDetail.jsx to tokens/Card, fix chart text-gray-400, tokenize FAB buttons and shell div (completed 2026-04-16)
 
 ## Phase Details
 
@@ -151,12 +151,12 @@ Plans:
   2. ActivityChart and TrendChart empty/error states use semantic tokens instead of `text-gray-400`
   3. App.jsx FAB buttons use semantic tokens instead of `isDarkTheme` JS ternaries with hardcoded gray-600/gray-800
   4. Root shell div uses semantic token instead of `bg-gray-50`
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 Plans:
-- [ ] 17-01-PLAN.md — AccessoryDetail Card migration and token sweep
-- [ ] 17-02-PLAN.md — AccessoryList, help modals, and setup tabs token sweep
-- [ ] 17-03-PLAN.md — Remaining 17 component files token sweep (including CHART-03 targets)
-- [ ] 17-04-PLAN.md — Codebase-wide grep audit and visual verification
+- [x] 17-01-PLAN.md — AccessoryDetail Card migration and token sweep
+- [x] 17-02-PLAN.md — AccessoryList, help modals, and setup tabs token sweep
+- [x] 17-03-PLAN.md — Remaining 17 component files token sweep (including CHART-03 targets)
+- [x] 17-04-PLAN.md — Codebase-wide grep audit and visual verification
 **UI hint**: yes
 
 ## Progress
@@ -175,4 +175,4 @@ Phases 16-17 are gap closure phases from the v1.2 milestone audit.
 | 14. Dashboard Widgets | 3/3 | Complete    | 2026-04-15 |
 | 15. Chart Styling | 3/3 | Complete    | 2026-04-15 |
 | 16. Verification Sweep | 2/2 | Complete    | 2026-04-16 |
-| 17. Token Debt Cleanup | 0/4 | Planned    |  |
+| 17. Token Debt Cleanup | 4/4 | Complete    | 2026-04-16 |
