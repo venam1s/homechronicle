@@ -708,7 +708,7 @@ export default function SettingsTab({ setup }) {
         </div>
         {/* Excluded accessories */}
         {(retentionConfig?.quietHoursExcludedAccessories ?? []).length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100 border-hc-panel-border">
+          <div className="mt-3 pt-3 border-t border-hc-panel-border">
             <p className="text-xs text-hc-muted mb-2">Excluded from quiet hours:</p>
             <div className="flex flex-wrap gap-1.5">
               {retentionConfig.quietHoursExcludedAccessories.map((id) => {
@@ -880,7 +880,7 @@ export default function SettingsTab({ setup }) {
           <select
             value={toastPositionInput}
             onChange={(e) => { const v = e.target.value; setToastPositionInput(v); autoSave({ toastPosition: v }); }}
-            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-gray-900 text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="bottom-right">Bottom Right</option>
             <option value="bottom-left">Bottom Left</option>
@@ -904,7 +904,7 @@ export default function SettingsTab({ setup }) {
           <select
             value={toastDurationInput}
             onChange={(e) => { const v = Number(e.target.value); setToastDurationInput(v); autoSave({ toastDuration: v }); }}
-            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-gray-900 text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={2}>2 seconds</option>
             <option value={3}>3 seconds</option>
@@ -926,7 +926,7 @@ export default function SettingsTab({ setup }) {
           <select
             value={toastMaxVisibleInput}
             onChange={(e) => { const v = Number(e.target.value); setToastMaxVisibleInput(v); autoSave({ toastMaxVisible: v }); }}
-            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-gray-900 text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={1}>1</option>
             <option value={2}>2</option>
@@ -992,7 +992,7 @@ export default function SettingsTab({ setup }) {
           <div className="bg-hc-panel">
 
             {/* ── Remove pairings ──────────────────────────────────── */}
-            <div className="border-b border-gray-100 border-hc-panel-border">
+            <div className="border-b border-hc-panel-border">
               <p className="px-4 pt-3 pb-2 text-xs font-medium text-hc-danger-text">Remove pairings</p>
               <p className="px-4 pb-2 text-xs text-hc-muted">
                 Unpair individual HomeKit or Matter accessories. Event data is <strong>not</strong> deleted.
@@ -1135,13 +1135,13 @@ export default function SettingsTab({ setup }) {
 
             {/* ── Delete accessory data ────────────────────────────── */}
             <p className="px-4 pt-3 pb-2 text-xs font-medium text-hc-danger-text">Delete accessory data</p>
-            <p className="px-4 pb-2 text-xs text-hc-muted border-b border-gray-100 border-hc-panel-border">
+            <p className="px-4 pb-2 text-xs text-hc-muted border-b border-hc-panel-border">
               Delete stored event history for individual accessories, or wipe everything.
               This only removes logged data — it does not unpair accessories.
             </p>
 
             {dbAccessories.length > 0 && (
-              <div className="px-4 py-2 border-b border-gray-100 border-hc-panel-border">
+              <div className="px-4 py-2 border-b border-hc-panel-border">
                 <div className="inline-flex items-center gap-1 rounded-lg bg-hc-panel-soft/50 p-1">
                   {[
                     { key: 'all', label: `All (${dbAccessories.length})`, color: 'text-hc-fg' },
@@ -1284,7 +1284,7 @@ export default function SettingsTab({ setup }) {
                 ? <Check size={22} />
                 : <Save size={22} />}
           </button>
-          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap bg-gray-900 bg-hc-panel-mid text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap bg-hc-fg-strong text-hc-panel opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
             {savePending ? 'Saving\u2026' : saveFeedback === 'saved' ? 'Saved!' : 'Save settings'}
           </span>
         </div>

@@ -36,7 +36,7 @@ function RoomAutocomplete({ value, onChange, onBlur, onKeyDown, rooms, placehold
         className={className}
       />
       {open && focused && filtered.length > 0 && (
-        <ul className="absolute z-50 mt-0.5 left-0 w-40 max-h-40 overflow-y-auto rounded border border-hc-panel-border bg-white bg-hc-panel-mid shadow-lg text-xs">
+        <ul className="absolute z-50 mt-0.5 left-0 w-40 max-h-40 overflow-y-auto rounded border border-hc-panel-border bg-hc-panel-mid shadow-lg text-xs">
           {filtered.map((room) => (
             <li
               key={room}
@@ -220,7 +220,7 @@ export default function MyDevicesTab({ setup }) {
 
   if (totalCount === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-400 text-center">
+      <div className="flex flex-col items-center justify-center py-16 text-hc-muted text-center">
         <CheckCircle size={32} className="mb-3 opacity-40" />
         <p className="font-medium">No accessories yet</p>
         <p className="text-sm mt-1 max-w-xs">
@@ -233,7 +233,7 @@ export default function MyDevicesTab({ setup }) {
   return (
     <div className="space-y-4">
       <PairingHealthBanner />
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+      <p className="text-xs font-semibold uppercase tracking-wider text-hc-muted">
         {totalCount} accessor{totalCount !== 1 ? 'ies' : 'y'}
       </p>
 
@@ -318,7 +318,7 @@ export default function MyDevicesTab({ setup }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
-                      <Pencil size={10} className="text-gray-300 text-hc-muted flex-shrink-0" />
+                      <Pencil size={10} className="text-hc-muted flex-shrink-0" />
                       <input
                         type="text"
                         placeholder={acc.name}
@@ -334,11 +334,11 @@ export default function MyDevicesTab({ setup }) {
                       HomeKit
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-hc-muted">
                     {CATEGORY_LABELS[acc.category] ?? 'Unknown'} &middot; {acc.address}
                   </div>
                   <div className="flex items-center gap-1 mt-1.5">
-                    <MapPin size={10} className="text-gray-300 flex-shrink-0" />
+                    <MapPin size={10} className="text-hc-muted flex-shrink-0" />
                     <RoomAutocomplete
                       placeholder="Add room name..."
                       value={roomVal}
@@ -346,13 +346,13 @@ export default function MyDevicesTab({ setup }) {
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [acc.id]: e.target.value }))}
                       onBlur={() => onRoomBlurWithFlash(acc.id)}
                       onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(acc.id)}
-                      className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                      className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-hc-muted"
                     />
                     {savedFlash[`room-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                   </div>
                   {acc.category !== 2 && (
                     <div className="flex items-center gap-1 mt-1">
-                      <FileText size={10} className="text-gray-300 flex-shrink-0" />
+                      <FileText size={10} className="text-hc-muted flex-shrink-0" />
                       <input
                         type="text"
                         placeholder="Add note..."
@@ -360,13 +360,13 @@ export default function MyDevicesTab({ setup }) {
                         onChange={(e) => setNoteInputs((n) => ({ ...n, [acc.id]: e.target.value }))}
                         onBlur={() => onNoteBlurWithFlash(acc.id)}
                         onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(acc.id)}
-                        className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                        className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-hc-muted"
                    />
                       {savedFlash[`note-${acc.id}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
                   )}
                   {acc.category === 2 && roomVal && (
-                    <p className="text-[10px] text-gray-500 mt-0.5 ml-3.5">
+                    <p className="text-[10px] text-hc-muted mt-0.5 ml-3.5">
                       Child accessories without their own room inherit this.
                     </p>
                   )}
@@ -404,7 +404,7 @@ export default function MyDevicesTab({ setup }) {
                     <button
                       onClick={() => setRepairingDevice({ device: acc, bridgeId: acc.id })}
                       title="Repair pairing"
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50  transition-colors"
+                      className="p-1.5 rounded-lg text-hc-muted hover:text-amber-500 hover:bg-amber-50 transition-colors"
                     >
                       <Wrench size={14} />
                     </button>
@@ -467,7 +467,7 @@ export default function MyDevicesTab({ setup }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
-                      <Pencil size={10} className="text-gray-300 text-hc-muted flex-shrink-0" />
+                      <Pencil size={10} className="text-hc-muted flex-shrink-0" />
                       <input
                         type="text"
                         placeholder={pairing.name ?? nodeId}
@@ -483,13 +483,13 @@ export default function MyDevicesTab({ setup }) {
                       Matter
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-hc-muted">
                     {nodeId}
                     {pairing.address ? ` \u00b7 ${pairing.address}` : ''}
                     {pairing.port ? `:${pairing.port}` : ''}
                   </div>
                   <div className="flex items-center gap-1 mt-1.5">
-                    <MapPin size={10} className="text-gray-300 flex-shrink-0" />
+                    <MapPin size={10} className="text-hc-muted flex-shrink-0" />
                     <RoomAutocomplete
                       placeholder="Add room name..."
                       value={roomVal}
@@ -497,13 +497,13 @@ export default function MyDevicesTab({ setup }) {
                       onChange={(e) => setRoomInputs((r) => ({ ...r, [nodeId]: e.target.value }))}
                       onBlur={() => onRoomBlurWithFlash(nodeId)}
                       onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(nodeId)}
-                      className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                      className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-hc-muted"
                     />
                     {savedFlash[`room-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                   </div>
                   {endpointCount === 0 && (
                     <div className="flex items-center gap-1 mt-1">
-                      <FileText size={10} className="text-gray-300 flex-shrink-0" />
+                      <FileText size={10} className="text-hc-muted flex-shrink-0" />
                       <input
                         type="text"
                         placeholder="Add note..."
@@ -511,16 +511,16 @@ export default function MyDevicesTab({ setup }) {
                         onChange={(e) => setNoteInputs((n) => ({ ...n, [nodeId]: e.target.value }))}
                         onBlur={() => onNoteBlurWithFlash(nodeId)}
                         onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(nodeId)}
-                        className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                        className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-hc-muted"
                    />
                       {savedFlash[`note-${nodeId}`] && <Check size={12} className="text-green-500 animate-save-flash flex-shrink-0" />}
                     </div>
                   )}
                   {nodeStatus && (
-                    <div className="text-xs text-gray-400 mt-0.5">
+                    <div className="text-xs text-hc-muted mt-0.5">
                       {nodeStatus.active
                         ? <span className="text-green-600">Polling active</span>
-                        : <span className="text-gray-400">Polling inactive</span>}
+                        : <span className="text-hc-muted">Polling inactive</span>}
                     </div>
                   )}
                   {nodeStatus?.lastError && (
@@ -615,11 +615,11 @@ export default function MyDevicesTab({ setup }) {
                     return (
                       <div key={endpointId} className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500 w-28 truncate">
+                          <span className="text-xs text-hc-muted w-28 truncate">
                             {endpointId.split(':').slice(-1)[0]} {row.accessory_name ? `· ${row.accessory_name}` : ''}
                           </span>
                           <div className="flex items-center gap-1">
-                            <MapPin size={10} className="text-gray-300 flex-shrink-0" />
+                            <MapPin size={10} className="text-hc-muted flex-shrink-0" />
                             <RoomAutocomplete
                               placeholder="Add room name..."
                               value={endpointRoom}
@@ -627,12 +627,12 @@ export default function MyDevicesTab({ setup }) {
                               onChange={(e) => setRoomInputs((r) => ({ ...r, [endpointId]: e.target.value }))}
                               onBlur={() => onRoomBlurWithFlash(endpointId)}
                               onKeyDown={(e) => e.key === 'Enter' && onRoomBlurWithFlash(endpointId)}
-                              className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                              className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-40 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-hc-muted"
                             />
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-[7.5rem]">
-                          <FileText size={9} className="text-gray-300 flex-shrink-0" />
+                          <FileText size={9} className="text-hc-muted flex-shrink-0" />
                           <input
                             type="text"
                             placeholder="Add note..."
@@ -640,7 +640,7 @@ export default function MyDevicesTab({ setup }) {
                             onChange={(e) => setNoteInputs((n) => ({ ...n, [endpointId]: e.target.value }))}
                             onBlur={() => onNoteBlurWithFlash(endpointId)}
                             onKeyDown={(e) => e.key === 'Enter' && onNoteBlurWithFlash(endpointId)}
-                            className="text-xs border border-hc-panel-border bg-white bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                            className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-hc-muted"
                        />
                         </div>
                       </div>

@@ -211,7 +211,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
             disabled={scanning || isBulkPairing}
             className={clsx(
               'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-              scanning ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              scanning ? 'bg-hc-panel-mid text-hc-muted cursor-not-allowed'
                        : 'bg-blue-600 text-white hover:bg-blue-700',
             )}
           >
@@ -220,7 +220,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
           </button>
 
           {discoveredData?.cachedAt && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-hc-muted">
               Last Scan: {formatDistanceToNow(new Date(discoveredData.cachedAt), { addSuffix: true })}
             </p>
           )}
@@ -232,7 +232,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
           )}
 
           {discoveredLoading && (
-            <div className="flex justify-center py-8 text-gray-400 gap-2 text-sm">
+            <div className="flex justify-center py-8 text-hc-muted gap-2 text-sm">
               <Loader size={16} className="animate-spin" /> Loading...
             </div>
           )}
@@ -342,7 +342,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                 </>
               )}
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-gray-500">{unpaired.length} available</span>
+                <span className="text-xs text-hc-muted">{unpaired.length} available</span>
                 <button onClick={toggleAll} className="text-xs text-blue-600 hover:underline">
                   {allSelected ? 'Deselect all' : 'Select all'}
                 </button>
@@ -369,10 +369,10 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                           ? <Loader size={14} className="text-blue-400 animate-spin flex-shrink-0" />
                           : isSuccess
                             ? <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
-                            : <Circle size={14} className="text-gray-300 flex-shrink-0" />}
+                            : <Circle size={14} className="text-hc-muted flex-shrink-0" />}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-hc-fg-strong text-xs truncate">{acc.name}</div>
-                          <div className="text-[11px] text-gray-500">
+                          <div className="text-[11px] text-hc-muted">
                             {acc.category === 2
                               ? <span className="text-blue-600 font-medium">Bridge</span>
                               : CATEGORY_LABELS[acc.category] ?? 'Unknown'}
@@ -410,7 +410,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                                     setPinOverrides((p) => ({ ...p, [acc.id]: '' }));
                                   }}
                                   title="Clear saved PIN"
-                                  className="p-0.5 text-gray-400 hover:text-red-500 transition-colors"
+                                  className="p-0.5 text-hc-muted hover:text-red-500 transition-colors"
                                 >
                                   <X size={12} />
                                 </button>
@@ -419,7 +419,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => setHelpDevice({ name: acc.name, category: acc.category })}
-                                className="flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-blue-500 transition-colors"
+                                className="flex items-center gap-0.5 text-[10px] text-hc-muted hover:text-blue-500 transition-colors"
                               >
                                 <HelpCircle size={9} />
                                 PIN help
@@ -463,7 +463,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
 
           {/* Empty state */}
           {!discoveredLoading && accessories.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400 text-center">
+            <div className="flex flex-col items-center justify-center py-8 text-hc-muted text-center">
               <Wifi size={24} className="mb-2 opacity-40" />
               <p className="text-xs font-medium">No accessories found</p>
               <p className="text-[11px] mt-0.5">Click Scan Network to search.</p>
@@ -590,8 +590,8 @@ function MatterCard({
         disabled={matterScanning || !commissionConfigured}
         className={clsx(
           'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-          matterScanning ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                         : !commissionConfigured ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          matterScanning ? 'bg-hc-panel-mid text-hc-muted cursor-not-allowed'
+                         : !commissionConfigured ? 'bg-hc-panel-mid text-hc-muted cursor-not-allowed'
                          : 'bg-blue-600 text-white hover:bg-blue-700',
         )}
       >
@@ -606,7 +606,7 @@ function MatterCard({
       )}
 
       {matterDiscoveredData?.cachedAt && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-hc-muted">
           Last Manual Scan: {formatDistanceToNow(new Date(matterDiscoveredData.cachedAt), { addSuffix: true })}
         </p>
       )}
@@ -624,7 +624,7 @@ function MatterCard({
       )}
 
       {matterDiscoveredLoading && (
-        <div className="flex justify-center py-8 text-gray-400 gap-2 text-sm">
+        <div className="flex justify-center py-8 text-hc-muted gap-2 text-sm">
           <Loader size={16} className="animate-spin" /> Loading...
         </div>
       )}
@@ -633,7 +633,7 @@ function MatterCard({
       {unpaired.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-gray-500">{unpaired.length} commissionable</span>
+            <span className="text-xs text-hc-muted">{unpaired.length} commissionable</span>
           </div>
           <div className="divide-y divide-hc-panel-border border border-hc-panel-border rounded-lg">
             {unpaired.map((device) => {
@@ -648,12 +648,12 @@ function MatterCard({
                       ? <Loader size={14} className="text-blue-400 animate-spin flex-shrink-0" />
                       : isSuccess
                         ? <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
-                        : <Circle size={14} className="text-gray-300 flex-shrink-0" />}
+                        : <Circle size={14} className="text-hc-muted flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-hc-fg-strong text-xs truncate">
                         {device.deviceName ?? device.name}
                       </div>
-                      <div className="text-[11px] text-gray-400 space-x-2">
+                      <div className="text-[11px] text-hc-muted space-x-2">
                         {device.address && <span>{device.address}{device.port ? `:${device.port}` : ''}</span>}
                         {device.discriminator != null && <span>Disc: {device.discriminator}</span>}
                         {device.vendorId != null && <span>VID: {device.vendorId}</span>}
@@ -717,7 +717,7 @@ function MatterCard({
 
       {/* Empty state after scan */}
       {!matterDiscoveredLoading && matterDiscoveredData && matterDevices.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-4 text-gray-400 text-center">
+        <div className="flex flex-col items-center justify-center py-4 text-hc-muted text-center">
           <Wifi size={20} className="mb-1.5 opacity-40" />
           <p className="text-xs font-medium">No commissionable accessories found</p>
           <p className="text-[11px] mt-0.5">Put an accessory in pairing mode from Apple Home, then scan again.</p>
@@ -757,15 +757,15 @@ function MatterCard({
         {matterAdvancedOpen ? 'Hide manual setup' : 'Add manually\u2026'}
       </button>
 
-      <p className="text-[11px] text-gray-500 italic">
+      <p className="text-[11px] text-hc-muted italic">
         Supports on/off, level control, boolean state, temperature, humidity, and occupancy clusters.
         Accessories using other clusters will pair but won't produce events.{' '}
-        <button onClick={() => onOpenHelp('clusters')} className="underline hover:text-gray-600 transition-colors">See supported accessories</button>
+        <button onClick={() => onOpenHelp('clusters')} className="underline hover:text-hc-fg transition-colors">See supported accessories</button>
       </p>
 
       {matterAdvancedOpen && (
-        <form onSubmit={handleMatterSubmit} className="space-y-2 bg-gray-50 bg-hc-panel-mid rounded-lg p-2.5">
-          <p className="text-[11px] text-gray-500">
+        <form onSubmit={handleMatterSubmit} className="space-y-2 bg-hc-panel-mid rounded-lg p-2.5">
+          <p className="text-[11px] text-hc-muted">
             Add an accessory without scanning. Use this if the scan doesn't find your accessory.
           </p>
           <input
