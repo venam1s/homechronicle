@@ -117,7 +117,7 @@ Plans:
   2. KPI cards include a sparkline mini-chart that visualizes the trend data supporting the delta indicator
   3. All chart colors update correctly when the user switches between light mode, dark mode, or accent color presets
   4. No Recharts v2 reference remains in package.json — the upgrade is complete in one phase
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 15-01-PLAN.md — Recharts v3 upgrade + test scaffolds
 - [x] 15-02-PLAN.md — Chart gradient refactor + window selector token cleanup
@@ -135,7 +135,10 @@ Plans:
   3. Phase 15 has a VERIFICATION.md that confirms CHART-02 is satisfied
   4. Every verified v1.2 requirement has `[x]` in REQUIREMENTS.md (currently 8 are unchecked despite being verified)
   5. ROADMAP progress table is consistent (Phase 15 shows 3/3 Complete)
-**Plans:** 0/0
+**Plans:** 2 plans
+Plans:
+- [ ] 16-01-PLAN.md — Create VERIFICATION.md for phases 11, 12, 15
+- [ ] 16-02-PLAN.md — REQUIREMENTS.md sweep and ROADMAP.md audit
 **UI hint**: no
 
 ### Phase 17: Token Debt Cleanup
@@ -166,5 +169,5 @@ Phases 16-17 are gap closure phases from the v1.2 milestone audit.
 | 13. Responsive Sidebar | 3/3 | Complete    | 2026-04-15 |
 | 14. Dashboard Widgets | 3/3 | Complete    | 2026-04-15 |
 | 15. Chart Styling | 3/3 | Complete    | 2026-04-15 |
-| 16. Verification Sweep | 0/0 | Pending    |  |
+| 16. Verification Sweep | 0/2 | Pending    |  |
 | 17. Token Debt Cleanup | 0/0 | Pending    |  |
