@@ -78,44 +78,44 @@ Requirements for milestone v1.2 — UI Redesign.
 
 ### Theming
 
-- [ ] **THEME-01**: User can switch between light and dark modes with a toggle in the sidebar
-- [ ] **THEME-02**: All components use semantic design tokens — no hardcoded dark: classes remain
-- [ ] **THEME-03**: User can choose from 3-5 accent color presets (e.g., blue, purple, teal, amber, rose)
-- [ ] **THEME-04**: User's theme and accent preferences persist across sessions via localStorage
-- [ ] **THEME-05**: Existing chart components render correctly with the new token system (--hc-accent-rgb compatibility)
+- [x] **THEME-01**: User can switch between light and dark modes with a toggle in the sidebar
+- [x] **THEME-02**: All components use semantic design tokens — no hardcoded dark: classes remain
+- [x] **THEME-03**: User can choose from 3-5 accent color presets (e.g., blue, purple, teal, amber, rose)
+- [x] **THEME-04**: User's theme and accent preferences persist across sessions via localStorage
+- [x] **THEME-05**: Existing chart components render correctly with the new token system (--hc-accent-rgb compatibility)
 
 ### Navigation
 
-- [ ] **NAV-01**: User sees a vertical sidebar with reorganized navigation sections replacing the top tab bar
-- [ ] **NAV-02**: User can collapse the sidebar to icon-only mode
-- [ ] **NAV-03**: User's sidebar collapse preference persists across sessions
-- [ ] **NAV-04**: On mobile, user accesses navigation via a slide-out sheet drawer
-- [ ] **NAV-05**: Active page is clearly indicated in the sidebar with visual highlight
+- [x] **NAV-01**: User sees a vertical sidebar with reorganized navigation sections replacing the top tab bar
+- [x] **NAV-02**: User can collapse the sidebar to icon-only mode
+- [x] **NAV-03**: User's sidebar collapse preference persists across sessions
+- [x] **NAV-04**: On mobile, user accesses navigation via a slide-out sheet drawer
+- [x] **NAV-05**: Active page is clearly indicated in the sidebar with visual highlight
 
 ### Layout
 
 - [x] **LAYOUT-01**: User sees a modern card-based layout with clean spacing, soft shadows, and contemporary typography
-- [ ] **LAYOUT-02**: App.jsx is restructured into a slim shell with extracted page components
-- [ ] **LAYOUT-03**: All existing functionality (Dashboard, Timeline, Accessories, Manage) remains accessible
+- [x] **LAYOUT-02**: App.jsx is restructured into a slim shell with extracted page components
+- [x] **LAYOUT-03**: All existing functionality (Dashboard, Timeline, Accessories, Manage) remains accessible
 
 ### Widgets
 
-- [ ] **WIDGET-01**: User sees KPI health summary cards on the dashboard (online/offline/stale device counts)
-- [ ] **WIDGET-02**: KPI cards show trend deltas compared to previous period
-- [ ] **WIDGET-03**: User sees a live activity feed widget with recent events
-- [ ] **WIDGET-04**: Activity feed pauses scrolling when user is reading (scroll-lock behavior)
-- [ ] **WIDGET-05**: User sees room-by-room breakdown cards with device counts and health badges
+- [x] **WIDGET-01**: User sees KPI health summary cards on the dashboard (online/offline/stale device counts)
+- [x] **WIDGET-02**: KPI cards show trend deltas compared to previous period
+- [x] **WIDGET-03**: User sees a live activity feed widget with recent events
+- [x] **WIDGET-04**: Activity feed pauses scrolling when user is reading (scroll-lock behavior)
+- [x] **WIDGET-05**: User sees room-by-room breakdown cards with device counts and health badges
 
 ### Charts
 
 - [x] **CHART-01**: Charts use modern styling with gradient fills, smooth curves, and theme-aware colors
-- [ ] **CHART-02**: KPI cards include sparkline/mini trend visualizations
+- [x] **CHART-02**: KPI cards include sparkline/mini trend visualizations
 - [x] **CHART-03**: Existing chart types (activity, heatmap, state duration, event history) are preserved with updated styling
 
 ### Responsive
 
-- [ ] **RESP-01**: Sidebar auto-collapses to icon-only on narrow viewports
-- [ ] **RESP-02**: Dashboard widgets reflow to single-column on mobile
+- [x] **RESP-01**: Sidebar auto-collapses to icon-only on narrow viewports
+- [x] **RESP-02**: Dashboard widgets reflow to single-column on mobile
 
 ## Future Requirements
 
@@ -154,29 +154,29 @@ Deferred to future milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THEME-01 | Phase 10 | Pending |
-| THEME-02 | Phase 10, 17 | Pending |
-| THEME-03 | Phase 10 | Pending |
-| THEME-04 | Phase 10 | Pending |
-| THEME-05 | Phase 10 | Pending |
-| NAV-01 | Phase 11, 16 | Pending |
-| NAV-02 | Phase 11, 16 | Pending |
-| NAV-03 | Phase 11, 16 | Pending |
-| NAV-04 | Phase 13 | Pending |
-| NAV-05 | Phase 11, 16 | Pending |
+| THEME-01 | Phase 10 | Complete |
+| THEME-02 | Phase 10, 17 | Complete |
+| THEME-03 | Phase 10 | Complete |
+| THEME-04 | Phase 10 | Complete |
+| THEME-05 | Phase 10 | Complete |
+| NAV-01 | Phase 11, 16 | Complete |
+| NAV-02 | Phase 11, 16 | Complete |
+| NAV-03 | Phase 11, 16 | Complete |
+| NAV-04 | Phase 13 | Complete |
+| NAV-05 | Phase 11, 16 | Complete |
 | LAYOUT-01 | Phase 12, 17 | Complete |
-| LAYOUT-02 | Phase 11, 16 | Pending |
-| LAYOUT-03 | Phase 12, 16 | Pending |
-| WIDGET-01 | Phase 14 | Pending |
-| WIDGET-02 | Phase 14 | Pending |
-| WIDGET-03 | Phase 14 | Pending |
-| WIDGET-04 | Phase 14 | Pending |
-| WIDGET-05 | Phase 14 | Pending |
+| LAYOUT-02 | Phase 11, 16 | Complete |
+| LAYOUT-03 | Phase 12, 16 | Complete |
+| WIDGET-01 | Phase 14 | Complete |
+| WIDGET-02 | Phase 14 | Complete |
+| WIDGET-03 | Phase 14 | Complete |
+| WIDGET-04 | Phase 14 | Complete |
+| WIDGET-05 | Phase 14 | Complete |
 | CHART-01 | Phase 15 | Complete |
-| CHART-02 | Phase 15, 16 | Pending |
+| CHART-02 | Phase 15, 16 | Complete |
 | CHART-03 | Phase 15, 17 | Complete |
-| RESP-01 | Phase 13 | Pending |
-| RESP-02 | Phase 13 | Pending |
+| RESP-01 | Phase 13 | Complete |
+| RESP-02 | Phase 13 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 23 total
@@ -185,4 +185,4 @@ Deferred to future milestones.
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-14 after v1.2 roadmap created (Phases 10-15)*
+*Last updated: 2026-04-15 after Phase 16 verification sweep*
