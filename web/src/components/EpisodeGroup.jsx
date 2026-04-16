@@ -35,25 +35,25 @@ export default memo(function EpisodeGroup({ episode, scenes, eventMetaMap, hover
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-gray-900">{episode.title}</span>
+              <span className="text-sm font-semibold text-hc-fg-strong">{episode.title}</span>
               <span className="text-[11px] uppercase tracking-[0.18em] hc-episode-label font-semibold">
                 Episode
               </span>
             </div>
-            <p className="text-sm text-gray-600 mt-0.5">{episode.summary}</p>
-            <div className="text-xs text-gray-500 mt-1.5">
+            <p className="text-sm text-hc-fg mt-0.5">{episode.summary}</p>
+            <div className="text-xs text-hc-muted mt-1.5">
               {events.length} events across {scenes.length} burst{scenes.length === 1 ? '' : 's'}
               {rooms.length > 0 ? ` · ${rooms.join(', ')}` : ''}
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-hc-muted">
               {ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
             {expanded
-              ? <ChevronDown size={14} className="text-gray-400" />
-              : <ChevronRight size={14} className="text-gray-400" />}
+              ? <ChevronDown size={14} className="text-hc-muted" />
+              : <ChevronRight size={14} className="text-hc-muted" />}
           </div>
         </div>
       </button>

@@ -337,7 +337,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
             <button
               onClick={() => setLockedCell(null)}
               aria-label="Clear heatmap selection"
-              className="text-[10px] text-gray-400 hover:text-gray-600 underline ml-auto flex-shrink-0"
+              className="text-[10px] text-hc-muted hover:text-hc-fg underline ml-auto flex-shrink-0"
             >
               clear
             </button>
@@ -348,17 +348,17 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
       {/* Muted devices banner */}
       {muted.size > 0 && (
         <div className="max-w-2xl mx-auto w-full px-4 py-2 flex items-center gap-2 flex-wrap">
-          <VolumeX size={12} className="text-gray-400 flex-shrink-0" />
-          <span className="text-xs text-gray-400">Muted:</span>
+          <VolumeX size={12} className="text-hc-muted flex-shrink-0" />
+          <span className="text-xs text-hc-muted">Muted:</span>
           {[...muted].map((name) => (
             <span
               key={name}
-              className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full"
+              className="inline-flex items-center gap-1 text-xs bg-hc-panel-mid text-hc-muted px-2 py-0.5 rounded-full"
             >
               {name}
               <button
                 onClick={() => unmute(name)}
-                className="hover:text-gray-800 ml-0.5"
+                className="hover:text-hc-fg-strong ml-0.5"
                 title={`Unmute ${name}`}
                 aria-label={`Unmute ${name}`}
               >
@@ -371,7 +371,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {isLoading && (
-          <div className="flex justify-center py-12 text-gray-400">Loading…</div>
+          <div className="flex justify-center py-12 text-hc-muted">Loading…</div>
         )}
 
         {isError && (
@@ -381,7 +381,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
         )}
 
         {data && (data.events?.length ?? 0) === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-hc-muted">
             <p className="text-lg font-medium">No events yet</p>
             <p className="text-sm mt-1">
               Events will appear here as your HomeKit accessories change state.
@@ -390,7 +390,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
         )}
 
         {!isLoading && !isError && data && (data.events?.length ?? 0) > 0 && visibleEvents.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-hc-muted">
             <p className="text-lg font-medium">No visible events</p>
             <p className="text-sm mt-1 text-center px-6">
               {muted.size > 0
@@ -406,7 +406,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
           <div className="max-w-2xl mx-auto py-4">
             {[...groupByDay(visibleEvents)].map(([day, events]) => (
               <div key={day} className="mb-6">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 px-4 mb-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-hc-muted px-4 mb-2">
                   {format(new Date(day), 'EEEE, MMMM d')}
                 </h2>
                 <div className="space-y-3">
@@ -443,7 +443,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
             ))}
 
             {(data?.pages ?? 1) > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 text-sm text-gray-600">
+              <div className="flex items-center justify-between px-4 py-3 text-sm text-hc-fg">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}

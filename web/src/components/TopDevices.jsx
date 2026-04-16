@@ -51,7 +51,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
     return <div className="h-24 flex items-center justify-center text-red-500 text-sm">Failed to load device stats.</div>;
   }
   if (!data?.length) {
-    return <p className="text-sm text-gray-400">No activity in the last {days} days.</p>;
+    return <p className="text-sm text-hc-muted">No activity in the last {days} days.</p>;
   }
 
   const max = Number.parseInt(data[0].event_count, 10);
@@ -61,7 +61,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
       <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-sm font-semibold text-hc-fg">Most Active Devices</h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">last {days} days</span>
+          <span className="text-xs text-hc-muted">last {days} days</span>
           <div className="flex gap-1">
             {WINDOWS.map(({ label, days: d }) => (
               <button
@@ -71,7 +71,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
                   'text-xs px-2 py-0.5 rounded-md transition-colors',
                   days === d
                     ? 'bg-[rgba(var(--hc-accent-rgb),0.13)] text-[rgb(var(--hc-accent-rgb))] font-medium'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                    : 'text-hc-muted hover:text-hc-fg hover:bg-hc-panel-mid'
                 )}
               >
                 {label}
@@ -96,7 +96,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
 
               {/* Name + room */}
               <div className="w-32 flex-shrink-0 min-w-0">
-                <div className="text-sm text-gray-700 truncate leading-tight">{device.accessory_name}</div>
+                <div className="text-sm text-hc-fg truncate leading-tight">{device.accessory_name}</div>
                 {device.room_name && (
                   <span
                     className="text-[10px] px-1 py-px rounded-full font-medium"
@@ -110,7 +110,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
               </div>
 
               {/* Bar */}
-              <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+              <div className="flex-1 bg-hc-panel-mid rounded-full h-1.5">
                 <div
                   className="h-1.5 rounded-full transition-all"
                   style={{ width: `${pct}%`, backgroundColor: `rgb(var(--hc-accent-rgb))` }}
@@ -118,7 +118,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
               </div>
 
               {/* Count */}
-              <div className="text-xs text-gray-400 w-8 text-right tabular-nums flex-shrink-0">
+              <div className="text-xs text-hc-muted w-8 text-right tabular-nums flex-shrink-0">
                 {count}
               </div>
             </div>
