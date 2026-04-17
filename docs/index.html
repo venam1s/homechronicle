@@ -214,6 +214,16 @@
       overflow: hidden;
     }
 
+    /* Cap height in side-by-side feature rows so full-page captures don't
+       blow out the layout. Crop from the top so nav + hero stay visible. */
+    .feature-media .screenshot {
+      width: 100%;
+      max-height: 520px;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    }
+
     .hero-screenshot {
       max-width: 1000px;
       margin: 0 auto;
@@ -930,10 +940,7 @@
           </ul>
         </div>
         <div class="feature-media">
-          <div class="screenshot-grid">
-            <img src="screenshots/manage-lite-page.png" alt="Manage — accessory pairing wizard" class="screenshot">
-            <img src="screenshots/manage-settings.png" alt="Manage — retention and threshold settings" class="screenshot">
-          </div>
+          <img src="screenshots/manage-lite-page.png" alt="Manage — accessory pairing wizard" class="screenshot">
         </div>
       </div>
     </div>
