@@ -59,6 +59,7 @@ None — all v1.2 todos resolved.
 | 260411-uqw | Split multi-service HomeKit accessories into separate rows in GET /accessories | 2026-04-12 | 359088b | [260411-uqw-split-multi-service-homekit-accessories-](./quick/260411-uqw-split-multi-service-homekit-accessories-/) |
 | 260412-gx7 | Update README.md alerts documentation for web UI | 2026-04-12 | b5fcb14 | [260412-gx7-update-readme-md-alerts-documentation-fo](./quick/260412-gx7-update-readme-md-alerts-documentation-fo/) |
 | 260416-td3 | Fix homechronicle.net screenshot sizing and pair/settings image mismatch (MR !1 on main) | 2026-04-17 | b51e8a9 | [260416-td3-fix-homechronicle-net-screenshot-sizing-](./quick/260416-td3-fix-homechronicle-net-screenshot-sizing-/) |
+| 260416-td3b | Recapture homechronicle.net screenshots at tighter 3:2 clip (MR !2 on main, depends on !1) | 2026-04-17 | 09b460e | — |
 
 ### Blockers/Concerns
 
@@ -67,5 +68,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-17
-Stopped at: Quick task 260416-td3 complete (MR !1 open on main) — milestone v1.2 complete, next milestone not yet planned
+Stopped at: Screenshot fixes complete (MR !1 + !2 open on main, !2 depends on !1) — milestone v1.2 complete, next milestone not yet planned
 Resume file: N/A — run /gsd-new-milestone to start next milestone
