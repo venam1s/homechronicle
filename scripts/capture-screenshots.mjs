@@ -11,9 +11,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOTS_DIR = path.resolve(__dirname, '../docs/screenshots');
 const BASE_URL = process.argv[2] || 'http://172.16.1.15:3100';
 
-// Desktop viewport matching existing screenshots (~2160px wide at 2x = 1080 logical)
+// Desktop viewport matching existing screenshots (~2160px wide at 2x = 1080 logical).
+// Height 1220 keeps the fixed clips in this script (e.g. dashboard-daily-activity,
+// dashboard-most-active-devices, dashboard-weekly-monthly-heatmaps) valid.
 const DESKTOP = { width: 1080, height: 1220 };
 const DEVICE_SCALE = 2;
+
+// Standard 3:2 clip for feature-row screenshots (timeline, accessories, manage-*,
+// dashboard-dark). Keeps captures small so they fit under the 520px CSS cap on
+// .feature-media .screenshot in docs/index.html without aggressive cropping.
+const FEATURE_CLIP = { x: 0, y: 0, width: 1080, height: 720 };
 
 // Mobile viewport for PWA screenshots (~603 logical at 2x = 1206px)
 const MOBILE = { width: 393, height: 852 };
@@ -107,12 +114,12 @@ async function main() {
     console.log('  ✓ dashboard-stale-devices.png');
   }
 
-  // Timeline (light)
+  // Timeline (light) — clipped to FEATURE_CLIP so feature-row placement stays compact
   await lightPage.click('text=Timeline');
   await lightPage.waitForTimeout(1500);
   await lightPage.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'timeline-lite-page.png'),
-    fullPage: true,
+    clip: FEATURE_CLIP,
   });
   console.log('  ✓ timeline-lite-page.png');
 
@@ -129,16 +136,16 @@ async function main() {
   }
   await lightPage.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'timeline-search-heatmap.png'),
-    fullPage: true,
+    clip: FEATURE_CLIP,
   });
   console.log('  ✓ timeline-search-heatmap.png');
 
-  // Accessories (light)
+  // Accessories (light) — clipped
   await lightPage.click('text=Accessories');
   await lightPage.waitForTimeout(1500);
   await lightPage.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'accessories-lite-page.png'),
-    fullPage: true,
+    clip: FEATURE_CLIP,
   });
   console.log('  ✓ accessories-lite-page.png');
 
@@ -172,7 +179,7 @@ async function main() {
   // Manage > Manage Accessories (My Devices) — this is the default tab
   await lightPage.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'manage-my-devices.png'),
-    fullPage: true,
+    clip: FEATURE_CLIP,
   });
   console.log('  ✓ manage-my-devices.png');
 
@@ -183,7 +190,7 @@ async function main() {
     await lightPage.waitForTimeout(1000);
     await lightPage.screenshot({
       path: path.join(SCREENSHOTS_DIR, 'manage-lite-page.png'),
-      fullPage: true,
+      clip: FEATURE_CLIP,
     });
     console.log('  ✓ manage-lite-page.png');
   }
@@ -195,7 +202,7 @@ async function main() {
     await lightPage.waitForTimeout(1000);
     await lightPage.screenshot({
       path: path.join(SCREENSHOTS_DIR, 'manage-settings.png'),
-      fullPage: true,
+      clip: FEATURE_CLIP,
     });
     console.log('  ✓ manage-settings.png');
   }
@@ -243,7 +250,7 @@ async function main() {
   await darkPage.waitForTimeout(1500);
   await darkPage.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'dashboard-dark-page.png'),
-    fullPage: true,
+    clip: FEATURE_CLIP,
   });
   console.log('  ✓ dashboard-dark-page.png');
   await darkCtx.close();
