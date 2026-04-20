@@ -181,23 +181,30 @@ test('runRepairCycle() with 0 targets logs "0 device(s) targeted" and returns ea
   }
 });
 
-test('runRepairCycle() with needsRepair device calls resetSubscriberStats then discoverDevice + savePairing', async () => {
+test('runRepairCycle() with needsRepair device success resets stats and restarts subscriber', async () => {
   const { createRepairScheduler } = await import('../src/repair-scheduler.js');
 
-  const fakeDiscovered = { name: 'Device A', address: '10.0.0.1', port: 51234 };
+  const fakeDiscovered = { address: '10.0.0.1', port: 51234 };
+  const fakePairing = { name: 'Device A', address: '10.0.0.1', port: 51234, longTermData: {} };
   let discoverCalled = false;
   const m = makeMocks({
     getRepairTargets: () => [{ deviceId: 'dev-1', pairingName: 'Device A', needsRepair: true, isStale: false }],
     discoverDevice: async (id) => { discoverCalled = true; return fakeDiscovered; },
+    loadPairings: () => ({ 'dev-1': fakePairing }),
   });
 
   const scheduler = createRepairScheduler(m);
   await scheduler.runRepairCycle();
 
-  assert.ok(m._resetStatsCalls.includes('dev-1'), 'resetSubscriberStats should be called for dev-1');
   assert.ok(discoverCalled, 'discoverDevice should be called');
   assert.equal(m._savePairingCalls.length, 1, 'savePairing should be called once');
   assert.equal(m._savePairingCalls[0].id, 'dev-1');
+  // REPAIR-02: resetSubscriberStats called on success
+  assert.ok(m._resetStatsCalls.includes('dev-1'), 'resetSubscriberStats should be called for dev-1 on success');
+  // REPAIR-01: subscriber restarted after successful re-pair
+  assert.ok(m._stopSubscriberCalls.includes('dev-1'), 'stopSubscriber should be called for dev-1');
+  assert.ok(m._startSubscriberCalls.some(c => c.id === 'dev-1'), 'startSubscriber should be called for dev-1');
+  assert.deepEqual(m._startSubscriberCalls[0].pairing, fakePairing, 'startSubscriber should receive updated pairing');
   // saveSettings should be called (lastRunResult persistence)
   assert.ok(m._saveSettingsCalls.length >= 1, 'saveSettings should be called for lastRunResult');
   const lastSaved = m._saveSettingsCalls[m._saveSettingsCalls.length - 1];
@@ -205,7 +212,7 @@ test('runRepairCycle() with needsRepair device calls resetSubscriberStats then d
   assert.equal(lastSaved.lastRunResult.targeted, 1);
 });
 
-test('runRepairCycle() with stale-only device calls resetSubscriberStats then stopSubscriber + startSubscriber', async () => {
+test('runRepairCycle() with stale-only device success resets stats and restarts subscriber (regression)', async () => {
   const { createRepairScheduler } = await import('../src/repair-scheduler.js');
 
   const fakePairing = { name: 'Device B', address: '10.0.0.2', port: 51234, longTermData: {} };
@@ -217,7 +224,8 @@ test('runRepairCycle() with stale-only device calls resetSubscriberStats then st
   const scheduler = createRepairScheduler(m);
   await scheduler.runRepairCycle();
 
-  assert.ok(m._resetStatsCalls.includes('dev-2'), 'resetSubscriberStats should be called for dev-2');
+  // REPAIR-02: resetSubscriberStats called on success only
+  assert.ok(m._resetStatsCalls.includes('dev-2'), 'resetSubscriberStats should be called for dev-2 on success');
   assert.ok(m._stopSubscriberCalls.includes('dev-2'), 'stopSubscriber should be called for dev-2');
   assert.ok(m._startSubscriberCalls.some(c => c.id === 'dev-2'), 'startSubscriber should be called for dev-2');
 });
@@ -346,4 +354,64 @@ test('runRepairCycle() persists lastRunResult even when a device repair throws',
   assert.ok(saved.lastRunAt != null, 'lastRunAt should be set after error');
   assert.ok(saved.lastRunResult != null, 'lastRunResult should be set after error');
   assert.equal(saved.lastRunResult.failed, 1, 'failed count should be 1');
+});
+
+// -- REPAIR-02 / REPAIR-03: stats reset only on success --
+
+test('runRepairCycle() with needsRepair device: discoverDevice throws does NOT reset stats', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+
+  const m = makeMocks({
+    getRepairTargets: () => [{ deviceId: 'dev-fail', pairingName: 'Fail Device', needsRepair: true, isStale: false }],
+    discoverDevice: async () => { throw new Error('timeout'); },
+  });
+
+  const scheduler = createRepairScheduler(m);
+  await scheduler.runRepairCycle();
+
+  assert.equal(m._resetStatsCalls.length, 0, 'resetSubscriberStats should NOT be called when repair throws');
+  assert.equal(m._stopSubscriberCalls.length, 0, 'stopSubscriber should NOT be called when repair throws');
+  assert.equal(m._startSubscriberCalls.length, 0, 'startSubscriber should NOT be called when repair throws');
+});
+
+test('runRepairCycle() with needsRepair device: discoverDevice returns null does NOT reset stats', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+
+  const m = makeMocks({
+    getRepairTargets: () => [{ deviceId: 'dev-notfound', pairingName: 'Missing Device', needsRepair: true, isStale: false }],
+    discoverDevice: async () => null,
+  });
+
+  const scheduler = createRepairScheduler(m);
+  await scheduler.runRepairCycle();
+
+  assert.equal(m._resetStatsCalls.length, 0, 'resetSubscriberStats should NOT be called when device not discoverable');
+  assert.equal(m._stopSubscriberCalls.length, 0, 'stopSubscriber should NOT be called when device not discoverable');
+  assert.equal(m._startSubscriberCalls.length, 0, 'startSubscriber should NOT be called when device not discoverable');
+  const saved = m._saveSettingsCalls[m._saveSettingsCalls.length - 1];
+  assert.equal(saved.lastRunResult.skipped, 1, 'skipped count should be 1');
+});
+
+test('runRepairCycle() with needsRepair device: no pairing after savePairing skips subscriber restart', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+
+  const fakeDiscovered = { address: '10.0.0.5', port: 51234 };
+  const m = makeMocks({
+    getRepairTargets: () => [{ deviceId: 'dev-nopair', pairingName: 'No Pairing Device', needsRepair: true, isStale: false }],
+    discoverDevice: async () => fakeDiscovered,
+    // loadPairings returns empty — pairing not found after save
+    loadPairings: () => ({}),
+  });
+
+  const scheduler = createRepairScheduler(m);
+  await scheduler.runRepairCycle();
+
+  // Stats reset and savePairing still occur
+  assert.ok(m._resetStatsCalls.includes('dev-nopair'), 'resetSubscriberStats should be called on address-update success');
+  assert.equal(m._savePairingCalls.length, 1, 'savePairing should be called');
+  // But subscriber restart is skipped because loadPairings returned nothing
+  assert.equal(m._stopSubscriberCalls.length, 0, 'stopSubscriber should NOT be called when pairing not found');
+  assert.equal(m._startSubscriberCalls.length, 0, 'startSubscriber should NOT be called when pairing not found');
+  const saved = m._saveSettingsCalls[m._saveSettingsCalls.length - 1];
+  assert.equal(saved.lastRunResult.repaired, 1, 'repaired count should still be 1');
 });
