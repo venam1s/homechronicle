@@ -117,6 +117,31 @@ Requirements for milestone v1.2 — UI Redesign.
 - [x] **RESP-01**: Sidebar auto-collapses to icon-only on narrow viewports
 - [x] **RESP-02**: Dashboard widgets reflow to single-column on mobile
 
+## v1.3 Requirements (In Progress)
+
+Requirements for milestone v1.3 — Repair Reliability Fixes.
+
+### Scheduled Repair — Subscriber Restart (Phase 18)
+
+- [x] **REPAIR-01
+**: The `needsRepair` success branch in `listener/src/repair-scheduler.js` `runRepairCycle()` calls `stopSubscriber(deviceId)` followed by `startSubscriber(deviceId, pairing, loadRooms(), getPairingForLookup)` after a successful `savePairing`. Net effect matches the `isStale` branch (lines 121–139) and the manual `POST /api/setup/repair/:deviceId` handler in `setup-router.js`.
+- [x] **REPAIR-02
+**: `resetSubscriberStats(deviceId)` is NOT called at the top of each `runRepairCycle` loop iteration. It is called only on a successful repair, inside the success block. On failure, `needsRepair` stays `true` so the dashboard Synced badge reflects real state.
+- [x] **REPAIR-03
+**: `listener/src/repair-scheduler.test.js` includes unit tests that assert:
+  - `needsRepair` success path invokes `stopSubscriber` then `startSubscriber` exactly once per repaired device
+  - `needsRepair` failure path does NOT clear `needsRepair` (no `resetSubscriberStats` call)
+  - `isStale` success path continues to invoke `stopSubscriber` + `startSubscriber` (regression guard)
+
+### Scheduled Repair — Full Re-Pair Capability (Phase 19)
+
+- [ ] **REPAIR-04**: When `needsRepair === true`, the scheduler performs a full `pairSetup()` using `hap-controller`, not just an address/port refresh via `savePairingForRepair`. Successful pairing produces new `longTermData` that replaces the stored (rejected) data, matching the manual `POST /api/setup/repair/:deviceId` flow.
+- [ ] **REPAIR-05**: The scheduler reads the device's stored PIN from the PIN vault (same mechanism used by the manual repair endpoint). Devices that have `needsRepair === true` but no stored PIN are skipped and logged at `warn` level with the device name; they do NOT count as `failed` or trip the scheduler's error handling.
+- [ ] **REPAIR-06**: `listener/src/repair-scheduler.test.js` adds tests that assert:
+  - pairSetup success path with a stored PIN writes new `longTermData` to pairings and restarts the subscriber
+  - skip path (no stored PIN) emits a `warn` log and leaves the pairing record untouched
+  - pairSetup failure (wrong PIN / device unreachable) leaves `needsRepair === true` and does NOT restart the subscriber
+
 ## Future Requirements
 
 Deferred to future milestones.
@@ -183,6 +208,22 @@ Deferred to future milestones.
 - Mapped to phases: 23 (7 also assigned to gap closure phases 16-17)
 - Unmapped: 0
 
+### v1.3 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| REPAIR-01 | Phase 18 | Pending |
+| REPAIR-02 | Phase 18 | Pending |
+| REPAIR-03 | Phase 18 | Pending |
+| REPAIR-04 | Phase 19 | Pending |
+| REPAIR-05 | Phase 19 | Pending |
+| REPAIR-06 | Phase 19 | Pending |
+
+**Coverage:**
+- v1.3 requirements: 6 total
+- Mapped to phases: 6
+- Unmapped: 0
+
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-15 after Phase 16 verification sweep*
+*Last updated: 2026-04-20 — v1.3 Repair Reliability Fixes milestone started*
