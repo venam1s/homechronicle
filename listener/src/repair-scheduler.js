@@ -99,8 +99,6 @@ export function createRepairScheduler({
       }
 
       for (const target of targets) {
-        resetSubscriberStats(target.deviceId);
-
         if (target.needsRepair) {
           // Re-pair path: discover device and save new pairing
           log.info(`[repair] ${target.pairingName}: re-pairing...`);
@@ -108,6 +106,13 @@ export function createRepairScheduler({
             const discovered = await discoverDevice(target.deviceId);
             if (discovered) {
               await savePairing(target.deviceId, discovered);
+              resetSubscriberStats(target.deviceId);
+              const pairings = loadPairings();
+              const pairing = pairings[target.deviceId] ?? null;
+              if (pairing) {
+                stopSubscriber(target.deviceId);
+                startSubscriber(target.deviceId, pairing, loadRooms(), getPairingForLookup);
+              }
               repaired++;
               log.info(`[repair] ${target.pairingName}: repaired successfully`);
             } else {
@@ -128,6 +133,7 @@ export function createRepairScheduler({
               skipped++;
               log.info(`[repair] ${target.pairingName}: no pairing found, skipped`);
             } else {
+              resetSubscriberStats(target.deviceId);
               stopSubscriber(target.deviceId);
               startSubscriber(target.deviceId, pairing, loadRooms(), getPairingForLookup);
               repaired++;
