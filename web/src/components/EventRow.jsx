@@ -39,13 +39,20 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
   // Third meta row is shown only when there's something worth displaying
   const showMetaRow = gap || anomalyLabel || (dayTotal > 1 && rank) || marker === 'first' || marker === 'last' || marker === 'only';
 
+  const isClickable = Boolean(onSelectAccessory && event.accessory_id);
+  const handleRowActivate = () => { if (isClickable) onSelectAccessory(event.accessory_id); };
+
   return (
     <div
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={isClickable ? handleRowActivate : undefined}
+      onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowActivate(); } } : undefined}
       className={`group flex items-start gap-3 py-3 px-4 transition-all relative ${
         isHighlighted ? 'bg-blue-50'
         : isDimmed    ? 'opacity-40'
         : 'hover:bg-hc-panel-mid'
-      }`}
+      } ${isClickable ? 'cursor-pointer' : ''}`}
       style={isHighlighted ? { boxShadow: `inset 3px 0 0 0 rgba(var(--hc-accent-rgb), 0.65)` } : undefined}
     >
       <div className="flex-1 min-w-0">

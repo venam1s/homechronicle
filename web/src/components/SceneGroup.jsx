@@ -18,7 +18,10 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
   // ── Single event — render a plain EventRow ──────────────────────────────
   if (events.length === 1) {
     return (
-      <div data-scene-id={events[0].id}>
+      <div
+        data-scene-id={events[0].id}
+        className="hc-scene-card mx-3 my-2 rounded-lg overflow-hidden"
+      >
         <EventRow
           event={events[0]}
           hoveredCell={hoveredCell}
@@ -113,6 +116,7 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
                   hoveredCell={hoveredCell}
                   meta={eventMetaMap[event.id] ?? {}}
                   onMute={onMute}
+                  onSelectAccessory={onSelectAccessory}
                 />
               ))}
             </div>

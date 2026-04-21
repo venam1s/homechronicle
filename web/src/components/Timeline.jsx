@@ -11,7 +11,6 @@ import { formatGap } from '../lib/icons.js';
 import EpisodeGroup from './EpisodeGroup.jsx';
 import SceneGroup from './SceneGroup.jsx';
 import FilterBar from './FilterBar.jsx';
-import Card from './Card.jsx';
 
 const PAGE_SIZE = 50;
 
@@ -303,22 +302,18 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <Card>
-        <Card.Body compact>
-          <FilterBar
-            filters={filters}
-            onChange={handleFilterChange}
-            open={filtersOpen}
-            onToggle={() => setFiltersOpen((o) => !o)}
-            heatmapOpen={heatmapOpen}
-            onHeatmapToggle={() => { setHeatmapOpen((o) => !o); setLockedCell(null); }}
-            onHoverCell={handleHoverCell}
-            onHoverEnd={() => setHoveredCell(null)}
-            onClickCell={handleClickCell}
-            lockedCell={lockedCell}
-          />
-        </Card.Body>
-      </Card>
+      <FilterBar
+        filters={filters}
+        onChange={handleFilterChange}
+        open={filtersOpen}
+        onToggle={() => setFiltersOpen((o) => !o)}
+        heatmapOpen={heatmapOpen}
+        onHeatmapToggle={() => { setHeatmapOpen((o) => !o); setLockedCell(null); }}
+        onHoverCell={handleHoverCell}
+        onHoverEnd={() => setHoveredCell(null)}
+        onClickCell={handleClickCell}
+        lockedCell={lockedCell}
+      />
 
       {/* Locked-cell banner — shows when a heatmap cell has been clicked */}
       {lockedCell && (
@@ -412,29 +407,25 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
                 <div className="space-y-3">
                   {groupScenesIntoEpisodes(groupIntoScenes(events, { sceneWindowMs }), { episodeWindowMs, episodeMinEventCount }).map((entry) => (
                     entry.kind === 'episode' ? (
-                      <Card key={entry.scenes[0][0].id}>
-                        <Card.Body>
-                          <EpisodeGroup
-                            episode={entry.episode}
-                            scenes={entry.scenes}
-                            eventMetaMap={eventMetaMap}
-                            hoveredCell={activeCell}
-                            onMute={mute}
-                          />
-                        </Card.Body>
-                      </Card>
+                      <EpisodeGroup
+                        key={entry.scenes[0][0].id}
+                        episode={entry.episode}
+                        scenes={entry.scenes}
+                        eventMetaMap={eventMetaMap}
+                        hoveredCell={activeCell}
+                        onMute={mute}
+                        onSelectAccessory={onSelectAccessory}
+                      />
                     ) : (
                       entry.scenes.map((group) => (
-                        <Card key={group[0].id}>
-                          <Card.Body>
-                            <SceneGroup
-                              events={group}
-                              eventMetaMap={eventMetaMap}
-                              hoveredCell={activeCell}
-                              onMute={mute}
-                            />
-                          </Card.Body>
-                        </Card>
+                        <SceneGroup
+                          key={group[0].id}
+                          events={group}
+                          eventMetaMap={eventMetaMap}
+                          hoveredCell={activeCell}
+                          onMute={mute}
+                          onSelectAccessory={onSelectAccessory}
+                        />
                       ))
                     )
                   ))}

@@ -49,6 +49,8 @@ export default function App() {
   const gridCols = isMobile ? '1fr' : (effectiveCollapsed ? '56px 1fr' : '240px 1fr');
 
   const { data: retentionConfig } = useQuery({ queryKey: ['setup', 'retention'], queryFn: () => fetchJson('/api/setup/retention'), staleTime: 30_000 });
+  const { data: alertsConfig } = useQuery({ queryKey: ['setup', 'alerts'], queryFn: () => fetchJson('/api/setup/alerts'), staleTime: 30_000 });
+  const alertsEnabled = Boolean(alertsConfig?.enabled);
   const { configure: configureToasts } = useToast();
   const { update: availableUpdate, dismiss: dismissUpdate } = useUpdateCheck(__BUILD_VERSION__);
 
@@ -65,6 +67,11 @@ export default function App() {
   useEffect(() => {
     if (!isMobile) setDrawerOpen(false);
   }, [isMobile]);
+
+  // Bounce off the alerts page if webhook alerts get disabled
+  useEffect(() => {
+    if (alertsConfig && !alertsEnabled && activePage === 'alerts') setActivePage('dashboard');
+  }, [alertsConfig, alertsEnabled, activePage]);
 
   const handleSelectAccessory = useCallback((id) => {
     if (!id) return;
@@ -143,6 +150,7 @@ export default function App() {
               buildVersion={__BUILD_VERSION__}
               availableUpdate={availableUpdate}
               onDismissUpdate={dismissUpdate}
+              alertsEnabled={alertsEnabled}
             />
           </div>
         </>
@@ -162,6 +170,7 @@ export default function App() {
             buildVersion={__BUILD_VERSION__}
             availableUpdate={availableUpdate}
             onDismissUpdate={dismissUpdate}
+            alertsEnabled={alertsEnabled}
           />
         )}
         <main className={clsx('overflow-y-auto', isMobile && 'pt-12')}>

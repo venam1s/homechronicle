@@ -15,7 +15,7 @@ function getEpisodeIcon(kind) {
   }
 }
 
-export default memo(function EpisodeGroup({ episode, scenes, eventMetaMap, hoveredCell, onMute }) {
+export default memo(function EpisodeGroup({ episode, scenes, eventMetaMap, hoveredCell, onMute, onSelectAccessory }) {
   const [expanded, setExpanded] = useState(false);
   const events = scenes.flat();
   const Icon = getEpisodeIcon(episode.kind);
@@ -67,6 +67,7 @@ export default memo(function EpisodeGroup({ episode, scenes, eventMetaMap, hover
               eventMetaMap={eventMetaMap}
               hoveredCell={hoveredCell}
               onMute={onMute}
+              onSelectAccessory={onSelectAccessory}
             />
           ))}
         </div>
