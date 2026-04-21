@@ -117,7 +117,7 @@ Requirements for milestone v1.2 — UI Redesign.
 - [x] **RESP-01**: Sidebar auto-collapses to icon-only on narrow viewports
 - [x] **RESP-02**: Dashboard widgets reflow to single-column on mobile
 
-## v1.3 Requirements (In Progress)
+## v1.3 Requirements (Complete)
 
 Requirements for milestone v1.3 — Repair Reliability Fixes.
 
@@ -215,12 +215,12 @@ Deferred to future milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REPAIR-01 | Phase 18 | Pending |
-| REPAIR-02 | Phase 18 | Pending |
-| REPAIR-03 | Phase 18 | Pending |
-| REPAIR-04 | Phase 19 | Pending |
-| REPAIR-05 | Phase 19 | Pending |
-| REPAIR-06 | Phase 19 | Pending |
+| REPAIR-01 | Phase 18 | Complete |
+| REPAIR-02 | Phase 18 | Complete |
+| REPAIR-03 | Phase 18 | Complete |
+| REPAIR-04 | Phase 19 | Complete |
+| REPAIR-05 | Phase 19 | Complete |
+| REPAIR-06 | Phase 19 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 6 total
@@ -229,4 +229,4 @@ Deferred to future milestones.
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-20 — v1.3 Repair Reliability Fixes milestone started*
+*Last updated: 2026-04-21 — v1.3 Repair Reliability Fixes milestone complete (REPAIR-01..06 verified)*
