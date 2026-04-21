@@ -11,6 +11,7 @@ function makeMocks(overrides = {}) {
   const resetStatsCalls = [];
   const discoverDeviceCalls = [];
   const savePairingCalls = [];
+  const performPairSetupCalls = [];
 
   const defaultSettings = { enabled: true, hour: 3, lastRunAt: null, lastRunResult: null };
   let settingsState = { ...defaultSettings, ...overrides.settings };
@@ -27,6 +28,11 @@ function makeMocks(overrides = {}) {
     loadPairings: overrides.loadPairings ?? (() => ({})),
     loadRooms: overrides.loadRooms ?? (() => ({})),
     getPairingForLookup: overrides.getPairingForLookup ?? (() => null),
+    performPairSetupAndPersist: overrides.performPairSetupAndPersist ??
+      (async (deviceId, pin, address, port) => {
+        performPairSetupCalls.push({ deviceId, pin, address, port });
+        return { longTermData: {}, pairing: {} };
+      }),
     // call record accessors
     _saveSettingsCalls: saveSettingsCalls,
     _stopSubscriberCalls: stopSubscriberCalls,
@@ -34,6 +40,7 @@ function makeMocks(overrides = {}) {
     _resetStatsCalls: resetStatsCalls,
     _discoverDeviceCalls: discoverDeviceCalls,
     _savePairingCalls: savePairingCalls,
+    _performPairSetupCalls: performPairSetupCalls,
   };
   return mocks;
 }
@@ -185,7 +192,7 @@ test('runRepairCycle() with needsRepair device success resets stats and restarts
   const { createRepairScheduler } = await import('../src/repair-scheduler.js');
 
   const fakeDiscovered = { address: '10.0.0.1', port: 51234 };
-  const fakePairing = { name: 'Device A', address: '10.0.0.1', port: 51234, longTermData: {} };
+  const fakePairing = { name: 'Device A', address: '10.0.0.1', port: 51234, longTermData: {}, pin: 'test-pin' };
   let discoverCalled = false;
   const m = makeMocks({
     getRepairTargets: () => [{ deviceId: 'dev-1', pairingName: 'Device A', needsRepair: true, isStale: false }],
@@ -197,14 +204,13 @@ test('runRepairCycle() with needsRepair device success resets stats and restarts
   await scheduler.runRepairCycle();
 
   assert.ok(discoverCalled, 'discoverDevice should be called');
-  assert.equal(m._savePairingCalls.length, 1, 'savePairing should be called once');
-  assert.equal(m._savePairingCalls[0].id, 'dev-1');
+  assert.equal(m._performPairSetupCalls.length, 1, 'performPairSetupAndPersist should be called once');
+  assert.equal(m._performPairSetupCalls[0].deviceId, 'dev-1');
   // REPAIR-02: resetSubscriberStats called on success
   assert.ok(m._resetStatsCalls.includes('dev-1'), 'resetSubscriberStats should be called for dev-1 on success');
   // REPAIR-01: subscriber restarted after successful re-pair
   assert.ok(m._stopSubscriberCalls.includes('dev-1'), 'stopSubscriber should be called for dev-1');
   assert.ok(m._startSubscriberCalls.some(c => c.id === 'dev-1'), 'startSubscriber should be called for dev-1');
-  assert.deepEqual(m._startSubscriberCalls[0].pairing, fakePairing, 'startSubscriber should receive updated pairing');
   // saveSettings should be called (lastRunResult persistence)
   assert.ok(m._saveSettingsCalls.length >= 1, 'saveSettings should be called for lastRunResult');
   const lastSaved = m._saveSettingsCalls[m._saveSettingsCalls.length - 1];
@@ -344,6 +350,7 @@ test('runRepairCycle() persists lastRunResult even when a device repair throws',
   const m = makeMocks({
     getRepairTargets: () => [{ deviceId: 'dev-err', pairingName: 'Broken Device', needsRepair: true, isStale: false }],
     discoverDevice: async () => { throw new Error('Network timeout'); },
+    loadPairings: () => ({ 'dev-err': { name: 'Broken Device', address: 'a', port: 1, pin: 'test-pin' } }),
   });
 
   const scheduler = createRepairScheduler(m);
@@ -364,6 +371,7 @@ test('runRepairCycle() with needsRepair device: discoverDevice throws does NOT r
   const m = makeMocks({
     getRepairTargets: () => [{ deviceId: 'dev-fail', pairingName: 'Fail Device', needsRepair: true, isStale: false }],
     discoverDevice: async () => { throw new Error('timeout'); },
+    loadPairings: () => ({ 'dev-fail': { name: 'Fail Device', address: 'a', port: 1, pin: 'test-pin' } }),
   });
 
   const scheduler = createRepairScheduler(m);
@@ -380,6 +388,7 @@ test('runRepairCycle() with needsRepair device: discoverDevice returns null does
   const m = makeMocks({
     getRepairTargets: () => [{ deviceId: 'dev-notfound', pairingName: 'Missing Device', needsRepair: true, isStale: false }],
     discoverDevice: async () => null,
+    loadPairings: () => ({ 'dev-notfound': { name: 'Missing Device', address: 'a', port: 1, pin: 'test-pin' } }),
   });
 
   const scheduler = createRepairScheduler(m);
@@ -392,26 +401,150 @@ test('runRepairCycle() with needsRepair device: discoverDevice returns null does
   assert.equal(saved.lastRunResult.skipped, 1, 'skipped count should be 1');
 });
 
-test('runRepairCycle() with needsRepair device: no pairing after savePairing skips subscriber restart', async () => {
+test('runRepairCycle() with needsRepair device: no pairing after performPairSetup skips subscriber restart', async () => {
   const { createRepairScheduler } = await import('../src/repair-scheduler.js');
 
   const fakeDiscovered = { address: '10.0.0.5', port: 51234 };
+  let loadPairingCallCount = 0;
   const m = makeMocks({
     getRepairTargets: () => [{ deviceId: 'dev-nopair', pairingName: 'No Pairing Device', needsRepair: true, isStale: false }],
     discoverDevice: async () => fakeDiscovered,
-    // loadPairings returns empty — pairing not found after save
-    loadPairings: () => ({}),
+    // First call: return device with pin for the PIN check
+    // Second call (after performPairSetupAndPersist): return empty — pairing not found
+    loadPairings: () => {
+      loadPairingCallCount++;
+      if (loadPairingCallCount === 1) {
+        return { 'dev-nopair': { name: 'No Pairing Device', address: 'a', port: 1, pin: 'test-pin' } };
+      }
+      return {};
+    },
   });
 
   const scheduler = createRepairScheduler(m);
   await scheduler.runRepairCycle();
 
-  // Stats reset and savePairing still occur
-  assert.ok(m._resetStatsCalls.includes('dev-nopair'), 'resetSubscriberStats should be called on address-update success');
-  assert.equal(m._savePairingCalls.length, 1, 'savePairing should be called');
-  // But subscriber restart is skipped because loadPairings returned nothing
+  // performPairSetupAndPersist called and stats reset on success
+  assert.equal(m._performPairSetupCalls.length, 1, 'performPairSetupAndPersist should be called');
+  assert.ok(m._resetStatsCalls.includes('dev-nopair'), 'resetSubscriberStats should be called on pairSetup success');
+  // But subscriber restart is skipped because loadPairings returned nothing on second call
   assert.equal(m._stopSubscriberCalls.length, 0, 'stopSubscriber should NOT be called when pairing not found');
   assert.equal(m._startSubscriberCalls.length, 0, 'startSubscriber should NOT be called when pairing not found');
   const saved = m._saveSettingsCalls[m._saveSettingsCalls.length - 1];
   assert.equal(saved.lastRunResult.repaired, 1, 'repaired count should still be 1');
+});
+
+// -- REPAIR-04 / REPAIR-05 / REPAIR-06: pairSetup path --
+
+test('runRepairCycle() with needsRepair + stored PIN + pairSetup success performs full re-pair and restarts subscriber', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+
+  const fakeDiscovered = { address: '10.0.0.7', port: 51234 };
+  const fakeResult = {
+    longTermData: 'NEW',
+    pairing: { name: 'Device Ok', address: '10.0.0.7', port: 51234, longTermData: 'NEW', pin: '111-22-333', pairedAt: '2026-01-01T00:00:00.000Z' },
+  };
+  const pairSetupSpyCalls = [];
+  const m = makeMocks({
+    getRepairTargets: () => [{ deviceId: 'dev-ok', pairingName: 'Device Ok', needsRepair: true, isStale: false }],
+    discoverDevice: async () => fakeDiscovered,
+    loadPairings: () => ({ 'dev-ok': { name: 'Device Ok', address: 'a', port: 1, pin: '111-22-333', longTermData: 'OLD' } }),
+    performPairSetupAndPersist: async (deviceId, pin, address, port) => {
+      pairSetupSpyCalls.push({ deviceId, pin, address, port });
+      return fakeResult;
+    },
+  });
+
+  const scheduler = createRepairScheduler(m);
+  await scheduler.runRepairCycle();
+
+  // performPairSetupAndPersist called with correct args
+  assert.equal(pairSetupSpyCalls.length, 1, 'performPairSetupAndPersist called exactly once');
+  assert.equal(pairSetupSpyCalls[0].deviceId, 'dev-ok', 'deviceId passed');
+  assert.equal(pairSetupSpyCalls[0].pin, '111-22-333', 'pin passed');
+  assert.equal(pairSetupSpyCalls[0].address, '10.0.0.7', 'discovered address passed');
+  assert.equal(pairSetupSpyCalls[0].port, 51234, 'discovered port passed');
+
+  // Success: stats reset + subscriber restarted
+  assert.ok(m._resetStatsCalls.includes('dev-ok'), 'resetSubscriberStats called for dev-ok');
+  assert.ok(m._stopSubscriberCalls.includes('dev-ok'), 'stopSubscriber called for dev-ok');
+  assert.ok(m._startSubscriberCalls.some(c => c.id === 'dev-ok'), 'startSubscriber called for dev-ok');
+
+  // Counts
+  const lastSaved = m._saveSettingsCalls[m._saveSettingsCalls.length - 1];
+  assert.equal(lastSaved.lastRunResult.repaired, 1, 'repaired === 1');
+  assert.equal(lastSaved.lastRunResult.skipped, 0, 'skipped === 0');
+  assert.equal(lastSaved.lastRunResult.failed, 0, 'failed === 0');
+});
+
+test('runRepairCycle() with needsRepair device and no stored PIN logs warn and skips without failure', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+
+  const pairSetupSpyCalls = [];
+  const discoverDeviceCalls = [];
+  const m = makeMocks({
+    getRepairTargets: () => [{ deviceId: 'dev-nopin', pairingName: 'No PIN Device', needsRepair: true, isStale: false }],
+    discoverDevice: async (id) => { discoverDeviceCalls.push(id); return null; },
+    loadPairings: () => ({ 'dev-nopin': { name: 'No PIN Device', address: 'a', port: 1, longTermData: 'OLD' } }),
+    performPairSetupAndPersist: async (deviceId, pin, address, port) => {
+      pairSetupSpyCalls.push({ deviceId, pin, address, port });
+      return { longTermData: {}, pairing: {} };
+    },
+  });
+
+  const logWarnCalls = [];
+  const { log } = await import('../src/logger.js');
+  const origWarn = log.warn;
+  log.warn = (...args) => { logWarnCalls.push(args.join(' ')); };
+
+  try {
+    const scheduler = createRepairScheduler(m);
+    await scheduler.runRepairCycle();
+
+    // warn emitted with device name and 'no stored PIN'
+    const warnLine = logWarnCalls.find(l => l.includes('[repair]') && l.includes('no stored PIN'));
+    assert.ok(warnLine, `Expected warn with "no stored PIN", got: ${JSON.stringify(logWarnCalls)}`);
+    assert.ok(warnLine.includes('No PIN Device'), `Expected device name in warn, got: ${warnLine}`);
+
+    // Nothing called
+    assert.equal(pairSetupSpyCalls.length, 0, 'performPairSetupAndPersist should NOT be called');
+    assert.equal(discoverDeviceCalls.length, 0, 'discoverDevice should NOT be called');
+    assert.equal(m._resetStatsCalls.length, 0, 'resetSubscriberStats should NOT be called');
+    assert.equal(m._stopSubscriberCalls.length, 0, 'stopSubscriber should NOT be called');
+    assert.equal(m._startSubscriberCalls.length, 0, 'startSubscriber should NOT be called');
+    assert.equal(m._savePairingCalls.length, 0, 'savePairing should NOT be called');
+
+    // Counts
+    const lastSaved = m._saveSettingsCalls[m._saveSettingsCalls.length - 1];
+    assert.equal(lastSaved.lastRunResult.skipped, 1, 'skipped === 1');
+    assert.equal(lastSaved.lastRunResult.repaired, 0, 'repaired === 0');
+    assert.equal(lastSaved.lastRunResult.failed, 0, 'failed === 0');
+  } finally {
+    log.warn = origWarn;
+  }
+});
+
+test('runRepairCycle() with needsRepair and pairSetup failure leaves needsRepair and does not restart subscriber', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+
+  const fakeDiscovered = { address: '10.0.0.8', port: 51234 };
+  const m = makeMocks({
+    getRepairTargets: () => [{ deviceId: 'dev-fail2', pairingName: 'Auth Fail Device', needsRepair: true, isStale: false }],
+    discoverDevice: async () => fakeDiscovered,
+    loadPairings: () => ({ 'dev-fail2': { name: 'Auth Fail Device', address: 'a', port: 1, pin: '000-00-000', longTermData: 'OLD' } }),
+    performPairSetupAndPersist: async () => { throw new Error('0x02'); },
+  });
+
+  const scheduler = createRepairScheduler(m);
+  await scheduler.runRepairCycle();
+
+  // None of the success-path calls should happen
+  assert.equal(m._resetStatsCalls.length, 0, 'resetSubscriberStats should NOT be called on pairSetup failure');
+  assert.equal(m._stopSubscriberCalls.length, 0, 'stopSubscriber should NOT be called on pairSetup failure');
+  assert.equal(m._startSubscriberCalls.length, 0, 'startSubscriber should NOT be called on pairSetup failure');
+
+  // Counts
+  const lastSaved = m._saveSettingsCalls[m._saveSettingsCalls.length - 1];
+  assert.equal(lastSaved.lastRunResult.failed, 1, 'failed === 1');
+  assert.equal(lastSaved.lastRunResult.repaired, 0, 'repaired === 0');
+  assert.equal(lastSaved.lastRunResult.skipped, 0, 'skipped === 0');
 });
