@@ -13,7 +13,7 @@ function relativeTime(isoTimestamp) {
   return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(date);
 }
 
-export default function ActivityFeed({ onSelectAccessory, onViewAll }) {
+export default function ActivityFeed({ onNavigateToAccessory, onViewAll }) {
   const { data, isLoading } = useEvents({}, 1, 20);
   const events = data?.events ?? [];
 
@@ -99,9 +99,9 @@ export default function ActivityFeed({ onSelectAccessory, onViewAll }) {
               key={event.id}
               role="button"
               tabIndex={0}
-              onClick={() => onSelectAccessory?.(event.accessory_id)}
+              onClick={() => onNavigateToAccessory?.(event.accessory_name)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectAccessory?.(event.accessory_id); }
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigateToAccessory?.(event.accessory_name); }
               }}
               className="py-2 px-3 hover:bg-hc-panel-mid cursor-pointer flex items-center gap-2 text-hc-body"
             >

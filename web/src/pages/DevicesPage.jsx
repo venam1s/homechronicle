@@ -17,7 +17,7 @@ export default function DevicesPage({ onSelectAccessory }) {
   const setup = useSetup();
 
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
+    <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
       <div className="mb-6">
         <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Devices</h1>
       </div>

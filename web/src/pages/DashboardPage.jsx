@@ -144,7 +144,7 @@ export default function DashboardPage({
 
       {/* Live activity feed */}
       <ActivityFeed
-        onSelectAccessory={onSelectAccessory}
+        onNavigateToAccessory={onNavigateToAccessory}
         onViewAll={() => onNavigateToAccessory?.(null)}
       />
 
