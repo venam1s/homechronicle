@@ -135,9 +135,12 @@ Requirements for milestone v1.3 — Repair Reliability Fixes.
 
 ### Scheduled Repair — Full Re-Pair Capability (Phase 19)
 
-- [ ] **REPAIR-04**: When `needsRepair === true`, the scheduler performs a full `pairSetup()` using `hap-controller`, not just an address/port refresh via `savePairingForRepair`. Successful pairing produces new `longTermData` that replaces the stored (rejected) data, matching the manual `POST /api/setup/repair/:deviceId` flow.
-- [ ] **REPAIR-05**: The scheduler reads the device's stored PIN from the PIN vault (same mechanism used by the manual repair endpoint). Devices that have `needsRepair === true` but no stored PIN are skipped and logged at `warn` level with the device name; they do NOT count as `failed` or trip the scheduler's error handling.
-- [ ] **REPAIR-06**: `listener/src/repair-scheduler.test.js` adds tests that assert:
+- [x] **REPAIR-04
+**: When `needsRepair === true`, the scheduler performs a full `pairSetup()` using `hap-controller`, not just an address/port refresh via `savePairingForRepair`. Successful pairing produces new `longTermData` that replaces the stored (rejected) data, matching the manual `POST /api/setup/repair/:deviceId` flow.
+- [x] **REPAIR-05
+**: The scheduler reads the device's stored PIN from the PIN vault (same mechanism used by the manual repair endpoint). Devices that have `needsRepair === true` but no stored PIN are skipped and logged at `warn` level with the device name; they do NOT count as `failed` or trip the scheduler's error handling.
+- [x] **REPAIR-06
+**: `listener/src/repair-scheduler.test.js` adds tests that assert:
   - pairSetup success path with a stored PIN writes new `longTermData` to pairings and restarts the subscriber
   - skip path (no stored PIN) emits a `warn` log and leaves the pairing record untouched
   - pairSetup failure (wrong PIN / device unreachable) leaves `needsRepair === true` and does NOT restart the subscriber

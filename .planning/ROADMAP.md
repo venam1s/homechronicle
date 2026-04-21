@@ -5,7 +5,7 @@
 - ✅ **v1.0 Code Health** — Phases 1-7 (shipped 2026-04-06)
 - ✅ **v1.1 Scheduled Repair** — Phases 8-9 (shipped 2026-04-08)
 - ✅ **v1.2 UI Redesign** — Phases 10-17 (shipped 2026-04-16)
-- 🚧 **v1.3 Repair Reliability Fixes** — Phases 18-19 (started 2026-04-20)
+- ✅ **v1.3 Repair Reliability Fixes** — Phases 18-19 (shipped 2026-04-21)
 
 ## Phases
 
@@ -84,6 +84,9 @@ See `milestones/v1.2-ROADMAP.md` for full details.
 
 **Depends on:** Phase 18 (subscriber-restart primitive must be in place)
 
+**Plans:** 1 plan
+- [x] 19-01-PLAN.md — Extract pair-and-persist helper; wire pairSetup path into scheduler with no-PIN skip + tests (completed 2026-04-21)
+
 **Scope:**
 - `listener/src/repair-scheduler.js` — call `pairSetup()` via `hap-controller` in `needsRepair` branch using PIN from vault; fall back to warning skip when no PIN is stored
 - PIN-vault read path (reuse whatever `setup-router.js` manual repair uses — no new vault APIs)
@@ -104,4 +107,4 @@ See `milestones/v1.2-ROADMAP.md` for full details.
 | 8-9 | v1.1 | 3/3 | Complete | 2026-04-08 |
 | 10-17 | v1.2 | 25/25 | Complete | 2026-04-16 |
 | 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
-| 19 | v1.3 | 0/0 | Not started | — |
+| 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
