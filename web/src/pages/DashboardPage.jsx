@@ -89,12 +89,6 @@ export default function DashboardPage({
         </button>
       </div>
 
-      {/* Live activity feed */}
-      <ActivityFeed
-        onNavigateToAccessory={onNavigateToAccessory}
-        onViewAll={() => onNavigateToAccessory?.(null)}
-      />
-
       {/* Full-width trend chart */}
       <Card>
         <Card.Body>
@@ -105,8 +99,8 @@ export default function DashboardPage({
         </Card.Body>
       </Card>
 
-      {/* Room breakdown */}
-      <RoomBreakdown onSelectRoom={onSelectRoom} />
+      {/* Quiet hours */}
+      <QuietHoursPanel onNavigateToAccessory={onNavigateToAccessory} />
 
       {/* 2-col: hourly activity + room breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -148,8 +142,14 @@ export default function DashboardPage({
         </Card>
       </div>
 
-      {/* Quiet hours */}
-      <QuietHoursPanel onNavigateToAccessory={onNavigateToAccessory} />
+      {/* Live activity feed */}
+      <ActivityFeed
+        onNavigateToAccessory={onNavigateToAccessory}
+        onViewAll={() => onNavigateToAccessory?.(null)}
+      />
+
+      {/* Room breakdown */}
+      <RoomBreakdown onSelectRoom={onSelectRoom} />
 
       {/* 2-col: active outliers + stale devices */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
