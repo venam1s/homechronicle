@@ -23,6 +23,7 @@ import { createAccessoriesRouter } from './accessories-router.js';
 import { createHealthRouter } from './health-router.js';
 import { createSetupRouter } from './setup-router.js';
 import { createRepairScheduler } from './repair-scheduler.js';
+import { performPairSetupAndPersist } from './repair-helpers.js';
 import { createRepairRouter } from './repair-router.js';
 import { createAlertsSettingsRouter } from './alerts-settings-router.js';
 import { setAlertsEnabledFn } from './subscriber.js';
@@ -285,6 +286,11 @@ const repairScheduler = createRepairScheduler({
   loadPairings: () => pairingsStore.getSnapshot(),
   loadRooms: () => roomsStore.getSnapshot(),
   getPairingForLookup: (id) => pairingsStore.getSnapshot()[id] ?? null,
+  performPairSetupAndPersist: (deviceId, pin, address, port) =>
+    performPairSetupAndPersist(
+      { deviceId, pin, address, port },
+      { HttpClient, loadPairings, savePairings },
+    ),
 });
 repairScheduler.start();
 
