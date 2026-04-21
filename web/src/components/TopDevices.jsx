@@ -99,7 +99,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
                 <div className="text-sm text-hc-fg truncate leading-tight">{device.accessory_name}</div>
                 {device.room_name && (
                   <span
-                    className="text-[10px] px-1 py-px rounded-full font-medium"
+                    className="text-[11px] px-1.5 py-px rounded-full font-semibold"
                     style={roomColor
                       ? { backgroundColor: roomColor.bg, color: roomColor.text }
                       : { color: 'var(--hc-room-fallback)' }}

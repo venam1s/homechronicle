@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   BarChart2, Monitor, LayoutList, Bell, Settings,
-  ChevronLeft, ChevronRight, Paintbrush2, Sun, Moon,
+  ChevronLeft, ChevronRight, Paintbrush2, Sun, Moon, SunMoon,
   ExternalLink, Sparkles, ArrowUpCircle,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -68,10 +68,10 @@ function getThemeToggleLabel(preference) {
   return 'Switch to system mode';
 }
 
-function ThemeIcon({ preference }) {
-  if (preference === 'light') return <Sun size={20} />;
-  if (preference === 'dark') return <Moon size={20} />;
-  return <Sun size={20} />;
+function ThemeIcon({ preference, size = 20 }) {
+  if (preference === 'light') return <Sun size={size} />;
+  if (preference === 'dark') return <Moon size={size} />;
+  return <SunMoon size={size} />;
 }
 
 // -- Sidebar component --
