@@ -2,6 +2,32 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.1.9] — 2026-04-28
+
+### Added
+- **Scheduled repair now fully recovers paired devices** — when a HomeKit device's stored credentials get rejected (the most common cause of "stale" status), the daily scheduled repair now performs a full re-pair using the stored PIN and resumes event logging without needing to click "Repair All" in the UI. Devices without a stored PIN are skipped with a warning rather than failing the cycle.
+- **Original dashboard KPI cards restored** — Events Today, This Week, Top Device, and Top Room are back as the headline metrics, all describing the same window (today + weekly leaders) regardless of dashboard range toggle.
+- **Clickable rows throughout** — live activity feed entries and quiet-hours rows on the dashboard navigate to filtered Timeline / Accessory Detail.
+- **Devices page widened** for better readability of long device lists.
+
+### Changed
+- **Device health is now connection-aware** — the "everything stale after a few days" symptom is fixed. Health now treats a live HomeKit subscription as itself a heartbeat, so quiet-but-connected sensors (a temperature sensor not crossing a delta, an unused switch) correctly stay "online" instead of false-flagging as stale.
+- **Daily repair cycle leaner** — the scheduler no longer needlessly tears down healthy long-lived connections; only acts on devices that are actually offline or broken.
+- **TOP DEVICE / TOP ROOM cards labeled "(7d)"** — explicit qualifier so the window is clear next to today's KPIs.
+- **Timeline visual chrome flatter**, room badge contrast fixed, system-theme icon corrected, dashboard section ordering refined.
+
+### Fixed
+- **THIS WEEK KPI was wrong on 30d/90d windows** — was summing the dashboard range total under a "last 7 days" label. Now uses 7 days exactly.
+- **Timeline row keyboard navigation broken** — nested clickable elements produced 3 tab-stops per row and confused screen readers. Cleaned up.
+- **Subscriber liveness gate too loose** — a hung HAP socket could mask as online indefinitely. Now requires recent activity (≤30 min) plus an explicit subscribed flag.
+- Scheduled repair would update a device's IP address but fail to restart the underlying HAP subscriber, leaving event logging silently flatlined.
+- A failed repair would clear the device's "needs repair" state, making the dashboard report broken devices as healthy.
+
+### Internal
+- Listener test count: 320 → 341 (21 new tests across repair scheduler, device-health rescue, HAP subscriber liveness gate, and pair-and-persist helper).
+- Web test count: 89 → 91.
+- Playwright added as dev dependency for end-to-end testing.
+
 ## [0.1.8] — 2026-04-12
 
 ### Added

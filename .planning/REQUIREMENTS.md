@@ -57,9 +57,10 @@ All v1.0 requirements validated — see MILESTONES archive for details.
 
 </details>
 
-## v1.1 Requirements
+## v1.1 Requirements (Complete)
 
-Requirements for milestone v1.1 — Scheduled Repair.
+<details>
+<summary>v1.1 Scheduled Repair (5 requirements, all complete)</summary>
 
 ### Scheduled Repair
 
@@ -68,6 +69,74 @@ Requirements for milestone v1.1 — Scheduled Repair.
 - [x] **SREP-03**: Scheduled repair setting persists across container restarts via JsonObjectStore
 - [x] **SREP-04**: Settings UI explains why users might want scheduled repair enabled (informational text)
 - [x] **SREP-05**: Scheduled repair runs and outcomes are logged (which devices were repaired, skipped, or failed)
+
+</details>
+
+## v1.2 Requirements
+
+Requirements for milestone v1.2 — UI Redesign.
+
+### Theming
+
+- [x] **THEME-01**: User can switch between light and dark modes with a toggle in the sidebar
+- [x] **THEME-02**: All components use semantic design tokens — no hardcoded dark: classes remain
+- [x] **THEME-03**: User can choose from 3-5 accent color presets (e.g., blue, purple, teal, amber, rose)
+- [x] **THEME-04**: User's theme and accent preferences persist across sessions via localStorage
+- [x] **THEME-05**: Existing chart components render correctly with the new token system (--hc-accent-rgb compatibility)
+
+### Navigation
+
+- [x] **NAV-01**: User sees a vertical sidebar with reorganized navigation sections replacing the top tab bar
+- [x] **NAV-02**: User can collapse the sidebar to icon-only mode
+- [x] **NAV-03**: User's sidebar collapse preference persists across sessions
+- [x] **NAV-04**: On mobile, user accesses navigation via a slide-out sheet drawer
+- [x] **NAV-05**: Active page is clearly indicated in the sidebar with visual highlight
+
+### Layout
+
+- [x] **LAYOUT-01**: User sees a modern card-based layout with clean spacing, soft shadows, and contemporary typography
+- [x] **LAYOUT-02**: App.jsx is restructured into a slim shell with extracted page components
+- [x] **LAYOUT-03**: All existing functionality (Dashboard, Timeline, Accessories, Manage) remains accessible
+
+### Widgets
+
+- [x] **WIDGET-01**: User sees KPI health summary cards on the dashboard (online/offline/stale device counts)
+- [x] **WIDGET-02**: KPI cards show trend deltas compared to previous period
+- [x] **WIDGET-03**: User sees a live activity feed widget with recent events
+- [x] **WIDGET-04**: Activity feed pauses scrolling when user is reading (scroll-lock behavior)
+- [x] **WIDGET-05**: User sees room-by-room breakdown cards with device counts and health badges
+
+### Charts
+
+- [x] **CHART-01**: Charts use modern styling with gradient fills, smooth curves, and theme-aware colors
+- [x] **CHART-02**: KPI cards include sparkline/mini trend visualizations
+- [x] **CHART-03**: Existing chart types (activity, heatmap, state duration, event history) are preserved with updated styling
+
+### Responsive
+
+- [x] **RESP-01**: Sidebar auto-collapses to icon-only on narrow viewports
+- [x] **RESP-02**: Dashboard widgets reflow to single-column on mobile
+
+## v1.3 Requirements (Complete)
+
+All v1.3 requirements validated — see `milestones/v1.3-REQUIREMENTS.md` for full details.
+
+<details>
+<summary>v1.3 Repair Reliability Fixes (6 requirements, all complete)</summary>
+
+### Scheduled Repair — Subscriber Restart (Phase 18)
+
+- [x] **REPAIR-01**: needsRepair success branch restarts HAP subscriber (stopSubscriber + startSubscriber)
+- [x] **REPAIR-02**: resetSubscriberStats called only on confirmed success, not at top of loop
+- [x] **REPAIR-03**: Three unit tests in repair-scheduler.test.js (success, failure, isStale regression)
+
+### Scheduled Repair — Full Re-Pair Capability (Phase 19)
+
+- [x] **REPAIR-04**: Full pairSetup() via hap-controller using stored PIN; produces new longTermData
+- [x] **REPAIR-05**: No-PIN devices warn-skipped, not counted as failed
+- [x] **REPAIR-06**: Three tests in repair-scheduler.test.js (pairSetup success, no-PIN skip, pairSetup failure)
+
+</details>
 
 ## Future Requirements
 
@@ -97,24 +166,60 @@ Deferred to future milestones.
 | E2E test expansion | Separate concern |
 | Configurable repair interval | Daily is sufficient; revisit if users request it |
 | Matter device repair | Matter uses polling, not persistent connections |
-| Repair notifications/alerts | Could integrate with alert system later |
-| Repair history UI | Logs are sufficient for v1.1 |
+| Draggable/rearrangeable widgets | High complexity, limited value for single-user app |
+| WebSocket real-time push | Polling via TanStack Query is sufficient |
+| Full hue slider for accent color | Preset swatches cover the use case with less complexity |
+| Mobile-native app | Web-first, responsive sidebar covers mobile use case |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SREP-01 | Phase 9 | Complete |
-| SREP-02 | Phase 8 | Complete |
-| SREP-03 | Phase 8 | Complete |
-| SREP-04 | Phase 9 | Complete |
-| SREP-05 | Phase 8 | Complete |
+| THEME-01 | Phase 10 | Complete |
+| THEME-02 | Phase 10, 17 | Complete |
+| THEME-03 | Phase 10 | Complete |
+| THEME-04 | Phase 10 | Complete |
+| THEME-05 | Phase 10 | Complete |
+| NAV-01 | Phase 11, 16 | Complete |
+| NAV-02 | Phase 11, 16 | Complete |
+| NAV-03 | Phase 11, 16 | Complete |
+| NAV-04 | Phase 13 | Complete |
+| NAV-05 | Phase 11, 16 | Complete |
+| LAYOUT-01 | Phase 12, 17 | Complete |
+| LAYOUT-02 | Phase 11, 16 | Complete |
+| LAYOUT-03 | Phase 12, 16 | Complete |
+| WIDGET-01 | Phase 14 | Complete |
+| WIDGET-02 | Phase 14 | Complete |
+| WIDGET-03 | Phase 14 | Complete |
+| WIDGET-04 | Phase 14 | Complete |
+| WIDGET-05 | Phase 14 | Complete |
+| CHART-01 | Phase 15 | Complete |
+| CHART-02 | Phase 15, 16 | Complete |
+| CHART-03 | Phase 15, 17 | Complete |
+| RESP-01 | Phase 13 | Complete |
+| RESP-02 | Phase 13 | Complete |
 
 **Coverage:**
-- v1.1 requirements: 5 total
-- Mapped to phases: 5
-- Unmapped: 0 ✓
+- v1.2 requirements: 23 total
+- Mapped to phases: 23 (7 also assigned to gap closure phases 16-17)
+- Unmapped: 0
+
+### v1.3 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| REPAIR-01 | Phase 18 | Complete |
+| REPAIR-02 | Phase 18 | Complete |
+| REPAIR-03 | Phase 18 | Complete |
+| REPAIR-04 | Phase 19 | Complete |
+| REPAIR-05 | Phase 19 | Complete |
+| REPAIR-06 | Phase 19 | Complete |
+
+**Coverage:**
+- v1.3 requirements: 6 total
+- Mapped to phases: 6
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-03 after roadmap creation for v1.1*
+*Last updated: 2026-04-21 — v1.3 Repair Reliability Fixes milestone complete (REPAIR-01..06 verified)*

@@ -1,58 +1,71 @@
-# Roadmap: HomeChronicle — v1.1 Scheduled Repair
+# Roadmap: HomeChronicle
 
-## Overview
+## Milestones
 
-Two sequential phases deliver the scheduled repair feature. The backend phase establishes the daily repair timer, persistence, and logging — everything that runs whether the user is watching or not. The frontend phase wires the toggle and explanatory text into the existing Settings UI, turning the backend capability on and off from the browser.
-
-v1.0 (Code Health) ended at Phase 7. v1.1 continues from Phase 8.
+- ✅ **v1.0 Code Health** — Phases 1-7 (shipped 2026-04-06)
+- ✅ **v1.1 Scheduled Repair** — Phases 8-9 (shipped 2026-04-08)
+- ✅ **v1.2 UI Redesign** — Phases 10-17 (shipped 2026-04-16)
+- ✅ **v1.3 Repair Reliability Fixes** — Phases 18-19 (shipped 2026-04-21)
 
 ## Phases
 
-**Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+<details>
+<summary>✅ v1.0 Code Health (Phases 1-7) — SHIPPED 2026-04-06</summary>
 
-Decimal phases appear between their surrounding integers in numeric order.
+- [x] Phase 1: Error Handler Foundation (2/2 plans) — completed
+- [x] Phase 2: Migration System (2/2 plans) — completed
+- [x] Phase 3: Count Optimization (1/1 plan) — completed
+- [x] Phase 4: Router Extraction — Simple Groups (3/3 plans) — completed
+- [x] Phase 5: Router Extraction — Accessories (2/2 plans) — completed
+- [x] Phase 6: Router Extraction — Setup (2/2 plans) — completed
+- [x] Phase 7: Tech Debt Cleanup (2/2 plans) — completed
 
-- [x] **Phase 8: Scheduled Repair Backend** - Persist repair toggle, run daily repair cycle for needs_repair devices, log outcomes (completed 2026-04-03)
-- [x] **Phase 9: Scheduled Repair UI** - Toggle in Manage > Settings with explanatory text, wired to the backend setting (completed 2026-04-03)
+See `milestones/v1.0-ROADMAP.md` for full details.
 
-## Phase Details
+</details>
 
-### Phase 8: Scheduled Repair Backend
-**Goal**: The listener automatically repairs stale HomeKit pairings on a daily schedule when the feature is enabled
-**Depends on**: Phase 7 (v1.0 complete)
-**Requirements**: SREP-02, SREP-03, SREP-05
-**Success Criteria** (what must be TRUE):
-  1. When the setting is enabled, the listener runs a repair pass once every 24 hours without manual intervention
-  2. The repair pass only attempts to re-pair devices whose `needs_repair` flag is set — healthy devices are untouched
-  3. Each repair run logs which devices were repaired, which were skipped, and which failed, visible in `docker compose logs`
-  4. The enabled/disabled state survives a container restart — restarting the listener with the feature on resumes scheduled repair automatically
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 08-01-PLAN.md — Repair scheduler module + getRepairTargets export + unit tests
-- [x] 08-02-PLAN.md — Repair router API + index.js wiring + integration tests
-**UI hint**: no
+<details>
+<summary>✅ v1.1 Scheduled Repair (Phases 8-9) — SHIPPED 2026-04-08</summary>
 
-### Phase 9: Scheduled Repair UI
-**Goal**: Users can enable or disable scheduled repair from the Settings panel and understand what it does
-**Depends on**: Phase 8
-**Requirements**: SREP-01, SREP-04
-**Success Criteria** (what must be TRUE):
-  1. A toggle labeled for scheduled repair is visible in Manage > Settings and reflects the current enabled/disabled state on page load
-  2. Toggling the switch immediately persists the change — a page refresh shows the same state the user set
-  3. Explanatory text adjacent to the toggle describes what scheduled repair does and when a user would want to enable it
-**Plans:** 1/1 plans complete
-Plans:
-- [x] 09-01-PLAN.md — Repair query/mutation in useSetup.js + Scheduled Repair section in SettingsTab + unit tests
-**UI hint**: yes
+- [x] Phase 8: Scheduled Repair Backend (2/2 plans) — completed
+- [x] Phase 9: Scheduled Repair UI (1/1 plan) — completed
+
+See `milestones/v1.1-ROADMAP.md` for full details.
+
+</details>
+
+<details>
+<summary>✅ v1.2 UI Redesign (Phases 10-17) — SHIPPED 2026-04-16</summary>
+
+- [x] Phase 10: Design Token Foundation (4/4 plans) — completed 2026-04-14
+- [x] Phase 11: Sidebar Navigation Shell (3/3 plans) — completed 2026-04-14
+- [x] Phase 12: Page Extraction & Card Layout (3/3 plans) — completed 2026-04-15
+- [x] Phase 13: Responsive Sidebar (3/3 plans) — completed 2026-04-15
+- [x] Phase 14: Dashboard Widgets (3/3 plans) — completed 2026-04-15
+- [x] Phase 15: Chart Styling (3/3 plans) — completed 2026-04-15
+- [x] Phase 16: Verification Sweep & Requirements Update (2/2 plans) — completed 2026-04-16
+- [x] Phase 17: Token Debt Cleanup (4/4 plans) — completed 2026-04-16
+
+See `milestones/v1.2-ROADMAP.md` for full details.
+
+</details>
+
+<details>
+<summary>✅ v1.3 Repair Reliability Fixes (Phases 18-19) — SHIPPED 2026-04-21</summary>
+
+- [x] Phase 18: Scheduled Repair — Subscriber Restart Fix (1/1 plan) — completed 2026-04-20
+- [x] Phase 19: Scheduled Repair — Full pairSetup() Capability (1/1 plan) — completed 2026-04-21
+
+See `milestones/v1.3-ROADMAP.md` for full details.
+
+</details>
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 8 → 9
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 8. Scheduled Repair Backend | 2/2 | Complete   | 2026-04-03 |
-| 9. Scheduled Repair UI | 1/1 | Complete   | 2026-04-03 |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1-7 | v1.0 | 14/14 | Complete | 2026-04-06 |
+| 8-9 | v1.1 | 3/3 | Complete | 2026-04-08 |
+| 10-17 | v1.2 | 25/25 | Complete | 2026-04-16 |
+| 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
+| 19 | v1.3 | 1/1 | Complete | 2026-04-21 |

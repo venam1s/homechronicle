@@ -22,7 +22,7 @@ function activityDot(lastSeen) {
   const age = Date.now() - new Date(lastSeen).getTime();
   if (age < 3_600_000)  return 'bg-green-400';   // < 1 hour
   if (age < 86_400_000) return 'bg-yellow-400';  // < 24 hours
-  return 'bg-gray-300';
+  return 'bg-hc-border-strong';
 }
 
 function formatSeconds(seconds) {
@@ -70,7 +70,7 @@ export default function AccessoryList({ onSelectAccessory }) {
 
   if (!accessories?.length) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+      <div className="flex flex-col items-center justify-center py-16 text-hc-muted">
         <p className="text-lg font-medium">No accessories seen yet</p>
         <p className="text-sm mt-1">Pair your accessories and wait for the first event.</p>
       </div>
@@ -119,22 +119,22 @@ export default function AccessoryList({ onSelectAccessory }) {
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">
-      <details className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group">
+      <details className="bg-hc-panel rounded-xl shadow-sm border border-hc-panel-border overflow-hidden group">
         <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between select-none">
           <div>
-            <p className="text-sm font-semibold text-gray-900">Legend</p>
-            <p className="text-xs text-gray-500">Icon and activity dot meanings</p>
+            <p className="text-sm font-semibold text-hc-fg-strong">Legend</p>
+            <p className="text-xs text-hc-muted">Icon and activity dot meanings</p>
           </div>
           <ChevronDown
             size={16}
-            className="text-gray-400 transition-transform duration-200 group-open:rotate-180"
+            className="text-hc-muted transition-transform duration-200 group-open:rotate-180"
           />
         </summary>
-        <div className="px-4 pb-4 border-t border-gray-100 space-y-3">
+        <div className="px-4 pb-4 border-t border-hc-panel-border space-y-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Icons</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-hc-muted mb-2">Icons</p>
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-gray-600">
+              <div className="flex items-center gap-2 text-xs text-hc-fg">
                 <span className="w-7 h-7 rounded-full flex items-center justify-center bg-blue-50">
                   <span className="w-3.5 h-3.5 rounded-full bg-blue-200" />
                 </span>
@@ -143,8 +143,8 @@ export default function AccessoryList({ onSelectAccessory }) {
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Activity Dots</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-600">
+            <p className="text-xs font-semibold uppercase tracking-wide text-hc-muted mb-2">Activity Dots</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-hc-fg">
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-green-400" />
                 <span>Green: active within 1 hour</span>
@@ -154,7 +154,7 @@ export default function AccessoryList({ onSelectAccessory }) {
                 <span>Yellow: active within 24 hours</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-gray-300" />
+                <span className="w-2 h-2 rounded-full bg-hc-border-strong" />
                 <span>Gray: older than 24 hours</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -199,12 +199,12 @@ export default function AccessoryList({ onSelectAccessory }) {
                 style={{ backgroundColor: roomColor.dot }}
               />
             )}
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-hc-muted">
               {room}
             </h2>
           </div>
           <div
-            className="bg-white rounded-xl shadow-sm divide-y divide-gray-100 overflow-hidden"
+            className="bg-hc-panel rounded-xl shadow-sm divide-y divide-hc-panel-border overflow-hidden"
             style={roomColor ? { borderLeft: `3px solid ${roomColor.dot}` } : {}}
           >
             {rows.map((row) => {
@@ -212,10 +212,10 @@ export default function AccessoryList({ onSelectAccessory }) {
                 return (
                   <div
                     key={`bridge:${row.bridgeId}`}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-gray-50"
+                    className="flex items-center gap-2 px-4 py-1.5 bg-hc-panel-mid"
                   >
-                    <Network size={12} className="text-gray-400" />
-                    <span className="text-[11px] font-medium text-gray-400 tracking-wide">{row.bridgeName}</span>
+                    <Network size={12} className="text-hc-muted" />
+                    <span className="text-[11px] font-medium text-hc-muted tracking-wide">{row.bridgeName}</span>
                   </div>
                 );
               }
@@ -238,7 +238,7 @@ export default function AccessoryList({ onSelectAccessory }) {
                   type="button"
                   onClick={() => onSelectAccessory?.(accessory.accessory_id)}
                   className={clsx(
-                    'w-full flex items-center gap-3 py-3 text-left hover:bg-gray-50 transition-colors',
+                    'w-full flex items-center gap-3 py-3 text-left hover:bg-hc-panel-mid transition-colors',
                     isChild ? 'pl-6 pr-4' : 'px-4',
                   )}
                 >
@@ -252,10 +252,10 @@ export default function AccessoryList({ onSelectAccessory }) {
 
                   {/* Text */}
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate">{accessory.accessory_name}</div>
-                    <div className="text-xs text-gray-400 mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                    <div className="font-medium text-hc-fg-strong truncate">{accessory.accessory_name}</div>
+                    <div className="text-xs text-hc-muted mt-0.5 flex flex-wrap items-center gap-x-1.5">
                       {accessory.protocol && (
-                        <span className="inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1 py-px bg-gray-100 text-gray-500 border border-gray-200">
+                        <span className="inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1 py-px bg-hc-panel-mid text-hc-muted border border-hc-panel-border">
                           {accessory.protocol === 'matter' ? 'Matter' : 'HomeKit'}
                         </span>
                       )}
@@ -264,27 +264,27 @@ export default function AccessoryList({ onSelectAccessory }) {
                         : <span className="italic">waiting for first event</span>
                       }
                       {accessory.last_seen && (
-                        <><span className="text-gray-300">·</span>
+                        <><span className="text-hc-muted">·</span>
                         <span>last seen {formatDistanceToNow(new Date(accessory.last_seen), { addSuffix: true })}</span></>
                       )}
                       {health.status && health.status !== 'online' && (
-                        <><span className="text-gray-300">·</span>
+                        <><span className="text-hc-muted">·</span>
                         <span>{health.status}</span></>
                       )}
                     </div>
-                    <div className="text-[11px] text-gray-400 mt-0.5 flex flex-wrap gap-x-1.5">
+                    <div className="text-[11px] text-hc-muted mt-0.5 flex flex-wrap gap-x-1.5">
                       {metadata && (
                         <span>{metadata}</span>
                       )}
                       {offlineFor && health.status !== 'online' && (
                         <>
-                          {metadata && <span className="text-gray-300">·</span>}
+                          {metadata && <span className="text-hc-muted">·</span>}
                           <span>offline for {offlineFor}</span>
                         </>
                       )}
                       {Number.isFinite(health.missedHeartbeats) && health.missedHeartbeats > 0 && (
                         <>
-                          <span className="text-gray-300">·</span>
+                          <span className="text-hc-muted">·</span>
                           <span>
                             missed {health.missedHeartbeats} heartbeat{health.missedHeartbeats === 1 ? '' : 's'}
                           </span>
@@ -292,13 +292,13 @@ export default function AccessoryList({ onSelectAccessory }) {
                       )}
                       {heartbeatFor && (
                         <>
-                          <span className="text-gray-300">·</span>
+                          <span className="text-hc-muted">·</span>
                           <span>heartbeat ~{heartbeatFor}</span>
                         </>
                       )}
                       {reliability && (
                         <>
-                          <span className="text-gray-300">·</span>
+                          <span className="text-hc-muted">·</span>
                           <span>{reliability}</span>
                         </>
                       )}
@@ -309,19 +309,19 @@ export default function AccessoryList({ onSelectAccessory }) {
                   {(accessory.event_count > 0 || showStale) && (
                     <div className="flex flex-col items-end gap-1">
                       {showStale && (
-                        <div className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-full px-2 py-0.5 whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1 text-[11px] text-hc-warning-text bg-hc-warning-bg border border-hc-warning-border rounded-full px-2 py-0.5 whitespace-nowrap">
                           <AlertTriangle size={11} />
                           stale device
                         </div>
                       )}
                       {accessory.event_count > 0 && (
-                        <div className="flex-shrink-0 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-full px-2 py-0.5 whitespace-nowrap">
+                        <div className="flex-shrink-0 text-xs text-hc-muted bg-hc-panel-mid border border-hc-panel-border rounded-full px-2 py-0.5 whitespace-nowrap">
                           {accessory.event_count.toLocaleString()} {accessory.event_count === 1 ? 'event' : 'events'}
                         </div>
                       )}
                     </div>
                   )}
-                  <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+                  <ChevronRight size={14} className="text-hc-muted flex-shrink-0" />
                 </button>
               );
             })}

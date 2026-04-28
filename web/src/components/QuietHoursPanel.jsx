@@ -59,23 +59,23 @@ export default function QuietHoursPanel({ onNavigateToAccessory }) {
 
   if (dismissed) return null;
 
-  const card = 'bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 sm:p-5';
+  const card = 'bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5';
 
   const header = (
     <div className="flex items-center gap-2 mb-3">
       <Moon size={14} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />
-      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Quiet Hours</h3>
+      <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours</h3>
     </div>
   );
 
   if (isLoading) {
-    return <div className={card}>{header}<p className="text-sm text-gray-400 dark:text-gray-500">Checking quiet hours…</p></div>;
+    return <div className={card}>{header}<p className="text-sm text-hc-muted">Checking quiet hours…</p></div>;
   }
   if (isError || (!isLoading && !data)) {
     return (
       <div className={card}>
         {header}
-        <p className="text-sm text-gray-400 dark:text-gray-500">
+        <p className="text-sm text-hc-muted">
           No quiet hours data yet. Events will appear here once activity is recorded.
         </p>
       </div>
@@ -88,13 +88,13 @@ export default function QuietHoursPanel({ onNavigateToAccessory }) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Moon size={14} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Quiet Hours</h3>
+            <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours</h3>
           </div>
-          <button onClick={dismiss} className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-0.5 rounded" title="Dismiss">
+          <button onClick={dismiss} className="text-hc-muted hover:text-hc-fg p-0.5 rounded" title="Dismiss">
             <X size={14} />
           </button>
         </div>
-        <p className="text-sm text-gray-400 dark:text-gray-500">
+        <p className="text-sm text-hc-muted">
           Configure quiet hours in Settings to flag unexpected nighttime activity.
         </p>
       </div>
@@ -109,7 +109,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory }) {
     return (
       <div className={card}>
         {header}
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-2 text-sm text-hc-muted">
           <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
           <span>No unexpected activity during quiet hours ({startLocal} – {endLocal})</span>
         </div>
@@ -122,15 +122,15 @@ export default function QuietHoursPanel({ onNavigateToAccessory }) {
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <Moon size={14} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Quiet Hours Activity</h3>
+          <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours Activity</h3>
         </div>
-        <span className="text-xs text-gray-400 dark:text-gray-500">{startLocal} – {endLocal}</span>
+        <span className="text-xs text-hc-muted">{startLocal} – {endLocal}</span>
       </div>
       <div className="space-y-2">
         {events.map((row) => (
           <div
             key={`${row.accessoryId ?? row.accessoryName}:${row.lastSeenAt}`}
-            className={`rounded-lg px-3 py-2${onNavigateToAccessory ? ' cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-[filter]' : ''}`}
+            className={`rounded-lg px-3 py-2${onNavigateToAccessory ? ' cursor-pointer hover:brightness-95 transition-[filter]' : ''}`}
             style={{
               border: '1px solid rgba(var(--hc-accent-rgb), 0.15)',
               backgroundColor: 'rgba(var(--hc-accent-rgb), 0.06)',
@@ -147,7 +147,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory }) {
                   <button
                     onClick={() => excludeMutation.mutate(row.accessoryId)}
                     disabled={excludeMutation.isPending}
-                    className="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                    className="p-0.5 rounded hover:bg-black/10 transition-colors"
                     title={`Exclude ${row.accessoryName} from quiet hours`}
                   >
                     <EyeOff size={12} />

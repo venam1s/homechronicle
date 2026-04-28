@@ -1,375 +1,339 @@
-# Technology Stack — Code Health Milestone
+# Stack Research — UI Redesign (v1.2)
 
-**Project:** HomeChronicle
-**Milestone:** Code health — migrations, query optimization, router extraction, error handling
-**Researched:** 2026-04-02
-**Overall confidence:** HIGH (all four domains verified against official documentation or primary sources)
+**Domain:** React SPA UI overhaul (charts, sidebar nav, theming, dashboard layout)
+**Researched:** 2026-04-14
+**Confidence:** HIGH for charting and theming (verified official sources); MEDIUM for sidebar (shadcn copy-paste pattern, Vite-specific state persistence needs validation)
 
 ---
 
-## Domain 1: Node.js Database Migration Tool
+## Existing Stack (Untouched — Do Not Re-research)
 
-### Recommendation: `node-pg-migrate` v8
+| Technology | Version | Role |
+|------------|---------|------|
+| React | 19.2.x | UI framework |
+| Vite | 8.x | Dev server + bundler |
+| Tailwind CSS | 4.2.x | Utility CSS |
+| TanStack Query | 5.51.x | Data fetching |
+| Lucide React | 0.408.x | Icons |
+| Recharts | 2.12.x | Charts (current, needs upgrade) |
 
-**Version:** 8.0.4 (released December 11, 2025)
-**Install:** `npm install node-pg-migrate`
+---
 
-#### Why node-pg-migrate over alternatives
+## New Capabilities Required
 
-| Criterion | node-pg-migrate v8 | dbmate | Knex migrations |
-|-----------|-------------------|--------|-----------------|
-| ES module native | YES (v8 is ESM-only) | N/A (Go binary) | Partial (CJS-first) |
-| PostgreSQL-specific DSL | YES | NO (SQL-only) | NO (generic) |
-| Programmatic API | YES | NO | YES |
-| Node 22 compatible | YES (requires Node 20+) | YES | YES |
-| Runs inline on startup | YES | Requires separate process | YES |
-| TypeScript-authored | YES | NO | NO |
-| Active maintenance | YES (Dec 2025 release) | YES | YES |
+Three distinct areas need new or upgraded packages: charting, sidebar navigation, and theming. The backend is untouched.
 
-**Why not dbmate:** dbmate is a standalone Go binary that requires a separate process or Docker entrypoint step. It cannot be called programmatically from Node startup code — it must be invoked as a CLI command. For a self-hosted Docker container where the listener bootstraps its own schema, this is an awkward fit that adds Docker `command:` or `entrypoint:` complexity.
+---
 
-**Why not Knex migrations:** Knex is an ORM-adjacent query builder. Adopting only its migration system without using its query builder adds an unnecessary dependency footprint. HomeChronicle already uses raw `pg` queries and that pattern should be preserved.
+## Domain 1: Charting Library
 
-**Why node-pg-migrate v8 specifically:** v8 (released Dec 2025) completed the long-awaited migration to ESM-only. It requires Node 20+ (matched by the project's Node 22 runtime), uses `import.meta.dirname` instead of `__dirname`, and the historical `ERR_REQUIRE_ESM` bug that affected v7 is resolved. Migration files written as `.js` in an ESM project work natively.
+### Recommendation: Upgrade Recharts 2.x → 3.x. Do NOT switch libraries.
 
-**Confidence:** HIGH — verified against GitHub releases page, npm, and the v8 ESM issue thread.
+**Version:** recharts ^3.8.1 (latest as of April 2026; was 2.12.7 in project)
+**Install:** `npm install recharts@^3`
 
-#### ESM import syntax
+#### Why stay with Recharts
 
-```js
-import migrationRunner from 'node-pg-migrate';
-```
+The case for switching is weaker than it appears. Recharts v3 now delivers gradient fills, smooth curves (`type="natural"` via D3 curve interpolation), CSS variable colors for dark mode, SVG drop shadows, and tooltip customization. The shadcn/ui chart component — the de facto standard for Tailwind-based dashboards in 2026 — is built on Recharts v3 and provides pre-styled, copy-paste chart components.
 
-#### Programmatic startup pattern
+Recharts is already in the project. Switching to ApexCharts or Nivo would add ~130KB+ to the bundle while introducing new APIs that don't integrate with shadcn/ui's chart layer.
 
-```js
-// listener/src/db.js — run migrations before accepting requests
-import migrationRunner from 'node-pg-migrate';
+**Confidence:** HIGH — verified against recharts GitHub releases (3.8.1 published April 2026), shadcn/ui chart docs (explicitly states "Chart component now uses Recharts v3"), bundlephobia references.
 
-export async function runMigrations() {
-  await migrationRunner({
-    databaseUrl: process.env.DATABASE_URL,
-    dir: new URL('../migrations', import.meta.url).pathname,
-    direction: 'up',
-    migrationsTable: 'pgmigrations',  // separate from hand-rolled _migrations
-    singleTransaction: true,          // all pending migrations in one transaction
-  });
+#### Charting library comparison
+
+| Criterion | Recharts v3 | ApexCharts v4 | Nivo | Chart.js |
+|-----------|-------------|---------------|------|----------|
+| React 19 support | YES (3.x series) | YES (react-apexcharts 2.1.0) | YES (issue #2618 closed) | YES (via react-chartjs-2) |
+| Bundle size (gzip) | ~130KB incl. D3 | ~131KB (apexcharts alone) | ~150KB+ | ~60KB (canvas-only) |
+| Rendering | SVG | SVG | SVG / Canvas / HTML | Canvas |
+| Gradient fills | YES (SVG linearGradient) | YES (built-in) | YES | YES |
+| Smooth curves | YES (D3 curve types) | YES | YES | YES |
+| CSS variable theming | YES (fill="url()" + CSS vars) | Partial (JS config) | Partial | NO |
+| shadcn/ui integration | NATIVE (built on Recharts) | NO | NO | NO |
+| Tree-shaking | YES (D3 submodules) | YES (v5.10.1+ /core export) | NO (monolithic) | YES |
+| Already in project | YES | NO | NO | NO |
+
+**Why not ApexCharts:** Bundle size is equivalent to Recharts but adds a second charting dependency. react-apexcharts v2.1.0 is maintained (published March 2026) but React 19 peer dependency compatibility was not explicitly confirmed in official documentation. Theming uses a JS config object rather than CSS variables, which fights the Tailwind v4 CSS-variable approach.
+
+**Why not Nivo:** React 19 support was added (issue #2618 resolved) but required `--legacy-peer-deps` historically. Larger bundle. No shadcn/ui integration. Multiple render modes (SVG/Canvas/HTML) add complexity without clear benefit for this use case.
+
+**Why not Chart.js:** Canvas-based. Smallest bundle at ~60KB but CSS variable theming is not native and dark mode integration is manual. Better for very large datasets (10K+ data points) — not a concern for HomeChronicle's device event volumes.
+
+#### Recharts v3 upgrade notes
+
+The project currently uses `recharts: ^2.12.7`. v3 has breaking changes: chart composition API is the same but some prop names changed. The `react-is` package may need a version override to match React 19.
+
+```bash
+# web/package.json overrides block (if react-is conflict occurs)
+"overrides": {
+  "react-is": "^19.0.0"
 }
 ```
 
-#### Migration file convention
+Gradient fill pattern for area charts (stays the same between v2 and v3):
 
+```jsx
+<defs>
+  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="5%" stopColor="var(--hc-accent)" stopOpacity={0.4} />
+    <stop offset="95%" stopColor="var(--hc-accent)" stopOpacity={0} />
+  </linearGradient>
+</defs>
+<Area type="natural" fill="url(#colorValue)" stroke="var(--hc-accent)" />
 ```
-listener/migrations/
-  1745000000000_initial-schema.js
-  1745000000001_add-alert-deliveries-retention.js
-  ...
-```
-
-Migration files use the node-pg-migrate DSL:
-
-```js
-// listener/migrations/1745000000001_add-alert-deliveries-retention.js
-export const up = (pgm) => {
-  pgm.addIndex('alert_deliveries', 'sent_at', { name: 'idx_alert_deliveries_sent_at' });
-};
-
-export const down = (pgm) => {
-  pgm.dropIndex('alert_deliveries', 'sent_at', { name: 'idx_alert_deliveries_sent_at' });
-};
-```
-
-#### Migration from current hand-rolled system
-
-The existing `_migrations` table and `migrateDb()` `IF NOT EXISTS` pattern must coexist with node-pg-migrate during transition. The recommended sequence:
-
-1. Snapshot the current schema into a single `0001_initial-schema.js` migration that is marked as already applied (insert the row into `pgmigrations` without executing DDL on existing installations).
-2. All future schema changes go into numbered migration files.
-3. The `migrateDb()` function in `db.js` is reduced to only the `pool.on('error')` setup; DDL moves to migration files.
-4. `runMigrations()` is called before `migrateDb()` at startup.
-
-**Bootstrapping existing installs without re-running DDL:** Use the `--fake` CLI flag or the `fake: true` programmatic option when marking the initial snapshot as applied on existing databases. For new installs, the migration runs normally.
 
 ---
 
-## Domain 2: PostgreSQL COUNT(*) Optimization
+## Domain 2: Sidebar Navigation
 
-### Recommendation: Two-tier count strategy — estimated vs. exact
+### Recommendation: shadcn/ui Sidebar — copy-paste source files (no shadcn CLI needed)
 
-The project's CONCERNS.md correctly identified this as a HIGH priority issue. The fix does not require a new library — it is a pure SQL pattern change.
+**Pattern:** Copy-paste component source into `web/src/components/sidebar/`
+**Radix UI packages to install:** listed below
 
-#### Why COUNT(*) is slow at scale
+The shadcn/ui Sidebar component is the right choice. It is not an npm package — it is a set of source files you copy into your project. It supports React 19 + Tailwind v4 natively (shadcn confirmed "It's here!" for both in their 2026 docs). It provides 16 sidebar variants including the exact `collapsible="icon"` mode (expanded ↔ icon-only) required by the PROJECT.md spec.
 
-PostgreSQL's MVCC model means no cached row count exists at the engine level. Every `COUNT(*)` requires scanning all index pages visible to the current transaction. For `event_logs` with hundreds of thousands of rows and no active filters, this becomes a full index scan on every paginated Timeline request.
+**Confidence:** MEDIUM — shadcn/ui Tailwind v4 + React 19 support is confirmed. Vite-specific sidebar state persistence via localStorage (not cookies, which require Next.js server context) needs implementation care.
 
-#### Recommended approach: conditional count strategy
+#### Required Radix UI packages
 
-Use estimated row counts for unfiltered queries, exact counts only when filters are applied (since filtered counts are already faster due to index selectivity).
+The shadcn Sidebar component pulls in these Radix UI primitives:
 
-**Estimated count SQL (unfiltered only):**
-
-```sql
--- Reads from pg_class stats, updated by autovacuum/ANALYZE
--- Typically within 10% of actual count; fast regardless of table size
-SELECT reltuples::bigint AS estimate
-FROM   pg_class
-WHERE  oid = 'event_logs'::regclass;
+```bash
+# Install in web/
+npm install @radix-ui/react-slot @radix-ui/react-separator @radix-ui/react-dialog @radix-ui/react-tooltip @radix-ui/react-collapsible
 ```
 
-**More accurate estimate (uses planner's scaled formula):**
+Additionally needed for the full sidebar pattern:
 
-```sql
--- Uses EXPLAIN JSON to get planner row estimate; handles filtered queries
-CREATE OR REPLACE FUNCTION count_estimate(query text)
-RETURNS bigint LANGUAGE plpgsql AS $$
-DECLARE plan jsonb;
-BEGIN
-  EXECUTE format('EXPLAIN (FORMAT JSON) %s', query) INTO plan;
-  RETURN (plan -> 0 -> 'Plan' ->> 'Plan Rows')::bigint;
-END;
-$$;
+```bash
+npm install class-variance-authority
 ```
 
-**Applied to events-router.js:**
+Note: `lucide-react` is already installed. `clsx` is already installed.
 
-```js
-// In GET /events handler — replace the current COUNT(*) call:
-let total;
-if (!conditions.length) {
-  // No filters: fast estimate from pg_class (O(1), avoids index scan)
-  const estResult = await pool.query(
-    `SELECT reltuples::bigint AS estimate FROM pg_class WHERE oid = 'event_logs'::regclass`
-  );
-  total = Number(estResult.rows[0].estimate);
-} else {
-  // Filters applied: exact COUNT is acceptable, row set is smaller
-  const countResult = await pool.query(
-    `SELECT COUNT(*) AS total FROM event_logs WHERE ${conditions.join(' AND ')}`,
-    params
-  );
-  total = Number(countResult.rows[0].total);
-}
-```
+#### Sidebar state persistence (Vite, no Next.js)
 
-**Tradeoff to document in code:** `reltuples` is updated by autovacuum, which runs frequently on an append-only event table. The value can lag slightly after bulk inserts but is typically within a few percent. For a timeline's total page count display, this is acceptable — the user sees "~12,400 events" rather than "12,403 events." Add a `// estimated` flag in the JSON response so the UI can optionally indicate approximation.
+The official shadcn docs use `next/headers` cookies for SSR sidebar state persistence. In a Vite SPA, use `localStorage` instead:
 
-**Confidence:** HIGH — behavior of `reltuples` documented in PostgreSQL official wiki (wiki.postgresql.org/wiki/Count_estimate), Citus Data engineering blog, and CYBERTEC.
+```jsx
+// web/src/components/sidebar/sidebar-provider.jsx
+const STORAGE_KEY = 'hc-sidebar-open';
 
-#### alert_deliveries COUNT(*) fix (MEDIUM priority)
-
-Same pattern applies to `alerts-router.js` line 303. Additionally, add a retention sweep for `alert_deliveries` older than N days to bound the table size:
-
-```sql
-DELETE FROM alert_deliveries WHERE sent_at < NOW() - INTERVAL '90 days';
-```
-
-Expose as `ALERT_DELIVERY_RETENTION_DAYS` env var with a default of 90.
-
-#### Do NOT use keyset/cursor pagination for this milestone
-
-Keyset pagination eliminates COUNT entirely but requires a breaking API change: the `?page=N` interface used by the React Timeline component would need to change to `?cursor=<opaque>`. This is a frontend-impacting API break that should be its own milestone. The two-tier count strategy solves the performance problem within the existing API contract.
-
----
-
-## Domain 3: Express Router Extraction Pattern
-
-### Recommendation: Native `express.Router()` — no new library needed
-
-Express Router is the correct and complete tool. The project already has four successfully extracted routers (`events-router.js`, `alerts-router.js`, `retention-router.js`, `matter-router.js`). The pattern is proven. No additional library should be introduced.
-
-**Confidence:** HIGH — Express 5 official documentation confirms the Router API is unchanged from v4 for this use case.
-
-#### The established pattern (follow exactly)
-
-The existing routers use a factory function pattern, not a bare `express.Router()` export. This is the correct approach because it allows dependency injection of `pool`, `store`, and other shared resources without module-level globals.
-
-```js
-// listener/src/setup-router.js
-import express from 'express';
-
-export function createSetupRouter({ pool, store, pairingStore }) {
-  const router = express.Router();
-
-  router.get('/setup/accessories', async (req, res) => {
-    // ...
+function SidebarProvider({ children, defaultOpen = true }) {
+  const [open, setOpen] = useState(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored !== null ? stored === 'true' : defaultOpen;
   });
 
-  return router;
+  const toggle = () => {
+    setOpen(prev => {
+      const next = !prev;
+      localStorage.setItem(STORAGE_KEY, String(next));
+      return next;
+    });
+  };
+
+  return (
+    <SidebarContext.Provider value={{ open, toggle }}>
+      {children}
+    </SidebarContext.Provider>
+  );
 }
 ```
 
-```js
-// listener/src/index.js — mount point
-import { createSetupRouter } from './setup-router.js';
+#### Collapsible icon mode
 
-app.use('/api', createSetupRouter({ pool, store, pairingStore }));
-```
+When `open === false`, sidebar items should show only their Lucide icon with a `<Tooltip>` providing the label. This uses `group-data-[collapsible=icon]:hidden` Tailwind classes on text spans and `group-data-[collapsible=icon]:flex` on icon wrappers — the exact pattern shadcn uses internally.
 
-#### What to extract from index.js
+#### Alternatives not chosen
 
-Based on the CONCERNS.md audit of `listener/src/index.js` (2,102 lines), the remaining route groups that need extraction are:
-
-| Module to create | Route prefix | Approx lines in index.js |
-|-----------------|-------------|--------------------------|
-| `setup-router.js` | `/api/setup`, `/api/pairing`, `/api/pairings` | ~600 lines |
-| `accessories-router.js` | `/api/accessories`, `/api/rooms`, `/api/display-names`, `/api/notes` | ~400 lines |
-| `stats-router.js` | `/api/stats`, `/api/dashboard` | ~300 lines |
-| `health-router.js` | `/api/health` | ~50 lines |
-
-#### Express 5 async error handling — eliminate try/catch in routes
-
-Express 5 automatically propagates `async` route handler rejections to the error middleware. This is a v5-specific behavior that the existing routes do not yet exploit (they all use `try/catch` + `res.status(500).json()`).
-
-**Current pattern (Express 4 style, still valid but verbose):**
-```js
-router.get('/events', async (req, res) => {
-  try {
-    // ...
-  } catch (err) {
-    log.error('[api] error:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-```
-
-**Express 5 pattern (preferred for new routers):**
-```js
-router.get('/events', async (req, res) => {
-  // If this throws, Express 5 calls next(err) automatically
-  // The global error handler (see Domain 4) catches it
-  const result = await pool.query('...');
-  res.json(result.rows);
-});
-```
-
-For this milestone, the recommendation is: use the Express 5 auto-propagation in newly extracted routers, and leave existing try/catch patterns in place in files not being extracted. Do not do a broad try/catch removal pass — that is a separate cleanup concern.
-
-#### Integration test pattern (follow existing)
-
-```js
-// listener/test/setup-router.integration.test.js
-import { describe, it, before, after } from 'node:test';
-import assert from 'node:assert/strict';
-import express from 'express';
-import { createSetupRouter } from '../src/setup-router.js';
-
-// Follow the pattern in alerts-router.integration.test.js
-```
+| Option | Why Not |
+|--------|---------|
+| Build sidebar from scratch | More work, no accessibility primitives built-in, reinvents what shadcn already solved |
+| Headless UI sidebar | Headless UI v2 doesn't have a sidebar primitive; only Dialog/Popover/etc. |
+| Flowbite React | Additional component library dependency; integrates less cleanly with Tailwind v4 CSS-first config |
+| react-pro-sidebar | npm package, not copy-paste; adds bundle weight; not Tailwind v4 native |
 
 ---
 
-## Domain 4: Global Error Handling in Node.js/Express
+## Domain 3: Theming System
 
-### Recommendation: Three-layer handler — Express middleware + process.on events
+### Recommendation: Native Tailwind v4 CSS custom properties — no additional library
 
-No new library is needed. This is a pure Node.js + Express configuration change.
+**Pattern:** `@theme inline` directive + `[data-theme="dark"]` CSS selector overrides
+**No new npm packages required**
 
-**Confidence:** HIGH — patterns verified against Express 5 official documentation and Node.js process event documentation.
+The existing 8-skin system uses CSS custom properties (`--hc-accent-rgb`, `--hc-panel-mid`, etc.) set via JavaScript. Replace this with a Tailwind v4-native pattern that: (1) defines semantic color tokens in `@theme inline`, (2) overrides those tokens under `[data-theme="dark"]`, and (3) toggles `data-theme` on `<html>` via a simple React context.
 
-#### Layer 1: Express error middleware (handles request-cycle errors)
+**Confidence:** HIGH — pattern verified against official Tailwind v4 theme docs, GitHub discussion #18471 (Tailwind team's own recommended approach), and shadcn/ui v4 theming docs.
 
-Place this as the last `app.use()` call in `index.js`, after all routes:
+#### How it works in Tailwind v4
 
-```js
-// listener/src/index.js — add after all app.use(router) calls
+```css
+/* web/src/index.css */
+@import "tailwindcss";
 
-function globalExpressErrorHandler(err, req, res, next) {
-  const status = err.status ?? err.statusCode ?? 500;
-  log.error(`[api] Unhandled route error: ${req.method} ${req.path}`, err.message ?? err.stack);
-  if (res.headersSent) {
-    return next(err);
-  }
-  res.status(status).json({ error: err.message ?? 'Internal server error' });
+/* Step 1: Define semantic tokens that generate utility classes */
+@theme inline {
+  --color-surface:     var(--hc-surface);
+  --color-surface-mid: var(--hc-surface-mid);
+  --color-surface-low: var(--hc-surface-low);
+  --color-text:        var(--hc-text);
+  --color-text-muted:  var(--hc-text-muted);
+  --color-accent:      var(--hc-accent);
+  --color-accent-soft: var(--hc-accent-soft);
+  --color-border:      var(--hc-border);
 }
 
-app.use(globalExpressErrorHandler);
-```
+/* Step 2: Light theme default values */
+:root {
+  --hc-surface:     oklch(0.98 0.005 240);
+  --hc-surface-mid: oklch(0.95 0.008 240);
+  --hc-surface-low: oklch(0.92 0.010 240);
+  --hc-text:        oklch(0.18 0.020 240);
+  --hc-text-muted:  oklch(0.50 0.015 240);
+  --hc-accent:      oklch(0.60 0.18 240);
+  --hc-accent-soft: oklch(0.85 0.08 240);
+  --hc-border:      oklch(0.88 0.008 240);
+}
 
-This catches:
-- Errors thrown in synchronous route handlers
-- Rejections from async route handlers (Express 5 auto-propagates these)
-- Errors passed to `next(err)` anywhere in the middleware chain
-
-#### Layer 2: process.on('unhandledRejection') — catches timer/event handler rejections
-
-Covers rejected promises outside the Express request cycle (setInterval callbacks, event emitter handlers, HAP subscriber callbacks, Matter polling callbacks):
-
-```js
-// listener/src/index.js — near the top, before server.listen()
-
-process.on('unhandledRejection', (reason, promise) => {
-  log.error('[process] Unhandled promise rejection:', reason?.message ?? reason);
-  // Do NOT exit here — Docker restarts the container but we lose all
-  // in-flight HAP subscriptions. Log and continue; monitor for recurrence.
-});
-```
-
-**Important nuance for this project:** The standard advice is "exit after unhandledRejection." For HomeChronicle, the correct choice is to log and continue. Exiting tears down all HAP event subscriptions, which take 30-60 seconds to re-establish on restart. A logged warning that occurs in a non-critical path (e.g., discovery cleanup) is preferable to a full restart storm. If the rejection is from a critical path, the relevant code should propagate the error correctly rather than relying on the global handler.
-
-#### Layer 3: process.on('uncaughtException') — catches synchronous throw outside try/catch
-
-```js
-process.on('uncaughtException', (err) => {
-  log.error('[process] Uncaught exception — exiting for clean Docker restart:', err.message ?? err.stack);
-  // Always exit on uncaughtException. The process is in an unknown state.
-  // Docker restart policy handles recovery.
-  process.exit(1);
-});
-```
-
-`uncaughtException` always warrants process exit — the synchronous exception means the call stack is undefined and continuing is unsafe.
-
-#### Layer 4: Silent catch block remediation
-
-Several `catch {}` blocks in `index.js`, `matter-controller.js` exist in cleanup paths where failure is expected (e.g., `discovery.stop()` after a scan timeout). These are not error hiding — they are intentionally silent on expected errors. The fix is minimal:
-
-```js
-// Before:
-try { await discovery.stop(); } catch {}
-
-// After:
-try { await discovery.stop(); } catch (err) {
-  log.debug('[discovery] Expected stop error during cleanup:', err.message);
+/* Step 3: Dark theme overrides — just replace the values */
+[data-theme="dark"] {
+  --hc-surface:     oklch(0.14 0.010 240);
+  --hc-surface-mid: oklch(0.18 0.012 240);
+  --hc-surface-low: oklch(0.22 0.014 240);
+  --hc-text:        oklch(0.95 0.008 240);
+  --hc-text-muted:  oklch(0.65 0.012 240);
+  --hc-accent:      oklch(0.72 0.18 240);
+  --hc-accent-soft: oklch(0.30 0.10 240);
+  --hc-border:      oklch(0.28 0.012 240);
 }
 ```
 
-Use `log.debug` not `log.error` — these are not actionable failures. The goal is debuggability, not alarming operators.
+The `@theme inline` directive is key: it tells Tailwind to generate `bg-surface`, `text-text-muted`, `border-border`, etc. as utility classes that reference the CSS variables. No rebuild needed when the theme switches — the variables change at runtime.
+
+#### React ThemeProvider
+
+```jsx
+// web/src/components/theme-provider.jsx
+import { createContext, useContext, useEffect, useState } from 'react';
+
+const ThemeContext = createContext(null);
+const STORAGE_KEY = 'hc-theme';
+
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(STORAGE_KEY, theme);
+  }, [theme]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => useContext(ThemeContext);
+```
+
+#### Why not next-themes
+
+`next-themes` is a Next.js-specific package. The project's existing `useSkin()` hook already handles localStorage theme state. The Tailwind v4 CSS variable approach means no third-party theme library is needed — the pattern is 30 lines of React context.
+
+#### Why not the 8-skin system
+
+The 8-skin system sets many CSS variables via inline JavaScript and requires maintaining skin definitions in a JS config. With Tailwind v4's `@theme inline`, the color system lives entirely in CSS. Two polished modes (light + dark) replace eight mediocre skins. This reduces the CSS variable surface from ~40 variables per skin × 8 skins to ~8 semantic tokens × 2 themes.
+
+---
+
+## Domain 4: Card Layout and Dashboard Widgets
+
+### Recommendation: Tailwind v4 utilities only — no component library
+
+KPI stat cards, activity feeds, and room breakdown widgets are standard card layouts. Tailwind v4 provides everything needed: `rounded-xl`, `shadow-sm`, `bg-surface`, `border-border`. No additional component library (MUI, Mantine, Ant Design) should be introduced.
+
+The card pattern:
+
+```jsx
+// Standard card wrapper
+<div className="rounded-xl bg-surface border border-border shadow-sm p-4">
+  {children}
+</div>
+```
+
+KPI stat cards (online/offline/stale counts) are simple number + label + trend indicator. These require no charting library — just Tailwind and Lucide icons.
+
+**What NOT to add:** MUI, Mantine, Ant Design, Chakra UI, Radix Themes. These bring their own CSS-in-JS or component systems that conflict with Tailwind v4's utility approach. The project is already Tailwind-native; adding a component library introduces a parallel styling system.
 
 ---
 
 ## Consolidated Install
 
 ```bash
-# From listener/
-npm install node-pg-migrate
+# From web/
+npm install recharts@^3
+
+# Radix UI primitives for sidebar (5 packages)
+npm install @radix-ui/react-slot @radix-ui/react-separator @radix-ui/react-dialog @radix-ui/react-tooltip @radix-ui/react-collapsible
+
+# CVA for sidebar variant logic
+npm install class-variance-authority
 ```
 
-That is the only new dependency this milestone requires. All other changes are pattern changes within existing code.
+That is the complete set of new npm installs. Theming and card layout require zero new packages.
 
 ---
 
-## What NOT to Use
+## Version Compatibility
 
-| Tool | Why Not |
-|------|---------|
-| Knex | Brings query builder coupling to a project using raw pg; migration-only use is undersized for the dependency |
-| dbmate | Go binary requiring CLI invocation; can't run programmatically from Node startup |
-| Flyway / Liquibase | JVM tools — completely wrong runtime |
-| `express-async-errors` | Monkey-patches Express require() internals; unnecessary since Express 5 has native async error propagation |
-| `pg-promise` migrations | Ties migration system to query library; adds pg-promise to a project already using raw `pg` |
-| Table partitioning | Out of scope per PROJECT.md — premature at current scale |
-| Prometheus client | Out of scope per PROJECT.md |
+| Package | Version | React 19 | Tailwind v4 | Notes |
+|---------|---------|-----------|-------------|-------|
+| recharts | ^3.8.1 | YES | YES (CSS vars) | May need `overrides.react-is: ^19.0.0` if peer dep conflict |
+| @radix-ui/react-collapsible | ^1.1.x | YES | YES | Latest: 1.1.12 (Aug 2025) |
+| @radix-ui/react-tooltip | ^1.x | YES | YES | Peer dep on radix-ui/react-popper |
+| @radix-ui/react-dialog | ^1.x | YES | YES | Used for mobile overlay sidebar |
+| @radix-ui/react-slot | ^1.x | YES | YES | Used for asChild prop pattern |
+| @radix-ui/react-separator | ^1.x | YES | YES | Used for sidebar dividers |
+| class-variance-authority | ^0.7.x | YES | YES | Framework-agnostic, no peer deps |
+
+---
+
+## What NOT to Add
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| ApexCharts / react-apexcharts | Same bundle size as Recharts v3, no shadcn integration, JS-config theming conflicts with CSS var approach | Recharts v3 |
+| Nivo | Larger bundle, historically needs `--legacy-peer-deps` for React 19, no shadcn integration | Recharts v3 |
+| next-themes | Next.js-specific; SPA doesn't need SSR theme flash prevention | Custom React context + localStorage (30 lines) |
+| shadcn CLI (`npx shadcn init`) | Designed for TypeScript projects; generates config HomeChronicle doesn't use (components.json, path aliases). Copy-paste the sidebar source files directly | Manual copy-paste of sidebar/ source |
+| MUI / Mantine / Ant Design | Parallel styling system; conflicts with Tailwind v4 | Tailwind utilities |
+| react-pro-sidebar / other sidebar npm packages | Bundle weight, not Tailwind v4 native | shadcn sidebar copy-paste |
+| Chart.js | Canvas rendering; no CSS variable theming; worse DX for composable React charts | Recharts v3 |
 
 ---
 
 ## Sources
 
-- node-pg-migrate GitHub releases: https://github.com/salsita/node-pg-migrate/releases
-- node-pg-migrate programmatic API docs: https://salsita.github.io/node-pg-migrate/api
-- node-pg-migrate ESM v8 issue (resolved): https://github.com/salsita/node-pg-migrate/issues/895
-- PostgreSQL count estimation wiki: https://wiki.postgresql.org/wiki/Count_estimate
-- Faster PostgreSQL Counting (Citus Data): https://www.citusdata.com/blog/2016/10/12/count-performance/
-- Express 5 error handling docs: https://expressjs.com/en/guide/error-handling.html
-- Express 5 routing docs: https://expressjs.com/en/guide/routing.html
-- Node.js process events (unhandledRejection, uncaughtException): https://nodejs.org/api/process.html
-- BetterStack Express error handling patterns: https://betterstack.com/community/guides/scaling-nodejs/error-handling-express/
+- Recharts GitHub releases — 3.8.1 current as of April 2026: https://github.com/recharts/recharts/releases
+- shadcn/ui chart docs — "chart component now uses Recharts v3": https://ui.shadcn.com/docs/components/radix/chart
+- shadcn/ui Tailwind v4 + React 19 support confirmation: https://ui.shadcn.com/docs/tailwind-v4
+- shadcn/ui sidebar blocks (16 variants, icon collapse confirmed): https://ui.shadcn.com/blocks/sidebar
+- Tailwind v4 @theme directive official docs: https://tailwindcss.com/docs/theme
+- Tailwind v4 theming best practices (official team discussion): https://github.com/tailwindlabs/tailwindcss/discussions/18471
+- Nivo React 19 support (issue closed): https://github.com/plouc/nivo/issues/2618
+- ApexCharts react-apexcharts npm (v2.1.0, March 2026): https://www.npmjs.com/package/react-apexcharts
+- LogRocket React chart libraries comparison 2025: https://blog.logrocket.com/best-react-chart-libraries-2025/
+- shadcn sidebar Vite + localStorage pattern (community): https://adiletsatylganov.medium.com/how-to-keep-shadcn-sidebar-state-when-reloading-a-page-client-side-90310a146fe0
+
+---
+*Stack research for: HomeChronicle v1.2 UI Redesign*
+*Researched: 2026-04-14*

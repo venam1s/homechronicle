@@ -12,10 +12,10 @@ function buildQueryString(params) {
   return qs.toString();
 }
 
-export function useEvents(filters = {}, page = 1) {
-  const qs = buildQueryString({ ...filters, page, limit: 50 });
+export function useEvents(filters = {}, page = 1, limit = 50) {
+  const qs = buildQueryString({ ...filters, page, limit });
   return useQuery({
-    queryKey: queryKeys.events(filters, page),
+    queryKey: queryKeys.events(filters, page, limit),
     queryFn: () => fetchJson(`${BASE}/events?${qs}`),
     staleTime: 10_000,
     refetchInterval: page === 1 ? 10_000 : false,

@@ -33,11 +33,11 @@ const BRIDGE_STEP = {
         Use the <span className="font-medium">bridge pairing code.</span> Pairing once gives homechronicle
         access to <em>all</em> the accessories connected through it — no individual device PINs needed.
       </div>
-      <p className="text-sm text-gray-700 font-medium">Where to find the PIN by platform:</p>
+      <p className="text-sm text-hc-fg font-medium">Where to find the PIN by platform:</p>
       <div className="space-y-2.5">
-        <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
-          <p className="font-medium text-gray-800">Homebridge</p>
-          <ul className="text-gray-600 mt-1 space-y-1 list-none">
+        <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-3 py-2.5 text-sm">
+          <p className="font-medium text-hc-fg-strong">Homebridge</p>
+          <ul className="text-hc-fg mt-1 space-y-1 list-none">
             {[
               'Open the Homebridge web UI (usually http://homebridge.local or http://<NAS-IP>:8581)',
               'Click the QR code icon in the top nav — the PIN is printed below it',
@@ -49,9 +49,9 @@ const BRIDGE_STEP = {
             ))}
           </ul>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
-          <p className="font-medium text-gray-800">Home Assistant</p>
-          <ul className="text-gray-600 mt-1 space-y-1 list-none">
+        <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-3 py-2.5 text-sm">
+          <p className="font-medium text-hc-fg-strong">Home Assistant</p>
+          <ul className="text-hc-fg mt-1 space-y-1 list-none">
             {[
               'Go to Settings → Devices & Services → HomeKit Bridge',
               'The PIN is shown during initial setup and on the integration card',
@@ -63,9 +63,9 @@ const BRIDGE_STEP = {
             ))}
           </ul>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
-          <p className="font-medium text-gray-800">HOOBS / Other HAP bridges</p>
-          <ul className="text-gray-600 mt-1 space-y-1 list-none">
+        <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-3 py-2.5 text-sm">
+          <p className="font-medium text-hc-fg-strong">HOOBS / Other HAP bridges</p>
+          <ul className="text-hc-fg mt-1 space-y-1 list-none">
             {[
               'Look for the HomeKit setup code or QR code on the dashboard',
               'Any software that exposes a HomeKit bridge will have a PIN in the same XXX-XX-XXX format',
@@ -77,10 +77,10 @@ const BRIDGE_STEP = {
           </ul>
         </div>
       </div>
-      <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm">
-        <span className="font-medium text-gray-700">Format:</span>{' '}
-        <code className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs font-mono text-gray-900">XXX-XX-XXX</code>
-        <span className="text-gray-500 ml-2">— always 8 digits, two dashes (e.g. 031-45-154)</span>
+      <div className="bg-hc-panel-mid border border-hc-panel-border rounded px-3 py-2 text-sm">
+        <span className="font-medium text-hc-fg">Format:</span>{' '}
+        <code className="bg-hc-panel border border-hc-panel-border px-1.5 py-0.5 rounded text-xs font-mono text-hc-fg-strong">XXX-XX-XXX</code>
+        <span className="text-hc-muted ml-2">— always 8 digits, two dashes (e.g. 031-45-154)</span>
       </div>
     </div>
   ),
@@ -96,7 +96,7 @@ const STEPS = [
       const tip = CATEGORY_TIPS[category];
       return (
         <div className="space-y-3">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-hc-fg">
             Most accessories have the 8-digit setup code printed on a label somewhere on the device body.
           </p>
           {tip?.tip && (
@@ -104,7 +104,7 @@ const STEPS = [
               <span className="font-medium">For {tip.label}:</span> {tip.tip}
             </div>
           )}
-          <ul className="text-sm text-gray-600 space-y-1.5 list-none">
+          <ul className="text-sm text-hc-fg space-y-1.5 list-none">
             {[
               'Bottom or underside of the device',
               'Back panel or rear label',
@@ -118,10 +118,10 @@ const STEPS = [
               </li>
             ))}
           </ul>
-          <div className="bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm">
-            <span className="font-medium text-gray-700">Format:</span>{' '}
-            <code className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs font-mono text-gray-900">111-22-333</code>
-            <span className="text-gray-500 ml-2">— always 8 digits, two dashes</span>
+          <div className="bg-hc-panel-mid border border-hc-panel-border rounded px-3 py-2 text-sm">
+            <span className="font-medium text-hc-fg">Format:</span>{' '}
+            <code className="bg-hc-panel border border-hc-panel-border px-1.5 py-0.5 rounded text-xs font-mono text-hc-fg-strong">111-22-333</code>
+            <span className="text-hc-muted ml-2">— always 8 digits, two dashes</span>
           </div>
         </div>
       );
@@ -134,10 +134,10 @@ const STEPS = [
     color: 'green',
     content: () => (
       <div className="space-y-3">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-hc-fg">
           If you still have the box, paperwork, or a QR sticker, the setup code is usually there.
         </p>
-        <ul className="text-sm text-gray-600 space-y-1.5 list-none">
+        <ul className="text-sm text-hc-fg space-y-1.5 list-none">
           {[
             'Quick-start guide or setup card inside the box',
             'Back of the retail box (near the barcode)',
@@ -154,7 +154,7 @@ const STEPS = [
         </ul>
         <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-sm text-green-800">
           <span className="font-medium">To read a QR code:</span> Open the Apple Home app → tap{' '}
-          <span className="font-mono bg-white px-1 rounded text-xs">+</span> → Add Accessory → point your camera at
+          <span className="font-mono bg-hc-panel px-1 rounded text-xs">+</span> → Add Accessory → point your camera at
           the QR code. The 8-digit PIN will appear in the Home app — note it down for use here.
         </div>
       </div>
@@ -177,7 +177,7 @@ const STEPS = [
       }[category];
       return (
         <div className="space-y-3">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-hc-fg">
             Some manufacturers store the HomeKit setup code in their own app — useful when the device label is worn or missing.
           </p>
           {appTip && (
@@ -185,7 +185,7 @@ const STEPS = [
               <span className="font-medium">Common apps for this category:</span> {appTip}
             </div>
           )}
-          <ul className="text-sm text-gray-600 space-y-1.5 list-none">
+          <ul className="text-sm text-hc-fg space-y-1.5 list-none">
             {[
               'Open the manufacturer\'s app and find your device',
               'Look for: Settings → Hardware Info → HomeKit Setup Code',
@@ -209,10 +209,10 @@ const STEPS = [
     color: 'teal',
     content: () => (
       <div className="space-y-3">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-hc-fg">
           If the label is worn and the code isn't in the app or packaging, the manufacturer's support team can often look it up using your device's serial number.
         </p>
-        <ul className="text-sm text-gray-600 space-y-1.5 list-none">
+        <ul className="text-sm text-hc-fg space-y-1.5 list-none">
           {[
             'Find the serial number (usually near where the PIN label was)',
             'Contact support via chat, email, or phone',
@@ -239,10 +239,10 @@ const STEPS = [
           <span className="font-medium">Warning:</span> A factory reset will unpair the device from Apple Home
           and erase all its settings. Only do this if no other option worked.
         </div>
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-hc-fg">
           Some accessories generate a new setup code after a factory reset, making them paireable again.
         </p>
-        <ul className="text-sm text-gray-600 space-y-1.5 list-none">
+        <ul className="text-sm text-hc-fg space-y-1.5 list-none">
           {[
             'Check the device manual for reset instructions (usually holding a button)',
             'After reset: re-add to Apple Home first using the new code',
@@ -285,18 +285,18 @@ export default function PinHelpModal({ deviceName, category, onClose }) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="hc-modal bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+      <div className="hc-modal bg-hc-panel rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-hc-panel-border">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">How to find the setup PIN</h2>
+            <h2 className="text-base font-semibold text-hc-fg-strong">How to find the setup PIN</h2>
             {deviceName && (
-              <p className="text-sm text-gray-500 mt-0.5">for <span className="font-medium text-gray-700">{deviceName}</span></p>
+              <p className="text-sm text-hc-muted mt-0.5">for <span className="font-medium text-hc-fg">{deviceName}</span></p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="hc-modal-close ml-3 flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="hc-modal-close ml-3 flex-shrink-0 p-1.5 rounded-lg text-hc-muted hover:text-hc-fg hover:bg-hc-panel-mid transition-colors"
           >
             <X size={18} />
           </button>
@@ -307,19 +307,19 @@ export default function PinHelpModal({ deviceName, category, onClose }) {
           {[BRIDGE_STEP, ...STEPS].map(({ id, icon: Icon, title, color, content }) => {
             const isOpen = open.has(id);
             return (
-              <div key={id} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div key={id} className="border border-hc-panel-border rounded-xl overflow-hidden">
                 <button
                   onClick={() => toggle(id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-hc-panel-mid transition-colors"
                 >
                   <span className={clsx('flex-shrink-0 p-1.5 rounded-lg', COLOR_MAP[color])}>
                     <Icon size={15} />
                   </span>
-                  <span className="flex-1 text-sm font-medium text-gray-800">{title}</span>
-                  <span className="text-gray-400 text-xs">{isOpen ? '▲' : '▼'}</span>
+                  <span className="flex-1 text-sm font-medium text-hc-fg-strong">{title}</span>
+                  <span className="text-hc-muted text-xs">{isOpen ? '▲' : '▼'}</span>
                 </button>
                 {isOpen && (
-                  <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50">
+                  <div className="px-4 pb-4 pt-1 border-t border-hc-panel-border bg-hc-panel-mid/50">
                     {content(category)}
                   </div>
                 )}
@@ -329,7 +329,7 @@ export default function PinHelpModal({ deviceName, category, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-gray-100">
+        <div className="px-5 py-3 border-t border-hc-panel-border">
           <button
             onClick={onClose}
             className="w-full py-2 text-sm font-medium rounded-xl transition-colors"

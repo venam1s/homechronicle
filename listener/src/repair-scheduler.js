@@ -30,13 +30,15 @@ export function msUntilHour(targetHour) {
  * @param {function(object): Promise<void>} deps.saveSettings — persists updated settings
  * @param {function(number=): Array} deps.getRepairTargets — returns [{deviceId, pairingName, needsRepair, isStale}]
  * @param {function(string): Promise<object|null>} deps.discoverDevice — discover device for re-pair
- * @param {function(string, object): Promise<void>} deps.savePairing — save discovered pairing
+ * @param {function(string, object): Promise<void>} deps.savePairing — save discovered pairing (isStale path)
  * @param {function(string): void} deps.stopSubscriber — stop subscriber for a device
  * @param {function(string, object, object, function): void} deps.startSubscriber — start subscriber for a device
  * @param {function(string): boolean} deps.resetSubscriberStats — reset circuit breaker stats
  * @param {function(): object} deps.loadPairings — returns pairings map { deviceId: pairing }
  * @param {function(): object} deps.loadRooms — returns rooms map
  * @param {function(string): object|null} deps.getPairingForLookup — get pairing for a device
+ * @param {function(string, string, string, number): Promise<{longTermData, pairing}>} deps.performPairSetupAndPersist —
+ *   pre-wired closure: (deviceId, pin, address, port) → performs full pairSetup + persist
  * @returns {{ start: function, stop: function, runRepairCycle: function }}
  */
 export function createRepairScheduler({
@@ -51,6 +53,7 @@ export function createRepairScheduler({
   loadPairings,
   loadRooms,
   getPairingForLookup,
+  performPairSetupAndPersist,
 }) {
   let scheduledTimeout = null;
   let running = false;
@@ -99,15 +102,28 @@ export function createRepairScheduler({
       }
 
       for (const target of targets) {
-        resetSubscriberStats(target.deviceId);
-
         if (target.needsRepair) {
-          // Re-pair path: discover device and save new pairing
+          // Re-pair path: requires stored PIN for full pairSetup()
+          const pairings = loadPairings();
+          const pairing = pairings[target.deviceId] ?? null;
+          if (!pairing || !pairing.pin) {
+            log.warn(`[repair] ${target.pairingName}: no stored PIN, skipping — run manual Repair to restore`);
+            skipped++;
+            continue;
+          }
+
           log.info(`[repair] ${target.pairingName}: re-pairing...`);
           try {
             const discovered = await discoverDevice(target.deviceId);
             if (discovered) {
-              await savePairing(target.deviceId, discovered);
+              await performPairSetupAndPersist(target.deviceId, pairing.pin, discovered.address, discovered.port);
+              resetSubscriberStats(target.deviceId);
+              const updatedPairings = loadPairings();
+              const updatedPairing = updatedPairings[target.deviceId] ?? null;
+              if (updatedPairing) {
+                stopSubscriber(target.deviceId);
+                startSubscriber(target.deviceId, updatedPairing, loadRooms(), getPairingForLookup);
+              }
               repaired++;
               log.info(`[repair] ${target.pairingName}: repaired successfully`);
             } else {
@@ -128,6 +144,7 @@ export function createRepairScheduler({
               skipped++;
               log.info(`[repair] ${target.pairingName}: no pairing found, skipped`);
             } else {
+              resetSubscriberStats(target.deviceId);
               stopSubscriber(target.deviceId);
               startSubscriber(target.deviceId, pairing, loadRooms(), getPairingForLookup);
               repaired++;

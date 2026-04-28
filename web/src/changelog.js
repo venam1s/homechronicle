@@ -10,6 +10,26 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.1.9',
+    title: 'Scheduled repair actually works + stale-device fix + dashboard truth-up',
+    items: [
+      'Scheduled repair fully re-pairs HomeKit devices using stored PIN — no more nightly cycles with nothing to show',
+      'Devices no longer go stale after a few days when they\'re still connected — health check treats a live HomeKit subscription as a heartbeat',
+      'Daily repair leaves healthy connections alone instead of tearing them down nightly',
+      'Devices missing a stored PIN are warn-skipped during repair instead of failing the cycle',
+      'Dashboard: Today / This Week / Top Device / Top Room KPI cards restored',
+      'Fix: THIS WEEK KPI was summing the dashboard range (could be 30 or 90 days) under a "last 7 days" label — now correctly shows 7 days',
+      'TOP DEVICE / TOP ROOM cards labeled (7d) so the window is clear',
+      'Activity feed rows and quiet-hours dashboard rows now navigate to filtered Timeline / Accessory Detail',
+      'Devices page widened; Timeline chrome flattened; room badge contrast fixed; system-theme icon corrected',
+      'Timeline keyboard tab navigation fixed (nested clickable elements were creating extra stops and confusing screen readers)',
+      'Subscriber liveness gate tightened — a hung HomeKit socket can no longer mask as online indefinitely',
+      'Fix: scheduled repair would update IP but never restart the HAP subscriber, leaving event logging silently flat',
+      'Fix: failed repair attempts no longer mask broken devices as healthy in the dashboard',
+      '21 new listener tests + 2 new web tests covering repair scheduler and device-health logic',
+    ],
+  },
+  {
     version: 'v0.1.8',
     title: 'Smarter device health, clickable navigation & bug fix sweep',
     items: [

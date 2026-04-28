@@ -62,13 +62,13 @@ export default function MonthlyHeatmap() {
   }, [data]);
 
   if (isLoading) {
-    return <div className="h-24 flex items-center justify-center text-gray-400 text-sm">Loading…</div>;
+    return <div className="h-24 flex items-center justify-center text-hc-muted text-sm">Loading…</div>;
   }
   if (!data.length) {
     return (
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Monthly Heatmap</h3>
-        <div className="h-24 flex items-center justify-center text-sm text-gray-400">No activity in the last 12 months.</div>
+        <h3 className="text-sm font-semibold text-hc-fg mb-2">Monthly Heatmap</h3>
+        <div className="h-24 flex items-center justify-center text-sm text-hc-muted">No activity in the last 12 months.</div>
       </div>
     );
   }
@@ -79,10 +79,10 @@ export default function MonthlyHeatmap() {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Monthly Heatmap</h3>
-        <span className="text-xs text-gray-400">last 12 months</span>
+        <h3 className="text-sm font-semibold text-hc-fg">Monthly Heatmap</h3>
+        <span className="text-xs text-hc-muted">last 12 months</span>
       </div>
-      <p className="text-xs text-gray-500 mb-2 min-h-4">
+      <p className="text-xs text-hc-muted mb-2 min-h-4">
         {hovered ? `${hovered.label} · ${hovered.count} event${hovered.count !== 1 ? 's' : ''}` : 'Hover a day for details'}
       </p>
 

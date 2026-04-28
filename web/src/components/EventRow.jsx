@@ -39,12 +39,17 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
   // Third meta row is shown only when there's something worth displaying
   const showMetaRow = gap || anomalyLabel || (dayTotal > 1 && rank) || marker === 'first' || marker === 'last' || marker === 'only';
 
+  // H-02: the row container is intentionally NOT interactive — the inner
+  // accessory-name <button> is the sole tab stop for navigation. Nesting
+  // role="button" + tabIndex on the row created a WCAG 1.3.1 / 4.1.2 violation
+  // (interactive widget with interactive descendants) and doubled the keyboard
+  // tab stops per row.
   return (
     <div
       className={`group flex items-start gap-3 py-3 px-4 transition-all relative ${
         isHighlighted ? 'bg-blue-50'
         : isDimmed    ? 'opacity-40'
-        : 'hover:bg-gray-50'
+        : 'hover:bg-hc-panel-mid'
       }`}
       style={isHighlighted ? { boxShadow: `inset 3px 0 0 0 rgba(var(--hc-accent-rgb), 0.65)` } : undefined}
     >
@@ -55,16 +60,16 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
             {onSelectAccessory && event.accessory_id ? (
               <button
-                onClick={(e) => { e.stopPropagation(); onSelectAccessory(event.accessory_id); }}
-                className="font-medium text-gray-900 truncate hover:text-blue-600 hover:underline transition-colors text-left"
+                onClick={() => onSelectAccessory(event.accessory_id)}
+                className="font-medium text-hc-fg-strong truncate hover:text-blue-600 hover:underline transition-colors text-left"
               >
                 {event.accessory_name}
               </button>
             ) : (
-              <span className="font-medium text-gray-900 truncate">{event.accessory_name}</span>
+              <span className="font-medium text-hc-fg-strong truncate">{event.accessory_name}</span>
             )}
             {anomalyLabel && (
-              <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <span className="inline-flex items-center gap-1 text-xs text-hc-warning-text bg-hc-warning-bg border border-hc-warning-border px-1.5 py-0.5 rounded-full flex-shrink-0">
                 ⚠ {anomalyLabel}
               </span>
             )}
@@ -74,15 +79,15 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
             {/* Hover-reveal mute button */}
             {onMute && (
               <button
-                onClick={(e) => { e.stopPropagation(); onMute(event.accessory_name); }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-gray-500 focus:opacity-100"
+                onClick={() => onMute(event.accessory_name)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-hc-muted hover:text-hc-muted focus:opacity-100"
                 title={`Mute ${event.accessory_name}`}
                 aria-label={`Mute ${event.accessory_name}`}
               >
                 <VolumeX size={12} />
               </button>
             )}
-            <span className="text-xs text-gray-400 whitespace-nowrap" title={format(ts, 'PPpp')}>
+            <span className="text-xs text-hc-muted whitespace-nowrap" title={format(ts, 'PPpp')}>
               {formatDistanceToNow(ts, { addSuffix: true })}
             </span>
           </div>
@@ -90,15 +95,15 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
 
         {/* ── Row 2: service type ── */}
         <div className="flex items-center gap-1.5 mt-0.5">
-          <Icon size={12} className="text-gray-400 flex-shrink-0" />
-          <span className="text-xs text-gray-400">{serviceName}</span>
+          <Icon size={12} className="text-hc-muted flex-shrink-0" />
+          <span className="text-xs text-hc-muted">{serviceName}</span>
         </div>
 
         {/* ── Row 3: description · before→after · room badge ── */}
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          <span className="text-sm text-gray-600">{description}</span>
+          <span className="text-sm text-hc-fg">{description}</span>
           {beforeAfter && (
-            <span className="text-xs font-mono text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded">
+            <span className="text-xs font-mono text-hc-muted bg-hc-panel-mid border border-hc-panel-border px-1.5 py-0.5 rounded">
               {beforeAfter.from} → {beforeAfter.to}
             </span>
           )}
@@ -118,12 +123,12 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
         {showMetaRow && (
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {gap && (
-              <span className="text-xs text-gray-400">quiet {gap} before</span>
+              <span className="text-xs text-hc-muted">quiet {gap} before</span>
             )}
 
             {/* "1st today" is implied by the 'first' marker badge, so skip ordinal when rank === 1 */}
             {dayTotal > 1 && rank && rank > 1 && (
-              <span className="text-xs text-gray-400">{ordinal(rank)} today</span>
+              <span className="text-xs text-hc-muted">{ordinal(rank)} today</span>
             )}
 
             {marker === 'first' && (
@@ -137,7 +142,7 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
               </span>
             )}
             {marker === 'only' && (
-              <span className="text-xs text-gray-400">only event today</span>
+              <span className="text-xs text-hc-muted">only event today</span>
             )}
           </div>
         )}

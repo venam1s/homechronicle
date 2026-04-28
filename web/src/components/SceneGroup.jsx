@@ -18,7 +18,10 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
   // ── Single event — render a plain EventRow ──────────────────────────────
   if (events.length === 1) {
     return (
-      <div data-scene-id={events[0].id}>
+      <div
+        data-scene-id={events[0].id}
+        className="hc-scene-card mx-3 my-2 rounded-lg overflow-hidden"
+      >
         <EventRow
           event={events[0]}
           hoveredCell={hoveredCell}
@@ -72,7 +75,7 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-800 text-sm truncate">
+            <span className="font-medium text-hc-fg-strong text-sm truncate">
               {names.length <= 2
                 ? names.join(' & ')
                 : `${names[0]} +${names.length - 1} others`}
@@ -85,19 +88,19 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
               />
             )}
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">
+          <div className="text-xs text-hc-muted mt-0.5">
             {events.length} events at the same time
             {rooms.length > 0 && ` · ${rooms.join(', ')}`}
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-hc-muted">
             {ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
           {expanded
-            ? <ChevronDown size={14} className="text-gray-400" />
-            : <ChevronRight size={14} className="text-gray-400" />}
+            ? <ChevronDown size={14} className="text-hc-muted" />
+            : <ChevronRight size={14} className="text-hc-muted" />}
         </div>
       </button>
 
@@ -105,7 +108,7 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
       {expanded && (
         <div className="hc-scene-expanded">
           <div className="ml-4 border-l-2 hc-scene-border">
-            <div className="divide-y divide-gray-100/80">
+            <div className="divide-y divide-hc-panel-border/80">
               {events.map((event) => (
                 <EventRow
                   key={event.id}
@@ -113,6 +116,7 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
                   hoveredCell={hoveredCell}
                   meta={eventMetaMap[event.id] ?? {}}
                   onMute={onMute}
+                  onSelectAccessory={onSelectAccessory}
                 />
               ))}
             </div>

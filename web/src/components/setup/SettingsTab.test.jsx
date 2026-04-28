@@ -79,7 +79,7 @@ describe('Scheduled Repair section', () => {
   function getRepairCard() {
     // The explanatory text is unique to the Scheduled Repair card
     const explanatoryText = screen.getByText(/Automatically re-pairs HomeKit devices/i);
-    return explanatoryText.closest('div.bg-white, div[class*="bg-white"]');
+    return explanatoryText.closest('div[class*="bg-hc-panel"]');
   }
 
   it('renders toggle checkbox as unchecked when repairConfig.enabled is false', () => {

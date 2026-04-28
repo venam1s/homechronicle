@@ -1,37 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: milestone
-status: verifying
-stopped_at: Completed 09-01-PLAN.md (scheduled repair UI)
-last_updated: "2026-04-03T16:36:43.065Z"
-last_activity: 2026-04-03
+milestone: v1.3
+milestone_name: Repair Reliability Fixes
+status: completed
+stopped_at: "Completed quick task 260427-wm1: release blocker fixes (H-01/H-02/H-03/M-01)"
+last_updated: "2026-04-28T07:41:00Z"
+last_activity: 2026-04-28 -- Release blocker fixes complete; ready for v0.1.9
 progress:
   total_phases: 2
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 0
+  total_plans: 2
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-03)
+See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 09 — scheduled-repair-ui
+**Current focus:** v1.3 closed — planning next milestone
 
 ## Current Position
 
-Phase: 09
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-12 - Completed quick task 260412-gx7: Update README.md alerts documentation for web UI
+Milestone: v1.3 Repair Reliability Fixes — ARCHIVED 2026-04-28 (shipped 2026-04-21)
+Active phase: none
+Status: Awaiting next milestone (use /gsd-new-milestone)
+Last activity: 2026-04-28 -- v1.3 milestone close
 
 ```
-Progress: [░░░░░░░░░░] 0% (0/2 phases)
+Progress: [██████████] 100% (2/2 phases)
 ```
 
 ## Accumulated Context
@@ -40,37 +40,29 @@ Progress: [░░░░░░░░░░] 0% (0/2 phases)
 
 Decisions are logged in PROJECT.md Key Decisions table.
 
-- [Phase 08-01]: getRepairTargets uses session.pairingName fallback chain (pairing?.name ?? pairingName ?? deviceId)
-- [Phase 08-01]: running flag kept true during saveSettings in nested finally to prevent concurrent cycle start
-- [Phase 08-02]: onSettingsChange always calls stop() before conditional start() to handle hour changes as well as enable/disable
-- [Phase 09-scheduled-repair-ui]: repairConfig query uses 60s refetchInterval to auto-refresh last-run status
-- [Phase 09-scheduled-repair-ui]: Direct saveRepairMutation.mutate() on toggle/hour change — no debounce needed for repair config
+- Mirror setup-router.js manual repair order in scheduler: resetSubscriberStats → stopSubscriber → startSubscriber, applied to both needsRepair and isStale success branches
+- Inject performPairSetupAndPersist as a pre-wired 4-arg closure into scheduler rather than threading HttpClient + savePairings — minimizes dep surface and matches existing discoverDevice injection pattern
+- no-PIN skip runs before discoverDevice to avoid unnecessary mDNS churn for unrecoverable devices
 
 ### Pending Todos
 
-None yet.
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260403-2fx | Firmware version tracking — log and surface firmware version changes | 2026-04-03 | bd176bd | [260403-2fx-firmware-version-tracking-log-and-surfac](./quick/260403-2fx-firmware-version-tracking-log-and-surfac/) |
-| 260406-lo7 | Reorganize Settings tab - full layout rethink with improved visual hierarchy, section merging, and reordering | 2026-04-06 | 73fc185 | [260406-lo7-reorganize-settings-tab-full-layout-reth](./quick/260406-lo7-reorganize-settings-tab-full-layout-reth/) |
-| 260406-nm4 | Make top banner sticky with scroll-collapse to a thinner version | 2026-04-06 | 8d28cb2 | [260406-nm4-make-top-banner-sticky-with-scroll-colla](./quick/260406-nm4-make-top-banner-sticky-with-scroll-colla/) |
-| 260407-c76 | Add GitLab issues link and documentation link to the Settings tab in the web UI | 2026-04-07 | aedd6c0 | [260407-c76-add-gitlab-issues-link-and-documentation](./quick/260407-c76-add-gitlab-issues-link-and-documentation/) |
-| 260407-e5i | Make dashboard stale devices and outlier rows clickable with navigation | 2026-04-07 | 2e975aa | [260407-e5i-make-dashboard-stale-devices-and-outlier](./quick/260407-e5i-make-dashboard-stale-devices-and-outlier/) |
-| 260407-en9 | Fix State Duration chart for high-cardinality characteristics - aggregate into Other bucket | 2026-04-07 | bc5ab5b | [260407-en9-fix-state-duration-chart-for-high-cardin](./quick/260407-en9-fix-state-duration-chart-for-high-cardin/) |
-| 260407-p92 | Show all bridge child accessories in Accessories tab via on-demand metadata cache refresh | 2026-04-07 | 8f34a19 | [260407-p92-show-all-bridge-child-accessories-in-acc](./quick/260407-p92-show-all-bridge-child-accessories-in-acc/) |
-| 260407-qzp | Fix scene group blue color to use theme accent variable | 2026-04-07 | de001d8 | [260407-qzp-fix-scene-group-blue-color-to-use-theme-](./quick/260407-qzp-fix-scene-group-blue-color-to-use-theme-/) |
-| 260411-uqw | Split multi-service HomeKit accessories into separate rows in GET /accessories | 2026-04-12 | 359088b | [260411-uqw-split-multi-service-homekit-accessories-](./quick/260411-uqw-split-multi-service-homekit-accessories-/) |
-| 260412-gx7 | Update README.md alerts documentation for web UI | 2026-04-12 | b5fcb14 | [260412-gx7-update-readme-md-alerts-documentation-fo](./quick/260412-gx7-update-readme-md-alerts-documentation-fo/) |
+None — milestone complete.
 
 ### Blockers/Concerns
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260427-ttq | Fix everything-stale bug: add lastHealthyAt heartbeat to subscriber stats; thread into deriveDeviceHealth + getRepairTargets | 2026-04-28 | 02a21cb | [260427-ttq-fix-everything-stale-bug-add-lasthealthy](./quick/260427-ttq-fix-everything-stale-bug-add-lasthealthy/) |
+| 260427-vch | Close quiet-device gap: thread subscriberConnected boolean into deriveDeviceHealth rescue (live HAP sub = heartbeat) | 2026-04-28 | 725a905 | [260427-vch-close-quiet-device-gap-thread-subscriber](./quick/260427-vch-close-quiet-device-gap-thread-subscriber/) |
+| 260427-wm1 | Fix release blockers from RELEASE-REVIEW: KpiCards window coherence (H-01/H-03), EventRow a11y (H-02), subscriber liveness gate (M-01) | 2026-04-28 | 3ffc42e | [260427-wm1-fix-release-blockers-from-release-review](./quick/260427-wm1-fix-release-blockers-from-release-review/) |
+
 ## Session Continuity
 
-Last session: 2026-04-03T16:33:50.595Z
-Stopped at: Completed 09-01-PLAN.md (scheduled repair UI)
+Last session: 2026-04-28T01:28:28Z
+Stopped at: Completed quick task 260427-ttq: lastHealthyAt heartbeat fix
 Resume file: None
+---

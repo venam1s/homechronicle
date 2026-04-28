@@ -32,7 +32,7 @@ export default function FilterBar({
   const activeCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <div className="bg-white border-b border-gray-200">
+    <div className="bg-hc-panel border-b border-hc-panel-border">
       {/* ── Combined toggle bar ────────────────────────────────── */}
       <div className="max-w-2xl mx-auto px-4 flex items-center py-2">
         {/* Search & filters toggle */}
@@ -64,8 +64,8 @@ export default function FilterBar({
           disabled={!hasHeatmapData && !heatmapLoading}
           className="flex items-center gap-1.5 py-0.5 px-2 rounded-md transition-colors hc-filter-toggle disabled:cursor-default disabled:opacity-40"
         >
-          <BarChart2 size={13} style={hasHeatmapData ? { color: 'rgb(var(--hc-accent-rgb))' } : undefined} className={hasHeatmapData ? '' : 'text-gray-300'} />
-          <span className={`text-xs font-semibold ${hasHeatmapData ? '' : 'text-gray-300'}`} style={hasHeatmapData ? { color: 'var(--hc-accent-stronger)' } : undefined}>
+          <BarChart2 size={13} style={hasHeatmapData ? { color: 'rgb(var(--hc-accent-rgb))' } : undefined} className={hasHeatmapData ? '' : 'text-hc-muted'} />
+          <span className={`text-xs font-semibold ${hasHeatmapData ? '' : 'text-hc-muted'}`} style={hasHeatmapData ? { color: 'var(--hc-accent-stronger)' } : undefined}>
             Activity heatmap
           </span>
           {hasHeatmapData && (
@@ -73,7 +73,7 @@ export default function FilterBar({
               Jump view
             </span>
           )}
-          {heatmapLoading && <span className="text-[10px] text-gray-300">Loading…</span>}
+          {heatmapLoading && <span className="text-[10px] text-hc-muted">Loading…</span>}
           {hasHeatmapData && (
             heatmapOpen
               ? <ChevronUp size={12} style={{ color: 'var(--hc-accent-strong)' }} />
@@ -88,13 +88,13 @@ export default function FilterBar({
           <div className="flex flex-wrap gap-2 sm:gap-3">
             {/* Search by name */}
             <div className="relative w-full sm:w-56">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-hc-muted pointer-events-none" />
               <input
                 type="search"
                 placeholder="Search accessory…"
                 value={filters.accessory ?? ''}
                 onChange={(e) => update('accessory', e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg pl-8 pr-3 py-2 sm:py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg pl-8 pr-3 py-2 sm:py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -109,7 +109,7 @@ export default function FilterBar({
               <select
                 value={filters.room ?? ''}
                 onChange={(e) => update('room', e.target.value)}
-                className={`border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto ${activeRoomColor ? 'pl-7 pr-3' : 'px-3'}`}
+                className={`border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto ${activeRoomColor ? 'pl-7 pr-3' : 'px-3'}`}
               >
                 <option value="">All rooms</option>
                 {rooms.map((r) => (
@@ -124,7 +124,7 @@ export default function FilterBar({
               placeholder="Characteristic…"
               value={filters.characteristic ?? ''}
               onChange={(e) => update('characteristic', e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-36"
+              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-36"
             />
 
             {/* Date from */}
@@ -132,7 +132,7 @@ export default function FilterBar({
               type="datetime-local"
               value={filters.from ?? ''}
               onChange={(e) => update('from', e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
+              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
             />
 
             {/* Date to */}
@@ -140,7 +140,7 @@ export default function FilterBar({
               type="datetime-local"
               value={filters.to ?? ''}
               onChange={(e) => update('to', e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
+              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
             />
 
             {/* Clear */}

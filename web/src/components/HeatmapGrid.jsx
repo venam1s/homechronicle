@@ -29,7 +29,7 @@ export default function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onC
 
   return (
     <div className="max-w-2xl mx-auto px-4 pb-3">
-      <p className="text-[10px] text-gray-400 mb-2">
+      <p className="text-[10px] text-hc-muted mb-2">
         Hover to highlight matching events · click to jump
       </p>
       <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>

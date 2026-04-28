@@ -180,6 +180,8 @@ export function createAccessoriesRouter({
           heartbeatSamples: heartbeat.heartbeat_samples ?? 0,
           staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
           subscriberConnectedAt: reliability?.lastConnectedAt ?? null,
+          subscriberLastHealthyAt: reliability?.lastHealthyAt ?? null,
+          subscriberConnected: reliability?.connected ?? false,
           now,
         });
         return {
@@ -241,6 +243,8 @@ export function createAccessoriesRouter({
               pairedAt: p.pairedAt ?? null,
               staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
               subscriberConnectedAt: reliability?.lastConnectedAt ?? null,
+              subscriberLastHealthyAt: reliability?.lastHealthyAt ?? null,
+              subscriberConnected: reliability?.connected ?? false,
               now,
             }),
           };
@@ -305,6 +309,8 @@ export function createAccessoriesRouter({
               pairedAt: bridgePairing?.pairedAt ?? null,
               staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
               subscriberConnectedAt: reliability?.lastConnectedAt ?? null,
+              subscriberLastHealthyAt: reliability?.lastHealthyAt ?? null,
+              subscriberConnected: reliability?.connected ?? false,
               now,
             }),
           };
@@ -396,6 +402,8 @@ export function createAccessoriesRouter({
         heartbeatSamples: heartbeat.heartbeat_samples ?? 0,
         staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
         subscriberConnectedAt: reliability?.lastConnectedAt ?? null,
+        subscriberLastHealthyAt: reliability?.lastHealthyAt ?? null,
+        subscriberConnected: reliability?.connected ?? false,
         now,
       });
 

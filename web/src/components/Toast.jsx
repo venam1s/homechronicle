@@ -81,7 +81,7 @@ export function ToastProvider({ children }) {
         <div
           className={clsx(
             'fixed z-[9999] flex flex-col gap-2 px-3 pointer-events-none',
-            isTop ? 'top-20 pt-2' : 'bottom-0 pb-2 hc-standalone:pb-24',
+            isTop ? 'top-20 pt-2' : 'bottom-0 pb-2',
             isCenter ? 'left-0 right-0 items-center' : isRight ? 'right-0 items-end' : 'left-0 items-start',
           )}
         >

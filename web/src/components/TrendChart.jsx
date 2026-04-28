@@ -75,8 +75,8 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
   if (!hasData) {
     return (
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Daily Activity</h3>
-        <div className="h-48 flex items-center justify-center text-sm text-gray-400">No activity in the last {days} days.</div>
+        <h3 className="text-sm font-semibold text-hc-fg mb-3">Daily Activity</h3>
+        <div className="h-48 flex items-center justify-center text-sm text-hc-muted">No activity in the last {days} days.</div>
       </div>
     );
   }
@@ -84,7 +84,7 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Daily Activity</h3>
+        <h3 className="text-sm font-semibold text-hc-fg">Daily Activity</h3>
         <div className="flex gap-1">
           {WINDOWS.map(({ label, days: d }) => (
             <button
@@ -93,8 +93,8 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
               className={clsx(
                 'text-xs px-2 py-0.5 rounded-md transition-colors',
                 days === d
-                  ? 'bg-blue-100 text-blue-700 font-medium'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  ? 'bg-hc-accent-soft text-hc-accent-stronger font-medium'
+                  : 'text-hc-muted hover:text-hc-fg hover:bg-hc-panel-mid'
               )}
             >
               {label}

@@ -29,7 +29,7 @@ const STEPS = [
     defaultOpen: true,
     content: () => (
       <div className="space-y-3">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-hc-fg">
           Matter devices must be in commissioning mode before homechronicle can pair with them.
           If your device is already set up in Apple Home, you can share it:
         </p>
@@ -48,8 +48,8 @@ const STEPS = [
             ))}
           </ol>
         </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700">
-          <p className="font-medium text-gray-800">New (unpaired) device?</p>
+        <div className="bg-hc-panel-mid border border-hc-panel-border rounded-lg px-3 py-2.5 text-sm text-hc-fg">
+          <p className="font-medium text-hc-fg-strong">New (unpaired) device?</p>
           <p className="mt-1">
             Power it on — most Matter devices enter commissioning mode automatically on first boot.
             Check the device manual for a pairing button if it doesn't appear in the scan.
@@ -65,10 +65,10 @@ const STEPS = [
     color: 'green',
     content: () => (
       <div className="space-y-3">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-hc-fg">
           The Matter setup code is a numeric code used during commissioning.
         </p>
-        <ul className="text-sm text-gray-600 space-y-1.5 list-none">
+        <ul className="text-sm text-hc-fg space-y-1.5 list-none">
           {[
             'Apple Home app — shown when you enable pairing mode (see above)',
             'Printed on the device label, packaging, or quick-start guide',
@@ -83,7 +83,7 @@ const STEPS = [
         </ul>
         <div className="bg-green-50 border border-green-200 rounded px-3 py-2 text-sm text-green-800">
           <span className="font-medium">Format:</span> A numeric code, typically{' '}
-          <code className="bg-white border border-green-200 px-1.5 py-0.5 rounded text-xs font-mono text-gray-900">XXXX-XXX-XXXX</code>{' '}
+          <code className="bg-hc-panel border border-hc-panel-border px-1.5 py-0.5 rounded text-xs font-mono text-hc-fg-strong">XXXX-XXX-XXXX</code>{' '}
           (11 digits) or a shorter manual code.
         </div>
       </div>
@@ -96,10 +96,10 @@ const STEPS = [
     color: 'orange',
     content: () => (
       <div className="space-y-3">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-hc-fg">
           Matter commissioning and polling require the device to be reachable on your local network.
         </p>
-        <ul className="text-sm text-gray-600 space-y-1.5 list-none">
+        <ul className="text-sm text-hc-fg space-y-1.5 list-none">
           {[
             'Device and homechronicle must be on the same LAN (or have Layer 2 connectivity)',
             'IPv6 link-local must be available — this is the default on most networks',
@@ -127,26 +127,26 @@ const STEPS = [
     color: 'teal',
     content: () => (
       <div className="space-y-3">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-hc-fg">
           Matter devices expose capabilities through clusters. homechronicle polls a fixed set of clusters —
           devices using only unsupported clusters will pair but won't produce timeline events.
         </p>
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-hc-panel-border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Cluster</th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Device examples</th>
+              <tr className="bg-hc-panel-mid border-b border-hc-panel-border">
+                <th className="text-left px-3 py-2 text-xs font-medium text-hc-muted">Cluster</th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-hc-muted">Device examples</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-hc-panel-border">
               {SUPPORTED_CLUSTERS.map((c) => (
                 <tr key={c.id}>
-                  <td className="px-3 py-1.5 text-gray-800 whitespace-nowrap">
+                  <td className="px-3 py-1.5 text-hc-fg-strong whitespace-nowrap">
                     {c.name}{' '}
-                    <code className="text-[10px] text-gray-400 font-mono">{c.id}</code>
+                    <code className="text-[10px] text-hc-muted font-mono">{c.id}</code>
                   </td>
-                  <td className="px-3 py-1.5 text-gray-500">{c.examples}</td>
+                  <td className="px-3 py-1.5 text-hc-muted">{c.examples}</td>
                 </tr>
               ))}
             </tbody>
@@ -185,9 +185,9 @@ const STEPS = [
               fix: 'The Matter runtime failed to initialize. Check listener logs: docker compose logs -f listener.',
             },
           ].map(({ symptom, fix }) => (
-            <div key={symptom} className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm">
-              <p className="font-medium text-gray-800">{symptom}</p>
-              <p className="text-gray-600 mt-0.5">{fix}</p>
+            <div key={symptom} className="bg-hc-panel border border-hc-panel-border rounded-lg px-3 py-2.5 text-sm">
+              <p className="font-medium text-hc-fg-strong">{symptom}</p>
+              <p className="text-hc-fg mt-0.5">{fix}</p>
             </div>
           ))}
         </div>
@@ -232,16 +232,16 @@ export default function MatterHelpModal({ onClose, initialSection }) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="hc-modal bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+      <div className="hc-modal bg-hc-panel rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-hc-panel-border">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">How to pair a Matter device</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Setup, codes, and supported devices</p>
+            <h2 className="text-base font-semibold text-hc-fg-strong">How to pair a Matter device</h2>
+            <p className="text-sm text-hc-muted mt-0.5">Setup, codes, and supported devices</p>
           </div>
           <button
             onClick={onClose}
-            className="hc-modal-close ml-3 flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="hc-modal-close ml-3 flex-shrink-0 p-1.5 rounded-lg text-hc-muted hover:text-hc-fg hover:bg-hc-panel-mid transition-colors"
           >
             <X size={18} />
           </button>
@@ -253,19 +253,19 @@ export default function MatterHelpModal({ onClose, initialSection }) {
             const isOpen = open.has(id);
             const step = STEPS.find((s) => s.id === id);
             return (
-              <div key={id} ref={(el) => { sectionRefs.current[id] = el; }} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div key={id} ref={(el) => { sectionRefs.current[id] = el; }} className="border border-hc-panel-border rounded-xl overflow-hidden">
                 <button
                   onClick={() => toggle(id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-hc-panel-mid transition-colors"
                 >
                   <span className={clsx('flex-shrink-0 p-1.5 rounded-lg', COLOR_MAP[color])}>
                     <Icon size={15} />
                   </span>
-                  <span className="flex-1 text-sm font-medium text-gray-800">{title}</span>
-                  <span className="text-gray-400 text-xs">{isOpen ? '▲' : '▼'}</span>
+                  <span className="flex-1 text-sm font-medium text-hc-fg-strong">{title}</span>
+                  <span className="text-hc-muted text-xs">{isOpen ? '▲' : '▼'}</span>
                 </button>
                 {isOpen && (
-                  <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50">
+                  <div className="px-4 pb-4 pt-1 border-t border-hc-panel-border bg-hc-panel-mid/50">
                     {step.content()}
                   </div>
                 )}
@@ -275,7 +275,7 @@ export default function MatterHelpModal({ onClose, initialSection }) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-gray-100">
+        <div className="px-5 py-3 border-t border-hc-panel-border">
           <button
             onClick={onClose}
             className="w-full py-2 text-sm font-medium rounded-xl transition-colors"

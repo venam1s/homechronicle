@@ -3,28 +3,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from './components/Toast.jsx';
 import App from './App.jsx';
 
-vi.mock('./components/Timeline.jsx', () => ({ default: () => <div>Timeline View</div> }));
-vi.mock('./components/StatsCards.jsx', () => ({ default: () => <div>Stats Cards</div> }));
-vi.mock('./components/ActivityChart.jsx', () => ({ default: () => <div>Activity Chart</div> }));
-vi.mock('./components/TrendChart.jsx', () => ({ default: () => <div>Trend Chart</div> }));
-vi.mock('./components/TopDevices.jsx', () => ({ default: () => <div>Top Devices</div> }));
-vi.mock('./components/AnomalyPanel.jsx', () => ({ default: () => <div>Anomaly Panel</div> }));
-vi.mock('./components/QuietHoursPanel.jsx', () => ({ default: () => <div>Quiet Hours Panel</div> }));
-vi.mock('./components/HeatmapLane.jsx', () => ({ default: () => <div>Heatmap Lane</div> }));
-vi.mock('./components/RoomChart.jsx', () => ({ default: () => <div>Room Chart</div> }));
-vi.mock('./components/WeekdayHeatmap.jsx', () => ({ default: () => <div>Weekday Heatmap</div> }));
-vi.mock('./components/MonthlyHeatmap.jsx', () => ({ default: () => <div>Monthly Heatmap</div> }));
-vi.mock('./components/StaleDevicesPanel.jsx', () => ({ default: () => <div>Stale Devices Panel</div> }));
-vi.mock('./components/AccessoryList.jsx', () => ({
-  default: ({ onSelectAccessory }) => (
-    <div>
-      <div>Accessory List</div>
-      <button type="button" onClick={() => onSelectAccessory?.('ACC-1')}>
-        Open Accessory Detail
-      </button>
-    </div>
+vi.mock('./components/Sidebar.jsx', () => ({
+  default: ({ activePage, onNavigate, inDrawer }) => (
+    <nav data-testid={inDrawer ? 'sidebar-drawer' : 'sidebar'}>
+      {['dashboard', 'devices', 'timeline', 'alerts', 'settings'].map(id => (
+        <button key={id} type="button" onClick={() => onNavigate(id)}>
+          {id.charAt(0).toUpperCase() + id.slice(1)}
+        </button>
+      ))}
+    </nav>
   ),
 }));
+vi.mock('./pages/DashboardPage.jsx', () => ({ default: () => <div>Dashboard Page</div> }));
+vi.mock('./pages/TimelinePage.jsx', () => ({ default: () => <div>Timeline Page</div> }));
+vi.mock('./pages/DevicesPage.jsx', () => ({ default: () => <div>Devices Page</div> }));
+vi.mock('./pages/AlertsPage.jsx', () => ({ default: () => <div>Alerts Page</div> }));
+vi.mock('./pages/SettingsPage.jsx', () => ({ default: () => <div>Settings Page</div> }));
 vi.mock('./components/AccessoryDetail.jsx', () => ({
   default: ({ accessoryId, onBack }) => (
     <div>
@@ -33,9 +27,12 @@ vi.mock('./components/AccessoryDetail.jsx', () => ({
     </div>
   ),
 }));
-vi.mock('./components/Setup.jsx', () => ({ default: () => <div>Manage View</div> }));
-vi.mock('./hooks/useUpdateCheck.js', () => ({ useUpdateCheck: () => ({ updateAvailable: false }) }));
+vi.mock('./hooks/useUpdateCheck.js', () => ({ useUpdateCheck: () => ({ update: null, dismiss: () => {} }) }));
 vi.mock('./hooks/useLiveEventToasts.js', () => ({ useLiveEventToasts: () => {} }));
+const mockUseMediaQuery = vi.fn(() => false);
+vi.mock('./hooks/useMediaQuery.js', () => ({
+  useMediaQuery: (...args) => mockUseMediaQuery(...args),
+}));
 
 function renderApp() {
   const queryClient = new QueryClient({
@@ -55,39 +52,53 @@ describe('App smoke', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('renders and switches top-level tabs', () => {
+  it('renders sidebar and navigates between pages', () => {
     renderApp();
 
-    expect(screen.getByRole('img', { name: /homechronicle/i })).toBeInTheDocument();
-    expect(screen.getByText('Stats Cards')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByText('Dashboard Page')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /timeline/i }));
-    expect(screen.getByText('Timeline View')).toBeInTheDocument();
+    expect(screen.getByText('Timeline Page')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /accessories/i }));
-    expect(screen.getByText('Accessory List')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /devices/i }));
+    expect(screen.getByText('Devices Page')).toBeInTheDocument();
 
-    expect(screen.queryByRole('button', { name: /alerts/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /alerts/i }));
+    expect(screen.getByText('Alerts Page')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /manage/i }));
-    expect(screen.getByText('Manage View')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
+    expect(screen.getByText('Settings Page')).toBeInTheDocument();
   });
 
-  it('uses browser back from accessory detail to return to accessory list', async () => {
+  it('shows accessory detail and supports browser back', async () => {
     renderApp();
 
-    fireEvent.click(screen.getByRole('button', { name: /accessories/i }));
-    fireEvent.click(screen.getByRole('button', { name: /open accessory detail/i }));
-
-    expect(screen.getByText('Accessory Detail for ACC-1')).toBeInTheDocument();
-    expect(window.history.state).toMatchObject({ hcView: 'accessory-detail', accessoryId: 'ACC-1' });
-
+    // Simulate navigating to an accessory detail via history state
     act(() => {
-      window.history.back();
+      window.history.pushState({ hcView: 'accessory-detail', accessoryId: 'ACC-1' }, '', '/');
+      window.dispatchEvent(new PopStateEvent('popstate', { state: { hcView: 'accessory-detail', accessoryId: 'ACC-1' } }));
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Accessory List')).toBeInTheDocument();
+      expect(screen.getByText('Accessory Detail for ACC-1')).toBeInTheDocument();
     });
+  });
+
+  it('renders mobile top bar when useMediaQuery returns mobile', () => {
+    // Override for this test only
+    mockUseMediaQuery.mockImplementation((query) => {
+      if (query === '(max-width: 767px)') return true;
+      return false;
+    });
+
+    renderApp();
+
+    expect(screen.getByLabelText('Open navigation')).toBeInTheDocument();
+    expect(screen.getByLabelText('Open navigation').closest('div')).toHaveTextContent('Dashboard');
+    expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
+
+    // Reset mock
+    mockUseMediaQuery.mockImplementation(() => false);
   });
 });

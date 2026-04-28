@@ -143,6 +143,7 @@ export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null
     accessoriesQueryFailures: 0,
     lastConnectedAt: null,
     lastSubscribedAt: null,
+    lastHealthyAt: null,
     lastError: null,
     lastErrorAt: null,
     // Auth failure tracking
@@ -152,6 +153,12 @@ export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null
     autoRepairAttempts: 0,
     autoRepairLastError: null,
     autoRepairedAt: null,
+    // M-01: explicit liveness flag — true ONLY between a successful
+    // subscribeCharacteristics() and the next disconnect/failure. Used
+    // (combined with a fresh lastHealthyAt) as the canonical "device is
+    // really online" signal — Boolean(session.client) was too permissive
+    // (covered the connection-setup window and survived hung sockets).
+    subscribed: false,
   };
   const session = {
     deviceId,
@@ -268,6 +275,7 @@ function connectAccessory(session, pairing) {
       });
     }
     stats.lastConnectedAt = new Date().toISOString();
+    stats.lastHealthyAt = stats.lastConnectedAt;
     stats.authFailures = 0;
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
@@ -284,6 +292,9 @@ function connectAccessory(session, pairing) {
     // return value.
     const handleEvent = async (event) => {
       if (session.stopped) return;
+      // Refresh the heartbeat once per event batch (not per change in the loop).
+      // This is the canonical signal that the HAP subscription is actively producing data.
+      stats.lastHealthyAt = new Date().toISOString();
       const changes = event?.characteristics ?? (Array.isArray(event) ? event : [event]);
       for (const change of changes) {
         const key  = `${change.aid}.${change.iid}`;
@@ -390,15 +401,22 @@ function connectAccessory(session, pairing) {
     // to resubscribe without needing to rebuild the key list.
     const disconnectHandler = async (formerSubscribes) => {
       if (session.stopped) return;
+      // M-01: clear the liveness flag at handler entry — the socket is gone
+      // until a successful resubscribe. Anything that asks "is this device
+      // really up?" between now and the resubscribe success must see false.
+      stats.subscribed = false;
       stats.disconnects += 1;
       log.warn(`[subscriber] ${accessoryName}: disconnected, resubscribing…`);
       try {
         await client.subscribeCharacteristics(formerSubscribes);
         stats.resubscribeSuccesses += 1;
         stats.lastSubscribedAt = new Date().toISOString();
+        stats.lastHealthyAt = stats.lastSubscribedAt;
+        stats.subscribed = true;
         log.info(`[subscriber] ${accessoryName}: resubscribed to ${formerSubscribes.length} characteristic(s)`);
       } catch (err) {
         stats.resubscribeFailures += 1;
+        // stats.subscribed already false (set at handler entry)
         stats.lastError = err.message ?? String(err);
         stats.lastErrorAt = new Date().toISOString();
 
@@ -448,9 +466,12 @@ function connectAccessory(session, pairing) {
       await client.subscribeCharacteristics(watchedKeys);
       session.retryDelayMs = reconnectBaseMs;
       stats.lastSubscribedAt = new Date().toISOString();
+      stats.lastHealthyAt = stats.lastSubscribedAt;
+      stats.subscribed = true; // M-01: enter the live state
       log.info(`[subscriber] ${accessoryName}: subscribed to ${watchedKeys.length} characteristic(s)`);
     } catch (err) {
       stats.subscribeFailures += 1;
+      stats.subscribed = false; // M-01: defensive — already false from init, explicit on every failure path
       stats.lastError = err.message ?? String(err);
       stats.lastErrorAt = new Date().toISOString();
       log.error(`[subscriber] ${accessoryName}: subscribe failed:`, err.message ?? err.stack ?? err);
@@ -654,11 +675,27 @@ async function attemptAutoRepair(session, pairing) {
   }
 }
 
+// M-01: a hung HAP socket is reported as "online" if any single one of the
+// underlying signals is loose. The strict liveness AND requires (a) a live
+// HttpClient instance, (b) an active subscription, and (c) a fresh heartbeat
+// in the last 30 minutes. Drop any one and the device falls back to the
+// timestamp/needsRepair rescue paths.
+const HUNG_SOCKET_THRESHOLD_MS = 30 * 60_000;
+
+function isLive(session, stats) {
+  if (!session?.client) return false;
+  if (stats.subscribed !== true) return false;
+  if (!stats.lastHealthyAt) return false;
+  return (Date.now() - new Date(stats.lastHealthyAt).getTime()) < HUNG_SOCKET_THRESHOLD_MS;
+}
+
 export function getSubscriberStats(deviceId) {
   const stats = subscriberStats.get(deviceId);
   if (!stats) return null;
+  const session = subscriberSessions.get(deviceId);
   return {
     ...stats,
+    connected: isLive(session, stats),
     reconnectAttempts: Math.max(0, stats.connectAttempts - 1),
   };
 }
@@ -677,10 +714,11 @@ export function getSubscriberHealth() {
 
   for (const [, session] of subscriberSessions) {
     total += 1;
-    if (session.client) connected += 1;
+    // M-01: mirror the strict liveness AND used by getSubscriberStats.connected.
+    if (isLive(session, session.stats)) connected += 1;
     if (session.stats.needsRepair) needsRepair += 1;
-    const lastSub = session.stats.lastSubscribedAt;
-    if (!lastSub || now - new Date(lastSub).getTime() > staleThresholdMs) {
+    const lastHealthy = session.stats.lastHealthyAt;
+    if (!lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs) {
       stale += 1;
     }
     const lc = session.stats.lastConnectedAt;
@@ -701,8 +739,13 @@ export function getRepairTargets(staleThresholdMs = 10 * 60_000) {
   for (const [deviceId, session] of subscriberSessions) {
     const { stats } = session;
     const isNeedsRepair = Boolean(stats.needsRepair);
-    const lastSub = stats.lastSubscribedAt;
-    const isStale = !lastSub || now - new Date(lastSub).getTime() > staleThresholdMs;
+    const lastHealthy = stats.lastHealthyAt;
+    // M-01: a quiet motion sensor in an empty room can trivially go >10 min
+    // without a heartbeat while still actively subscribed — those are healthy
+    // and must NOT be reconnected nightly. Only flag as stale when the
+    // subscription is also not live.
+    const isStale = !stats.subscribed &&
+      (!lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs);
     if (isNeedsRepair || isStale) {
       targets.push({
         deviceId,
