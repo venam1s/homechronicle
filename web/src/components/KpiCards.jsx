@@ -31,19 +31,22 @@ const KPI_DEFS = [
 
 export default function KpiCards({ dashboardDays = 7 }) {
   const { data: daily, isLoading: dailyLoading } = useDailyStats(dashboardDays);
-  const { data: sparkDaily } = useDailyStats(7);
+  // Single source of truth for the 7-day window: drives both the WEEK card sum
+  // and the sparkline. TanStack Query dedupes identical `useDailyStats(7)` calls,
+  // so no extra request — the previous `sparkDaily` was the same query.
+  const { data: weekDaily } = useDailyStats(7);
   const { data: topDevices, isLoading: topLoading } = useTopDevices();
   const { data: rooms, isLoading: roomsLoading } = useRoomStats(7);
   const accent = useAccentRgb();
   const accentStr = `rgb(${accent[0]},${accent[1]},${accent[2]})`;
 
   const sparkData = useMemo(() => {
-    const dayMap = new Map((sparkDaily ?? []).map((d) => [String(d.day).slice(0, 10), Number(d.count ?? 0)]));
+    const dayMap = new Map((weekDaily ?? []).map((d) => [String(d.day).slice(0, 10), Number(d.count ?? 0)]));
     return Array.from({ length: 7 }, (_, i) => {
       const key = format(subDays(new Date(), 6 - i), 'yyyy-MM-dd');
       return { i, count: dayMap.get(key) ?? 0 };
     });
-  }, [sparkDaily]);
+  }, [weekDaily]);
 
   const isLoading = dailyLoading && topLoading && roomsLoading;
 
@@ -64,14 +67,20 @@ export default function KpiCards({ dashboardDays = 7 }) {
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   const todayRow = daily?.find(d => d.day?.startsWith(todayKey));
   const eventsToday = todayRow ? toInt(todayRow.count) : 0;
-  const eventsWeek = daily?.reduce((sum, d) => sum + toInt(d.count), 0) ?? null;
+  // H-01: WEEK card always sums the last 7 days, independent of the dashboard window.
+  // Was previously `daily?.reduce(...)` over the dashboardDays-bound query, which
+  // showed a 30/90-day total under a "last 7 days" caption.
+  const eventsWeek = weekDaily?.reduce((sum, d) => sum + toInt(d.count), 0) ?? null;
   const delta = calcEventsTodayDelta(daily);
 
   const topDevice = topDevices?.[0];
   const topRoom = rooms?.find((r) => r.room_name);
 
   function getTrendSubText() {
-    if (delta === null || delta === 0) return 'events';
+    // L-03/L-05: hide the trend sub-text entirely when there is no comparison
+    // (no yesterday data) or when today exactly matches yesterday. Bare 'events'
+    // here read as "today's count" rather than "no trend available".
+    if (delta === null || delta === 0) return null;
     if (delta > 0) {
       return (
         <span className="inline-flex items-center gap-0.5">
@@ -96,8 +105,12 @@ export default function KpiCards({ dashboardDays = 7 }) {
   const cardSubTexts = {
     today: getTrendSubText(),
     week: 'last 7 days',
-    topDevice: topDevice ? `${toInt(topDevice.event_count).toLocaleString()} events` : null,
-    topRoom: topRoom ? `${toInt(topRoom.count).toLocaleString()} events` : null,
+    // H-03: TOP DEVICE / TOP ROOM are hard-pinned to a 7-day window regardless of
+    // the dashboard range toggle (see useTopDevices() / useRoomStats(7) above).
+    // The (7d) qualifier makes that explicit so users don't expect these to
+    // track the global window.
+    topDevice: topDevice ? `${toInt(topDevice.event_count).toLocaleString()} events (7d)` : null,
+    topRoom: topRoom ? `${toInt(topRoom.count).toLocaleString()} events (7d)` : null,
   };
 
   return (
