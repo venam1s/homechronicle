@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Repair Reliability Fixes
 status: completed
-stopped_at: "Completed quick task 260427-ttq: lastHealthyAt heartbeat fix"
-last_updated: "2026-04-28T03:01:25.254Z"
-last_activity: 2026-04-28
+stopped_at: "Completed quick task 260427-wm1: release blocker fixes (H-01/H-02/H-03/M-01)"
+last_updated: "2026-04-28T07:41:00Z"
+last_activity: 2026-04-28 -- Release blocker fixes complete; ready for v0.1.9
 progress:
   total_phases: 2
   completed_phases: 2
@@ -58,6 +58,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 260427-ttq | Fix everything-stale bug: add lastHealthyAt heartbeat to subscriber stats; thread into deriveDeviceHealth + getRepairTargets | 2026-04-28 | 02a21cb | [260427-ttq-fix-everything-stale-bug-add-lasthealthy](./quick/260427-ttq-fix-everything-stale-bug-add-lasthealthy/) |
 | 260427-vch | Close quiet-device gap: thread subscriberConnected boolean into deriveDeviceHealth rescue (live HAP sub = heartbeat) | 2026-04-28 | 725a905 | [260427-vch-close-quiet-device-gap-thread-subscriber](./quick/260427-vch-close-quiet-device-gap-thread-subscriber/) |
+| 260427-wm1 | Fix release blockers from RELEASE-REVIEW: KpiCards window coherence (H-01/H-03), EventRow a11y (H-02), subscriber liveness gate (M-01) | 2026-04-28 | 3ffc42e | [260427-wm1-fix-release-blockers-from-release-review](./quick/260427-wm1-fix-release-blockers-from-release-review/) |
 
 ## Session Continuity
 
