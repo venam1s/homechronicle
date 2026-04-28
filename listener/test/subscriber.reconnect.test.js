@@ -536,6 +536,71 @@ test('getSubscriberHealth does NOT count a session with fresh lastHealthyAt as s
   __testHooks.resetState();
 });
 
+// -- getSubscriberStats.connected tests --
+
+test('getSubscriberStats reflects connected: true when session.client is set', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl((session) => {
+    session.client = { fake: true };
+  });
+
+  const { startSubscriber, getSubscriberStats } = await import('../src/subscriber.js');
+  startSubscriber('conn-1', {
+    name: 'Conn True Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const stats = getSubscriberStats('conn-1');
+  assert.equal(stats.connected, true);
+
+  __testHooks.resetState();
+});
+
+test('getSubscriberStats reflects connected: false when session.client is null', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl((session) => {
+    session.client = null;
+  });
+
+  const { startSubscriber, getSubscriberStats } = await import('../src/subscriber.js');
+  startSubscriber('conn-2', {
+    name: 'Conn False Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const stats = getSubscriberStats('conn-2');
+  assert.equal(stats.connected, false);
+
+  __testHooks.resetState();
+});
+
+test('getSubscriberStats returns null after stopSubscriber (existing semantics, with new field absent)', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl((session) => {
+    session.client = { fake: true };
+  });
+
+  const { startSubscriber, getSubscriberStats, stopSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('conn-3', {
+    name: 'Conn Stop Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  // Confirm started
+  assert.notEqual(getSubscriberStats('conn-3'), null);
+
+  stopSubscriber('conn-3');
+  assert.equal(getSubscriberStats('conn-3'), null);
+
+  __testHooks.resetState();
+});
+
 test('full flow: auth errors → with PIN → discovery fails → circuit breaker → needsRepair', async () => {
   __testHooks.resetState();
   __testHooks.setReconnectWindow(5, 10);

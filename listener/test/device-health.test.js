@@ -188,3 +188,80 @@ test('deriveDeviceHealth: subscriberLastHealthyAt is irrelevant when status is a
   assert.equal(health.status, 'online');
   assert.equal(health.missedHeartbeats, 0);
 });
+
+// -- subscriberConnected short-circuit tests --
+
+test('deriveDeviceHealth: subscriberConnected=true rescues a device that would otherwise be stale (expired lastHealthyAt)', () => {
+  // lastSeen 24h ago (stale), subscriberLastHealthyAt 30 min ago (outside 15-min onlineThreshold),
+  // subscriberConnectedAt 30 min ago (outside threshold). Boolean rescue MUST fire regardless.
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-25T18:00:00.000Z',
+    subscriberConnectedAt: '2026-02-26T17:30:00.000Z',
+    subscriberLastHealthyAt: '2026-02-26T17:30:00.000Z',
+    subscriberConnected: true,
+    now,
+  });
+
+  assert.equal(health.status, 'online');
+  assert.equal(health.isStale, false);
+  assert.equal(health.staleReason, null);
+});
+
+test('deriveDeviceHealth: subscriberConnected=true rescues even when lastHealthyAt and subscriberConnectedAt are null', () => {
+  // Quiet device with no timestamps at all but live HAP socket — must rescue to online.
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-25T18:00:00.000Z',
+    subscriberConnectedAt: null,
+    subscriberLastHealthyAt: null,
+    subscriberConnected: true,
+    now,
+  });
+
+  assert.equal(health.status, 'online');
+  assert.equal(health.isStale, false);
+});
+
+test('deriveDeviceHealth: subscriberConnected=false falls back to timestamp-based rescue (existing behavior preserved)', () => {
+  // lastSeen 24h ago, subscriberLastHealthyAt 2 min ago — timestamp rescue still fires.
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-25T18:00:00.000Z',
+    subscriberLastHealthyAt: '2026-02-26T17:58:00.000Z',
+    subscriberConnected: false,
+    now,
+  });
+
+  assert.equal(health.status, 'online');
+  assert.equal(health.isStale, false);
+});
+
+test('deriveDeviceHealth: subscriberConnected=false with all stale timestamps stays stale (regression)', () => {
+  // lastSeen 24h ago, both subscriber timestamps 30 min ago → no rescue, status stays stale.
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-25T18:00:00.000Z',
+    subscriberConnectedAt: '2026-02-26T17:30:00.000Z',
+    subscriberLastHealthyAt: '2026-02-26T17:30:00.000Z',
+    subscriberConnected: false,
+    now,
+  });
+
+  assert.equal(health.status, 'stale');
+  assert.equal(health.isStale, true);
+});
+
+test('deriveDeviceHealth: subscriberConnected default (omitted) preserves existing behavior for Matter callers', () => {
+  // Matter caller never passes subscriberConnected — defaults to false. Timestamp rescue still fires.
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-25T18:00:00.000Z',
+    subscriberLastHealthyAt: null,
+    subscriberConnectedAt: '2026-02-26T17:58:00.000Z',
+    now,
+  });
+
+  assert.equal(health.status, 'online');
+  assert.equal(health.isStale, false);
+});
