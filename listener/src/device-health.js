@@ -22,6 +22,7 @@ export function deriveDeviceHealth({
   staleThresholdSeconds = 12 * 60 * 60,
   subscriberConnectedAt = null,
   subscriberLastHealthyAt = null,
+  subscriberConnected = false,
   now = Date.now(),
 } = {}) {
   const nowMs = Number.isFinite(now) ? now : Date.now();
@@ -68,9 +69,19 @@ export function deriveDeviceHealth({
     }
   }
 
-  // Prefer the continuously-refreshed lastHealthyAt heartbeat when present;
-  // fall back to the one-shot subscriberConnectedAt for backward compatibility
-  // (Matter accessories don't track lastHealthyAt).
+  // A live HAP subscription is itself proof of liveness — short-circuit the
+  // rescue regardless of how stale the timestamps are. This handles the
+  // "quiet device" case where a subscribed sensor produces no events for >15min
+  // (e.g. temp not crossing delta, motion sensor in still room).
+  if (subscriberConnected && (status === 'stale' || status === 'offline' || status === 'unknown')) {
+    status = 'online';
+    staleReason = null;
+  }
+
+  // Fallback (used by Matter, which has no `connected` flag): rescue based on
+  // the most recently observed subscriber heartbeat timestamp. Prefers the
+  // continuously-refreshed lastHealthyAt; falls back to one-shot
+  // subscriberConnectedAt for backward compatibility.
   const subscriberHeartbeatTs = subscriberLastHealthyAt ?? subscriberConnectedAt;
   if (subscriberHeartbeatTs && (status === 'stale' || status === 'offline' || status === 'unknown')) {
     const subscriberAgeSeconds = safeSecondsBetween(nowMs, subscriberHeartbeatTs);
@@ -92,5 +103,6 @@ export function deriveDeviceHealth({
     staleReason,
     subscriberConnectedAt,
     subscriberLastHealthyAt,
+    subscriberConnected,
   };
 }

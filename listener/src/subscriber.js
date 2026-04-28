@@ -664,8 +664,10 @@ async function attemptAutoRepair(session, pairing) {
 export function getSubscriberStats(deviceId) {
   const stats = subscriberStats.get(deviceId);
   if (!stats) return null;
+  const session = subscriberSessions.get(deviceId);
   return {
     ...stats,
+    connected: Boolean(session?.client),
     reconnectAttempts: Math.max(0, stats.connectAttempts - 1),
   };
 }

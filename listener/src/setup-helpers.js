@@ -73,6 +73,7 @@ export function mapReliabilityStats(reliability) {
     last_connected_at: reliability.lastConnectedAt,
     last_subscribed_at: reliability.lastSubscribedAt,
     last_healthy_at: reliability.lastHealthyAt,
+    connected: reliability.connected ?? false,
     last_error: reliability.lastError,
     last_error_at: reliability.lastErrorAt,
     auth_failures: reliability.authFailures,
