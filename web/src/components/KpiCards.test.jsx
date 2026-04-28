@@ -24,6 +24,18 @@ const MOCK_DAILY_DOWN = [
   { day: `${format(subDays(new Date(), 1), 'yyyy-MM-dd')}T00:00:00`, count: '11' },
 ];
 
+// 7 rows summing to 50 — represents the dedicated useDailyStats(7) call result.
+const MOCK_WEEK_DAILY = Array.from({ length: 7 }, (_, i) => ({
+  day: `${format(subDays(new Date(), 6 - i), 'yyyy-MM-dd')}T00:00:00`,
+  count: i === 0 ? '8' : i === 1 ? '7' : i === 2 ? '7' : i === 3 ? '7' : i === 4 ? '7' : i === 5 ? '7' : '7',
+}));
+
+// 30 rows summing to 300 — represents useDailyStats(30) (the dashboardDays-bound call).
+const MOCK_WINDOW_DAILY = Array.from({ length: 30 }, (_, i) => ({
+  day: `${format(subDays(new Date(), 29 - i), 'yyyy-MM-dd')}T00:00:00`,
+  count: '10',
+}));
+
 const MOCK_TOP_DEVICES = [
   { accessory_name: 'Living Room Lamp', event_count: '380' },
 ];
@@ -35,6 +47,8 @@ const MOCK_ROOMS = [
 
 describe('KpiCards', () => {
   beforeEach(() => {
+    // Same data for both useDailyStats(dashboardDays) and useDailyStats(7) calls
+    // so existing Test 2 (week sum = 28 from MOCK_DAILY) keeps passing.
     useDailyStats.mockReturnValue({ data: MOCK_DAILY, isLoading: false, isError: false });
     useTopDevices.mockReturnValue({ data: MOCK_TOP_DEVICES, isLoading: false, isError: false });
     useRoomStats.mockReturnValue({ data: MOCK_ROOMS, isLoading: false, isError: false });
@@ -57,13 +71,13 @@ describe('KpiCards', () => {
   it('Test 3: displays top device name and event count', () => {
     render(<KpiCards dashboardDays={7} />);
     expect(screen.getByText('Living Room Lamp')).toBeInTheDocument();
-    expect(screen.getByText('380 events')).toBeInTheDocument();
+    expect(screen.getByText(/380 events/)).toBeInTheDocument();
   });
 
   it('Test 4: displays top room name and event count', () => {
     render(<KpiCards dashboardDays={7} />);
     expect(screen.getByText('Kitchen')).toBeInTheDocument();
-    expect(screen.getByText('200 events')).toBeInTheDocument();
+    expect(screen.getByText(/200 events/)).toBeInTheDocument();
   });
 
   it('Test 5: Events Today card shows trend delta "+2" with TrendingUp icon when today > yesterday', () => {
@@ -81,12 +95,12 @@ describe('KpiCards', () => {
     expect(trendSpan.querySelector('svg')).not.toBeNull();
   });
 
-  it('Test 7: When useDailyStats returns empty array, Events Today shows "0"', () => {
+  it('Test 7: When useDailyStats returns empty array, Events Today and This Week both show "0"', () => {
     useDailyStats.mockReturnValue({ data: [], isLoading: false, isError: false });
     render(<KpiCards dashboardDays={7} />);
-    // The Today card value "0" and This Week card value "0" — both appear as exact text
+    // Both Today card value and This Week card value render as exact text "0".
     const zeros = screen.getAllByText('0');
-    expect(zeros.length).toBeGreaterThanOrEqual(1);
+    expect(zeros.length).toBe(2); // today + week
   });
 
   it('Test 8: Loading state shows skeleton shimmer', () => {
@@ -112,5 +126,26 @@ describe('KpiCards', () => {
     useRoomStats.mockReturnValue({ data: [{ room_name: null, count: '500' }, { room_name: 'Office', count: '100' }], isLoading: false });
     render(<KpiCards dashboardDays={7} />);
     expect(screen.getByText('Office')).toBeInTheDocument();
+  });
+
+  it('Test 12: WEEK card uses 7-day window even when dashboardDays=30 (H-01)', () => {
+    // Distinguish the two useDailyStats calls by argument:
+    // - useDailyStats(30) returns MOCK_WINDOW_DAILY (sums to 300)
+    // - useDailyStats(7)  returns MOCK_WEEK_DAILY   (sums to 50)
+    useDailyStats.mockImplementation((days) => {
+      if (days === 7) return { data: MOCK_WEEK_DAILY, isLoading: false, isError: false };
+      return { data: MOCK_WINDOW_DAILY, isLoading: false, isError: false };
+    });
+    render(<KpiCards dashboardDays={30} />);
+    // The week card MUST display the 7-day total (50), NOT the 30-day total (300).
+    expect(screen.getByText('50')).toBeInTheDocument();
+    expect(screen.queryByText('300')).not.toBeInTheDocument();
+  });
+
+  it('Test 13: TOP DEVICE and TOP ROOM cards display a (7d) qualifier (H-03)', () => {
+    render(<KpiCards dashboardDays={7} />);
+    // Sub-label style: "<count> events (7d)" appears once per card.
+    const sevenDayLabels = screen.getAllByText(/\(7d\)/);
+    expect(sevenDayLabels.length).toBeGreaterThanOrEqual(2);
   });
 });
