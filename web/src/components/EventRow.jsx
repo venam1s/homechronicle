@@ -39,20 +39,18 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
   // Third meta row is shown only when there's something worth displaying
   const showMetaRow = gap || anomalyLabel || (dayTotal > 1 && rank) || marker === 'first' || marker === 'last' || marker === 'only';
 
-  const isClickable = Boolean(onSelectAccessory && event.accessory_id);
-  const handleRowActivate = () => { if (isClickable) onSelectAccessory(event.accessory_id); };
-
+  // H-02: the row container is intentionally NOT interactive — the inner
+  // accessory-name <button> is the sole tab stop for navigation. Nesting
+  // role="button" + tabIndex on the row created a WCAG 1.3.1 / 4.1.2 violation
+  // (interactive widget with interactive descendants) and doubled the keyboard
+  // tab stops per row.
   return (
     <div
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onClick={isClickable ? handleRowActivate : undefined}
-      onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowActivate(); } } : undefined}
       className={`group flex items-start gap-3 py-3 px-4 transition-all relative ${
         isHighlighted ? 'bg-blue-50'
         : isDimmed    ? 'opacity-40'
         : 'hover:bg-hc-panel-mid'
-      } ${isClickable ? 'cursor-pointer' : ''}`}
+      }`}
       style={isHighlighted ? { boxShadow: `inset 3px 0 0 0 rgba(var(--hc-accent-rgb), 0.65)` } : undefined}
     >
       <div className="flex-1 min-w-0">
@@ -62,7 +60,7 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
             {onSelectAccessory && event.accessory_id ? (
               <button
-                onClick={(e) => { e.stopPropagation(); onSelectAccessory(event.accessory_id); }}
+                onClick={() => onSelectAccessory(event.accessory_id)}
                 className="font-medium text-hc-fg-strong truncate hover:text-blue-600 hover:underline transition-colors text-left"
               >
                 {event.accessory_name}
@@ -81,7 +79,7 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
             {/* Hover-reveal mute button */}
             {onMute && (
               <button
-                onClick={(e) => { e.stopPropagation(); onMute(event.accessory_name); }}
+                onClick={() => onMute(event.accessory_name)}
                 className="opacity-0 group-hover:opacity-100 transition-opacity text-hc-muted hover:text-hc-muted focus:opacity-100"
                 title={`Mute ${event.accessory_name}`}
                 aria-label={`Mute ${event.accessory_name}`}
