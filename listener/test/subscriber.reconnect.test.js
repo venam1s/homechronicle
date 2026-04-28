@@ -538,10 +538,14 @@ test('getSubscriberHealth does NOT count a session with fresh lastHealthyAt as s
 
 // -- getSubscriberStats.connected tests --
 
-test('getSubscriberStats reflects connected: true when session.client is set', async () => {
+test('getSubscriberStats reflects connected: true when session.client is set AND subscribed AND lastHealthyAt is fresh', async () => {
   __testHooks.resetState();
+  // M-01: connected now requires the full liveness AND. Setting only
+  // session.client (the connection-setup window) is no longer enough.
   __testHooks.setConnectAccessoryImpl((session) => {
     session.client = { fake: true };
+    session.stats.subscribed = true;
+    session.stats.lastHealthyAt = new Date().toISOString();
   });
 
   const { startSubscriber, getSubscriberStats } = await import('../src/subscriber.js');
@@ -643,6 +647,107 @@ test('full flow: auth errors → with PIN → discovery fails → circuit breake
   const stats = getSubscriberStats('e2e-pin-1');
   assert.equal(stats.autoRepairAttempts, 3);
   assert.equal(stats.needsRepair, true, 'circuit breaker should have tripped');
+
+  __testHooks.resetState();
+});
+
+// -- M-01: subscriber liveness gate tests --
+
+test('M-01: getSubscriberStats.connected is false during the connection-setup window (client set, subscribed=false)', async () => {
+  __testHooks.resetState();
+  // Simulate the window between `session.client = client` and a successful
+  // subscribeCharacteristics(): client is set but stats.subscribed is still
+  // its initial false. Under M-01 this MUST report connected=false.
+  __testHooks.setConnectAccessoryImpl((session) => {
+    session.client = { fake: true };
+    // stats.subscribed left at its initial `false`
+    // stats.lastHealthyAt left at its initial `null`
+  });
+
+  const { startSubscriber, getSubscriberStats } = await import('../src/subscriber.js');
+  startSubscriber('m01-setup-1', {
+    name: 'Setup Window Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const stats = getSubscriberStats('m01-setup-1');
+  assert.equal(stats.connected, false, 'setup window must not report connected=true');
+
+  __testHooks.resetState();
+});
+
+test('M-01: getSubscriberStats.connected is false when lastHealthyAt is older than 30 minutes (hung socket)', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl((session) => {
+    session.client = { fake: true };
+    session.stats.subscribed = true;
+    // lastHealthyAt is 31 min ago — older than the 30-min hung-socket threshold.
+    session.stats.lastHealthyAt = new Date(Date.now() - 31 * 60_000).toISOString();
+  });
+
+  const { startSubscriber, getSubscriberStats } = await import('../src/subscriber.js');
+  startSubscriber('m01-hung-1', {
+    name: 'Hung Socket Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const stats = getSubscriberStats('m01-hung-1');
+  assert.equal(stats.connected, false, 'hung socket (>30 min stale) must report connected=false');
+
+  __testHooks.resetState();
+});
+
+test('M-01: getRepairTargets does NOT flag subscribed=true even when lastHealthyAt is stale (quiet device)', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber, getRepairTargets } = await import('../src/subscriber.js');
+  startSubscriber('m01-quiet-1', {
+    name: 'Quiet Healthy Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('m01-quiet-1');
+  // Healthy subscription that has simply gone quiet — subscribed is true,
+  // but lastHealthyAt is older than the 10-min default staleThresholdMs.
+  session.stats.subscribed = true;
+  session.stats.lastHealthyAt = new Date(Date.now() - 30 * 60_000).toISOString();
+
+  const targets = getRepairTargets();
+  const found = targets.find((t) => t.deviceId === 'm01-quiet-1');
+  assert.equal(found, undefined, 'subscribed=true should suppress isStale even with old lastHealthyAt');
+
+  __testHooks.resetState();
+});
+
+test('M-01: getRepairTargets DOES flag subscribed=false with stale lastHealthyAt', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber, getRepairTargets } = await import('../src/subscriber.js');
+  startSubscriber('m01-disconnected-1', {
+    name: 'Disconnected Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('m01-disconnected-1');
+  // Inverse of the quiet-device case: explicitly subscribed=false (post-disconnect)
+  // AND lastHealthyAt stale → must be flagged as a stale repair target.
+  session.stats.subscribed = false;
+  session.stats.lastHealthyAt = new Date(Date.now() - 30 * 60_000).toISOString();
+
+  const targets = getRepairTargets();
+  const found = targets.find((t) => t.deviceId === 'm01-disconnected-1');
+  assert.ok(found, 'subscribed=false with stale lastHealthyAt should appear in repair targets');
+  assert.equal(found.isStale, true);
 
   __testHooks.resetState();
 });
