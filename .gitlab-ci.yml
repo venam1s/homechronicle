@@ -88,6 +88,11 @@ validate-release:
       optional: true
   variables:
     BUILD_PLATFORMS: "linux/amd64,linux/arm64"
+    # Use the host Docker socket (mounted by the self-hosted runner). The
+    # docker:27 image otherwise defaults to tcp://docker:2376 (DinD service)
+    # which doesn't exist in this setup.
+    DOCKER_HOST: unix:///var/run/docker.sock
+    DOCKER_TLS_CERTDIR: ""
   before_script:
     - apk add --no-cache curl
     - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USER" --password-stdin
