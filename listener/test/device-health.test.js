@@ -126,3 +126,65 @@ test('deriveDeviceHealth: subscriberConnectedAt with null lastSeen and null pair
   assert.equal(health.status, 'online');
   assert.equal(health.isStale, false);
 });
+
+// -- subscriberLastHealthyAt rescue tests --
+
+test('deriveDeviceHealth: rescue clause prefers subscriberLastHealthyAt when both timestamps are provided', () => {
+  // lastSeen 24h ago (stale), subscriberConnectedAt 30 min ago (outside 15-min onlineThreshold),
+  // subscriberLastHealthyAt 2 min ago (inside threshold) → SHOULD rescue.
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-25T18:00:00.000Z',
+    subscriberConnectedAt: '2026-02-26T17:30:00.000Z',
+    subscriberLastHealthyAt: '2026-02-26T17:58:00.000Z',
+    now,
+  });
+
+  assert.equal(health.status, 'online');
+  assert.equal(health.isStale, false);
+  assert.equal(health.staleReason, null);
+  assert.equal(health.subscriberLastHealthyAt, '2026-02-26T17:58:00.000Z');
+});
+
+test('deriveDeviceHealth: rescue clause falls back to subscriberConnectedAt when subscriberLastHealthyAt is null', () => {
+  // Existing-behavior preservation: lastSeen 24h ago, lastHealthyAt null,
+  // subscriberConnectedAt 2 min ago → still rescues.
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-25T18:00:00.000Z',
+    subscriberConnectedAt: '2026-02-26T17:58:00.000Z',
+    subscriberLastHealthyAt: null,
+    now,
+  });
+
+  assert.equal(health.status, 'online');
+  assert.equal(health.isStale, false);
+});
+
+test('deriveDeviceHealth: rescue does not fire when both subscriber timestamps are stale', () => {
+  // Both > onlineThresholdSeconds old (15 min) → status stays stale.
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-25T18:00:00.000Z',
+    subscriberConnectedAt: '2026-02-26T17:00:00.000Z',
+    subscriberLastHealthyAt: '2026-02-26T17:00:00.000Z',
+    now,
+  });
+
+  assert.equal(health.status, 'stale');
+  assert.equal(health.isStale, true);
+});
+
+test('deriveDeviceHealth: subscriberLastHealthyAt is irrelevant when status is already online from lastSeen', () => {
+  const now = new Date('2026-02-26T18:00:00.000Z').getTime();
+  const health = deriveDeviceHealth({
+    lastSeen: '2026-02-26T17:55:00.000Z',
+    heartbeatSeconds: 300,
+    heartbeatSamples: 10,
+    subscriberLastHealthyAt: '2026-02-26T17:58:00.000Z',
+    now,
+  });
+
+  assert.equal(health.status, 'online');
+  assert.equal(health.missedHeartbeats, 0);
+});

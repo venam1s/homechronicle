@@ -419,6 +419,123 @@ test('isConnectionError does not match auth errors', () => {
   assert.ok(!__testHooks.isConnectionError(new Error('M4: Error: 2')));
 });
 
+// -- lastHealthyAt heartbeat tests --
+
+test('lastHealthyAt is null on a freshly-started session before any event/connect', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber, getSubscriberStats } = await import('../src/subscriber.js');
+  startSubscriber('lh-init-1', {
+    name: 'LH Init Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const stats = getSubscriberStats('lh-init-1');
+  assert.equal(stats.lastHealthyAt, null);
+
+  __testHooks.resetState();
+});
+
+test('getRepairTargets does NOT include device whose lastHealthyAt is fresh even when lastSubscribedAt is stale', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber, getRepairTargets } = await import('../src/subscriber.js');
+  startSubscriber('healthy-fresh-1', {
+    name: 'Healthy Fresh Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('healthy-fresh-1');
+  // Old subscribe timestamp (2h ago), but lastHealthyAt is fresh (now)
+  session.stats.lastSubscribedAt = new Date(Date.now() - 2 * 60 * 60_000).toISOString();
+  session.stats.lastHealthyAt = new Date().toISOString();
+
+  const targets = getRepairTargets();
+  const found = targets.find((t) => t.deviceId === 'healthy-fresh-1');
+  assert.equal(found, undefined, 'fresh lastHealthyAt should keep device out of repair targets');
+
+  __testHooks.resetState();
+});
+
+test('getRepairTargets DOES include device whose lastHealthyAt is older than the threshold', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber, getRepairTargets } = await import('../src/subscriber.js');
+  startSubscriber('stale-lh-1', {
+    name: 'Stale LH Device',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('stale-lh-1');
+  // lastHealthyAt is 30 min ago — older than default 10-min threshold
+  session.stats.lastSubscribedAt = new Date().toISOString();
+  session.stats.lastHealthyAt = new Date(Date.now() - 30 * 60_000).toISOString();
+
+  const targets = getRepairTargets();
+  const found = targets.find((t) => t.deviceId === 'stale-lh-1');
+  assert.ok(found, 'stale lastHealthyAt should put device in repair targets');
+  assert.equal(found.isStale, true);
+
+  __testHooks.resetState();
+});
+
+test('getSubscriberHealth counts a session with old lastHealthyAt as stale', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber, getSubscriberHealth } = await import('../src/subscriber.js');
+  startSubscriber('health-stale-lh-1', {
+    name: 'Health Stale LH',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('health-stale-lh-1');
+  // Even with a fresh lastSubscribedAt, an old lastHealthyAt should mark stale
+  session.stats.lastSubscribedAt = new Date().toISOString();
+  session.stats.lastHealthyAt = new Date(Date.now() - 30 * 60_000).toISOString();
+
+  const health = getSubscriberHealth();
+  assert.equal(health.total, 1);
+  assert.equal(health.stale, 1);
+
+  __testHooks.resetState();
+});
+
+test('getSubscriberHealth does NOT count a session with fresh lastHealthyAt as stale', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const { startSubscriber, getSubscriberHealth } = await import('../src/subscriber.js');
+  startSubscriber('health-fresh-lh-1', {
+    name: 'Health Fresh LH',
+    address: '10.0.0.1',
+    port: 1234,
+    longTermData: {},
+  });
+
+  const session = __testHooks.getSession('health-fresh-lh-1');
+  // Even with an old lastSubscribedAt, fresh lastHealthyAt should keep it healthy
+  session.stats.lastSubscribedAt = new Date(Date.now() - 2 * 60 * 60_000).toISOString();
+  session.stats.lastHealthyAt = new Date().toISOString();
+
+  const health = getSubscriberHealth();
+  assert.equal(health.total, 1);
+  assert.equal(health.stale, 0);
+
+  __testHooks.resetState();
+});
+
 test('full flow: auth errors → with PIN → discovery fails → circuit breaker → needsRepair', async () => {
   __testHooks.resetState();
   __testHooks.setReconnectWindow(5, 10);
