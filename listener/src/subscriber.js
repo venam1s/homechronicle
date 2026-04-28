@@ -143,6 +143,7 @@ export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null
     accessoriesQueryFailures: 0,
     lastConnectedAt: null,
     lastSubscribedAt: null,
+    lastHealthyAt: null,
     lastError: null,
     lastErrorAt: null,
     // Auth failure tracking
@@ -268,6 +269,7 @@ function connectAccessory(session, pairing) {
       });
     }
     stats.lastConnectedAt = new Date().toISOString();
+    stats.lastHealthyAt = stats.lastConnectedAt;
     stats.authFailures = 0;
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
@@ -284,6 +286,9 @@ function connectAccessory(session, pairing) {
     // return value.
     const handleEvent = async (event) => {
       if (session.stopped) return;
+      // Refresh the heartbeat once per event batch (not per change in the loop).
+      // This is the canonical signal that the HAP subscription is actively producing data.
+      stats.lastHealthyAt = new Date().toISOString();
       const changes = event?.characteristics ?? (Array.isArray(event) ? event : [event]);
       for (const change of changes) {
         const key  = `${change.aid}.${change.iid}`;
@@ -396,6 +401,7 @@ function connectAccessory(session, pairing) {
         await client.subscribeCharacteristics(formerSubscribes);
         stats.resubscribeSuccesses += 1;
         stats.lastSubscribedAt = new Date().toISOString();
+        stats.lastHealthyAt = stats.lastSubscribedAt;
         log.info(`[subscriber] ${accessoryName}: resubscribed to ${formerSubscribes.length} characteristic(s)`);
       } catch (err) {
         stats.resubscribeFailures += 1;
@@ -448,6 +454,7 @@ function connectAccessory(session, pairing) {
       await client.subscribeCharacteristics(watchedKeys);
       session.retryDelayMs = reconnectBaseMs;
       stats.lastSubscribedAt = new Date().toISOString();
+      stats.lastHealthyAt = stats.lastSubscribedAt;
       log.info(`[subscriber] ${accessoryName}: subscribed to ${watchedKeys.length} characteristic(s)`);
     } catch (err) {
       stats.subscribeFailures += 1;
@@ -679,8 +686,8 @@ export function getSubscriberHealth() {
     total += 1;
     if (session.client) connected += 1;
     if (session.stats.needsRepair) needsRepair += 1;
-    const lastSub = session.stats.lastSubscribedAt;
-    if (!lastSub || now - new Date(lastSub).getTime() > staleThresholdMs) {
+    const lastHealthy = session.stats.lastHealthyAt;
+    if (!lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs) {
       stale += 1;
     }
     const lc = session.stats.lastConnectedAt;
@@ -701,8 +708,8 @@ export function getRepairTargets(staleThresholdMs = 10 * 60_000) {
   for (const [deviceId, session] of subscriberSessions) {
     const { stats } = session;
     const isNeedsRepair = Boolean(stats.needsRepair);
-    const lastSub = stats.lastSubscribedAt;
-    const isStale = !lastSub || now - new Date(lastSub).getTime() > staleThresholdMs;
+    const lastHealthy = stats.lastHealthyAt;
+    const isStale = !lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs;
     if (isNeedsRepair || isStale) {
       targets.push({
         deviceId,
