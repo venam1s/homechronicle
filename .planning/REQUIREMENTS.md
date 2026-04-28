@@ -119,31 +119,24 @@ Requirements for milestone v1.2 — UI Redesign.
 
 ## v1.3 Requirements (Complete)
 
-Requirements for milestone v1.3 — Repair Reliability Fixes.
+All v1.3 requirements validated — see `milestones/v1.3-REQUIREMENTS.md` for full details.
+
+<details>
+<summary>v1.3 Repair Reliability Fixes (6 requirements, all complete)</summary>
 
 ### Scheduled Repair — Subscriber Restart (Phase 18)
 
-- [x] **REPAIR-01
-**: The `needsRepair` success branch in `listener/src/repair-scheduler.js` `runRepairCycle()` calls `stopSubscriber(deviceId)` followed by `startSubscriber(deviceId, pairing, loadRooms(), getPairingForLookup)` after a successful `savePairing`. Net effect matches the `isStale` branch (lines 121–139) and the manual `POST /api/setup/repair/:deviceId` handler in `setup-router.js`.
-- [x] **REPAIR-02
-**: `resetSubscriberStats(deviceId)` is NOT called at the top of each `runRepairCycle` loop iteration. It is called only on a successful repair, inside the success block. On failure, `needsRepair` stays `true` so the dashboard Synced badge reflects real state.
-- [x] **REPAIR-03
-**: `listener/src/repair-scheduler.test.js` includes unit tests that assert:
-  - `needsRepair` success path invokes `stopSubscriber` then `startSubscriber` exactly once per repaired device
-  - `needsRepair` failure path does NOT clear `needsRepair` (no `resetSubscriberStats` call)
-  - `isStale` success path continues to invoke `stopSubscriber` + `startSubscriber` (regression guard)
+- [x] **REPAIR-01**: needsRepair success branch restarts HAP subscriber (stopSubscriber + startSubscriber)
+- [x] **REPAIR-02**: resetSubscriberStats called only on confirmed success, not at top of loop
+- [x] **REPAIR-03**: Three unit tests in repair-scheduler.test.js (success, failure, isStale regression)
 
 ### Scheduled Repair — Full Re-Pair Capability (Phase 19)
 
-- [x] **REPAIR-04
-**: When `needsRepair === true`, the scheduler performs a full `pairSetup()` using `hap-controller`, not just an address/port refresh via `savePairingForRepair`. Successful pairing produces new `longTermData` that replaces the stored (rejected) data, matching the manual `POST /api/setup/repair/:deviceId` flow.
-- [x] **REPAIR-05
-**: The scheduler reads the device's stored PIN from the PIN vault (same mechanism used by the manual repair endpoint). Devices that have `needsRepair === true` but no stored PIN are skipped and logged at `warn` level with the device name; they do NOT count as `failed` or trip the scheduler's error handling.
-- [x] **REPAIR-06
-**: `listener/src/repair-scheduler.test.js` adds tests that assert:
-  - pairSetup success path with a stored PIN writes new `longTermData` to pairings and restarts the subscriber
-  - skip path (no stored PIN) emits a `warn` log and leaves the pairing record untouched
-  - pairSetup failure (wrong PIN / device unreachable) leaves `needsRepair === true` and does NOT restart the subscriber
+- [x] **REPAIR-04**: Full pairSetup() via hap-controller using stored PIN; produces new longTermData
+- [x] **REPAIR-05**: No-PIN devices warn-skipped, not counted as failed
+- [x] **REPAIR-06**: Three tests in repair-scheduler.test.js (pairSetup success, no-PIN skip, pairSetup failure)
+
+</details>
 
 ## Future Requirements
 

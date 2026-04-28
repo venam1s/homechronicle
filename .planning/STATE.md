@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Repair Reliability Fixes
-status: complete
-stopped_at: "Completed 19-01-PLAN.md: scheduled repair full pairSetup capability"
-last_updated: "2026-04-21T12:33:41Z"
-last_activity: 2026-04-21 -- Phase 19 execution complete
+status: completed
+stopped_at: "Completed quick task 260427-ttq: lastHealthyAt heartbeat fix"
+last_updated: "2026-04-28T03:01:25.254Z"
+last_activity: 2026-04-28
 progress:
   total_phases: 2
   completed_phases: 2
@@ -18,17 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-20)
+See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 19 — COMPLETE
+**Current focus:** v1.3 closed — planning next milestone
 
 ## Current Position
 
-Phase: 19-scheduled-repair-full-pairsetup-capability — COMPLETE
-Plan: 1 of 1 (complete)
-Status: Milestone complete
-Last activity: 2026-04-21 -- Phase 19 execution complete
+Milestone: v1.3 Repair Reliability Fixes — ARCHIVED 2026-04-28 (shipped 2026-04-21)
+Active phase: none
+Status: Awaiting next milestone (use /gsd-new-milestone)
+Last activity: 2026-04-28 -- v1.3 milestone close
 
 ```
 Progress: [██████████] 100% (2/2 phases)
@@ -52,9 +52,16 @@ None — milestone complete.
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260427-ttq | Fix everything-stale bug: add lastHealthyAt heartbeat to subscriber stats; thread into deriveDeviceHealth + getRepairTargets | 2026-04-28 | 02a21cb | [260427-ttq-fix-everything-stale-bug-add-lasthealthy](./quick/260427-ttq-fix-everything-stale-bug-add-lasthealthy/) |
+| 260427-vch | Close quiet-device gap: thread subscriberConnected boolean into deriveDeviceHealth rescue (live HAP sub = heartbeat) | 2026-04-28 | 725a905 | [260427-vch-close-quiet-device-gap-thread-subscriber](./quick/260427-vch-close-quiet-device-gap-thread-subscriber/) |
+
 ## Session Continuity
 
-Last session: 2026-04-21T12:33:41Z
-Stopped at: Completed 19-01-PLAN.md: scheduled repair full pairSetup capability
+Last session: 2026-04-28T01:28:28Z
+Stopped at: Completed quick task 260427-ttq: lastHealthyAt heartbeat fix
 Resume file: None
 ---

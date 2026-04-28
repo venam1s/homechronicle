@@ -50,54 +50,15 @@ See `milestones/v1.2-ROADMAP.md` for full details.
 
 </details>
 
-## v1.3 Repair Reliability Fixes (In Progress)
+<details>
+<summary>✅ v1.3 Repair Reliability Fixes (Phases 18-19) — SHIPPED 2026-04-21</summary>
 
-### Phase 18: Scheduled Repair — Subscriber Restart Fix
+- [x] Phase 18: Scheduled Repair — Subscriber Restart Fix (1/1 plan) — completed 2026-04-20
+- [x] Phase 19: Scheduled Repair — Full pairSetup() Capability (1/1 plan) — completed 2026-04-21
 
-**Goal:** Stop the silent event-logging flatline. Make `needsRepair` success restart the HAP subscriber, and stop `resetSubscriberStats` from masking failures.
+See `milestones/v1.3-ROADMAP.md` for full details.
 
-**Requirements:** REPAIR-01, REPAIR-02, REPAIR-03
-
-**Plans:** 1 plan
-- [x] 18-01-PLAN.md — Fix implementation and add tests (completed 2026-04-20)
-
-**Scope:**
-- `listener/src/repair-scheduler.js` — move `resetSubscriberStats` into the success block; add `stopSubscriber` + `startSubscriber` sequence to `needsRepair` branch (mirror `isStale` branch at lines 121–139)
-- `listener/src/repair-scheduler.test.js` — add three unit tests (needsRepair success, needsRepair failure, isStale success regression guard)
-
-**Out of scope:** Full `pairSetup()` for rejected `longTermData` (deferred to Phase 19). UI surfacing of repair outcomes.
-
-**Success criteria:**
-- Scheduled repair resumes event logging for devices with IP-change staleness without user intervention
-- Failed repairs leave `needsRepair === true` so the dashboard reflects real state
-- All existing repair-scheduler tests still pass
-
-**Reference:** `.planning/debug/scheduled-repair-no-logging.md` (root cause + fix plan)
-
----
-
-### Phase 19: Scheduled Repair — Full pairSetup() Capability
-
-**Goal:** Close the gap between scheduled repair and manual "Repair All" by giving the scheduler the ability to perform a full cryptographic re-pair when `longTermData` is rejected.
-
-**Requirements:** REPAIR-04, REPAIR-05, REPAIR-06
-
-**Depends on:** Phase 18 (subscriber-restart primitive must be in place)
-
-**Plans:** 1 plan
-- [x] 19-01-PLAN.md — Extract pair-and-persist helper; wire pairSetup path into scheduler with no-PIN skip + tests (completed 2026-04-21)
-
-**Scope:**
-- `listener/src/repair-scheduler.js` — call `pairSetup()` via `hap-controller` in `needsRepair` branch using PIN from vault; fall back to warning skip when no PIN is stored
-- PIN-vault read path (reuse whatever `setup-router.js` manual repair uses — no new vault APIs)
-- `listener/src/repair-scheduler.test.js` — three new unit tests covering pairSetup success / no-PIN skip / pairSetup failure
-
-**Out of scope:** UI for viewing skipped-due-to-no-PIN devices (exists in health/accessories data already). Matter device repair (Matter uses polling, not persistent subscriptions).
-
-**Success criteria:**
-- Devices with auth-failure `needsRepair=true` and a stored PIN get fully re-paired by the scheduler and start logging events again, without the user clicking "Repair All"
-- Devices without a stored PIN are skipped cleanly (no failure spam)
-- Manual "Repair All" endpoint behavior is unchanged (shares primitives, doesn't get double-invoked)
+</details>
 
 ## Progress
 
