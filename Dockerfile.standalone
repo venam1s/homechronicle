@@ -62,11 +62,15 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
   && rm -rf /var/lib/apt/lists/*
 
 # ── Listener ────────────────────────────────────────────────────────────────
+# Set ownership at COPY time. Doing `COPY` then `RUN chown -R` is dramatically
+# slower because it walks every file in node_modules (~10K+ inodes) and each
+# chown triggers an overlay2 copy-up from the lower layer. `--chown=` sets
+# ownership in the same layer, near-free. Mirrors listener/Dockerfile.
 WORKDIR /app/listener
-COPY --from=listener-build /build/node_modules ./node_modules
-COPY listener/package.json .
-COPY listener/src/ ./src/
-RUN mkdir -p /app/listener/data && chown -R node:node /app/listener
+COPY --from=listener-build --chown=node:node /build/node_modules ./node_modules
+COPY --chown=node:node listener/package.json .
+COPY --chown=node:node listener/src/ ./src/
+RUN mkdir -p /app/listener/data && chown node:node /app/listener/data
 
 # ── Web UI ──────────────────────────────────────────────────────────────────
 COPY --from=web-build /build/dist /usr/share/nginx/html
