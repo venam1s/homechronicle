@@ -27,8 +27,15 @@ test:
   before_script:
     - apk add --no-cache python3 make g++ linux-headers
   script:
-    - cd listener && npm ci && npm test && cd ..
-    - cd web && npm ci && npm test && cd ..
+    # Subshells keep each line self-contained — if `npm ci` or `npm test` fails
+    # in listener, we don't need a corresponding `cd ..` (the subshell exits
+    # back to the original cwd automatically). Without this, a failure in the
+    # listener line would leave the shell inside listener/ and the next line's
+    # `cd web` would fail with "No such file or directory" — a misleading
+    # secondary error that hid the real failure (#13133398452 in pipeline
+    # 2486952137 was bitten by this).
+    - (cd listener && npm ci && npm test)
+    - (cd web && npm ci && npm test)
 
 # ── SAST (replaces .github/workflows/codeql.yml) ────────────────────────────
 include:
