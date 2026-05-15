@@ -110,7 +110,7 @@ export default function Sidebar({
     >
       {/* Header */}
       <div className={clsx('flex py-6', collapsed ? 'justify-center px-2' : 'px-4')}>
-        <BrandLogo collapsed={collapsed} className="h-8" />
+        <BrandLogo collapsed={collapsed} className="h-10" />
       </div>
 
       {/* Nav list */}
