@@ -15,6 +15,7 @@ import StaleDevicesPanel from '../components/StaleDevicesPanel.jsx';
 import QuietHoursPanel from '../components/QuietHoursPanel.jsx';
 import PairingHealthBanner from '../components/PairingHealthBanner.jsx';
 import Card from '../components/Card.jsx';
+import PageContainer from '../components/PageContainer.jsx';
 
 const DASHBOARD_WINDOWS = [
   { label: '7d', days: 7 },
@@ -46,7 +47,7 @@ export default function DashboardPage({
   useEffect(() => { try { window.localStorage.setItem(RANGE_KEY, String(dashboardDays)); } catch {} }, [dashboardDays]);
   useEffect(() => { try { window.localStorage.setItem(SYNC_KEY, String(syncDashboardRanges)); } catch {} }, [syncDashboardRanges]);
   return (
-    <div className="max-w-5xl mx-auto py-4 sm:py-6 px-3 sm:px-4 space-y-4">
+    <PageContainer className="space-y-4">
 
       <div className="mb-6">
         <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Dashboard</h1>
@@ -165,6 +166,6 @@ export default function DashboardPage({
         </Card>
       </div>
 
-    </div>
+    </PageContainer>
   );
 }

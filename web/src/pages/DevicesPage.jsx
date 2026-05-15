@@ -5,6 +5,7 @@ import AccessoryList from '../components/AccessoryList.jsx';
 import AddDevicesTab from '../components/setup/AddDevicesTab.jsx';
 import MyDevicesTab from '../components/setup/MyDevicesTab.jsx';
 import Card from '../components/Card.jsx';
+import PageContainer from '../components/PageContainer.jsx';
 
 const DEVICE_TABS = [
   { id: 'browse', label: 'Browse' },
@@ -17,7 +18,7 @@ export default function DevicesPage({ onSelectAccessory }) {
   const setup = useSetup();
 
   return (
-    <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
+    <PageContainer className="space-y-6">
       <div className="mb-6">
         <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Devices</h1>
       </div>
@@ -59,6 +60,6 @@ export default function DevicesPage({ onSelectAccessory }) {
           </Card.Body>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

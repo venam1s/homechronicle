@@ -317,7 +317,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
 
       {/* Locked-cell banner — shows when a heatmap cell has been clicked */}
       {lockedCell && (
-        <div className="max-w-2xl mx-auto w-full px-4 py-1.5 flex items-center gap-2">
+        <div className="max-w-6xl mx-auto w-full px-4 py-1.5 flex items-center gap-2">
           {isJumping
             ? <Loader2 size={11} className="text-orange-400 animate-spin flex-shrink-0" />
             : <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
@@ -342,7 +342,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
 
       {/* Muted devices banner */}
       {muted.size > 0 && (
-        <div className="max-w-2xl mx-auto w-full px-4 py-2 flex items-center gap-2 flex-wrap">
+        <div className="max-w-6xl mx-auto w-full px-4 py-2 flex items-center gap-2 flex-wrap">
           <VolumeX size={12} className="text-hc-muted flex-shrink-0" />
           <span className="text-xs text-hc-muted">Muted:</span>
           {[...muted].map((name) => (
@@ -398,7 +398,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
         )}
 
         {visibleEvents.length > 0 && (
-          <div className="max-w-2xl mx-auto py-4">
+          <div className="max-w-6xl mx-auto py-4">
             {[...groupByDay(visibleEvents)].map(([day, events]) => (
               <div key={day} className="mb-6">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-hc-muted px-4 mb-2">
