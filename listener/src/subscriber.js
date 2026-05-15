@@ -85,6 +85,9 @@ const delayedOffTimers = new Map();
 const subscriberSessions = new Map();
 const subscriberStats = new Map();
 let connectAccessoryImpl = connectAccessory;
+// Factory for HAP HttpClient instances — overrideable in tests to avoid real
+// network connections during auto-repair unit tests.
+let httpClientFactory = (deviceId, address, port) => new HttpClient(deviceId, address, port);
 
 function isAuthError(err) {
   const msg = err?.message ?? String(err);
@@ -606,6 +609,11 @@ async function attemptAutoRepair(session, pairing) {
   session.repairing = true;
   stats.autoRepairAttempts += 1;
 
+  // Track whether repair succeeded so the finally block can skip scheduling
+  // a retry on the success path. Without this flag, resetting autoRepairAttempts
+  // to 0 on success makes the guard (!stats.needsRepair && autoRepairAttempts < 3)
+  // trivially true, causing an infinite 60s retry loop even after success.
+  let succeeded = false;
   try {
     log.info(`[subscriber] ${accessoryName}: attempting auto re-pair (attempt ${stats.autoRepairAttempts}/3)…`);
 
@@ -621,8 +629,8 @@ async function attemptAutoRepair(session, pairing) {
       return;
     }
 
-    // Attempt pair-setup with stored PIN (uses top-level HttpClient import)
-    const repairClient = new HttpClient(session.deviceId, discovered.address, discovered.port);
+    // Attempt pair-setup with stored PIN (uses httpClientFactory for testability)
+    const repairClient = httpClientFactory(session.deviceId, discovered.address, discovered.port);
     let longTermData;
     try {
       await repairClient.pairSetup(pairing.pin);
@@ -654,6 +662,7 @@ async function attemptAutoRepair(session, pairing) {
       longTermData,
     };
     connectAccessoryImpl(session, updatedPairing);
+    succeeded = true;
   } catch (err) {
     stats.autoRepairLastError = err.message ?? String(err);
     log.error(`[subscriber] ${accessoryName}: auto re-pair failed:`, err.message ?? err.stack ?? err);
@@ -663,8 +672,9 @@ async function attemptAutoRepair(session, pairing) {
     }
   } finally {
     session.repairing = false;
-    // Schedule retry if under circuit breaker and not already marked terminal
-    if (!stats.needsRepair && stats.autoRepairAttempts < 3) {
+    // Only schedule a retry on the failure path. On success, connectAccessoryImpl
+    // has already resumed the normal subscription — no retry needed.
+    if (!succeeded && !stats.needsRepair && stats.autoRepairAttempts < 3) {
       log.info(`[subscriber] ${accessoryName}: retrying auto re-pair in 60s…`);
       session.reconnectTimeout = setTimeout(() => {
         if (session.stopped) return;
@@ -786,11 +796,15 @@ export const __testHooks = {
   setConnectAccessoryImpl(fn) {
     connectAccessoryImpl = fn;
   },
+  setHttpClientFactory(fn) {
+    httpClientFactory = fn;
+  },
   resetState() {
     for (const [deviceId] of subscriberSessions) {
       stopSubscriber(deviceId);
     }
     connectAccessoryImpl = connectAccessory;
+    httpClientFactory = (deviceId, address, port) => new HttpClient(deviceId, address, port);
     reconnectBaseMs = 5_000;
     reconnectMaxMs = 60_000;
   },

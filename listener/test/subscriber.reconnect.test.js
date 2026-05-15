@@ -751,3 +751,117 @@ test('M-01: getRepairTargets DOES flag subscribed=false with stale lastHealthyAt
 
   __testHooks.resetState();
 });
+
+// -- Regression test: attemptAutoRepair success-path retry loop (subscriber-repair-loop) --
+//
+// Root cause: the finally block in attemptAutoRepair() schedules a 60s retry whenever
+// autoRepairAttempts < 3. On the success path, autoRepairAttempts is reset to 0, making
+// that guard trivially true — causing an infinite retry loop even after successful repair.
+// Fix: gate the retry on a `succeeded` boolean that is only set to true on the success path.
+
+test('attemptAutoRepair does NOT schedule a 60s retry when pair-setup succeeds', async () => {
+  __testHooks.resetState();
+
+  let connectCalled = false;
+  __testHooks.setConnectAccessoryImpl((session) => {
+    connectCalled = true;
+  });
+
+  // Inject a mock HttpClient factory that simulates a successful pairSetup
+  __testHooks.setHttpClientFactory((_deviceId, _address, _port) => ({
+    pairSetup: async (_pin) => { /* success — no throw */ },
+    getLongTermData: () => ({ ltpk: 'mock-ltpk', ltsk: 'mock-ltsk' }),
+    close: () => {},
+  }));
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('repair-success-1', {
+    name: 'Repair Success Device',
+    address: '10.0.0.1',
+    port: 1234,
+    pin: '111-22-333',
+    longTermData: {},
+  }, {}, null, {
+    discoverDevice: async () => ({ address: '10.0.0.1', port: 1234 }),
+    savePairing: async () => {},
+  });
+
+  const session = __testHooks.getSession('repair-success-1');
+  session.stats.authFailures = 3;
+  session.stats.authFailed = true;
+
+  await __testHooks.attemptAutoRepair(session, {
+    name: 'Repair Success Device',
+    pin: '111-22-333',
+    longTermData: {},
+  });
+
+  // On success: connectAccessoryImpl must have been called (normal subscription resumed)
+  assert.equal(connectCalled, true, 'connectAccessoryImpl should be called on successful repair');
+
+  // On success: autoRepairAttempts is reset to 0 and no retry timer is scheduled
+  assert.equal(session.stats.autoRepairAttempts, 0, 'autoRepairAttempts should be reset to 0 on success');
+  assert.equal(session.stats.needsRepair, false, 'needsRepair must remain false on success');
+  assert.equal(session.repairing, false, 'repairing flag must be cleared');
+
+  // The critical assertion: no 60s retry timer should be pending
+  assert.equal(
+    session.reconnectTimeout,
+    null,
+    'reconnectTimeout must be null after successful repair — no retry loop should be scheduled'
+  );
+
+  __testHooks.resetState();
+});
+
+test('attemptAutoRepair DOES schedule a 60s retry when pair-setup fails (failure path unchanged)', async () => {
+  __testHooks.resetState();
+
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  // Inject a mock HttpClient factory that simulates a failed pairSetup
+  __testHooks.setHttpClientFactory((_deviceId, _address, _port) => ({
+    pairSetup: async (_pin) => { throw new Error('M4: Error: 2'); },
+    getLongTermData: () => ({}),
+    close: () => {},
+  }));
+
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('repair-fail-retry-1', {
+    name: 'Repair Fail Retry Device',
+    address: '10.0.0.1',
+    port: 1234,
+    pin: '111-22-333',
+    longTermData: {},
+  }, {}, null, {
+    discoverDevice: async () => ({ address: '10.0.0.1', port: 1234 }),
+    savePairing: async () => {},
+  });
+
+  const session = __testHooks.getSession('repair-fail-retry-1');
+  session.stats.authFailures = 3;
+  session.stats.authFailed = true;
+
+  await __testHooks.attemptAutoRepair(session, {
+    name: 'Repair Fail Retry Device',
+    pin: '111-22-333',
+    longTermData: {},
+  });
+
+  assert.equal(session.stats.autoRepairAttempts, 1, 'attempt count should increment on failure');
+  assert.equal(session.stats.needsRepair, false, 'not yet at circuit breaker (attempt 1/3)');
+  assert.equal(session.repairing, false, 'repairing flag cleared');
+
+  // On failure with attempts < 3, a retry timer MUST be scheduled
+  assert.notEqual(
+    session.reconnectTimeout,
+    null,
+    'reconnectTimeout should be set after a failed repair attempt (retry is expected on failure path)'
+  );
+
+  // Clean up the timer so the test runner exits cleanly
+  clearTimeout(session.reconnectTimeout);
+  session.reconnectTimeout = null;
+
+  __testHooks.resetState();
+});
