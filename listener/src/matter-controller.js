@@ -6,7 +6,7 @@
  * management for Matter nodes.
  */
 
-import { Environment, StorageService } from '@matter/main';
+import { Environment, StorageService, Logger, LogLevel, LogFormat, logLevelFromString } from '@matter/main';
 import {
   OnOff,
   LevelControl,
@@ -29,6 +29,28 @@ import { ManualPairingCodeCodec, QrPairingCodeCodec } from '@matter/main/types';
 import { CommissioningController } from '@project-chip/matter.js';
 import { NodeStates } from '@project-chip/matter.js/device';
 import { log } from './logger.js';
+
+// -- matter.js Logger configuration --
+// Configure the matter.js global Logger at module load (before any SDK code runs).
+// Defaults to INFO/PLAIN — avoids the DEBUG firehose and ANSI codes in Docker logs.
+{
+  const VALID_FORMATS = ['plain', 'ansi', 'html'];
+  const rawLevel = (process.env.MATTER_LOG_LEVEL ?? 'info').toLowerCase().trim();
+  const rawFormat = (process.env.MATTER_LOG_FORMAT ?? 'plain').toLowerCase().trim();
+
+  let resolvedLevel = LogLevel.INFO;
+  try {
+    const parsed = logLevelFromString(rawLevel);
+    if (parsed !== undefined && parsed !== null) resolvedLevel = parsed;
+  } catch (_) { /* bad value — fall back to INFO */ }
+
+  const resolvedFormat = VALID_FORMATS.includes(rawFormat) ? rawFormat : LogFormat.PLAIN;
+
+  Logger.level = resolvedLevel;
+  Logger.format = resolvedFormat;
+
+  log.info(`[matter-controller] matter.js log level=${rawLevel} format=${resolvedFormat}`);
+}
 
 const STORAGE_PATH = process.env.MATTER_STORAGE_PATH?.trim()
   || (process.env.NODE_ENV === 'production' ? '/app/data/matter-storage' : './data/matter-storage');
