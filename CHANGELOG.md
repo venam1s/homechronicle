@@ -2,6 +2,20 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.1.10] — 2026-05-15
+
+### Fixed
+- **Listener CPU pegged at 100% on devices with invalid stored credentials** — when a HomeKit device's stored long-term keys started failing M4 auth, the auto re-pair flow would succeed but then schedule another retry every 60 seconds forever (the success path defeated the 3-attempt circuit breaker). Each retry runs full HAP pair-setup crypto (SRP-6a + Curve25519 + ChaCha20 + Ed25519), pegging a CPU core. Fix: the 60s retry timer is now only scheduled on the failure path; the success path resumes the normal subscription cleanly.
+- **Matter.js SDK no longer floods logs at DEBUG level** — the upstream Matter SDK defaulted to dumping every packet's full inspected payload (certificates, ACLs, fabric data, hex) plus ANSI escape codes that don't render in Docker logs. On listeners with a paired Matter device this was the dominant CPU consumer. Now defaults to INFO + plain format.
+
+### Added
+- **`MATTER_LOG_LEVEL`** env var (`debug | info | notice | warn | error | fatal`, default `info`) — controls matter.js SDK log verbosity independently of the listener's own `LOG_LEVEL`.
+- **`MATTER_LOG_FORMAT`** env var (`plain | ansi | html`, default `plain`) — controls matter.js log output format.
+
+### Internal
+- New regression tests for subscriber auto re-pair (success path schedules no timer; failure path still retries). Listener tests: 341 → 343.
+- New `scripts/sync-prod-to-beta.sh` for self-hosted operators running a beta stack alongside prod — DB-only sync that leaves pairings on prod to avoid HAP/Matter controller-identity conflict.
+
 ## [0.1.9] — 2026-04-28
 
 ### Added

@@ -10,6 +10,17 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.1.10',
+    title: 'Two CPU regressions fixed (auto re-pair loop + Matter log firehose)',
+    items: [
+      'Listener CPU no longer pegs to 100% when a HomeKit device has invalid stored credentials — the auto re-pair success path was scheduling another retry every 60 seconds forever, defeating the 3-attempt circuit breaker. Each retry ran full HAP crypto. Now only retries on actual failure.',
+      'Matter.js SDK no longer floods listener logs at DEBUG level — the upstream SDK defaulted to dumping every packet payload (certificates, ACLs, hex) plus ANSI escape codes that don\'t render in Docker. New default: INFO + plain format.',
+      'New env var MATTER_LOG_LEVEL (debug | info | notice | warn | error | fatal, default info) to control matter.js verbosity independently of the listener\'s own LOG_LEVEL.',
+      'New env var MATTER_LOG_FORMAT (plain | ansi | html, default plain) to control matter.js output format.',
+      'New regression tests for subscriber auto re-pair (343 listener tests, was 341).',
+    ],
+  },
+  {
     version: 'v0.1.9',
     title: 'Scheduled repair actually works + stale-device fix + dashboard truth-up',
     items: [
