@@ -11,7 +11,8 @@
     "pair": "node src/pairing.js",
     "add-pairing": "node src/add-pairing.js",
     "seed": "node src/seed.js",
-    "test": "node --test"
+    "test": "node --test",
+    "postinstall": "patch-package"
   },
   "overrides": {
     "fast-xml-parser": "^5.3.5"
@@ -24,6 +25,7 @@
     "express-rate-limit": "^8.3.1",
     "hap-controller": "^0.10.2",
     "node-pg-migrate": "^8.0.4",
+    "patch-package": "^8.0.1",
     "pg": "^8.20.0"
   },
   "devDependencies": {

@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY package.json .
+COPY patches/ ./patches/
 RUN npm install --omit=dev
 
 # --- Stage 2: runtime image (no build tools) ---------------------------------

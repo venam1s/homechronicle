@@ -1,0 +1,33 @@
+diff --git a/node_modules/dnssd/lib/BufferWrapper.js b/node_modules/dnssd/lib/BufferWrapper.js
+index 3e86aa4..daf2771 100644
+--- a/node_modules/dnssd/lib/BufferWrapper.js
++++ b/node_modules/dnssd/lib/BufferWrapper.js
+@@ -228,11 +228,17 @@ var BufferWrapper = function () {
+   }, {
+     key: 'readFQDN',
+     value: function readFQDN() {
++      var MAX_FQDN_ITERATIONS = 128;
++      var iterations = 0;
++      var visited = Object.create(null);
+       var labels = [];
+       var len = void 0,
+           farthest = void 0;
+ 
+       while (this.remaining() >= 0 && (len = this.readUInt8())) {
++        if (++iterations > MAX_FQDN_ITERATIONS) {
++          throw new Error('dnssd: malformed FQDN — compression pointer cycle or budget exceeded');
++        }
+         // Handle dns compression. If the length is > 192, it means its a pointer.
+         // The pointer points to a previous position in the buffer to move to and
+         // read from. Pointer (a int16be) = 0xC000 + position
+@@ -245,6 +251,10 @@ var BufferWrapper = function () {
+           // (the current position) before following the pointers so we can return
+           // to it later after following all the compression pointers
+           if (!farthest) farthest = this.position;
++          if (visited[position]) {
++            throw new Error('dnssd: malformed FQDN — compression pointer cycle or budget exceeded');
++          }
++          visited[position] = true;
+           this.seek(position);
+         }
+       }
