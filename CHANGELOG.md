@@ -2,6 +2,17 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.1.11] — 2026-05-28
+
+### Fixed
+- **Listener could be pegged at 100% CPU and stop responding to healthchecks if it ever received a malformed mDNS packet** — the bundled `dnssd@0.4.1` library follows DNS name-compression pointers (RFC 1035 §4.1.4) without any cycle detection or iteration budget. A single packet whose pointers form a cycle would spin the parser forever on one CPU core, silently (no log line, no exception), until the HTTP healthcheck timed out and Docker killed the container. Now patched via `patch-package` to detect pointer cycles and enforce a hard 128-iteration budget; malformed packets throw cleanly and are discarded by the existing dnssd error-handling.
+
+### Internal
+- New runtime dep `patch-package` with a `postinstall` script in `listener/package.json` — re-applies the dnssd patch automatically on every `npm install` / `npm ci` (including Docker builds, which use `npm install --omit=dev`).
+- `listener/Dockerfile` build stage now copies `patches/` into the image before `npm install --omit=dev` so patch-package can find the patch file in the build context.
+- New regression test `listener/test/dnssd-fqdn-cycle.test.js` covering both the cycle case (must throw within 1s, exercised inside a worker_threads Worker so the test runner can bound the pre-patch infinite loop) and the positive compression case (legitimate compressed FQDNs still parse).
+- Listener test count: 343 → 345.
+
 ## [0.1.10] — 2026-05-15
 
 ### Fixed

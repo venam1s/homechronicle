@@ -10,6 +10,15 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.1.11',
+    title: 'Patched a dnssd parser bug that could peg the listener CPU on a single malformed mDNS packet',
+    items: [
+      'Listener no longer hangs on malformed mDNS packets — the bundled dnssd library followed DNS name-compression pointers without cycle detection or an iteration budget. A single bad packet could spin one CPU core forever, silently (no log, no exception), until Docker killed the container on healthcheck timeout.',
+      'Fix is patched into the library via patch-package and re-applied automatically on every install / Docker rebuild.',
+      'New regression test covers both the cycle case (must throw within 1s) and a positive compressed-FQDN case (legitimate compression still works). Listener tests: 343 → 345.',
+    ],
+  },
+  {
     version: 'v0.1.10',
     title: 'Two CPU regressions fixed (auto re-pair loop + Matter log firehose)',
     items: [
