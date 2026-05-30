@@ -724,3 +724,49 @@
 .animate-save-flash {
   animation: save-flash 1s ease-out forwards;
 }
+
+/* -- Customizable dashboard grid (react-grid-layout) --
+   Themes the library's defaults to match HomeChronicle tokens. The base
+   react-grid-layout/react-resizable stylesheets are imported in main.jsx
+   before this file, so these overrides win. */
+
+/* Drag placeholder: replace the library's default solid-red block. */
+.react-grid-item.react-grid-placeholder {
+  background: rgba(var(--hc-accent-rgb), 0.18);
+  border: 1px dashed rgba(var(--hc-accent-rgb), 0.55);
+  border-radius: 0.75rem;
+  opacity: 1;
+}
+
+/* Resize handle: drop react-resizable's base64 image and draw a themed corner
+   chevron that is visible in both light and dark mode. */
+.react-grid-item > .react-resizable-handle {
+  background-image: none;
+  padding: 0;
+}
+.react-grid-item > .react-resizable-handle::after {
+  width: 7px;
+  height: 7px;
+  right: 4px;
+  bottom: 4px;
+  border-right: 2px solid rgba(var(--hc-accent-rgb), 0.7);
+  border-bottom: 2px solid rgba(var(--hc-accent-rgb), 0.7);
+}
+
+/* While customizing, keep resize handles visible (not hover-only) and outline
+   each tile so the grid structure reads clearly. */
+.hc-grid-editing .react-grid-item > .react-resizable-handle {
+  opacity: 1;
+}
+.hc-grid-editing .react-grid-item:not(.react-grid-placeholder) {
+  outline: 1px dashed var(--hc-panel-border);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
+
+/* Lift the tile while it is being dragged. */
+.react-grid-item.react-draggable-dragging {
+  box-shadow: 0 16px 40px -12px rgba(2, 6, 23, 0.45);
+  cursor: grabbing;
+  z-index: 10;
+}

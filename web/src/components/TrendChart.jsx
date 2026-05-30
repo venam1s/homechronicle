@@ -82,8 +82,8 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
+    <div className="h-full flex flex-col min-h-0">
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <h3 className="text-sm font-semibold text-hc-fg">Daily Activity</h3>
         <div className="flex gap-1">
           {WINDOWS.map(({ label, days: d }) => (
@@ -102,7 +102,7 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
           ))}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={180}>
+      <div className="flex-1 min-h-0"><ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -135,7 +135,7 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
             activeDot={{ r: 4, strokeWidth: 0 }}
           />
         </AreaChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer></div>
     </div>
   );
 }

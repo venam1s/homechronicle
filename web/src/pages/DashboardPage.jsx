@@ -1,21 +1,11 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { Link2, Unlink2 } from 'lucide-react';
-import KpiCards from '../components/KpiCards.jsx';
-import ActivityFeed from '../components/ActivityFeed.jsx';
-import RoomBreakdown from '../components/RoomBreakdown.jsx';
-import ActivityChart from '../components/ActivityChart.jsx';
-import TrendChart from '../components/TrendChart.jsx';
-import TopDevices from '../components/TopDevices.jsx';
-import RoomChart from '../components/RoomChart.jsx';
-import WeekdayHeatmap from '../components/WeekdayHeatmap.jsx';
-import MonthlyHeatmap from '../components/MonthlyHeatmap.jsx';
-import AnomalyPanel from '../components/AnomalyPanel.jsx';
-import StaleDevicesPanel from '../components/StaleDevicesPanel.jsx';
+import { Link2, Unlink2, LayoutGrid, Check, RotateCcw } from 'lucide-react';
 import QuietHoursPanel from '../components/QuietHoursPanel.jsx';
 import PairingHealthBanner from '../components/PairingHealthBanner.jsx';
-import Card from '../components/Card.jsx';
+import DashboardGrid from '../components/DashboardGrid.jsx';
 import PageContainer from '../components/PageContainer.jsx';
+import { useDashboardLayout } from '../hooks/useDashboardLayout.js';
 
 const DASHBOARD_WINDOWS = [
   { label: '7d', days: 7 },
@@ -43,20 +33,58 @@ export default function DashboardPage({
       return stored == null ? true : stored !== 'false';
     } catch { return true; }
   });
+  const [editing, setEditing] = useState(false);
+
+  const {
+    layouts,
+    hidden,
+    applyLayoutChange,
+    hidePanel,
+    showPanel,
+    reset,
+  } = useDashboardLayout();
 
   useEffect(() => { try { window.localStorage.setItem(RANGE_KEY, String(dashboardDays)); } catch {} }, [dashboardDays]);
   useEffect(() => { try { window.localStorage.setItem(SYNC_KEY, String(syncDashboardRanges)); } catch {} }, [syncDashboardRanges]);
+
+  function handleReset() {
+    const ok = typeof window === 'undefined' || typeof window.confirm !== 'function'
+      ? true
+      : window.confirm('Reset the dashboard to its default layout? This restores all panels and their positions.');
+    if (ok) reset();
+  }
+
   return (
     <PageContainer className="space-y-4">
 
-      <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Dashboard</h1>
+        <div className="flex items-center gap-2">
+          {editing && (
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-hc-panel-border bg-hc-panel text-hc-muted hover:text-hc-fg transition-colors"
+            >
+              <RotateCcw size={13} />
+              <span className="hidden sm:inline">Reset</span>
+            </button>
+          )}
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className={clsx(
+              'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
+              editing
+                ? 'bg-hc-accent-strong border-hc-accent-strong text-white hover:opacity-90'
+                : 'bg-hc-panel border-hc-panel-border text-hc-muted hover:text-hc-fg',
+            )}
+          >
+            {editing ? <Check size={13} /> : <LayoutGrid size={13} />}
+            <span>{editing ? 'Done' : 'Customize'}</span>
+          </button>
+        </div>
       </div>
 
       <PairingHealthBanner onViewDetails={onViewDeviceRepair} />
-
-      {/* KPI cards row */}
-      <KpiCards dashboardDays={dashboardDays} />
 
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-1 bg-hc-panel border border-hc-panel-border rounded-lg p-0.5 shadow-sm">
@@ -90,81 +118,29 @@ export default function DashboardPage({
         </button>
       </div>
 
-      {/* Full-width trend chart */}
-      <Card>
-        <Card.Body>
-          <TrendChart
-            forcedDays={syncDashboardRanges ? dashboardDays : null}
-            onDaysChange={syncDashboardRanges ? setDashboardDays : null}
-          />
-        </Card.Body>
-      </Card>
-
-      {/* Quiet hours */}
+      {/* Quiet hours stays as a fixed banner above the customizable grid */}
       <QuietHoursPanel onNavigateToAccessory={onNavigateToAccessory} />
 
-      {/* 2-col: hourly activity + room breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <Card.Body>
-            <ActivityChart />
-          </Card.Body>
-        </Card>
-        <Card>
-          <Card.Body>
-            <RoomChart
-              forcedDays={syncDashboardRanges ? dashboardDays : null}
-              onDaysChange={syncDashboardRanges ? setDashboardDays : null}
-            />
-          </Card.Body>
-        </Card>
-      </div>
+      {editing && (
+        <p className="text-xs text-hc-muted px-1">
+          Drag panels by their header to rearrange, drag the bottom-right corner to resize, or remove them with ✕. Changes save automatically.
+        </p>
+      )}
 
-      {/* 2-col: top devices + heatmaps */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <Card.Body>
-            <TopDevices
-              forcedDays={syncDashboardRanges ? dashboardDays : null}
-              onDaysChange={syncDashboardRanges ? setDashboardDays : null}
-            />
-          </Card.Body>
-        </Card>
-        <Card>
-          <Card.Body>
-            <WeekdayHeatmap
-              forcedDays={syncDashboardRanges ? dashboardDays : null}
-              onDaysChange={syncDashboardRanges ? setDashboardDays : null}
-            />
-            <div className="mt-4 pt-4 border-t border-hc-panel-border">
-              <MonthlyHeatmap />
-            </div>
-          </Card.Body>
-        </Card>
-      </div>
-
-      {/* Live activity feed */}
-      <ActivityFeed
+      <DashboardGrid
+        editing={editing}
+        layouts={layouts}
+        hidden={hidden}
+        onLayoutChange={applyLayoutChange}
+        onHidePanel={hidePanel}
+        onShowPanel={showPanel}
+        dashboardDays={dashboardDays}
+        syncDashboardRanges={syncDashboardRanges}
+        setDashboardDays={setDashboardDays}
+        onSelectAccessory={onSelectAccessory}
+        onSelectRoom={onSelectRoom}
         onNavigateToAccessory={onNavigateToAccessory}
-        onViewAll={() => onNavigateToAccessory?.(null)}
       />
-
-      {/* Room breakdown */}
-      <RoomBreakdown onSelectRoom={onSelectRoom} />
-
-      {/* 2-col: active outliers + stale devices */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <Card.Body>
-            <AnomalyPanel onSelectAccessory={onSelectAccessory} onSelectRoom={onSelectRoom} />
-          </Card.Body>
-        </Card>
-        <Card>
-          <Card.Body>
-            <StaleDevicesPanel onSelectAccessory={onSelectAccessory} />
-          </Card.Body>
-        </Card>
-      </div>
 
     </PageContainer>
   );

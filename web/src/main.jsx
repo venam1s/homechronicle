@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.jsx';
 import { ToastProvider } from './components/Toast.jsx';
+// react-grid-layout base styles must load before ./index.css so our themed
+// overrides (placeholder, resize handle, drag state) take precedence.
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import './index.css';
 
 const queryClient = new QueryClient({

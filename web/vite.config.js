@@ -29,6 +29,7 @@ export default defineConfig({
           if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'vendor-charts';
           if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
           if (id.includes('node_modules/date-fns')) return 'vendor-dates';
+          if (id.includes('node_modules/react-grid-layout') || id.includes('node_modules/react-resizable') || id.includes('node_modules/react-draggable')) return 'vendor-grid';
         },
       },
     },

@@ -50,12 +50,12 @@ export default function ActivityChart() {
   }
 
   return (
-    <div>
-      <div className="flex items-baseline justify-between mb-3">
+    <div className="h-full flex flex-col min-h-0">
+      <div className="flex items-baseline justify-between mb-3 shrink-0">
         <h3 className="text-sm font-semibold text-hc-fg">Events by Hour</h3>
         <span className="text-xs text-hc-muted">last 30 days · local time</span>
       </div>
-      <div className="h-[150px] md:h-[180px]">
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
             <defs>

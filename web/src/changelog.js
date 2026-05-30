@@ -10,6 +10,17 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.2.0',
+    title: 'Customizable dashboard — drag, resize, hide, and restore panels',
+    items: [
+      'The dashboard is now a customizable grid. Click "Customize" to enter edit mode, then drag any panel by its header to rearrange it, drag the bottom-right corner to resize it (width and height), or remove a panel with ✕.',
+      'Removed panels go to a "Hidden panels" tray and can be added back any time. "Reset" restores the original layout with every panel.',
+      'Your layout, panel sizes, and which panels are hidden are saved in your browser and persist across reloads. On phones the dashboard collapses to a single scrollable column.',
+      'Charts now scale to fill their panel, so Daily Activity and Events by Hour look right at any size after resizing.',
+      'The Monthly Activity heatmap is now its own movable panel (previously tucked under the Weekly pattern).',
+    ],
+  },
+  {
     version: 'v0.1.11',
     title: 'Patched a dnssd parser bug that could peg the listener CPU on a single malformed mDNS packet',
     items: [

@@ -2,6 +2,26 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.2.0] — 2026-05-30
+
+### Added
+- **Customizable dashboard** — the dashboard is now a drag-and-drop grid you can arrange to taste. Click **Customize** to enter edit mode, then:
+  - **Drag** any panel by its header to move it anywhere on the grid.
+  - **Resize** a panel from its bottom-right corner (both width and height); charts and lists reflow to fit.
+  - **Remove** a panel with the ✕ button — hidden panels collect in a tray and can be added back at any time.
+  - **Reset** restores the original layout and brings every panel back.
+  Your layout, panel sizes, and hidden panels are saved in the browser (`localStorage`) and persist across reloads. On phones the grid collapses to a single scrollable column and resize is disabled.
+- The Monthly Activity heatmap is now its own independent panel (previously nested under the Weekly pattern), so it can be moved, resized, or removed on its own.
+
+### Changed
+- The Daily Activity and Events-by-Hour charts now scale to fill their panel, so they render correctly at any size after a resize.
+
+### Internal
+- New web dependencies `react-grid-layout` + `react-resizable`, isolated into a dedicated `vendor-grid` bundle chunk (~19 kB gzipped). Verified to install and run cleanly under React 19 (react-grid-layout v2 passes `nodeRef` to react-draggable, so the React 19 `findDOMNode` removal does not break drag/resize).
+- New dashboard layout model: a serializable panel registry (`web/src/lib/dashboardPanels.js`) plus a `useDashboardLayout` hook that persists layout + visibility and makes `onLayoutChange` idempotent to avoid the react-grid-layout feedback loop. Panels are wrapped in a `forwardRef` container (required by react-grid-layout on React 19).
+- Added an in-memory `localStorage` polyfill to the web test setup (alongside the existing `ResizeObserver`/`matchMedia` shims).
+- New tests: `dashboardPanels.test.js`, `useDashboardLayout.test.js`, `DashboardPanel.test.jsx`. Web tests: 91 → 114.
+
 ## [0.1.11] — 2026-05-28
 
 ### Fixed
