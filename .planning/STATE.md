@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Repair Reliability Fixes
 status: completed
-stopped_at: "Completed quick task 260427-wm1: release blocker fixes (H-01/H-02/H-03/M-01)"
-last_updated: "2026-04-28T07:41:00Z"
-last_activity: 2026-04-28 -- Release blocker fixes complete; ready for v0.1.9
+stopped_at: "Completed quick task 260528-0it: dnssd readFQDN cycle guard (v0.1.11)"
+last_updated: "2026-05-28T04:35:00Z"
+last_activity: 2026-05-28 -- Patched dnssd@0.4.1 readFQDN against compression-pointer cycle; v0.1.11 ready
 progress:
   total_phases: 2
   completed_phases: 2
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 Milestone: v1.3 Repair Reliability Fixes — ARCHIVED 2026-04-28 (shipped 2026-04-21)
 Active phase: none
 Status: Awaiting next milestone (use /gsd-new-milestone)
-Last activity: 2026-05-15 -- Completed quick task 260515-nfw: silence matter.js DEBUG log firehose
+Last activity: 2026-05-28 -- Completed quick task 260528-0it: dnssd FQDN cycle guard (v0.1.11)
 
 ```
 Progress: [██████████] 100% (2/2 phases)
@@ -60,6 +60,7 @@ None.
 | 260427-vch | Close quiet-device gap: thread subscriberConnected boolean into deriveDeviceHealth rescue (live HAP sub = heartbeat) | 2026-04-28 | 725a905 | [260427-vch-close-quiet-device-gap-thread-subscriber](./quick/260427-vch-close-quiet-device-gap-thread-subscriber/) |
 | 260427-wm1 | Fix release blockers from RELEASE-REVIEW: KpiCards window coherence (H-01/H-03), EventRow a11y (H-02), subscriber liveness gate (M-01) | 2026-04-28 | 3ffc42e | [260427-wm1-fix-release-blockers-from-release-review](./quick/260427-wm1-fix-release-blockers-from-release-review/) |
 | 260515-nfw | Silence matter.js DEBUG log firehose at startup (MATTER_LOG_LEVEL/MATTER_LOG_FORMAT env vars; defaults INFO/PLAIN) | 2026-05-15 | c60ea26 | [260515-nfw-silence-matter-js-debug-log-firehose](./quick/260515-nfw-silence-matter-js-debug-log-firehose/) |
+| 260528-0it | Patch dnssd@0.4.1 readFQDN with compression-pointer cycle guard + 128-iteration budget via patch-package (v0.1.11) — fixes prod listener CPU peg from malformed mDNS packet | 2026-05-28 | 890f9a0 | [260528-0it-patch-dnssd-fqdn-parser-cycle-guard](./quick/260528-0it-patch-dnssd-fqdn-parser-cycle-guard/) |
 
 ## Session Continuity
 
