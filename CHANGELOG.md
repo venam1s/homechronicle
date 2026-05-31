@@ -15,7 +15,7 @@ All notable changes to homechronicle are documented in this file.
 - Quiet Hours is now a customizable dashboard panel too (previously a fixed banner), so it can be repositioned, resized, or hidden like any other panel.
 
 ### Changed
-- The Daily Activity and Events-by-Hour charts now scale to fill their panel, so they render correctly at any size after a resize.
+- The Daily Activity and Events-by-Hour charts, and the Live Activity feed, now scale to fill their panel — resizing a panel taller grows the content area instead of leaving empty space below it.
 - Dashboard controls regrouped: the date-range window (7d/30d/90d) and the chart Sync toggle now sit together on the left, with Customize on the right.
 
 ### Internal

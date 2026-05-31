@@ -63,20 +63,23 @@ export default function ActivityFeed({ onNavigateToAccessory, onViewAll }) {
 
   if (!events.length && !isLoading) {
     return (
-      <Card>
+      // h-full + flex column so the card fills its dashboard panel cell.
+      <Card className="h-full flex flex-col">
         <Card.Header title="Live Activity" />
-        <Card.Body>
-          <div className="text-center py-6">
+        <div className="flex-1 min-h-0 flex items-center justify-center p-4">
+          <div className="text-center">
             <p className="text-hc-body text-hc-fg font-medium">No recent events</p>
             <p className="text-hc-caption text-hc-muted mt-1">Events will appear here as your devices report changes.</p>
           </div>
-        </Card.Body>
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card>
+    // h-full + flex column lets the scroll region (flex-1) grow to fill the panel
+    // when it is resized, instead of being capped at a fixed max-height.
+    <Card className="h-full flex flex-col">
       <Card.Header
         title="Live Activity"
         actions={
@@ -92,7 +95,7 @@ export default function ActivityFeed({ onNavigateToAccessory, onViewAll }) {
           </div>
         }
       />
-      <div ref={scrollRef} className="max-h-64 sm:max-h-80 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
         <div className="divide-y divide-hc-panel-border">
           {events.map((event) => (
             <div

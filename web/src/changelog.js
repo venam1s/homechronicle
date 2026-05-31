@@ -16,7 +16,7 @@ const CHANGELOG = [
       'The dashboard is now a customizable grid. Click "Customize" to enter edit mode, then drag any panel by its header to rearrange it, drag the bottom-right corner to resize it (width and height), or remove a panel with ✕.',
       'Removed panels go to a "Hidden panels" tray and can be added back any time. "Reset" restores the original layout with every panel.',
       'Your layout, panel sizes, and which panels are hidden are saved in your browser and persist across reloads. On phones the dashboard collapses to a single scrollable column.',
-      'Charts now scale to fill their panel, so Daily Activity and Events by Hour look right at any size after resizing.',
+      'Charts and the Live Activity feed now scale to fill their panel — resizing a panel taller grows the content area instead of leaving empty space below it.',
       'The Monthly Activity heatmap and Quiet Hours are now their own movable panels, so they can be repositioned, resized, or hidden like any other panel.',
     ],
   },
