@@ -103,7 +103,13 @@ export default function DashboardGrid({
   const resizeConfig = { enabled: editing && !isMobile, handles: ['se'] };
 
   return (
-    <div ref={containerRef} className="w-full">
+    // Defensive width clamp for the useContainerWidth measurement target:
+    // min-w-0 lets this grid/flex child shrink below its content, and
+    // overflow-x-hidden keeps react-grid-layout's absolutely-positioned items
+    // (which can extend past the container mid-drag) from widening it. Measured
+    // layout was already correctly bounded without these, so this is belt-and-
+    // suspenders rather than a fix for an observed overflow.
+    <div ref={containerRef} className="w-full min-w-0 overflow-x-hidden">
       {editing && hiddenPanels.length > 0 && (
         <div className="mb-3 rounded-lg border border-dashed border-hc-panel-border bg-hc-panel-soft p-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-hc-muted mb-2">
