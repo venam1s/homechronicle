@@ -81,6 +81,21 @@ describe('useDashboardLayout', () => {
     expect(result.current.hidden.size).toBe(0);
   });
 
+  it('adds newly-registered panels missing from a stored layout (upgrade migration)', () => {
+    // Simulate an older saved layout that predates a panel being added.
+    const partial = defaultLayouts();
+    const dropped = partial.lg[0].i;
+    partial.lg = partial.lg.filter((it) => it.i !== dropped);
+    partial.sm = partial.sm.filter((it) => it.i !== dropped);
+    window.localStorage.setItem('hc_dashboard_layouts', JSON.stringify(partial));
+
+    const { result } = renderHook(() => useDashboardLayout());
+    expect(result.current.layouts.lg.some((it) => it.i === dropped)).toBe(true);
+    expect(result.current.layouts.sm.some((it) => it.i === dropped)).toBe(true);
+    // and it is visible (not auto-hidden)
+    expect(result.current.isHidden(dropped)).toBe(false);
+  });
+
   it('drops unknown panel ids found in stored layouts', () => {
     window.localStorage.setItem(
       'hc_dashboard_layouts',

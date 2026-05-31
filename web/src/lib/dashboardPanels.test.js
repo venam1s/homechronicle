@@ -35,6 +35,11 @@ describe('dashboardPanels registry', () => {
     }
   });
 
+  it('includes the quiet hours panel', () => {
+    expect(PANEL_IDS).toContain('quietHours');
+    expect(PANEL_TITLES.quietHours).toBe('Quiet Hours');
+  });
+
   it('sm layout is a single, gap-free column in registry order', () => {
     const { sm } = defaultLayouts();
     expect(sm.map((i) => i.i)).toEqual(PANEL_IDS);

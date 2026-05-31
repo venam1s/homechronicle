@@ -17,7 +17,7 @@ const CHANGELOG = [
       'Removed panels go to a "Hidden panels" tray and can be added back any time. "Reset" restores the original layout with every panel.',
       'Your layout, panel sizes, and which panels are hidden are saved in your browser and persist across reloads. On phones the dashboard collapses to a single scrollable column.',
       'Charts now scale to fill their panel, so Daily Activity and Events by Hour look right at any size after resizing.',
-      'The Monthly Activity heatmap is now its own movable panel (previously tucked under the Weekly pattern).',
+      'The Monthly Activity heatmap and Quiet Hours are now their own movable panels, so they can be repositioned, resized, or hidden like any other panel.',
     ],
   },
   {

@@ -12,9 +12,11 @@ All notable changes to homechronicle are documented in this file.
   - **Reset** restores the original layout and brings every panel back.
   Your layout, panel sizes, and hidden panels are saved in the browser (`localStorage`) and persist across reloads. On phones the grid collapses to a single scrollable column and resize is disabled.
 - The Monthly Activity heatmap is now its own independent panel (previously nested under the Weekly pattern), so it can be moved, resized, or removed on its own.
+- Quiet Hours is now a customizable dashboard panel too (previously a fixed banner), so it can be repositioned, resized, or hidden like any other panel.
 
 ### Changed
 - The Daily Activity and Events-by-Hour charts now scale to fill their panel, so they render correctly at any size after a resize.
+- Dashboard controls regrouped: the date-range window (7d/30d/90d) and the chart Sync toggle now sit together on the left, with Customize on the right.
 
 ### Internal
 - New web dependencies `react-grid-layout` + `react-resizable`, isolated into a dedicated `vendor-grid` bundle chunk (~19 kB gzipped). Verified to install and run cleanly under React 19 (react-grid-layout v2 passes `nodeRef` to react-draggable, so the React 19 `findDOMNode` removal does not break drag/resize).

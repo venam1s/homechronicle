@@ -27,15 +27,20 @@ function writeJson(key, value) {
   }
 }
 
-// Drop layout items for unknown ids (e.g. a panel removed in a future release)
-// and ensure every breakpoint exists. Returns a normalized {lg, sm} object.
+// Reconcile a stored layout with the current panel registry:
+//   - drop items for unknown ids (panels removed in a later release)
+//   - add default geometry for registered panels missing from storage (panels
+//     added in a later release, e.g. Quiet Hours) so upgrades don't silently
+//     hide new panels
+//   - ensure every breakpoint exists
+// Returns a normalized {lg, sm} object.
 function sanitizeLayouts(stored) {
   const base = defaultLayouts();
   if (!stored || typeof stored !== 'object') return base;
   const out = {};
   for (const bp of Object.keys(base)) {
     const arr = Array.isArray(stored[bp]) ? stored[bp] : base[bp];
-    out[bp] = arr
+    const cleaned = arr
       .filter((it) => it && typeof it.i === 'string' && VALID_IDS.has(it.i))
       .map((it) => ({
         i: it.i,
@@ -46,7 +51,18 @@ function sanitizeLayouts(stored) {
         ...(it.minW != null ? { minW: Number(it.minW) } : {}),
         ...(it.minH != null ? { minH: Number(it.minH) } : {}),
       }));
-    if (out[bp].length === 0) out[bp] = base[bp];
+    if (cleaned.length === 0) {
+      out[bp] = base[bp];
+      continue;
+    }
+    const present = new Set(cleaned.map((it) => it.i));
+    for (const id of PANEL_IDS) {
+      if (!present.has(id)) {
+        const seed = defaultLayoutItem(id, bp);
+        if (seed) cleaned.push(seed);
+      }
+    }
+    out[bp] = cleaned;
   }
   return out;
 }

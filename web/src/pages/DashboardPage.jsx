@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { Link2, Unlink2, LayoutGrid, Check, RotateCcw } from 'lucide-react';
-import QuietHoursPanel from '../components/QuietHoursPanel.jsx';
 import PairingHealthBanner from '../components/PairingHealthBanner.jsx';
 import DashboardGrid from '../components/DashboardGrid.jsx';
 import PageContainer from '../components/PageContainer.jsx';
@@ -57,8 +56,47 @@ export default function DashboardPage({
   return (
     <PageContainer className="space-y-4">
 
-      <div className="mb-2 flex items-center justify-between gap-3">
+      <div className="mb-2">
         <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Dashboard</h1>
+      </div>
+
+      <PairingHealthBanner onViewDetails={onViewDeviceRepair} />
+
+      <div className="flex items-center justify-between gap-3 px-1">
+        {/* Left: range window + sync toggle */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-hc-panel border border-hc-panel-border rounded-lg p-0.5 shadow-sm">
+            {DASHBOARD_WINDOWS.map(({ label, days }) => (
+              <button
+                key={days}
+                onClick={() => setDashboardDays(days)}
+                className={clsx(
+                  'text-xs px-2.5 py-1 rounded-md transition-colors',
+                  dashboardDays === days
+                    ? 'bg-hc-accent-soft text-hc-accent-strong font-medium'
+                    : 'text-hc-muted hover:text-hc-fg hover:bg-hc-panel-hover'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setSyncDashboardRanges((v) => !v)}
+            title={syncDashboardRanges ? 'Charts synced — click to unsync' : 'Charts independent — click to sync'}
+            className={clsx(
+              'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
+              syncDashboardRanges
+                ? 'bg-hc-accent-soft border-hc-accent-strong/30 text-hc-accent-strong'
+                : 'bg-hc-panel border-hc-panel-border text-hc-muted hover:text-hc-fg'
+            )}
+          >
+            {syncDashboardRanges ? <Link2 size={12} /> : <Unlink2 size={12} />}
+            <span className="hidden sm:inline">{syncDashboardRanges ? 'Synced' : 'Sync'}</span>
+          </button>
+        </div>
+
+        {/* Right: customize controls */}
         <div className="flex items-center gap-2">
           {editing && (
             <button
@@ -83,43 +121,6 @@ export default function DashboardPage({
           </button>
         </div>
       </div>
-
-      <PairingHealthBanner onViewDetails={onViewDeviceRepair} />
-
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1 bg-hc-panel border border-hc-panel-border rounded-lg p-0.5 shadow-sm">
-          {DASHBOARD_WINDOWS.map(({ label, days }) => (
-            <button
-              key={days}
-              onClick={() => setDashboardDays(days)}
-              className={clsx(
-                'text-xs px-2.5 py-1 rounded-md transition-colors',
-                dashboardDays === days
-                  ? 'bg-hc-accent-soft text-hc-accent-strong font-medium'
-                  : 'text-hc-muted hover:text-hc-fg hover:bg-hc-panel-hover'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => setSyncDashboardRanges((v) => !v)}
-          title={syncDashboardRanges ? 'Charts synced — click to unsync' : 'Charts independent — click to sync'}
-          className={clsx(
-            'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
-            syncDashboardRanges
-              ? 'bg-hc-accent-soft border-hc-accent-strong/30 text-hc-accent-strong'
-              : 'bg-hc-panel border-hc-panel-border text-hc-muted hover:text-hc-fg'
-          )}
-        >
-          {syncDashboardRanges ? <Link2 size={12} /> : <Unlink2 size={12} />}
-          <span className="hidden sm:inline">{syncDashboardRanges ? 'Synced' : 'Sync'}</span>
-        </button>
-      </div>
-
-      {/* Quiet hours stays as a fixed banner above the customizable grid */}
-      <QuietHoursPanel onNavigateToAccessory={onNavigateToAccessory} />
 
       {editing && (
         <p className="text-xs text-hc-muted px-1">

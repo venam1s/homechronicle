@@ -23,6 +23,7 @@ import ActivityFeed from './ActivityFeed.jsx';
 import RoomBreakdown from './RoomBreakdown.jsx';
 import AnomalyPanel from './AnomalyPanel.jsx';
 import StaleDevicesPanel from './StaleDevicesPanel.jsx';
+import QuietHoursPanel from './QuietHoursPanel.jsx';
 
 // Maps a panel id to its content element. Kept here (not in the registry) so the
 // registry stays serializable and this has access to live data/callbacks.
@@ -41,6 +42,8 @@ function renderPanelBody(id, ctx) {
   switch (id) {
     case 'kpis':
       return <KpiCards dashboardDays={dashboardDays} />;
+    case 'quietHours':
+      return <QuietHoursPanel embedded onNavigateToAccessory={onNavigateToAccessory} />;
     case 'trend':
       return <TrendChart forcedDays={forcedDays} onDaysChange={onDaysChange} />;
     case 'hourly':

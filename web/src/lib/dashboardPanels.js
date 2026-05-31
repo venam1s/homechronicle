@@ -22,16 +22,17 @@ export const GRID_MARGIN = [16, 16];
 // wrapper stays transparent to avoid a card-in-card look.
 export const PANELS = [
   { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 0,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
-  { id: 'trend',          title: 'Daily Activity',      lg: { x: 0, y: 2,  w: 12, h: 5 }, minW: 4, minH: 3 },
-  { id: 'hourly',         title: 'Events by Hour',      lg: { x: 0, y: 7,  w: 6,  h: 4 }, minW: 3, minH: 3 },
-  { id: 'rooms',          title: 'Events by Room',      lg: { x: 6, y: 7,  w: 6,  h: 4 }, minW: 3, minH: 3 },
-  { id: 'topDevices',     title: 'Most Active Devices', lg: { x: 0, y: 11, w: 6,  h: 5 }, minW: 3, minH: 3 },
-  { id: 'weekdayHeatmap', title: 'Weekly Pattern',      lg: { x: 6, y: 11, w: 6,  h: 5 }, minW: 3, minH: 3 },
-  { id: 'monthlyHeatmap', title: 'Monthly Activity',    lg: { x: 0, y: 16, w: 12, h: 4 }, minW: 4, minH: 3 },
-  { id: 'activityFeed',   title: 'Live Activity',       lg: { x: 0, y: 20, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
-  { id: 'roomBreakdown',  title: 'Rooms',               lg: { x: 6, y: 20, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
-  { id: 'anomalies',      title: 'Active Outliers',     lg: { x: 0, y: 26, w: 6,  h: 4 }, minW: 3, minH: 3 },
-  { id: 'staleDevices',   title: 'Stale Devices',       lg: { x: 6, y: 26, w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'quietHours',     title: 'Quiet Hours',         lg: { x: 0, y: 2,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
+  { id: 'trend',          title: 'Daily Activity',      lg: { x: 0, y: 4,  w: 12, h: 5 }, minW: 4, minH: 3 },
+  { id: 'hourly',         title: 'Events by Hour',      lg: { x: 0, y: 9,  w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'rooms',          title: 'Events by Room',      lg: { x: 6, y: 9,  w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'topDevices',     title: 'Most Active Devices', lg: { x: 0, y: 13, w: 6,  h: 5 }, minW: 3, minH: 3 },
+  { id: 'weekdayHeatmap', title: 'Weekly Pattern',      lg: { x: 6, y: 13, w: 6,  h: 5 }, minW: 3, minH: 3 },
+  { id: 'monthlyHeatmap', title: 'Monthly Activity',    lg: { x: 0, y: 18, w: 12, h: 4 }, minW: 4, minH: 3 },
+  { id: 'activityFeed',   title: 'Live Activity',       lg: { x: 0, y: 22, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
+  { id: 'roomBreakdown',  title: 'Rooms',               lg: { x: 6, y: 22, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
+  { id: 'anomalies',      title: 'Active Outliers',     lg: { x: 0, y: 28, w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'staleDevices',   title: 'Stale Devices',       lg: { x: 6, y: 28, w: 6,  h: 4 }, minW: 3, minH: 3 },
 ];
 
 export const PANEL_IDS = PANELS.map((p) => p.id);

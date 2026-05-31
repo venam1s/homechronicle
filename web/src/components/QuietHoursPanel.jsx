@@ -22,7 +22,7 @@ function formatLastSeen(ts) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function QuietHoursPanel({ onNavigateToAccessory }) {
+export default function QuietHoursPanel({ onNavigateToAccessory, embedded = false }) {
   const { data, isLoading, isError } = useQuietHours();
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === '1');
   const queryClient = useQueryClient();
@@ -57,7 +57,10 @@ export default function QuietHoursPanel({ onNavigateToAccessory }) {
     setDismissed(false);
   }
 
-  if (dismissed) return null;
+  // When embedded as a dashboard grid panel, the grid's show/hide controls the
+  // panel's visibility, so the legacy localStorage dismiss is ignored (otherwise
+  // a previously-dismissed user would see an empty grid cell).
+  if (!embedded && dismissed) return null;
 
   const card = 'bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5';
 
@@ -90,9 +93,11 @@ export default function QuietHoursPanel({ onNavigateToAccessory }) {
             <Moon size={14} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />
             <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours</h3>
           </div>
-          <button onClick={dismiss} className="text-hc-muted hover:text-hc-fg p-0.5 rounded" title="Dismiss">
-            <X size={14} />
-          </button>
+          {!embedded && (
+            <button onClick={dismiss} className="text-hc-muted hover:text-hc-fg p-0.5 rounded" title="Dismiss">
+              <X size={14} />
+            </button>
+          )}
         </div>
         <p className="text-sm text-hc-muted">
           Configure quiet hours in Settings to flag unexpected nighttime activity.
