@@ -2,15 +2,17 @@
 #
 # sync-beta-auto.sh — unattended wrapper around sync-prod-to-beta.sh.
 #
-# Designed to be called from BOTH:
-#   - a Dockhand post-deploy hook (refresh beta right after each beta deploy)
-#   - a nightly cron / systemd timer (top up beta between deploys)
+# Dockhand (the git-stack deployer) has no host post-deploy hook, so this is
+# invoked two ways instead:
+#   - by scripts/deploy-beta.sh, after it triggers the Dockhand sync API
+#     (refresh beta right after each beta deploy)
+#   - by a nightly cron / systemd timer (top up beta between deploys)
 #
 # Adds the things a bare manual script lacks for unattended use:
 #   - flock lock so two runs never overlap (deploy + cron firing together)
 #   - waits for prod/beta containers to be Running before syncing
 #     (a deploy-triggered run may fire while beta is still starting)
-#   - timestamped logging to stdout AND a log file (cron/Dockhand capture stdout)
+#   - timestamped logging to stdout AND a log file (cron mails stdout on error)
 #
 # Run on the Dockhand host. Passes any extra args (e.g. --dry-run) through.
 #
