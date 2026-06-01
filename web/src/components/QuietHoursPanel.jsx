@@ -62,7 +62,9 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
   // a previously-dismissed user would see an empty grid cell).
   if (!embedded && dismissed) return null;
 
-  const card = 'bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5';
+  // When embedded as a grid panel, fill the cell (like ActivityFeed/RoomBreakdown)
+  // so the unused bottom of the panel's row span doesn't show through as a gap.
+  const card = `bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5${embedded ? ' h-full flex flex-col' : ''}`;
 
   const header = (
     <div className="flex items-center gap-2 mb-3">
@@ -131,7 +133,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
         </div>
         <span className="text-xs text-hc-muted">{startLocal} – {endLocal}</span>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2 flex-1 min-h-0 overflow-auto">
         {events.map((row) => (
           <div
             key={`${row.accessoryId ?? row.accessoryName}:${row.lastSeenAt}`}
