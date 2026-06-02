@@ -157,9 +157,16 @@ describe('useDashboardLayout', () => {
       // The user previously added this optional panel.
       baseLayouts.lg.find((it) => it.i === shownOptionalId),
     ];
+    // lg and sm are always persisted together, so the stored sm must mirror lg
+    // (non-optional panels + the one optional the user added). Leaving sm as the
+    // full default would list every optional panel and falsely mark them "known".
+    const storedSm = [
+      ...baseLayouts.sm.filter((it) => nonOptionalIds.includes(it.i)),
+      baseLayouts.sm.find((it) => it.i === shownOptionalId),
+    ];
     window.localStorage.setItem(
       'hc_dashboard_layouts',
-      JSON.stringify({ lg: storedLg, sm: baseLayouts.sm }),
+      JSON.stringify({ lg: storedLg, sm: storedSm }),
     );
     window.localStorage.setItem('hc_dashboard_hidden', JSON.stringify([]));
 
