@@ -68,14 +68,17 @@ fail_or_skip() {
 }
 
 # -- Validate required env ----------------------------------------------------
+# Missing creds go through the SYNC_REQUIRED policy (default: skip the sync and
+# let the deploy succeed) rather than hard-failing — an unconfigured optional
+# refresh should not break the beta deploy pipeline. Set SYNC_REQUIRED=true to
+# make a misconfigured/unreachable sync block the deploy.
 missing=""
 [ -n "$PROD_DB_USER" ]     || missing="$missing PROD_DB_USER"
 [ -n "$PROD_DB_NAME" ]     || missing="$missing PROD_DB_NAME"
 [ -n "$PROD_DB_PASSWORD" ] || missing="$missing PROD_DB_PASSWORD"
 [ -n "$BETA_DB_PASSWORD" ] || missing="$missing BETA_DB_PASSWORD"
 if [ -n "$missing" ]; then
-  err "missing required env:$missing — a misconfigured deploy fails loudly regardless of SYNC_REQUIRED."
-  exit 1
+  fail_or_skip "missing required env:$missing — set these in .env.beta on the host (PROD_DB_PASSWORD is a new secret). Skipping prod→beta sync."
 fi
 
 log "starting prod→beta refresh (prod=${PROD_DB_HOST}:${PROD_DB_PORT}/${PROD_DB_NAME}, beta=${BETA_DB_HOST}:${BETA_DB_PORT}/${BETA_DB_NAME})"
