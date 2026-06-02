@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 Milestone: v1.3 Repair Reliability Fixes — ARCHIVED 2026-04-28 (shipped 2026-04-21)
 Active phase: none
 Status: Awaiting next milestone (use /gsd-new-milestone)
-Last activity: 2026-06-01 -- Completed quick task 260601-t3z: 7 optional dashboard panels (extras)
+Last activity: 2026-06-02 -- Completed quick task 260601-wsv: gauge theming + Day vs Night + Top Movers color + UI polish
 
 ```
 Progress: [██████████] 100% (2/2 phases)
@@ -62,6 +62,7 @@ None.
 | 260515-nfw | Silence matter.js DEBUG log firehose at startup (MATTER_LOG_LEVEL/MATTER_LOG_FORMAT env vars; defaults INFO/PLAIN) | 2026-05-15 | c60ea26 | [260515-nfw-silence-matter-js-debug-log-firehose](./quick/260515-nfw-silence-matter-js-debug-log-firehose/) |
 | 260528-0it | Patch dnssd@0.4.1 readFQDN with compression-pointer cycle guard + 128-iteration budget via patch-package (v0.1.11) — fixes prod listener CPU peg from malformed mDNS packet | 2026-05-28 | 890f9a0 | [260528-0it-patch-dnssd-fqdn-parser-cycle-guard](./quick/260528-0it-patch-dnssd-fqdn-parser-cycle-guard/) |
 | 260601-t3z | Add 7 optional ("extra") dashboard panels (off by default, added via customize tray): WeekOverWeek KPIs, Health donut, Alerts summary, Top movers, Activity clock, Quiet-hours compliance, Room sparklines + `optional` flag with first-seen hidden-seeding in useDashboardLayout | 2026-06-01 | fa7a814 | [260601-t3z-add-7-optional-dashboard-panels-extras-h](./quick/260601-t3z-add-7-optional-dashboard-panels-extras-h/) |
+| 260601-wsv | Dashboard panel fixes: CSS-driven Quiet Hours gauge theming (fill + track via .hc-gauge rules, drop useStatusColors); replace Activity Clock with Day vs Night donut; right-size Week over Week (h:3→2 + fill); fix inverted Top Movers color (dropoff=danger/pink, spike=success/green); icon-only Customize button. Verified light+dark in browser | 2026-06-02 | c2f59f4 | [260601-wsv-fix-quiet-hours-gauge-theme-css-driven-f](./quick/260601-wsv-fix-quiet-hours-gauge-theme-css-driven-f/) |
 
 ## Session Continuity
 
