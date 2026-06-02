@@ -32,9 +32,12 @@ export default function FilterBar({
   const activeCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <div className="bg-hc-panel border-b border-hc-panel-border">
+    // No wrapper background/border: these controls sit in the Timeline header
+    // on the page background (the title's gradient band), not an edge-to-edge
+    // white strip. Toggle row + panels stack at the shared max-w-4xl width.
+    <>
       {/* ── Combined toggle bar ────────────────────────────────── */}
-      <div className="max-w-2xl mx-auto px-4 flex items-center py-2">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 flex items-center py-2">
         {/* Search & filters toggle */}
         <button
           onClick={onToggle}
@@ -84,7 +87,7 @@ export default function FilterBar({
 
       {/* ── Filter panel ───────────────────────────────────────── */}
       {open && (
-        <div id="filter-bar-panel" className="max-w-2xl mx-auto px-4 pb-3">
+        <div id="filter-bar-panel" className="max-w-4xl mx-auto px-3 sm:px-4 pb-3">
           <div className="flex flex-wrap gap-2 sm:gap-3">
             {/* Search by name */}
             <div className="relative w-full sm:w-56">
@@ -174,6 +177,6 @@ export default function FilterBar({
           lockedCell={lockedCell}
         />
       )}
-    </div>
+    </>
   );
 }

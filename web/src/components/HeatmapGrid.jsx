@@ -28,7 +28,7 @@ export default function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onC
   const maxCount = Math.max(...allDevices.flatMap(([, h]) => h), 1);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-3">
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 pb-3">
       <p className="text-[10px] text-hc-muted mb-2">
         Hover to highlight matching events · click to jump
       </p>
