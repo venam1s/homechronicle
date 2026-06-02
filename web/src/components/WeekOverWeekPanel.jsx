@@ -46,8 +46,8 @@ export default function WeekOverWeekPanel() {
   const bothZero = !isLoading && currentTotal === 0 && priorTotal === 0;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-      <Card>
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 h-full items-stretch">
+      <Card className="flex flex-col">
         <Card.Body compact>
           <div className="text-hc-caption font-semibold uppercase tracking-wider text-hc-muted mb-1">
             Week vs Prior
@@ -67,7 +67,7 @@ export default function WeekOverWeekPanel() {
         </Card.Body>
       </Card>
 
-      <Card>
+      <Card className="flex flex-col">
         <Card.Body compact>
           <div className="text-hc-caption font-semibold uppercase tracking-wider text-hc-muted mb-1">
             Top Device (7d)
@@ -78,7 +78,7 @@ export default function WeekOverWeekPanel() {
         </Card.Body>
       </Card>
 
-      <Card>
+      <Card className="flex flex-col">
         <Card.Body compact>
           <div className="text-hc-caption font-semibold uppercase tracking-wider text-hc-muted mb-1">
             Top Room (7d)
