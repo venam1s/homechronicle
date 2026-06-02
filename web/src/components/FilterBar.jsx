@@ -32,10 +32,13 @@ export default function FilterBar({
   const activeCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    // No wrapper background/border: these controls sit in the Timeline header
-    // on the page background (the title's gradient band), not an edge-to-edge
-    // white strip. Toggle row + panels stack at the shared max-w-4xl width.
-    <>
+    // Full-width but transparent wrapper (no background/border): these controls
+    // sit in the Timeline header on the page background, not an edge-to-edge
+    // white strip. The wrapper must be full width so the inner max-w-4xl rows
+    // center and left-align with the page title (as a bare flex-column child a
+    // max-w row would otherwise collapse to its content width). Toggle row +
+    // panels stack at the shared max-w-4xl width.
+    <div className="w-full">
       {/* ── Combined toggle bar ────────────────────────────────── */}
       <div className="max-w-4xl mx-auto px-3 sm:px-4 flex items-center py-2">
         {/* Search & filters toggle */}
@@ -177,6 +180,6 @@ export default function FilterBar({
           lockedCell={lockedCell}
         />
       )}
-    </>
+    </div>
   );
 }
