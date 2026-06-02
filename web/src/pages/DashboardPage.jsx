@@ -109,6 +109,8 @@ export default function DashboardPage({
           )}
           <button
             onClick={() => setEditing((v) => !v)}
+            aria-label={editing ? 'Done customizing' : 'Customize dashboard'}
+            title={editing ? 'Done customizing' : 'Customize dashboard'}
             className={clsx(
               'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
               editing
@@ -117,7 +119,7 @@ export default function DashboardPage({
             )}
           >
             {editing ? <Check size={13} /> : <LayoutGrid size={13} />}
-            <span>{editing ? 'Done' : 'Customize'}</span>
+            {editing && <span>Done</span>}
           </button>
         </div>
       </div>
