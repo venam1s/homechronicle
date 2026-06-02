@@ -3,6 +3,7 @@ import {
   PANELS,
   PANEL_IDS,
   PANEL_TITLES,
+  OPTIONAL_PANEL_IDS,
   GRID_COLS,
   defaultLayouts,
   defaultLayoutItem,
@@ -38,6 +39,24 @@ describe('dashboardPanels registry', () => {
   it('includes the quiet hours panel', () => {
     expect(PANEL_IDS).toContain('quietHours');
     expect(PANEL_TITLES.quietHours).toBe('Quiet Hours');
+  });
+
+  it('OPTIONAL_PANEL_IDS has exactly 7 ids, all in PANEL_IDS', () => {
+    expect(OPTIONAL_PANEL_IDS).toHaveLength(7);
+    for (const id of OPTIONAL_PANEL_IDS) {
+      expect(PANEL_IDS).toContain(id);
+    }
+  });
+
+  it('optional panels appear AFTER the original 12 non-optional panels', () => {
+    const nonOptionalCount = PANELS.filter((p) => !p.optional).length;
+    expect(nonOptionalCount).toBe(12);
+    // PANEL_IDS[0] must stay kpis
+    expect(PANEL_IDS[0]).toBe('kpis');
+    // Optional panels must all be after index 11
+    for (const id of OPTIONAL_PANEL_IDS) {
+      expect(PANEL_IDS.indexOf(id)).toBeGreaterThanOrEqual(12);
+    }
   });
 
   it('sm layout is a single, gap-free column in registry order', () => {
