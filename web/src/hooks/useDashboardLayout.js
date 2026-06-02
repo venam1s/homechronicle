@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   PANEL_IDS,
+  OPTIONAL_PANEL_IDS,
   defaultLayouts,
   defaultLayoutItem,
 } from '../lib/dashboardPanels.js';
@@ -82,7 +83,32 @@ function sanitizeHidden(stored) {
  */
 export function useDashboardLayout() {
   const [layouts, setLayouts] = useState(() => sanitizeLayouts(readJson(LAYOUTS_KEY)));
-  const [hidden, setHidden] = useState(() => new Set(sanitizeHidden(readJson(HIDDEN_KEY))));
+  const [hidden, setHidden] = useState(() => {
+    // First-seen seeding: optional panels are hidden by default for both fresh installs
+    // and existing users whose stored layouts pre-date the optional panels.
+    // Read raw storage (NOT sanitizeLayouts output — that injects all registered panels,
+    // which would make every optional panel look "previously known" and defeat seeding).
+    const rawHidden = readJson(HIDDEN_KEY);
+    const rawLayouts = readJson(LAYOUTS_KEY);
+
+    // Build the set of panel ids already known to this user (in their stored layout
+    // or explicitly in their hidden list). An id in either place means it was seen before.
+    const storedLgItems = Array.isArray(rawLayouts?.lg) ? rawLayouts.lg : [];
+    const storedSmItems = Array.isArray(rawLayouts?.sm) ? rawLayouts.sm : [];
+    const storedHiddenIds = Array.isArray(rawHidden) ? rawHidden : [];
+    const knownIds = new Set([
+      ...storedLgItems.map((it) => it?.i).filter(Boolean),
+      ...storedSmItems.map((it) => it?.i).filter(Boolean),
+      ...storedHiddenIds,
+    ]);
+
+    // Seed optional panels into hidden only when they are not previously known.
+    const seeded = sanitizeHidden(rawHidden);
+    for (const id of OPTIONAL_PANEL_IDS) {
+      if (!knownIds.has(id)) seeded.push(id);
+    }
+    return new Set(seeded);
+  });
 
   useEffect(() => { writeJson(LAYOUTS_KEY, layouts); }, [layouts]);
   useEffect(() => { writeJson(HIDDEN_KEY, [...hidden]); }, [hidden]);
