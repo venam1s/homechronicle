@@ -24,6 +24,13 @@ import RoomBreakdown from './RoomBreakdown.jsx';
 import AnomalyPanel from './AnomalyPanel.jsx';
 import StaleDevicesPanel from './StaleDevicesPanel.jsx';
 import QuietHoursPanel from './QuietHoursPanel.jsx';
+import WeekOverWeekPanel from './WeekOverWeekPanel.jsx';
+import HealthDonutPanel from './HealthDonutPanel.jsx';
+import AlertsSummaryPanel from './AlertsSummaryPanel.jsx';
+import TopMoversPanel from './TopMoversPanel.jsx';
+import ActivityClockPanel from './ActivityClockPanel.jsx';
+import QuietHoursCompliancePanel from './QuietHoursCompliancePanel.jsx';
+import RoomSparklinesPanel from './RoomSparklinesPanel.jsx';
 
 // Maps a panel id to its content element. Kept here (not in the registry) so the
 // registry stays serializable and this has access to live data/callbacks.
@@ -69,6 +76,20 @@ function renderPanelBody(id, ctx) {
       return <AnomalyPanel onSelectAccessory={onSelectAccessory} onSelectRoom={onSelectRoom} />;
     case 'staleDevices':
       return <StaleDevicesPanel onSelectAccessory={onSelectAccessory} />;
+    case 'weekOverWeek':
+      return <WeekOverWeekPanel />;
+    case 'healthDonut':
+      return <HealthDonutPanel />;
+    case 'alertsSummary':
+      return <AlertsSummaryPanel />;
+    case 'topMovers':
+      return <TopMoversPanel onSelectAccessory={onSelectAccessory} onSelectRoom={onSelectRoom} />;
+    case 'activityClock':
+      return <ActivityClockPanel />;
+    case 'quietCompliance':
+      return <QuietHoursCompliancePanel />;
+    case 'roomSparklines':
+      return <RoomSparklinesPanel />;
     default:
       return null;
   }
