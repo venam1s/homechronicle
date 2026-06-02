@@ -783,3 +783,30 @@
 /* -- Day vs Night donut panel (CSS-driven, no JS color reads) -- */
 .hc-fill-day   { fill: var(--hc-accent-strong) !important; }
 .hc-fill-night { fill: var(--hc-muted) !important; }
+
+/* -- Categorical palette for the Event Types donut (CSS-driven, no JS color
+   reads). Each .hc-cat-N sets both `fill` (for Recharts <Cell> SVG sectors)
+   and `background-color` (for the HTML legend swatches); the irrelevant
+   property is ignored per element type. The palette is a balanced mid-tone
+   set chosen to stay legible on BOTH light and dark panels, so it does not
+   need per-theme overrides. Slot 8 is the muted 'Other' bucket. */
+:root {
+  --hc-cat-0: #3b82f6;
+  --hc-cat-1: #f59e0b;
+  --hc-cat-2: #10b981;
+  --hc-cat-3: #ec4899;
+  --hc-cat-4: #8b5cf6;
+  --hc-cat-5: #14b8a6;
+  --hc-cat-6: #f97316;
+  --hc-cat-7: #06b6d4;
+  --hc-cat-8: #94a3b8;
+}
+.hc-cat-0 { fill: var(--hc-cat-0) !important; background-color: var(--hc-cat-0); }
+.hc-cat-1 { fill: var(--hc-cat-1) !important; background-color: var(--hc-cat-1); }
+.hc-cat-2 { fill: var(--hc-cat-2) !important; background-color: var(--hc-cat-2); }
+.hc-cat-3 { fill: var(--hc-cat-3) !important; background-color: var(--hc-cat-3); }
+.hc-cat-4 { fill: var(--hc-cat-4) !important; background-color: var(--hc-cat-4); }
+.hc-cat-5 { fill: var(--hc-cat-5) !important; background-color: var(--hc-cat-5); }
+.hc-cat-6 { fill: var(--hc-cat-6) !important; background-color: var(--hc-cat-6); }
+.hc-cat-7 { fill: var(--hc-cat-7) !important; background-color: var(--hc-cat-7); }
+.hc-cat-8 { fill: var(--hc-cat-8) !important; background-color: var(--hc-cat-8); }
