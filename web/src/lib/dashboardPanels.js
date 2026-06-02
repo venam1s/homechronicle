@@ -38,7 +38,7 @@ export const PANELS = [
   { id: 'healthDonut',    title: 'Device Health',       lg: { x: 0, y: 35, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'alertsSummary',  title: 'Alerts Summary',      lg: { x: 6, y: 35, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'topMovers',      title: 'Top Movers',          lg: { x: 0, y: 39, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
-  { id: 'activityClock',  title: 'Activity Clock',      lg: { x: 6, y: 39, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
+  { id: 'dayNight',       title: 'Day vs Night',         lg: { x: 6, y: 39, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'quietCompliance', title: 'Quiet Hours Score',  lg: { x: 0, y: 43, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'roomSparklines', title: 'Room Trends',         lg: { x: 6, y: 43, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
 ];

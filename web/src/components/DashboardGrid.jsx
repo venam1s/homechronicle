@@ -28,7 +28,7 @@ import WeekOverWeekPanel from './WeekOverWeekPanel.jsx';
 import HealthDonutPanel from './HealthDonutPanel.jsx';
 import AlertsSummaryPanel from './AlertsSummaryPanel.jsx';
 import TopMoversPanel from './TopMoversPanel.jsx';
-import ActivityClockPanel from './ActivityClockPanel.jsx';
+import DayNightPanel from './DayNightPanel.jsx';
 import QuietHoursCompliancePanel from './QuietHoursCompliancePanel.jsx';
 import RoomSparklinesPanel from './RoomSparklinesPanel.jsx';
 
@@ -84,8 +84,8 @@ function renderPanelBody(id, ctx) {
       return <AlertsSummaryPanel />;
     case 'topMovers':
       return <TopMoversPanel onSelectAccessory={onSelectAccessory} onSelectRoom={onSelectRoom} />;
-    case 'activityClock':
-      return <ActivityClockPanel />;
+    case 'dayNight':
+      return <DayNightPanel />;
     case 'quietCompliance':
       return <QuietHoursCompliancePanel />;
     case 'roomSparklines':
