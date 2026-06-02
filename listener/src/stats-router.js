@@ -389,5 +389,194 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
     }
   });
 
+  // -- Tier 2 optional dashboard panels (read-only) --
+
+  // Latest temperature/humidity per accessory. Matter reports a generic
+  // characteristic ('MeasuredValue'), so the metric is disambiguated by
+  // cluster_id (1026 = temperature, 1029 = relative humidity); Matter values
+  // are centi-units (÷100). HomeKit reports CurrentTemperature /
+  // CurrentRelativeHumidity in real units (no scaling).
+  router.get('/stats/sensor-environment', statsReadLimiter, async (_req, res) => {
+    try {
+      const out = await cached('stats:sensor-environment', async () => {
+        const result = await pool.query(`
+          SELECT DISTINCT ON (accessory_id, metric)
+            accessory_id, accessory_name, room_name, protocol, new_value, timestamp, metric
+          FROM (
+            SELECT id, accessory_id, accessory_name, room_name, protocol, new_value, timestamp,
+              CASE
+                WHEN characteristic = 'CurrentTemperature' OR cluster_id = 1026 THEN 'temperature'
+                WHEN characteristic = 'CurrentRelativeHumidity' OR cluster_id = 1029 THEN 'humidity'
+              END AS metric
+            FROM event_logs
+            WHERE timestamp >= NOW() - INTERVAL '7 days'
+              AND (characteristic IN ('CurrentTemperature', 'CurrentRelativeHumidity')
+                   OR cluster_id IN (1026, 1029))
+          ) sub
+          WHERE metric IS NOT NULL
+          ORDER BY accessory_id, metric, timestamp DESC, id DESC
+        `);
+        const rooms = getRooms();
+        const byAccessory = new Map();
+        for (const row of result.rows) {
+          const raw = Number.parseFloat(row.new_value);
+          if (!Number.isFinite(raw)) continue;
+          const value = row.protocol === 'matter' ? raw / 100 : raw;
+          let entry = byAccessory.get(row.accessory_id);
+          if (!entry) {
+            entry = {
+              accessoryId: row.accessory_id,
+              accessoryName: row.accessory_name,
+              roomName: rooms[row.accessory_id] ?? rooms[parentBridgeId(row.accessory_id)] ?? row.room_name,
+              temperature: null,
+              humidity: null,
+              lastUpdated: null,
+            };
+            byAccessory.set(row.accessory_id, entry);
+          }
+          if (row.metric === 'temperature') entry.temperature = Math.round(value * 10) / 10;
+          else if (row.metric === 'humidity') entry.humidity = Math.round(value * 10) / 10;
+          const ts = row.timestamp ? new Date(row.timestamp).toISOString() : null;
+          if (ts && (!entry.lastUpdated || ts > entry.lastUpdated)) entry.lastUpdated = ts;
+        }
+        return [...byAccessory.values()].filter((e) => e.temperature !== null || e.humidity !== null);
+      }, 60_000);
+      res.json(out);
+    } catch (err) {
+      log.error('[api] /api/stats/sensor-environment error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Latest battery level + low-battery flag per accessory, low/empty first.
+  router.get('/stats/battery-levels', statsReadLimiter, async (_req, res) => {
+    try {
+      const out = await cached('stats:battery-levels', async () => {
+        const result = await pool.query(`
+          SELECT DISTINCT ON (accessory_id, characteristic)
+            accessory_id, accessory_name, room_name, characteristic, new_value, timestamp
+          FROM event_logs
+          WHERE timestamp >= NOW() - INTERVAL '30 days'
+            AND characteristic IN ('BatteryLevel', 'StatusLowBattery')
+          ORDER BY accessory_id, characteristic, timestamp DESC, id DESC
+        `);
+        const rooms = getRooms();
+        const byAccessory = new Map();
+        for (const row of result.rows) {
+          let entry = byAccessory.get(row.accessory_id);
+          if (!entry) {
+            entry = {
+              accessoryId: row.accessory_id,
+              accessoryName: row.accessory_name,
+              roomName: rooms[row.accessory_id] ?? rooms[parentBridgeId(row.accessory_id)] ?? row.room_name,
+              batteryLevel: null,
+              lowBattery: null,
+              lastUpdated: null,
+            };
+            byAccessory.set(row.accessory_id, entry);
+          }
+          if (row.characteristic === 'BatteryLevel') {
+            const level = Number.parseInt(row.new_value, 10);
+            entry.batteryLevel = Number.isFinite(level) ? Math.max(0, Math.min(100, level)) : null;
+          } else if (row.characteristic === 'StatusLowBattery') {
+            entry.lowBattery = row.new_value === '1' || row.new_value === 'true';
+          }
+          const ts = row.timestamp ? new Date(row.timestamp).toISOString() : null;
+          if (ts && (!entry.lastUpdated || ts > entry.lastUpdated)) entry.lastUpdated = ts;
+        }
+        return [...byAccessory.values()].sort((a, b) => {
+          const aLow = a.lowBattery === true ? 0 : 1;
+          const bLow = b.lowBattery === true ? 0 : 1;
+          if (aLow !== bLow) return aLow - bLow;
+          const aLvl = a.batteryLevel == null ? -1 : a.batteryLevel;
+          const bLvl = b.batteryLevel == null ? -1 : b.batteryLevel;
+          return aLvl - bLvl;
+        });
+      }, 300_000);
+      res.json(out);
+    } catch (err) {
+      log.error('[api] /api/stats/battery-levels error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Database / retention health metrics. The archive row count is wrapped in
+  // its own try/catch so a missing/locked archive table degrades to null
+  // rather than failing the whole endpoint with a 500.
+  router.get('/stats/retention-health', statsReadLimiter, async (_req, res) => {
+    try {
+      const out = await cached('stats:retention-health', async () => {
+        const retentionDays = Number(getRetentionSettings().retentionDays) || 365;
+        const main = await pool.query(`
+          SELECT
+            (SELECT COUNT(*) FROM event_logs)::bigint AS total_rows,
+            (SELECT MIN(timestamp) FROM event_logs) AS oldest_event,
+            (SELECT MAX(timestamp) FROM event_logs) AS newest_event,
+            (SELECT COUNT(*) FROM event_logs WHERE timestamp >= NOW() - INTERVAL '30 days')::bigint AS rows_30d,
+            (SELECT COUNT(*) FROM event_logs WHERE timestamp < NOW() - ($1::int * INTERVAL '1 day'))::bigint AS events_past_retention,
+            pg_database_size(current_database())::bigint AS db_size_bytes,
+            pg_total_relation_size('event_logs')::bigint AS table_size_bytes
+        `, [retentionDays]);
+        const row = main.rows[0] ?? {};
+
+        let archivedRows = null;
+        try {
+          const archive = await pool.query('SELECT COUNT(*)::bigint AS archived FROM event_logs_archive');
+          archivedRows = Number(archive.rows[0]?.archived ?? 0);
+        } catch (archiveErr) {
+          log.warn('[api] /api/stats/retention-health archive count failed:', archiveErr.message ?? archiveErr);
+          archivedRows = null;
+        }
+
+        return {
+          totalRows: Number(row.total_rows ?? 0),
+          oldestEvent: row.oldest_event ? new Date(row.oldest_event).toISOString() : null,
+          newestEvent: row.newest_event ? new Date(row.newest_event).toISOString() : null,
+          avgEventsPerDay: Math.round(Number(row.rows_30d ?? 0) / 30),
+          dbSizeBytes: Number(row.db_size_bytes ?? 0),
+          tableSizeBytes: Number(row.table_size_bytes ?? 0),
+          retentionDays,
+          eventsPastRetention: Number(row.events_past_retention ?? 0),
+          archivedRows,
+        };
+      }, 300_000);
+      res.json(out);
+    } catch (err) {
+      log.error('[api] /api/stats/retention-health error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Top-8 characteristics by event count, with the remainder collapsed into a
+  // single 'Other' bucket. Bucketing is done in JS so the long tail still
+  // contributes to the 'Other' total.
+  router.get('/stats/characteristic-breakdown', statsReadLimiter, async (req, res) => {
+    const days = parseIntInRange(req.query.days, 7, 1, 90);
+    try {
+      const out = await cached(`stats:characteristic-breakdown:${days}`, async () => {
+        const result = await pool.query(`
+          SELECT characteristic, COUNT(*)::int AS count
+          FROM event_logs
+          WHERE timestamp >= NOW() - ($1::int * INTERVAL '1 day')
+            AND characteristic IS NOT NULL
+          GROUP BY characteristic
+          ORDER BY count DESC
+        `, [days]);
+        const rows = result.rows.map((r) => ({
+          characteristic: r.characteristic,
+          count: Number(r.count),
+        }));
+        if (rows.length <= 8) return rows;
+        const top = rows.slice(0, 8);
+        const other = rows.slice(8).reduce((sum, r) => sum + r.count, 0);
+        return [...top, { characteristic: 'Other', count: other }];
+      }, 60_000);
+      res.json(out);
+    } catch (err) {
+      log.error('[api] /api/stats/characteristic-breakdown error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   return router;
 }

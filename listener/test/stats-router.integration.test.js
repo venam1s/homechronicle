@@ -237,3 +237,151 @@ test('GET /stats/hourly — DB error returns 500', async () => {
   assert.equal(statusCode, 500);
   assert.equal(jsonBody.error, 'Internal server error');
 });
+
+// -- GET /stats/sensor-environment --
+
+test('GET /stats/sensor-environment — disambiguates Matter cluster_id and scales /100', async () => {
+  const pool = {
+    async query() {
+      return {
+        rows: [
+          // Matter temperature (cluster 1026), centi-units -> 21.5
+          {
+            accessory_id: 'm1', accessory_name: 'Matter Sensor', room_name: 'Hall',
+            protocol: 'matter', new_value: '2150', timestamp: '2026-06-01T10:00:00Z',
+            metric: 'temperature',
+          },
+          // Matter humidity (cluster 1029), centi-units -> 45.0
+          {
+            accessory_id: 'm1', accessory_name: 'Matter Sensor', room_name: 'Hall',
+            protocol: 'matter', new_value: '4500', timestamp: '2026-06-01T10:01:00Z',
+            metric: 'humidity',
+          },
+          // HomeKit temperature, no scaling -> 20.5
+          {
+            accessory_id: 'h1', accessory_name: 'HK Thermo', room_name: 'Bed',
+            protocol: 'homekit', new_value: '20.5', timestamp: '2026-06-01T09:00:00Z',
+            metric: 'temperature',
+          },
+        ],
+      };
+    },
+  };
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({}),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/sensor-environment');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  assert.ok(Array.isArray(jsonBody));
+  const matter = jsonBody.find((r) => r.accessoryId === 'm1');
+  const homekit = jsonBody.find((r) => r.accessoryId === 'h1');
+  assert.equal(matter.temperature, 21.5, 'Matter temp scaled /100');
+  assert.equal(matter.humidity, 45.0, 'Matter humidity scaled /100');
+  assert.equal(homekit.temperature, 20.5, 'HomeKit temp unscaled');
+  assert.equal(homekit.humidity, null, 'no humidity reading -> null');
+});
+
+// -- GET /stats/battery-levels --
+
+test('GET /stats/battery-levels — combines characteristics and sorts low/empty first', async () => {
+  const pool = {
+    async query() {
+      return {
+        rows: [
+          { accessory_id: 'a', accessory_name: 'Lock A', room_name: 'Door', characteristic: 'BatteryLevel', new_value: '80', timestamp: '2026-06-01T10:00:00Z' },
+          { accessory_id: 'b', accessory_name: 'Sensor B', room_name: 'Bed', characteristic: 'BatteryLevel', new_value: '15', timestamp: '2026-06-01T10:00:00Z' },
+          { accessory_id: 'b', accessory_name: 'Sensor B', room_name: 'Bed', characteristic: 'StatusLowBattery', new_value: '1', timestamp: '2026-06-01T10:00:00Z' },
+        ],
+      };
+    },
+  };
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({}),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/battery-levels');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  assert.equal(jsonBody.length, 2);
+  assert.equal(jsonBody[0].accessoryId, 'b', 'low-battery device sorts first');
+  assert.equal(jsonBody[0].lowBattery, true);
+  assert.equal(jsonBody[0].batteryLevel, 15);
+  assert.equal(jsonBody[1].accessoryId, 'a');
+});
+
+// -- GET /stats/retention-health --
+
+test('GET /stats/retention-health — archive count error degrades to null without 500', async () => {
+  const pool = {
+    async query(sql) {
+      if (String(sql).includes('event_logs_archive')) {
+        throw new Error('archive table missing');
+      }
+      return {
+        rows: [{
+          total_rows: '100',
+          oldest_event: '2026-01-01T00:00:00Z',
+          newest_event: '2026-06-01T00:00:00Z',
+          rows_30d: '300',
+          events_past_retention: '5',
+          db_size_bytes: '1000000',
+          table_size_bytes: '500000',
+        }],
+      };
+    },
+  };
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({ retentionDays: 365 }),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/retention-health');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200, 'archive failure must not 500');
+  assert.equal(jsonBody.archivedRows, null, 'archivedRows degrades to null');
+  assert.equal(jsonBody.totalRows, 100);
+  assert.equal(jsonBody.retentionDays, 365);
+  assert.equal(jsonBody.avgEventsPerDay, 10, '300 rows over 30 days');
+});
+
+// -- GET /stats/characteristic-breakdown --
+
+test('GET /stats/characteristic-breakdown — collapses tail into a single Other row', async () => {
+  const rows = Array.from({ length: 10 }, (_, i) => ({
+    characteristic: `Char${i}`,
+    count: 10 - i,
+  }));
+  const pool = {
+    async query() {
+      return { rows };
+    },
+  };
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({}),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/characteristic-breakdown');
+  const { statusCode, jsonBody } = await invoke(handler, { query: { days: '7' } });
+
+  assert.equal(statusCode, 200);
+  assert.equal(jsonBody.length, 9, 'top 8 + Other');
+  assert.equal(jsonBody.at(-1).characteristic, 'Other');
+  // Char8 (count 2) + Char9 (count 1) = 3
+  assert.equal(jsonBody.at(-1).count, 3, 'Other sums the remainder');
+});
