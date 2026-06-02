@@ -26,6 +26,12 @@
 
 set -euo pipefail
 
+# cron runs with a minimal PATH (typically /usr/bin:/bin) and does not source a
+# login profile, so docker/flock/pg tooling installed elsewhere (e.g. snap,
+# /usr/local/bin) would be missing and every `docker` call would silently fail.
+# Prepend the common locations, keeping any inherited PATH as a fallback.
+export PATH="/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin:/snap/bin:${PATH:-}"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SYNC_SCRIPT="${ROOT_DIR}/scripts/sync-prod-to-beta.sh"
 
@@ -43,9 +49,21 @@ BETA_LISTENER="${BETA_LISTENER:-${BETA_STACK}-listener-1}"
 export PROD_STACK BETA_STACK PROD_PG BETA_PG BETA_LISTENER
 
 # -- Logging: tee everything to the log file (best-effort) --------------------
+# Pick the first writable log destination. /var/log is root-only on most hosts,
+# so under a non-root cron we fall back to a repo-local then temp path rather
+# than /dev/null — an unattended run must always leave evidence somewhere.
 if ! { : >>"$LOG_FILE"; } 2>/dev/null; then
-  echo "[auto] WARN: cannot write ${LOG_FILE}; logging to stdout only" >&2
-  LOG_FILE=/dev/null
+  for candidate in "${ROOT_DIR}/.beta-sync.log" "${TMPDIR:-/tmp}/homechronicle-beta-sync.log"; do
+    if { : >>"$candidate"; } 2>/dev/null; then
+      echo "[auto] WARN: cannot write ${LOG_FILE}; logging to ${candidate}" >&2
+      LOG_FILE="$candidate"
+      break
+    fi
+  done
+  if ! { : >>"$LOG_FILE"; } 2>/dev/null; then
+    echo "[auto] WARN: no writable log file; logging to stdout only" >&2
+    LOG_FILE=/dev/null
+  fi
 fi
 exec > >(while IFS= read -r line; do printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$line"; done | tee -a "$LOG_FILE") 2>&1
 

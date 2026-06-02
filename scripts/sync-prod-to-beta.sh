@@ -18,6 +18,11 @@
 
 set -euo pipefail
 
+# cron / non-login shells run with a minimal PATH and may not find docker (snap,
+# /usr/local/bin, rootless installs). Prepend common locations so `docker` and
+# `pg_*` resolve when this is invoked unattended. Keep inherited PATH as fallback.
+export PATH="/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin:/snap/bin:${PATH:-}"
+
 # -- Config (override via env) -------------------------------------------------
 
 PROD_STACK="${PROD_STACK:-homechronicle}"

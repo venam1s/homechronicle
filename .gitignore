@@ -53,3 +53,6 @@ SCRATCHPAD.md
 WORKING.md
 TASK-QUEUE.md
 hipocampus.config.json
+
+# Repo-local fallback log written by scripts/sync-beta-auto.sh when /var/log is not writable
+.beta-sync.log
