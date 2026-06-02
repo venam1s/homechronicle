@@ -770,3 +770,16 @@
   cursor: grabbing;
   z-index: 10;
 }
+
+/* -- Quiet Hours gauge (CSS-driven theming, no JS color reads) --
+   data-level on the .hc-gauge wrapper selects the value-arc fill via
+   the .recharts-radial-bar-sector class. The background track uses
+   --hc-panel-border which already differs per light/dark theme. */
+.hc-gauge[data-level='success'] .recharts-radial-bar-sector { fill: var(--hc-success-text) !important; }
+.hc-gauge[data-level='warning'] .recharts-radial-bar-sector { fill: var(--hc-warning-text) !important; }
+.hc-gauge[data-level='danger']  .recharts-radial-bar-sector { fill: var(--hc-danger-text)  !important; }
+.hc-gauge .recharts-radial-bar-background-sector { fill: var(--hc-panel-border) !important; }
+
+/* -- Day vs Night donut panel (CSS-driven, no JS color reads) -- */
+.hc-fill-day   { fill: var(--hc-accent-strong) !important; }
+.hc-fill-night { fill: var(--hc-muted) !important; }

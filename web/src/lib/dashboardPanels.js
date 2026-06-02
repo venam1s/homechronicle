@@ -34,11 +34,11 @@ export const PANELS = [
   { id: 'anomalies',      title: 'Active Outliers',     lg: { x: 0, y: 28, w: 6,  h: 4 }, minW: 3, minH: 3 },
   { id: 'staleDevices',   title: 'Stale Devices',       lg: { x: 6, y: 28, w: 6,  h: 4 }, minW: 3, minH: 3 },
   // Optional panels — hidden by default; power users opt in via the "+ Add" tray.
-  { id: 'weekOverWeek',   title: 'Week over Week',      lg: { x: 0, y: 32, w: 12, h: 3 }, minW: 4, minH: 2, bare: true, optional: true },
+  { id: 'weekOverWeek',   title: 'Week over Week',      lg: { x: 0, y: 32, w: 12, h: 2 }, minW: 4, minH: 2, bare: true, optional: true },
   { id: 'healthDonut',    title: 'Device Health',       lg: { x: 0, y: 35, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'alertsSummary',  title: 'Alerts Summary',      lg: { x: 6, y: 35, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'topMovers',      title: 'Top Movers',          lg: { x: 0, y: 39, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
-  { id: 'activityClock',  title: 'Activity Clock',      lg: { x: 6, y: 39, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
+  { id: 'dayNight',       title: 'Day vs Night',         lg: { x: 6, y: 39, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'quietCompliance', title: 'Quiet Hours Score',  lg: { x: 0, y: 43, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'roomSparklines', title: 'Room Trends',         lg: { x: 6, y: 43, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
 ];

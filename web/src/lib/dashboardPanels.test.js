@@ -41,6 +41,11 @@ describe('dashboardPanels registry', () => {
     expect(PANEL_TITLES.quietHours).toBe('Quiet Hours');
   });
 
+  it('includes dayNight panel and does NOT contain activityClock', () => {
+    expect(PANEL_IDS).toContain('dayNight');
+    expect(PANEL_IDS).not.toContain('activityClock');
+  });
+
   it('OPTIONAL_PANEL_IDS has exactly 7 ids, all in PANEL_IDS', () => {
     expect(OPTIONAL_PANEL_IDS).toHaveLength(7);
     for (const id of OPTIONAL_PANEL_IDS) {
