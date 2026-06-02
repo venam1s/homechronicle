@@ -37,6 +37,47 @@ services:
       retries: 10
       start_period: 30s
 
+  # One-shot prod→beta data refresh, run before the listener on each (re)created
+  # deploy. Uses network_mode: host because prod postgres is published only on
+  # the host loopback (127.0.0.1:5432) and is NOT on my-network — a bridge
+  # container cannot reach it. Host mode reaches both loopback ports: prod
+  # 127.0.0.1:5432 and beta 127.0.0.1:5433. NOTE: a `restart: no` one-shot only
+  # runs when its container is recreated; `service_completed_successfully` is
+  # satisfied by a prior exited-0 container and will NOT force a re-run — the
+  # deploy must recreate db-sync (down+up / --force-recreate) to refresh.
+  db-sync:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: "no"
+    network_mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PROD_DB_HOST: ${PROD_DB_HOST:-127.0.0.1}
+      PROD_DB_PORT: ${PROD_DB_PORT:-5432}
+      PROD_DB_USER: ${PROD_DB_USER}
+      PROD_DB_NAME: ${PROD_DB_NAME}
+      PROD_DB_PASSWORD: ${PROD_DB_PASSWORD}
+      BETA_DB_HOST: 127.0.0.1
+      BETA_DB_PORT: 5433
+      BETA_DB_USER: homekit
+      BETA_DB_NAME: homekit_events
+      BETA_DB_PASSWORD: ${BETA_DB_PASSWORD}
+      SYNC_REQUIRED: ${SYNC_REQUIRED:-false}
+      PROD_DATA_DIR: /prod
+      BETA_DATA_DIR: /app/data
+      TZ: ${TZ:-America/Indianapolis}
+    volumes:
+      - ./docker/beta-db-sync.sh:/usr/local/bin/beta-db-sync.sh:ro
+      - /mnt/Primary/apps/hc-beta/listener-data-beta:/app/data
+      - /mnt/Primary/apps/homechronicle/listener_data:/prod:ro
+    entrypoint: ["/usr/local/bin/beta-db-sync.sh"]
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M
+
   listener:
     build:
       context: ./listener
@@ -67,6 +108,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-sync:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD-SHELL
