@@ -85,7 +85,7 @@ export default function TopMoversPanel({ onSelectAccessory, onSelectRoom }) {
                   {row.scopeType} · {row.kind}
                 </div>
               </div>
-              <div className={`flex items-center gap-0.5 text-sm font-semibold flex-shrink-0 ${isSpike ? 'text-hc-danger-text' : 'text-hc-success-text'}`}>
+              <div className={`flex items-center gap-0.5 text-sm font-semibold flex-shrink-0 ${isSpike ? 'text-hc-success-text' : 'text-hc-danger-text'}`}>
                 {isSpike ? '+' : ''}{pctChange}%
                 {isSpike ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
               </div>
