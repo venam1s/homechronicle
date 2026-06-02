@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 Milestone: v1.3 Repair Reliability Fixes — ARCHIVED 2026-04-28 (shipped 2026-04-21)
 Active phase: none
 Status: Awaiting next milestone (use /gsd-new-milestone)
-Last activity: 2026-05-28 -- Completed quick task 260528-0it: dnssd FQDN cycle guard (v0.1.11)
+Last activity: 2026-06-01 -- Completed quick task 260601-t3z: 7 optional dashboard panels (extras)
 
 ```
 Progress: [██████████] 100% (2/2 phases)
@@ -61,6 +61,7 @@ None.
 | 260427-wm1 | Fix release blockers from RELEASE-REVIEW: KpiCards window coherence (H-01/H-03), EventRow a11y (H-02), subscriber liveness gate (M-01) | 2026-04-28 | 3ffc42e | [260427-wm1-fix-release-blockers-from-release-review](./quick/260427-wm1-fix-release-blockers-from-release-review/) |
 | 260515-nfw | Silence matter.js DEBUG log firehose at startup (MATTER_LOG_LEVEL/MATTER_LOG_FORMAT env vars; defaults INFO/PLAIN) | 2026-05-15 | c60ea26 | [260515-nfw-silence-matter-js-debug-log-firehose](./quick/260515-nfw-silence-matter-js-debug-log-firehose/) |
 | 260528-0it | Patch dnssd@0.4.1 readFQDN with compression-pointer cycle guard + 128-iteration budget via patch-package (v0.1.11) — fixes prod listener CPU peg from malformed mDNS packet | 2026-05-28 | 890f9a0 | [260528-0it-patch-dnssd-fqdn-parser-cycle-guard](./quick/260528-0it-patch-dnssd-fqdn-parser-cycle-guard/) |
+| 260601-t3z | Add 7 optional ("extra") dashboard panels (off by default, added via customize tray): WeekOverWeek KPIs, Health donut, Alerts summary, Top movers, Activity clock, Quiet-hours compliance, Room sparklines + `optional` flag with first-seen hidden-seeding in useDashboardLayout | 2026-06-01 | fa7a814 | [260601-t3z-add-7-optional-dashboard-panels-extras-h](./quick/260601-t3z-add-7-optional-dashboard-panels-extras-h/) |
 
 ## Session Continuity
 
