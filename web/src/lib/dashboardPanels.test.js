@@ -46,10 +46,18 @@ describe('dashboardPanels registry', () => {
     expect(PANEL_IDS).not.toContain('activityClock');
   });
 
-  it('OPTIONAL_PANEL_IDS has exactly 7 ids, all in PANEL_IDS', () => {
-    expect(OPTIONAL_PANEL_IDS).toHaveLength(7);
+  it('OPTIONAL_PANEL_IDS has exactly 12 ids, all in PANEL_IDS', () => {
+    expect(OPTIONAL_PANEL_IDS).toHaveLength(12);
     for (const id of OPTIONAL_PANEL_IDS) {
       expect(PANEL_IDS).toContain(id);
+    }
+  });
+
+  it('includes the 5 Tier 2 optional panels after the original 12 non-optional panels', () => {
+    const tier2 = ['sensorEnvironment', 'batteryLevels', 'recentEpisodes', 'retentionHealth', 'eventTypeBreakdown'];
+    for (const id of tier2) {
+      expect(OPTIONAL_PANEL_IDS).toContain(id);
+      expect(PANEL_IDS.indexOf(id)).toBeGreaterThanOrEqual(12);
     }
   });
 
