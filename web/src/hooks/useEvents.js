@@ -181,3 +181,39 @@ export function useQuietHours() {
     refetchInterval: 60_000,
   });
 }
+
+export function useSensorEnvironment() {
+  return useQuery({
+    queryKey: queryKeys.stats.sensorEnvironment(),
+    queryFn: () => fetchJson(`${BASE}/stats/sensor-environment`),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useBatteryLevels() {
+  return useQuery({
+    queryKey: queryKeys.stats.batteryLevels(),
+    queryFn: () => fetchJson(`${BASE}/stats/battery-levels`),
+    staleTime: 300_000,
+    refetchInterval: 300_000,
+  });
+}
+
+export function useRetentionHealth() {
+  return useQuery({
+    queryKey: queryKeys.stats.retentionHealth(),
+    queryFn: () => fetchJson(`${BASE}/stats/retention-health`),
+    staleTime: 300_000,
+    refetchInterval: 300_000,
+  });
+}
+
+export function useCharacteristicBreakdown(days = 7) {
+  return useQuery({
+    queryKey: queryKeys.stats.characteristicBreakdown(days),
+    queryFn: () => fetchJson(`${BASE}/stats/characteristic-breakdown?days=${days}`),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+}

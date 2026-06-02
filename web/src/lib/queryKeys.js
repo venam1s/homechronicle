@@ -17,5 +17,9 @@ export const queryKeys = {
     devicePatterns: () => ['stats', 'device-patterns'],
     anomalies: () => ['stats', 'anomalies'],
     quietHours: () => ['stats', 'quiet-hours'],
+    sensorEnvironment: () => ['stats', 'sensor-environment'],
+    batteryLevels: () => ['stats', 'battery-levels'],
+    retentionHealth: () => ['stats', 'retention-health'],
+    characteristicBreakdown: (days) => ['stats', 'characteristic-breakdown', days],
   },
 };
