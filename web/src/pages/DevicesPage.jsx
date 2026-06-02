@@ -18,7 +18,7 @@ export default function DevicesPage({ onSelectAccessory }) {
   const setup = useSetup();
 
   return (
-    <PageContainer className="space-y-6">
+    <PageContainer narrow className="space-y-6">
       <div className="mb-6">
         <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Devices</h1>
       </div>
@@ -40,11 +40,7 @@ export default function DevicesPage({ onSelectAccessory }) {
         ))}
       </nav>
       {activeTab === 'browse' && (
-        <Card>
-          <Card.Body>
-            <AccessoryList onSelectAccessory={onSelectAccessory} />
-          </Card.Body>
-        </Card>
+        <AccessoryList onSelectAccessory={onSelectAccessory} />
       )}
       {activeTab === 'add' && (
         <Card>

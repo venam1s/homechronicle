@@ -118,7 +118,7 @@ export default function AccessoryList({ onSelectAccessory }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">
+    <div className="space-y-6">
       <details className="bg-hc-panel rounded-xl shadow-sm border border-hc-panel-border overflow-hidden group">
         <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between select-none">
           <div>
