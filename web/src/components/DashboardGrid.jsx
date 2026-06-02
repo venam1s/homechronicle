@@ -31,6 +31,11 @@ import TopMoversPanel from './TopMoversPanel.jsx';
 import DayNightPanel from './DayNightPanel.jsx';
 import QuietHoursCompliancePanel from './QuietHoursCompliancePanel.jsx';
 import RoomSparklinesPanel from './RoomSparklinesPanel.jsx';
+import SensorEnvironmentPanel from './SensorEnvironmentPanel.jsx';
+import BatteryLevelsPanel from './BatteryLevelsPanel.jsx';
+import RecentEpisodesPanel from './RecentEpisodesPanel.jsx';
+import RetentionHealthPanel from './RetentionHealthPanel.jsx';
+import EventTypeBreakdownPanel from './EventTypeBreakdownPanel.jsx';
 
 // Maps a panel id to its content element. Kept here (not in the registry) so the
 // registry stays serializable and this has access to live data/callbacks.
@@ -90,6 +95,16 @@ function renderPanelBody(id, ctx) {
       return <QuietHoursCompliancePanel />;
     case 'roomSparklines':
       return <RoomSparklinesPanel />;
+    case 'sensorEnvironment':
+      return <SensorEnvironmentPanel />;
+    case 'batteryLevels':
+      return <BatteryLevelsPanel />;
+    case 'recentEpisodes':
+      return <RecentEpisodesPanel />;
+    case 'retentionHealth':
+      return <RetentionHealthPanel />;
+    case 'eventTypeBreakdown':
+      return <EventTypeBreakdownPanel />;
     default:
       return null;
   }

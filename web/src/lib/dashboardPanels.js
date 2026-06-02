@@ -41,6 +41,12 @@ export const PANELS = [
   { id: 'dayNight',       title: 'Day vs Night',         lg: { x: 6, y: 39, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'quietCompliance', title: 'Quiet Hours Score',  lg: { x: 0, y: 43, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'roomSparklines', title: 'Room Trends',         lg: { x: 6, y: 43, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
+  // Tier 2 optional panels — also hidden by default; backed by read-only stats endpoints.
+  { id: 'sensorEnvironment', title: 'Sensor Environment', lg: { x: 0, y: 47, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
+  { id: 'batteryLevels',     title: 'Battery Levels',     lg: { x: 6, y: 47, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
+  { id: 'recentEpisodes',    title: 'Recent Episodes',    lg: { x: 0, y: 51, w: 6,  h: 5 }, minW: 3, minH: 4, optional: true },
+  { id: 'retentionHealth',   title: 'Retention Health',   lg: { x: 6, y: 51, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
+  { id: 'eventTypeBreakdown', title: 'Event Types',       lg: { x: 0, y: 55, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
 ];
 
 export const PANEL_IDS = PANELS.map((p) => p.id);
