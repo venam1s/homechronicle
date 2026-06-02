@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   PANEL_IDS,
   OPTIONAL_PANEL_IDS,
+  PANEL_MAX_H,
   defaultLayouts,
   defaultLayoutItem,
 } from '../lib/dashboardPanels.js';
@@ -43,15 +44,23 @@ function sanitizeLayouts(stored) {
     const arr = Array.isArray(stored[bp]) ? stored[bp] : base[bp];
     const cleaned = arr
       .filter((it) => it && typeof it.i === 'string' && VALID_IDS.has(it.i))
-      .map((it) => ({
-        i: it.i,
-        x: Number(it.x) || 0,
-        y: Number(it.y) || 0,
-        w: Number(it.w) || 1,
-        h: Number(it.h) || 1,
-        ...(it.minW != null ? { minW: Number(it.minW) } : {}),
-        ...(it.minH != null ? { minH: Number(it.minH) } : {}),
-      }));
+      .map((it) => {
+        // Clamp a stored height down to the panel's registered max (if any) so a
+        // previously-saved oversize layout is corrected on load, and re-assert the
+        // max so RGL keeps enforcing it during this session.
+        const maxH = PANEL_MAX_H[it.i];
+        const h = maxH != null ? Math.min(Number(it.h) || 1, maxH) : (Number(it.h) || 1);
+        return {
+          i: it.i,
+          x: Number(it.x) || 0,
+          y: Number(it.y) || 0,
+          w: Number(it.w) || 1,
+          h,
+          ...(it.minW != null ? { minW: Number(it.minW) } : {}),
+          ...(it.minH != null ? { minH: Number(it.minH) } : {}),
+          ...(maxH != null ? { maxH } : {}),
+        };
+      });
     if (cleaned.length === 0) {
       out[bp] = base[bp];
       continue;
@@ -146,6 +155,8 @@ export function useDashboardLayout() {
               : it.minW != null ? { minW: Number(it.minW) } : {}),
             ...(prevItem?.minH != null ? { minH: prevItem.minH }
               : it.minH != null ? { minH: Number(it.minH) } : {}),
+            ...(prevItem?.maxH != null ? { maxH: prevItem.maxH }
+              : it.maxH != null ? { maxH: Number(it.maxH) } : {}),
           };
           if (!prevItem || prevItem.x !== merged.x || prevItem.y !== merged.y
             || prevItem.w !== merged.w || prevItem.h !== merged.h) {

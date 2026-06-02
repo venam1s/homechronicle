@@ -34,7 +34,7 @@ export const PANELS = [
   { id: 'anomalies',      title: 'Active Outliers',     lg: { x: 0, y: 28, w: 6,  h: 4 }, minW: 3, minH: 3 },
   { id: 'staleDevices',   title: 'Stale Devices',       lg: { x: 6, y: 28, w: 6,  h: 4 }, minW: 3, minH: 3 },
   // Optional panels — hidden by default; power users opt in via the "+ Add" tray.
-  { id: 'weekOverWeek',   title: 'Week over Week',      lg: { x: 0, y: 32, w: 12, h: 2 }, minW: 4, minH: 2, bare: true, optional: true },
+  { id: 'weekOverWeek',   title: 'Week over Week',      lg: { x: 0, y: 32, w: 12, h: 2 }, minW: 4, minH: 2, maxH: 2, bare: true, optional: true },
   { id: 'healthDonut',    title: 'Device Health',       lg: { x: 0, y: 35, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'alertsSummary',  title: 'Alerts Summary',      lg: { x: 6, y: 35, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'topMovers',      title: 'Top Movers',          lg: { x: 0, y: 39, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
@@ -46,6 +46,12 @@ export const PANELS = [
 export const PANEL_IDS = PANELS.map((p) => p.id);
 export const PANEL_TITLES = Object.fromEntries(PANELS.map((p) => [p.id, p.title]));
 export const OPTIONAL_PANEL_IDS = PANELS.filter((p) => p.optional).map((p) => p.id);
+// Per-panel max grid height (rows). Used to clamp stored layouts on load so a
+// previously-saved oversize height (e.g. a panel the user dragged taller before
+// a max was introduced) is corrected down without requiring a manual resize.
+export const PANEL_MAX_H = Object.fromEntries(
+  PANELS.filter((p) => p.maxH != null).map((p) => [p.id, p.maxH]),
+);
 
 function lgLayoutItem(panel) {
   return {
@@ -56,6 +62,7 @@ function lgLayoutItem(panel) {
     h: panel.lg.h,
     minW: panel.minW,
     minH: panel.minH,
+    ...(panel.maxH != null ? { maxH: panel.maxH } : {}),
   };
 }
 
@@ -70,6 +77,7 @@ function smLayoutItem(panel, y) {
     h: panel.lg.h,
     minW: 1,
     minH: panel.minH,
+    ...(panel.maxH != null ? { maxH: panel.maxH } : {}),
   };
 }
 
