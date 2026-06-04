@@ -11,8 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY package.json .
+COPY package-lock.json .
 COPY patches/ ./patches/
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 # --- Stage 2: runtime image (no build tools) ---------------------------------
 FROM node:22-trixie-slim
