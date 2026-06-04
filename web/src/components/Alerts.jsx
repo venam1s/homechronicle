@@ -95,6 +95,13 @@ export default function Alerts() {
       ...form,
       quietMinutes: Number.parseInt(String(form.quietMinutes ?? 0), 10) || 0,
     };
+    // GET /api/alerts/rules redacts targetUrl (secret webhook URLs aren't sent
+    // over unauthenticated reads), so it is never prefilled when editing. Omit
+    // an empty targetUrl on edit so the backend (`if ('targetUrl' in body)`)
+    // preserves the existing URL; only send a replacement the user typed.
+    if (editingId && !String(payload.targetUrl ?? '').trim()) {
+      delete payload.targetUrl;
+    }
     setError('');
     saveRuleMutation.mutate(payload);
   }
@@ -109,7 +116,9 @@ export default function Alerts() {
       characteristic: rule.characteristic ?? '',
       operator: rule.operator,
       matchValue: rule.matchValue,
-      targetUrl: rule.targetUrl,
+      // targetUrl is redacted from the rules list response; leave blank and let
+      // the user optionally enter a replacement (blank = keep existing URL).
+      targetUrl: '',
       quietMinutes: rule.quietMinutes ?? 0,
     });
     setError('');
@@ -134,10 +143,10 @@ export default function Alerts() {
               type="url"
               value={form.targetUrl}
               onChange={(e) => setForm((prev) => ({ ...prev, targetUrl: e.target.value }))}
-              placeholder="Webhook URL (https://...)"
+              placeholder={editingId ? 'Leave blank to keep current webhook URL' : 'Webhook URL (https://...)'}
               aria-label="Webhook URL"
               className="border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
-              required
+              required={!editingId}
             />
             <select
               value={form.scopeType}
