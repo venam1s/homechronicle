@@ -16,7 +16,7 @@ ENV VITE_BUILD_VERSION=$VITE_BUILD_VERSION
 RUN npm run build
 
 # Production image: serve the built files with nginx
-FROM nginx:alpine3.21
+FROM nginx:1.30-alpine
 
 # Security patches + troubleshooting tools
 RUN apk upgrade --no-cache && apk add --no-cache bind-tools curl
