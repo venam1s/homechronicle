@@ -299,7 +299,7 @@ export function createAlertsRouter({ pool }) {
   });
 
   router.get('/deliveries', alertsReadLimiter, async (req, res) => {
-    const page = parseIntInRange(req.query.page, 1, 1, Number.MAX_SAFE_INTEGER);
+    const page = parseIntInRange(req.query.page, 1, 1, 1_000_000);
     const limit = parseIntInRange(req.query.limit, 50, 1, 200);
     const offset = (page - 1) * limit;
 
