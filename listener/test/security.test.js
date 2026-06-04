@@ -35,6 +35,38 @@ test('validateWebhookTargetUrl can block private ranges when policy disabled', (
   assert.equal(allowed.ok, true);
 });
 
+test('validateWebhookTargetUrl blocks IPv6-mapped IPv4 literals in hex form', () => {
+  // ::ffff:7f00:1 = 127.0.0.1 (loopback)
+  const loopbackHex = validateWebhookTargetUrl('http://[::ffff:7f00:1]/hook');
+  assert.equal(loopbackHex.ok, false);
+  assert.match(loopbackHex.error, /loopback/i);
+
+  // ::ffff:a9fe:a9fe = 169.254.169.254 (link-local metadata)
+  const linkLocalHex = validateWebhookTargetUrl('http://[::ffff:a9fe:a9fe]/hook');
+  assert.equal(linkLocalHex.ok, false);
+  assert.match(linkLocalHex.error, /link-local/i);
+
+  // ::ffff:0808:0808 = 8.8.8.8 (public — should be allowed by default)
+  const publicMapped = validateWebhookTargetUrl('http://[::ffff:808:808]/hook');
+  assert.equal(publicMapped.ok, true);
+});
+
+test('resolveAndValidateWebhookTarget blocks IPv6-mapped IPv4 literal loopback and link-local', async () => {
+  // ::ffff:7f00:1 = 127.0.0.1 — literal IP, goes through direct-IP early return
+  const loopbackResult = await resolveAndValidateWebhookTarget('http://[::ffff:7f00:1]/hook');
+  assert.equal(loopbackResult.ok, false);
+  assert.match(loopbackResult.error, /loopback/i);
+
+  // ::ffff:a9fe:a9fe = 169.254.169.254 — link-local metadata endpoint
+  const linkLocalResult = await resolveAndValidateWebhookTarget('http://[::ffff:a9fe:a9fe]/hook');
+  assert.equal(linkLocalResult.ok, false);
+  assert.match(linkLocalResult.error, /link-local/i);
+
+  // ::ffff:808:808 = 8.8.8.8 — public, should be ok
+  const publicResult = await resolveAndValidateWebhookTarget('http://[::ffff:808:808]/hook');
+  assert.equal(publicResult.ok, true);
+});
+
 test('resolveAndValidateWebhookTarget blocks DNS targets resolving to loopback/private IPs', async () => {
   const resolvedLoopback = await resolveAndValidateWebhookTarget('https://alerts.example/hook', {
     allowPrivateTargets: false,

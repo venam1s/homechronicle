@@ -52,6 +52,16 @@ function classifyIpv6(host, allowPrivateTargets) {
   if (value.startsWith('::ffff:')) {
     const mapped = value.slice('::ffff:'.length);
     if (isIP(mapped) === 4) return classifyIpv4(mapped, allowPrivateTargets);
+    // Hex-form mapped IPv4: ::ffff:HHHH:HHHH (e.g. ::ffff:7f00:1 = 127.0.0.1)
+    const hexParts = mapped.split(':');
+    if (hexParts.length === 2) {
+      const high = Number.parseInt(hexParts[0], 16);
+      const low = Number.parseInt(hexParts[1], 16);
+      if (Number.isFinite(high) && Number.isFinite(low) && high >= 0 && low >= 0) {
+        const dotted = `${(high >>> 8) & 0xff}.${high & 0xff}.${(low >>> 8) & 0xff}.${low & 0xff}`;
+        if (isIP(dotted) === 4) return classifyIpv4(dotted, allowPrivateTargets);
+      }
+    }
   }
   return { blocked: false };
 }
@@ -136,6 +146,10 @@ export async function resolveAndValidateWebhookTarget(rawUrl, {
   const directIpType = isIP(hostname);
 
   if (directIpType === 4 || directIpType === 6) {
+    const directClassification = classifyResolvedAddress(hostname, allowPrivateTargets);
+    if (directClassification.blocked) {
+      return { ok: false, error: directClassification.reason };
+    }
     return { ok: true, normalizedUrl: baseValidation.normalizedUrl, resolvedAddresses: [hostname] };
   }
 
