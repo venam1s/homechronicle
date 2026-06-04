@@ -16,7 +16,9 @@
   },
   "overrides": {
     "fast-xml-parser": "^5.3.5",
-    "picomatch": "2.3.2"
+    "picomatch": "2.3.2",
+    "path-to-regexp": "8.4.2",
+    "tmp": "0.2.7"
   },
   "dependencies": {
     "@matter/main": "^0.16.10",
