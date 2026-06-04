@@ -197,7 +197,11 @@ export function createAlertsRouter({ pool }) {
          FROM alert_rules
          ORDER BY updated_at DESC, id DESC`
       );
-      res.json(result.rows.map(toApiRule));
+      res.json(result.rows.map((row) => {
+        const rule = toApiRule(row);
+        delete rule.targetUrl;
+        return rule;
+      }));
     } catch (err) {
       log.error('[api] /api/alerts/rules error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
