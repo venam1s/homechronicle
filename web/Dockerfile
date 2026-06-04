@@ -18,8 +18,8 @@ RUN npm run build
 # Production image: serve the built files with nginx
 FROM nginx:1.30-alpine
 
-# Security patches + troubleshooting tools
-RUN apk upgrade --no-cache && apk add --no-cache bind-tools curl
+# Security patches
+RUN apk upgrade --no-cache
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template

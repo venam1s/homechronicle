@@ -18,12 +18,11 @@ RUN npm ci --omit=dev
 # --- Stage 2: runtime image (no build tools) ---------------------------------
 FROM node:22-trixie-slim
 
-# Runtime shared libs (no -dev headers), dbus client for host avahi,
-# and common troubleshooting tools. Security patches applied via upgrade.
+# Runtime shared libs (no -dev headers), dbus client for host avahi.
+# Security patches applied via upgrade.
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libavahi-compat-libdnssd1 dbus \
     libbluetooth3 \
-    dnsutils iputils-ping curl \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
