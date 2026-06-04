@@ -15,7 +15,8 @@
     "postinstall": "patch-package"
   },
   "overrides": {
-    "fast-xml-parser": "^5.3.5"
+    "fast-xml-parser": "^5.3.5",
+    "picomatch": "2.3.2"
   },
   "dependencies": {
     "@matter/main": "^0.16.10",
