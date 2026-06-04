@@ -281,6 +281,10 @@ export function createMatterRouter({
       return res.status(400).json({ error: 'events array is required' });
     }
 
+    if (rawEvents.length > 1000) {
+      return res.status(400).json({ error: 'too many events (max 1000)' });
+    }
+
     const pairings = loadPairings();
     const rooms = loadRooms();
 
@@ -327,9 +331,20 @@ export function createMatterRouter({
       });
     }
 
-    for (const event of normalized) {
-      // eslint-disable-next-line no-await-in-loop
-      await insertEvent(event);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const event of normalized) {
+        // eslint-disable-next-line no-await-in-loop
+        await insertEvent(event, client);
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      log.error('[matter] /matter/events transaction failed:', err.message ?? err.stack ?? err);
+      return res.status(500).json({ error: 'Internal server error' });
+    } finally {
+      client.release();
     }
 
     return res.json({ success: true, inserted: normalized.length });

@@ -36,7 +36,7 @@ pool.on('error', (err) => {
  * @param {number|null} event.attributeId
  * @param {number|null} event.rawIid      - HAP instance ID
  */
-export async function insertEvent(event) {
+export async function insertEvent(event, executor = pool) {
   const {
     accessoryId,
     accessoryName,
@@ -53,7 +53,7 @@ export async function insertEvent(event) {
     rawIid = null,
   } = event;
 
-  const result = await pool.query(
+  const result = await executor.query(
     `INSERT INTO event_logs
        (accessory_id, accessory_name, room_name, service_type,
         characteristic, old_value, new_value, protocol, transport,

@@ -128,11 +128,21 @@ test('/api/setup/matter/pair requires nodeId when setupCode is missing', async (
 
 test('/api/matter/events inserts normalized Matter events', async () => {
   const inserted = [];
+  const txQueries = [];
+  const mockPool = {
+    async connect() {
+      return {
+        async query(sql) { txQueries.push(sql.trim()); },
+        release() {},
+      };
+    },
+  };
   const router = createMatterRouter({
     insertEvent: async (event) => {
       inserted.push(event);
       return { id: inserted.length, timestamp: new Date().toISOString() };
     },
+    pool: mockPool,
     loadPairings: () => ({
       '6699': {
         protocol: 'matter',
@@ -175,6 +185,7 @@ test('/api/matter/events inserts normalized Matter events', async () => {
 test('/api/matter/events validates required fields', async () => {
   const router = createMatterRouter({
     insertEvent: async () => ({ id: 1, timestamp: new Date().toISOString() }),
+    pool: { async connect() { return { async query() {}, release() {} }; } },
     loadPairings: () => ({}),
     savePairings: async () => {},
     loadRooms: () => ({}),
@@ -267,6 +278,30 @@ test('/api/setup/matter/pair commissions when setupCode is provided', async () =
 
 // --- Additional hardening tests ---
 
+function makeTransactionClient(state) {
+  return {
+    queries: state.txQueries,
+    async query(sql) {
+      state.txQueries.push(sql.trim());
+    },
+    release() {
+      state.txReleased = true;
+    },
+  };
+}
+
+function makeDefaultPool(state) {
+  return {
+    async connect() {
+      return makeTransactionClient(state);
+    },
+    async query(sql, params) {
+      state.queries.push({ sql, params });
+      return { rows: [], rowCount: 0 };
+    },
+  };
+}
+
 function makeRouter(overrides = {}) {
   const state = {
     pairings: overrides.pairings ?? {},
@@ -274,13 +309,18 @@ function makeRouter(overrides = {}) {
     notes: overrides.notes ?? {},
     inserted: [],
     queries: [],
+    txQueries: [],
+    txReleased: false,
   };
+
+  const defaultInsertEvent = async (evt) => {
+    state.inserted.push(evt);
+    return { id: state.inserted.length, timestamp: new Date().toISOString() };
+  };
+
   const router = createMatterRouter({
-    insertEvent: async (evt) => {
-      state.inserted.push(evt);
-      return { id: state.inserted.length, timestamp: new Date().toISOString() };
-    },
-    pool: overrides.pool ?? null,
+    insertEvent: overrides.insertEvent ?? defaultInsertEvent,
+    pool: overrides.pool !== undefined ? overrides.pool : makeDefaultPool(state),
     loadPairings: () => state.pairings,
     savePairings: async (next) => { state.pairings = next; },
     loadRooms: () => state.rooms,
@@ -711,6 +751,102 @@ test('POST /setup/matter/scan returns cached devices on error', async () => {
   assert.ok(response.jsonBody.warning);
   assert.match(response.jsonBody.warning, /Matter scan failed/);
   assert.equal(response.jsonBody.devices.length, 1);
+});
+
+// --- /matter/events transaction tests (task 8) ---
+
+test('POST /matter/events rejects batches over 1000 events before any DB work', async () => {
+  const connectCalls = [];
+  const { router } = makeRouter({
+    pool: {
+      async connect() {
+        connectCalls.push(true);
+        return { async query() {}, release() {} };
+      },
+    },
+    pairings: { '100': { protocol: 'matter', name: 'Bulb' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const events = Array.from({ length: 1001 }, (_, i) => ({
+    nodeId: '100', characteristic: 'OnOff', newValue: i % 2 === 0,
+  }));
+  const response = await invoke(handler, { body: { events } });
+
+  assert.equal(response.statusCode, 400);
+  assert.match(response.jsonBody.error, /too many events/i);
+  assert.equal(connectCalls.length, 0, 'pool.connect() must not be called before the cap check');
+});
+
+test('POST /matter/events wraps successful batch in BEGIN/COMMIT transaction', async () => {
+  const txQueries = [];
+  let released = false;
+  const { router } = makeRouter({
+    pool: {
+      async connect() {
+        return {
+          async query(sql) { txQueries.push(sql.trim()); },
+          release() { released = true; },
+        };
+      },
+    },
+    pairings: { '100': { protocol: 'matter', name: 'Sensor' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: {
+      events: [
+        { nodeId: '100', characteristic: 'OnOff', newValue: true },
+        { nodeId: '100', characteristic: 'OnOff', newValue: false },
+      ],
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.jsonBody.inserted, 2);
+  assert.equal(txQueries[0], 'BEGIN');
+  assert.equal(txQueries.at(-1), 'COMMIT');
+  assert.equal(released, true);
+});
+
+test('POST /matter/events triggers ROLLBACK and no COMMIT on insert failure', async () => {
+  const txQueries = [];
+  let released = false;
+  let insertCount = 0;
+  const { router } = makeRouter({
+    insertEvent: async () => {
+      insertCount += 1;
+      if (insertCount === 2) throw new Error('DB constraint violation');
+      return { id: insertCount, timestamp: new Date().toISOString() };
+    },
+    pool: {
+      async connect() {
+        return {
+          async query(sql) { txQueries.push(sql.trim()); },
+          release() { released = true; },
+        };
+      },
+    },
+    pairings: { '100': { protocol: 'matter', name: 'Sensor' } },
+  });
+  const handler = getRouteHandler(router, 'POST', '/matter/events');
+
+  const response = await invoke(handler, {
+    body: {
+      events: [
+        { nodeId: '100', characteristic: 'OnOff', newValue: true },
+        { nodeId: '100', characteristic: 'OnOff', newValue: false },
+        { nodeId: '100', characteristic: 'OnOff', newValue: true },
+      ],
+    },
+  });
+
+  assert.equal(response.statusCode, 500);
+  assert.ok(txQueries.includes('BEGIN'));
+  assert.ok(txQueries.includes('ROLLBACK'));
+  assert.equal(txQueries.includes('COMMIT'), false, 'COMMIT must not be issued on failure');
+  assert.equal(released, true);
 });
 
 // --- nodeId normalization tests ---
