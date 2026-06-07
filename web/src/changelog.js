@@ -11,13 +11,17 @@
 const CHANGELOG = [
   {
     version: 'v0.2.0',
-    title: 'Customizable dashboard — drag, resize, hide, and restore panels',
+    title: 'Customizable dashboard — drag, resize, hide, plus 12 new optional panels',
     items: [
       'The dashboard is now a customizable grid. Click "Customize" to enter edit mode, then drag any panel by its header to rearrange it, drag the bottom-right corner to resize it (width and height), or remove a panel with ✕.',
       'Removed panels go to a "Hidden panels" tray and can be added back any time. "Reset" restores the original layout with every panel.',
       'Your layout, panel sizes, and which panels are hidden are saved in your browser and persist across reloads. On phones the dashboard collapses to a single scrollable column.',
+      '12 new optional panels you can add from the tray: Week over Week, Day vs Night, Top Movers, Room Trends, Recent Episodes, Event Types, Device Health, Alerts Summary, Quiet Hours Score, Sensor Environment (latest temperature/humidity), Battery Levels, and Retention Health.',
       'Charts and the Live Activity feed now scale to fill their panel — resizing a panel taller grows the content area instead of leaving empty space below it.',
       'The Monthly Activity heatmap and Quiet Hours are now their own movable panels, so they can be repositioned, resized, or hidden like any other panel.',
+      'Cleaner pages: a consistent medium centered width across Devices, Alerts, and Timeline, the redundant white content boxes removed, and the Timeline filters moved into the page header.',
+      'The Quiet Hours gauge now follows your light/dark theme and skin correctly, and the pairing-health banner can be dismissed.',
+      'Security and dependency hardening across the listener and Docker images (webhook SSRF protection, redacted webhook URLs, and updated base images).',
     ],
   },
   {

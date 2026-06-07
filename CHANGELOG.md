@@ -2,7 +2,7 @@
 
 All notable changes to homechronicle are documented in this file.
 
-## [0.2.0] — 2026-05-30
+## [0.2.0] — 2026-06-07
 
 ### Added
 - **Customizable dashboard** — the dashboard is now a drag-and-drop grid you can arrange to taste. Click **Customize** to enter edit mode, then:
@@ -11,18 +11,38 @@ All notable changes to homechronicle are documented in this file.
   - **Remove** a panel with the ✕ button — hidden panels collect in a tray and can be added back at any time.
   - **Reset** restores the original layout and brings every panel back.
   Your layout, panel sizes, and hidden panels are saved in the browser (`localStorage`) and persist across reloads. On phones the grid collapses to a single scrollable column and resize is disabled.
+- **12 optional dashboard panels**, all off by default and addable from the Hidden-panels tray:
+  - *Activity & trends:* Week over Week, Day vs Night, Top Movers, Room Trends, Recent Episodes, Event Types.
+  - *Health & environment:* Device Health, Alerts Summary, Quiet Hours Score, Sensor Environment (latest temperature/humidity per device), Battery Levels, Retention Health.
 - The Monthly Activity heatmap is now its own independent panel (previously nested under the Weekly pattern), so it can be moved, resized, or removed on its own.
 - Quiet Hours is now a customizable dashboard panel too (previously a fixed banner), so it can be repositioned, resized, or hidden like any other panel.
 
 ### Changed
+- **Page width standardized** to a medium centered column across the Devices, Alerts, and Timeline pages, and the redundant white content boxes were removed — content now sits directly on the page background.
+- **Timeline filters moved into the page header** — the full-width white filter strip is gone; the toggles now sit directly under the page title.
 - The Daily Activity and Events-by-Hour charts, and the Live Activity feed, now scale to fill their panel — resizing a panel taller grows the content area instead of leaving empty space below it.
-- Dashboard controls regrouped: the date-range window (7d/30d/90d) and the chart Sync toggle now sit together on the left, with Customize on the right.
+- Dashboard controls regrouped: the date-range window (7d/30d/90d) and the chart Sync toggle now sit together on the left, with Customize on the right (Customize is icon-only when idle).
+- The Quiet Hours gauge is now driven by CSS variables, so it tracks light/dark mode and skins correctly instead of using fixed colors.
+- The pairing-health banner is now dismissable.
+
+### Fixed
+- Corrected the inverted Top Movers status color (up/down trends were shown in the wrong colors).
+- Saved oversize Week-over-Week layouts now clamp to a sane height on load.
+- The Live Activity feed and Quiet Hours panels now fill their grid cells when resized.
+
+### Security
+- Blocked an IPv6-mapped IPv4 literal SSRF bypass in webhook URL validation.
+- The webhook `target_url` is now redacted in the `GET /api/alerts/rules` listing.
+- The `/matter/events` bulk insert is capped and wrapped in a transaction; the `/api/alerts/deliveries` page parameter is bounded.
+- Docker hardening: lockfile-faithful `npm ci` in all build stages, nginx base image bumped (CVE-2026-42945), curl/dns tools dropped from the runtime images, and dependency overrides for the picomatch, path-to-regexp, and tmp advisories.
 
 ### Internal
+- Four new read-only stats endpoints back the Tier 2 panels (`sensor-environment`, `battery-levels`, `retention-health`, `characteristic-breakdown`) — no schema changes or migrations.
 - New web dependencies `react-grid-layout` + `react-resizable`, isolated into a dedicated `vendor-grid` bundle chunk (~19 kB gzipped). Verified to install and run cleanly under React 19 (react-grid-layout v2 passes `nodeRef` to react-draggable, so the React 19 `findDOMNode` removal does not break drag/resize).
 - New dashboard layout model: a serializable panel registry (`web/src/lib/dashboardPanels.js`) plus a `useDashboardLayout` hook that persists layout + visibility and makes `onLayoutChange` idempotent to avoid the react-grid-layout feedback loop. Panels are wrapped in a `forwardRef` container (required by react-grid-layout on React 19).
+- New `useStatusColors` hook reads theme CSS variables so Recharts SVG fills stay correct across theme toggles.
 - Added an in-memory `localStorage` polyfill to the web test setup (alongside the existing `ResizeObserver`/`matchMedia` shims).
-- New tests: `dashboardPanels.test.js`, `useDashboardLayout.test.js`, `DashboardPanel.test.jsx`. Web tests: 91 → 114.
+- New tests for the layout model, panel registry, and the new panels (web suite grown from 91 to 130+).
 
 ## [0.1.11] — 2026-05-28
 
