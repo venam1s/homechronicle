@@ -221,4 +221,4 @@ create-release:
       release-cli create \
         --name "$NAME" \
         --tag-name "$TAG" \
-        --description /tmp/release-notes.md
+        --description "$(cat /tmp/release-notes.md)"
