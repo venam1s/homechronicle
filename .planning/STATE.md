@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 Milestone: v1.3 Repair Reliability Fixes — ARCHIVED 2026-04-28 (shipped 2026-04-21)
 Active phase: none
 Status: Awaiting next milestone (use /gsd-new-milestone)
-Last activity: 2026-06-04 -- Completed quick task 260603-v3f: security & vulnerability remediation batch (8 fixes, 8 atomic commits)
+Last activity: 2026-06-08 -- Completed quick task 260608-dwu: rewrite release skill for the GitLab tag-push flow (local .claude tooling; also shipped v0.2.0 release)
 
 ```
 Progress: [██████████] 100% (2/2 phases)
@@ -69,6 +69,7 @@ None.
 | 260602-l4c | Add one-shot in-stack `db-sync` service to docker-compose.beta.yml: refreshes beta Postgres from a prod snapshot before the listener starts on each (re)created deploy. New POSIX-sh `docker/beta-db-sync.sh` (pg_dump prod READ-ONLY \| psql beta --clean, display-config copy, never pairings, SYNC_REQUIRED best-effort policy). Uses network_mode: host (prod pg is loopback-only, unreachable via bridge/host-gateway on Linux). listener depends_on db-sync service_completed_successfully. CRITICAL: deploy must recreate db-sync (restart:no one-shot) or refresh no-ops. Static-verified only (no host docker/prod DB from Mac) | 2026-06-02 | (l4c-01) | [260602-l4c-add-one-shot-in-stack-db-sync-service-to](./quick/260602-l4c-add-one-shot-in-stack-db-sync-service-to/) |
 | fast | Make beta-sync cron-robust: prepend known-good PATH in sync-beta-auto.sh + sync-prod-to-beta.sh (cron's minimal PATH couldn't find bare `docker`/`flock`/pg → container-wait timeout → silent abort); fall back from root-only /var/log to repo-local .beta-sync.log (gitignored) then $TMPDIR instead of /dev/null so unattended runs always leave evidence. bash -n + log-fallback runtime verified | 2026-06-02 | 805f86d | — |
 | 260602-g92 | Add 5 Tier 2 optional dashboard panels (off by default, OPTIONAL_PANEL_IDS 7→12): Sensor Environment, Battery Levels, Recent Episodes (client-side episodes.js), Retention Health, Event Types donut — backed by 4 new read-only /api/stats endpoints (sensor-environment with Matter cluster_id disambig + ÷100, battery-levels low-first, retention-health archive→null-on-error, characteristic-breakdown JS-side Other bucketing). CSS-driven .hc-cat-0..8 donut fills. No schema/migration changes | 2026-06-02 | (g92-01) | [260602-g92-tier-2-dashboard-panels-sensor-environme](./quick/260602-g92-tier-2-dashboard-panels-sensor-environme/) |
+| 260608-dwu | Rewrite stale `.claude/skills/release/SKILL.md` to document the ACTUAL GitLab release flow (tag push → `.gitlab-ci.yml` validate→multi-arch Docker Hub build→auto-create GitLab Release from the matching `## [VERSION]` CHANGELOG.md section) instead of the dead GitHub flow (`gh release create`, `GA_RELEASES_ENABLED`, `.github/workflows/docker.yml`). Kept step-by-step structure + Important cautions; documents updating BOTH CHANGELOG.md (= release notes verbatim) and web/src/changelog.js. Found while cutting v0.2.0. NOTE: `.claude/` is gitignored → local-tooling change, no repo commit | 2026-06-08 | — (local .claude tooling, gitignored) | [260608-dwu-rewrite-stale-release-skill-to-document-](./quick/260608-dwu-rewrite-stale-release-skill-to-document-/) |
 
 ## Session Continuity
 
