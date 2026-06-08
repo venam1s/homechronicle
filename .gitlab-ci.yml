@@ -3,6 +3,7 @@
 
 stages:
   - test
+  - deploy
   - prepare
   - build
   - release
@@ -222,3 +223,46 @@ create-release:
         --name "$NAME" \
         --tag-name "$TAG" \
         --description "$(cat /tmp/release-notes.md)"
+
+# ── Beta deploy (triggers Dockhand async sync on every push to main) ─────────
+# WHY THIS JOB EXISTS (and why it replaces the GitLab project push webhook):
+#
+# The old setup used a GitLab project push webhook pointing at
+# POST /api/git/stacks/10/webhook — a BLOCKING endpoint that rebuilds the beta
+# stack from source (docker-compose.beta.yml runs `docker buildx build` on every
+# deploy, which can take several minutes). GitLab.com has a hard, non-configurable
+# 10-second read timeout on webhook responses. The blocking endpoint can never
+# respond in time → every push to main raised Net::ReadTimeout → after enough
+# consecutive failures GitLab auto-disables the webhook → silent loss of
+# beta auto-deploy.
+#
+# This job uses the ASYNC /sync endpoint instead. /sync accepts the request and
+# returns 2xx immediately, then builds in the background. The approach mirrors
+# scripts/deploy-beta.sh, which already uses /sync successfully. The only
+# difference is this job is driven by GitLab CI (no polling / DB refresh step),
+# so the job finishes the moment /sync is accepted.
+#
+# PREREQUISITES (non-functional until both are done — see SUMMARY.md):
+#   1. Add DOCKHAND_TOKEN as a masked + protected CI/CD variable in GitLab
+#      project Settings → CI/CD → Variables.
+#   2. Delete or disable the old push webhook targeting /api/git/stacks/10/webhook
+#      so it stops firing and isn't auto-disabled by GitLab from repeated failures.
+deploy-beta:
+  stage: deploy
+  # curlimages/curl has ENTRYPOINT ["curl"] by default — without the override
+  # below, GitLab's injected shell script (which runs the `script:` block) would
+  # be interpreted as curl arguments and the job would fail before any commands
+  # run. This is a known GitLab gotcha for non-shell-entrypoint images; the
+  # entrypoint: [""] override is a no-op when the runner already overrides
+  # entrypoints and required when it doesn't.
+  image:
+    name: curlimages/curl:latest
+    entrypoint: [""]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  needs: [test]
+  script:
+    - |
+      [ -n "$DOCKHAND_TOKEN" ] || { echo "DOCKHAND_TOKEN not set — add it as a masked, protected CI/CD variable in GitLab project settings"; exit 1; }
+      curl -fsS -X POST -H "Authorization: Bearer $DOCKHAND_TOKEN" https://dh.venamis.net/api/git/stacks/10/sync
+      echo "Triggered Dockhand async sync for beta stack 10"
