@@ -42,10 +42,18 @@ test('readFQDN throws on self-referential compression pointer (no hang)', async 
   const worker = new Worker(workerSrc, { eval: true });
 
   const result = await new Promise((resolve) => {
+    // This deadline exists ONLY to bound a genuine pre-patch infinite loop: the
+    // patched guard throws in microseconds (128-iteration budget), so the
+    // passing case resolves immediately on the worker's message and never waits
+    // for this timer. The wall-clock cost here is cold worker_threads spawn +
+    // dynamic ESM import of dnssd, which on a loaded CI runner can exceed a
+    // second — so keep this generous (15s) to avoid a false 'hung' verdict on
+    // slow startup. A truly broken guard posts no message → timer fires →
+    // outcome:'hung' → the assertion below still fails. Do not lower this.
     const timer = setTimeout(() => {
       worker.terminate();
       resolve({ outcome: 'hung' });
-    }, 1000);
+    }, 15000);
     worker.on('message', (m) => {
       clearTimeout(timer);
       worker.terminate();
