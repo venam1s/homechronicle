@@ -167,3 +167,54 @@ export function createAuthPublicRouter({
 
   return router;
 }
+
+/**
+ * createAuthProtectedRouter — mounts AFTER the auth gate (req.hcSession populated).
+ *
+ * Routes:
+ *   GET    /me      — AUTH-03: returns the authenticated user from the session
+ *   DELETE /logout  — AUTH-03: revokes the server-side session + clears the hc_session cookie
+ *
+ * @param {object} deps
+ * @param {import('pg').Pool} deps.pool
+ */
+export function createAuthProtectedRouter({ pool }) {
+  const router = express.Router();
+
+  // -- GET /me — AUTH-03: return authenticated user --
+  router.get('/me', async (req, res) => {
+    try {
+      const session = req.hcSession;
+      const user = {
+        id: session.user_id,
+        role: session.role,
+      };
+      // Include email if the gate populated it on the session object
+      if (session.email !== undefined) {
+        user.email = session.email;
+      }
+      res.json({ user });
+    } catch (err) {
+      log.error('[api] /api/auth/me error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // -- DELETE /logout — AUTH-03: destroy session server-side + clear cookie --
+  router.delete('/logout', async (req, res) => {
+    try {
+      const raw = req.cookies?.hc_session;
+      if (raw) {
+        await revokeSession(pool, hashToken(raw));
+      }
+      // Clear the cookie by setting Max-Age=0 (same name + path as issuance in createAuthPublicRouter)
+      res.clearCookie('hc_session', { httpOnly: true, sameSite: 'lax', path: '/' });
+      res.json({ ok: true });
+    } catch (err) {
+      log.error('[api] /api/auth/logout error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  return router;
+}
