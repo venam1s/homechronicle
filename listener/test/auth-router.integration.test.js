@@ -1,10 +1,12 @@
 /**
  * auth-router.integration.test.js
- * Integration tests for createAuthPublicRouter:
+ * Integration tests for createAuthPublicRouter and createAuthProtectedRouter:
  *   GET  /csrf-token   — public, no session required (SEC-02)
  *   GET  /user-count   — public probe (Plan 05 cross-plan contract)
  *   POST /login        — AUTH-02, AUTH-06, SEC-01, SEC-04
  *   POST /claim-admin  — AUTH-01, P10 atomic bootstrap
+ *   GET  /me           — AUTH-03, returns session user
+ *   DELETE /logout     — AUTH-03, revokes server-side session + clears cookie
  */
 
 import test from 'node:test';
@@ -12,8 +14,8 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import supertest from 'supertest';
-import { hashPassword } from '../src/security.js';
-import { createAuthPublicRouter } from '../src/auth-router.js';
+import { hashPassword, hashToken, generateToken } from '../src/security.js';
+import { createAuthPublicRouter, createAuthProtectedRouter } from '../src/auth-router.js';
 
 // -- Helpers --
 
@@ -116,6 +118,35 @@ function createMockPool() {
         const idx = sessions.findIndex((s) => s.token_hash === tokenHash);
         if (idx !== -1) sessions.splice(idx, 1);
         return { rowCount: before - sessions.length };
+      }
+
+      // validateSession (UPDATE sessions SET last_seen_at ... WHERE token_hash = $1 AND expires_at > NOW())
+      if (s.includes('UPDATE sessions SET last_seen_at') && s.includes('WHERE token_hash')) {
+        const [tokenHash] = params;
+        const now = new Date();
+        const session = sessions.find(
+          (s) => s.token_hash === tokenHash && new Date(s.expires_at) > now,
+        ) ?? null;
+        if (!session) return { rows: [] };
+        const user = users.find((u) => u.id === session.user_id) ?? null;
+        if (!user) return { rows: [] };
+        return {
+          rows: [{
+            id: session.id,
+            user_id: session.user_id,
+            csrf_token: session.csrf_token,
+            expires_at: session.expires_at,
+            role: user.role,
+          }],
+        };
+      }
+
+      // updateSessionCsrfToken (UPDATE sessions SET csrf_token WHERE id = $2)
+      if (s.includes('UPDATE sessions SET csrf_token')) {
+        const [csrfToken, sessionId] = params;
+        const session = sessions.find((s) => s.id === sessionId);
+        if (session) session.csrf_token = csrfToken;
+        return { rowCount: session ? 1 : 0 };
       }
 
       throw new Error(`Unexpected SQL: ${sql}`);
@@ -377,4 +408,106 @@ test('POST /api/auth/claim-admin concurrent calls on empty table create exactly 
   assert.equal(pool.users.length, 1, 'only one admin must exist after concurrent claims');
   assert.equal(pool.users[0].role, 'admin', 'the created user must have role admin');
   void statuses;
+});
+
+// -- Task 2 (TDD): createAuthProtectedRouter — GET /me, DELETE /logout --
+
+/**
+ * Build a minimal test app with the protected router mounted after a stub gate
+ * middleware that attaches req.hcSession (simulating what Plan 09's gate does).
+ */
+function buildProtectedApp({ pool, hcSession } = {}) {
+  const app = express();
+  app.use(express.json());
+  app.use(cookieParser());
+  // Stub gate: sets req.hcSession from the provided fixture
+  app.use((req, _res, next) => {
+    req.hcSession = hcSession ?? null;
+    next();
+  });
+  app.use('/api/auth', createAuthProtectedRouter({ pool }));
+  return app;
+}
+
+test('GET /api/auth/me returns 200 with { user: { id, role } } from req.hcSession (AUTH-03)', async () => {
+  const pool = createMockPool();
+  const hcSession = { id: 42, user_id: 7, role: 'admin', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  const res = await supertest(app).get('/api/auth/me');
+  assert.equal(res.status, 200);
+  assert.ok(res.body.user, 'response must include user');
+  assert.equal(res.body.user.id, 7, 'user.id must match hcSession.user_id');
+  assert.equal(res.body.user.role, 'admin', 'user.role must match hcSession.role');
+});
+
+test('GET /api/auth/me includes email when present in hcSession', async () => {
+  const pool = createMockPool();
+  const hcSession = { id: 1, user_id: 2, role: 'member', email: 'user@test.com', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  const res = await supertest(app).get('/api/auth/me');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.user.email, 'user@test.com');
+});
+
+test('DELETE /api/auth/logout returns 200 { ok: true } and clears hc_session cookie (AUTH-03)', async () => {
+  const pool = createMockPool();
+  // Create a real session row in the mock pool for logout to revoke
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  pool.sessions.push({ id: 1, user_id: 1, token_hash: tokenHash, csrf_token: null, expires_at: expiresAt });
+
+  const hcSession = { id: 1, user_id: 1, role: 'member', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  const res = await supertest(app)
+    .delete('/api/auth/logout')
+    .set('Cookie', `hc_session=${rawToken}`);
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { ok: true });
+
+  // Cookie must be cleared (Set-Cookie with Max-Age=0 or expired date or empty value)
+  const setCookie = res.headers['set-cookie'];
+  assert.ok(setCookie, 'Set-Cookie header must be present after logout');
+  const cookieStr = Array.isArray(setCookie) ? setCookie.join('; ') : setCookie;
+  assert.ok(
+    /hc_session=;|hc_session=(%20)?;|max-age=0/i.test(cookieStr),
+    `hc_session cookie must be cleared (Max-Age=0 or empty), got: ${cookieStr}`,
+  );
+});
+
+test('DELETE /api/auth/logout destroys the server-side session (AUTH-03 — revokeSession called)', async () => {
+  const pool = createMockPool();
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  pool.sessions.push({ id: 1, user_id: 1, token_hash: tokenHash, csrf_token: null, expires_at: expiresAt });
+  pool.users.push({ id: 1, email: 'u@test.com', password_hash: 'x', role: 'member' });
+
+  const hcSession = { id: 1, user_id: 1, role: 'member', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  // Before logout: session exists
+  assert.equal(pool.sessions.length, 1, 'session must exist before logout');
+
+  await supertest(app)
+    .delete('/api/auth/logout')
+    .set('Cookie', `hc_session=${rawToken}`);
+
+  // After logout: session row must be gone (revokeSession deleted it)
+  assert.equal(pool.sessions.length, 0, 'session must be gone after logout (server-side destruction AUTH-03)');
+});
+
+test('DELETE /api/auth/logout with no hc_session cookie still returns 200 { ok: true }', async () => {
+  const pool = createMockPool();
+  const hcSession = { id: 1, user_id: 1, role: 'member', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  // No cookie — should succeed gracefully (nothing to revoke)
+  const res = await supertest(app).delete('/api/auth/logout');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { ok: true });
 });
