@@ -1,9 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { scrypt, randomBytes as cryptoRandomBytes } from 'node:crypto';
+import { promisify } from 'node:util';
 import {
   resolveAndValidateWebhookTarget,
   secureTokenEquals,
   validateWebhookTargetUrl,
+  hashPassword,
+  verifyPassword,
+  hashToken,
+  generateToken,
 } from '../src/security.js';
 
 test('secureTokenEquals uses exact token match semantics', () => {
@@ -87,4 +93,41 @@ test('resolveAndValidateWebhookTarget blocks DNS targets resolving to loopback/p
     lookup: async () => [{ address: '93.184.216.34' }],
   });
   assert.equal(resolvedPublic.ok, true);
+});
+
+// -- hashPassword / verifyPassword --
+
+test('hashPassword produces an argon2id hash (starts with $argon2id$)', async () => {
+  const hash = await hashPassword('correct horse');
+  assert.ok(typeof hash === 'string', 'hash must be a string');
+  assert.ok(hash.startsWith('$argon2id$'), `expected $argon2id$ prefix, got: ${hash.slice(0, 20)}`);
+});
+
+test('hashPassword never produces a scrypt-prefixed hash', async () => {
+  const hash = await hashPassword('battery staple');
+  assert.ok(!hash.startsWith('scrypt:'), 'hashPassword must NOT emit a scrypt: string');
+});
+
+test('verifyPassword returns true for matching argon2id hash', async () => {
+  const pw = 'correct horse battery staple';
+  const hash = await hashPassword(pw);
+  assert.equal(await verifyPassword(hash, pw), true);
+});
+
+test('verifyPassword returns false for wrong password against argon2id hash', async () => {
+  const hash = await hashPassword('correct horse');
+  assert.equal(await verifyPassword(hash, 'wrong password'), false);
+});
+
+test('verifyPassword handles legacy scrypt fallback (scrypt:<saltHex>:<hashHex>)', async () => {
+  // Build a legacy scrypt hash inline to exercise the fallback branch
+  const scryptAsync = promisify(scrypt);
+
+  const password = 'legacy-user-password';
+  const salt = cryptoRandomBytes(16);
+  const derived = await scryptAsync(password, salt, 64);
+  const legacyHash = `scrypt:${salt.toString('hex')}:${derived.toString('hex')}`;
+
+  assert.equal(await verifyPassword(legacyHash, password), true, 'correct password must verify against legacy hash');
+  assert.equal(await verifyPassword(legacyHash, 'wrong'), false, 'wrong password must not verify against legacy hash');
 });

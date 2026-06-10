@@ -1,6 +1,15 @@
-import { timingSafeEqual, createHmac } from 'crypto';
+import { timingSafeEqual, createHmac, randomBytes, createHash, scrypt } from 'crypto';
+import { promisify } from 'util';
+import argon2 from 'argon2';
 import { lookup as dnsLookup } from 'dns/promises';
 import { isIP } from 'net';
+
+// -- Crypto constants (AUTH-05/D-11) --
+const ARGON2_MEMORY_COST = parseInt(process.env.ARGON2_MEMORY_COST ?? '19456', 10);
+const ARGON2_TIME_COST = parseInt(process.env.ARGON2_TIME_COST ?? '2', 10);
+const ARGON2_PARALLELISM = 1;
+
+const scryptAsync = promisify(scrypt);
 
 function ipv4ToInt(ip) {
   const parts = ip.split('.').map((part) => Number.parseInt(part, 10));
@@ -132,6 +141,64 @@ export function validateWebhookTargetUrl(rawUrl, { allowPrivateTargets = true } 
   }
 
   return { ok: true, normalizedUrl: parsed.toString() };
+}
+
+// -- Password and token crypto helpers (AUTH-05/D-11/D-12) --
+
+/**
+ * Hash a plaintext password using argon2id (OWASP first choice, memory-hard).
+ * Params tuned for RPi (memoryCost:19456, timeCost:2, parallelism:1).
+ * Override via ARGON2_MEMORY_COST / ARGON2_TIME_COST env vars.
+ * @param {string} password - Plaintext password to hash.
+ * @returns {Promise<string>} argon2id hash string (always starts with $argon2id$).
+ */
+export async function hashPassword(password) {
+  return argon2.hash(password, {
+    type: argon2.argon2id,
+    memoryCost: ARGON2_MEMORY_COST,
+    timeCost: ARGON2_TIME_COST,
+    parallelism: ARGON2_PARALLELISM,
+  });
+}
+
+/**
+ * Verify a password against a stored hash.
+ * Supports argon2id hashes (primary) and legacy scrypt hashes (fallback).
+ * Legacy format: "scrypt:<saltHex>:<derivedHex>" (64-byte output, timingSafeEqual comparison).
+ * @param {string} hash - Stored hash string.
+ * @param {string} password - Plaintext password to verify.
+ * @returns {Promise<boolean>} true if password matches, false otherwise.
+ */
+export async function verifyPassword(hash, password) {
+  if (hash.startsWith('$argon2')) {
+    return argon2.verify(hash, password);
+  }
+  // Legacy scrypt fallback: "scrypt:<saltHex>:<derivedHex>"
+  const parts = hash.split(':');
+  if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
+  const saltBuffer = Buffer.from(parts[1], 'hex');
+  const storedHash = Buffer.from(parts[2], 'hex');
+  const derived = await scryptAsync(password, saltBuffer, storedHash.length);
+  return timingSafeEqual(derived, storedHash);
+}
+
+/**
+ * Hash a raw session token for at-rest storage (D-12).
+ * The raw token travels in the cookie; only the SHA-256 digest is stored in the DB.
+ * @param {string} rawToken - Raw token hex string.
+ * @returns {string} 64-char SHA-256 hex digest.
+ */
+export function hashToken(rawToken) {
+  return createHash('sha256').update(rawToken).digest('hex');
+}
+
+/**
+ * Generate a cryptographically random token using crypto.randomBytes (D-12, 256 bits of entropy).
+ * @param {number} byteLength - Number of random bytes (default 32 = 256 bits).
+ * @returns {string} Lowercase hex string of length byteLength * 2.
+ */
+export function generateToken(byteLength = 32) {
+  return randomBytes(byteLength).toString('hex');
 }
 
 export async function resolveAndValidateWebhookTarget(rawUrl, {
