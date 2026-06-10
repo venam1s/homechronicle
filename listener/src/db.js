@@ -208,3 +208,120 @@ export async function runAlertDeliveriesRetentionSweep({ retentionDays }) {
 }
 
 export { pool };
+
+// -- User CRUD (pool-first positional arg for testability) --
+
+/**
+ * Return total count of users.
+ * @param {pg.Pool} pool
+ * @returns {Promise<number>}
+ */
+export async function getUserCount(pool) {
+  const result = await pool.query('SELECT COUNT(*) AS n FROM users');
+  return parseInt(result.rows[0].n, 10);
+}
+
+/**
+ * Insert a new user.
+ * Email is lowercased and trimmed before insert.
+ * @param {pg.Pool} pool
+ * @param {{ email: string, passwordHash: string, role?: string }} params
+ * @returns {Promise<{id: bigint, email: string, role: string}>}
+ */
+export async function createUser(pool, { email, passwordHash, role = 'member' }) {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const result = await pool.query(
+    `INSERT INTO users (email, password_hash, role)
+     VALUES ($1, $2, $3)
+     RETURNING id, email, role`,
+    [normalizedEmail, passwordHash, role],
+  );
+  return result.rows[0];
+}
+
+/**
+ * Find a user by email (case-insensitive).
+ * @param {pg.Pool} pool
+ * @param {string} email
+ * @returns {Promise<{id: bigint, email: string, password_hash: string, role: string}|null>}
+ */
+export async function findUserByEmail(pool, email) {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const result = await pool.query(
+    `SELECT id, email, password_hash, role FROM users WHERE email = $1`,
+    [normalizedEmail],
+  );
+  return result.rows[0] ?? null;
+}
+
+// -- Session CRUD (pool-first positional arg for testability) --
+
+/**
+ * Create a new session row.
+ * The tokenHash must be the SHA-256 hex digest of the raw session token (D-12).
+ * @param {pg.Pool} pool
+ * @param {{ userId: bigint|number, tokenHash: string, expiresAt: Date }} params
+ * @returns {Promise<{id: bigint, user_id: bigint, csrf_token: string|null, expires_at: Date}>}
+ */
+export async function createSession(pool, { userId, tokenHash, expiresAt }) {
+  const result = await pool.query(
+    `INSERT INTO sessions (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)
+     RETURNING id, user_id, csrf_token, expires_at`,
+    [userId, tokenHash, expiresAt],
+  );
+  return result.rows[0];
+}
+
+/**
+ * Validate a session by its token hash.
+ * Updates last_seen_at; only matches non-expired sessions.
+ * Returns session row with user role attached, or null if not found / expired (AUTH-04).
+ * @param {pg.Pool} pool
+ * @param {string} tokenHash - SHA-256 hex of the raw token
+ * @returns {Promise<{id: bigint, user_id: bigint, csrf_token: string|null, expires_at: Date, role: string}|null>}
+ */
+export async function validateSession(pool, tokenHash) {
+  const result = await pool.query(
+    `UPDATE sessions
+     SET last_seen_at = NOW()
+     WHERE token_hash = $1 AND expires_at > NOW()
+     RETURNING id, user_id, csrf_token, expires_at`,
+    [tokenHash],
+  );
+  if (result.rows.length === 0) return null;
+  const session = result.rows[0];
+  const userResult = await pool.query(
+    `SELECT role FROM users WHERE id = $1`,
+    [session.user_id],
+  );
+  if (userResult.rows.length === 0) return null;
+  return { ...session, role: userResult.rows[0].role };
+}
+
+/**
+ * Revoke (delete) a session by its token hash.
+ * @param {pg.Pool} pool
+ * @param {string} tokenHash
+ * @returns {Promise<void>}
+ */
+export async function revokeSession(pool, tokenHash) {
+  await pool.query(
+    `DELETE FROM sessions WHERE token_hash = $1`,
+    [tokenHash],
+  );
+}
+
+/**
+ * Update the CSRF token stored on a session row.
+ * @param {pg.Pool} pool
+ * @param {bigint|number} sessionId
+ * @param {string} csrfToken
+ * @returns {Promise<void>}
+ */
+export async function updateSessionCsrfToken(pool, sessionId, csrfToken) {
+  await pool.query(
+    `UPDATE sessions SET csrf_token = $1 WHERE id = $2`,
+    [csrfToken, sessionId],
+  );
+}
