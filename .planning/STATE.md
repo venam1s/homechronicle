@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Repair Reliability Fixes
-status: completed
-stopped_at: "Completed quick task 260528-0it: dnssd readFQDN cycle guard (v0.1.11)"
-last_updated: "2026-05-28T04:35:00Z"
-last_activity: 2026-05-28 -- Patched dnssd@0.4.1 readFQDN against compression-pointer cycle; v0.1.11 ready
+milestone: v1.4
+milestone_name: Multi-User Auth & Email
+status: planning
+last_updated: "2026-06-09T00:00:00.000Z"
+last_activity: 2026-06-09
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,18 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** v1.3 closed — planning next milestone
+**Current focus:** v1.4 Multi-User Auth & Email — roadmap defined, ready to plan Phase 20
 
 ## Current Position
 
-Milestone: v1.3 Repair Reliability Fixes — ARCHIVED 2026-04-28 (shipped 2026-04-21)
-Active phase: none
-Status: Awaiting next milestone (use /gsd-new-milestone)
-Last activity: 2026-06-08 -- Completed quick task 260608-fnr: replace blocking GitLab beta-deploy webhook (Net::ReadTimeout) with a deploy-beta CI job that triggers Dockhand's async /sync; needs 2 manual GitLab steps (add DOCKHAND_TOKEN var, delete old webhook)
-
-```
-Progress: [██████████] 100% (2/2 phases)
-```
+Phase: Phase 20 — Auth Foundation (not started)
+Plan: —
+Status: Roadmap defined
+Last activity: 2026-06-09 — v1.4 roadmap created (Phases 20-23)
 
 ## Accumulated Context
 
@@ -46,7 +41,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-None — milestone complete.
+None — roadmap created, proceed to `/gsd:plan-phase 20`.
 
 ### Blockers/Concerns
 
@@ -76,7 +71,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-28T01:28:28Z
-Stopped at: Completed quick task 260427-ttq: lastHealthyAt heartbeat fix
+Last session: 2026-06-09
+Stopped at: v1.4 roadmap created (Phases 20-23)
 Resume file: None
 ---

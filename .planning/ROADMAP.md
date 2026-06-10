@@ -6,6 +6,7 @@
 - ✅ **v1.1 Scheduled Repair** — Phases 8-9 (shipped 2026-04-08)
 - ✅ **v1.2 UI Redesign** — Phases 10-17 (shipped 2026-04-16)
 - ✅ **v1.3 Repair Reliability Fixes** — Phases 18-19 (shipped 2026-04-21)
+- 🔲 **v1.4 Multi-User Auth & Email** — Phases 20-23 (active)
 
 ## Phases
 
@@ -60,6 +61,64 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 
 </details>
 
+### v1.4 Multi-User Auth & Email
+
+- [ ] **Phase 20: Auth Foundation** — Users, sessions, token-OR-session gate, first-admin bootstrap, CSRF protection, LoginPage + AuthGate
+- [ ] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI
+- [ ] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI
+- [ ] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal
+
+## Phase Details
+
+### Phase 20: Auth Foundation
+**Goal**: Users can securely create accounts, log in with session cookies, and reach the existing app; the API_TOKEN service-token path remains fully operational in parallel
+**Depends on**: Nothing (first phase of v1.4)
+**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AUTH-08, SEC-01, SEC-02, SEC-03, SEC-04
+**Success Criteria** (what must be TRUE):
+  1. A first-run admin can claim an account via POST /api/auth/claim-admin; the endpoint self-disables once any user exists
+  2. A user can log in with email and password and receive an HttpOnly session cookie that persists across browser refreshes
+  3. A user can log out, destroying the server-side session so subsequent requests return 401
+  4. A plain-HTTP self-hosted deployment (e.g., RPi on http://nas.local) can log in without cookie lockout because SESSION_COOKIE_SECURE=false is respected
+  5. All mutating endpoints are CSRF-protected; the React frontend fetches a CSRF token after login and includes it on mutations; pre-auth routes (login, claim-admin) are exempt
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 21: Email Infrastructure + Invites + Password Reset
+**Goal**: Admins can invite new users by email; invited users can accept and set a password; users can reset forgotten passwords; SMTP infrastructure is operational with graceful degradation when unconfigured
+**Depends on**: Phase 20
+**Requirements**: USER-01, USER-02, USER-03, USER-04, USER-05, USER-06, USER-07, PWD-01, PWD-02, PWD-03, PWD-04, EMAIL-01, EMAIL-02, EMAIL-03, EMAIL-04
+**Success Criteria** (what must be TRUE):
+  1. An admin can generate an invite link (shown as copyable even without SMTP); when SMTP is configured the invite is also emailed to the recipient
+  2. An invited user can accept the link, set a password meeting strength requirements, and land in the app — this single step also verifies their email address
+  3. A user who forgets their password can request a reset; the system returns an identical response for known and unknown emails (no account enumeration); the single-use reset link expires after 1 hour
+  4. Admin can view all users with role and status, revoke pending invites, and disable or remove a user (revoking their active sessions immediately)
+  5. SMTP credentials are never returned by any settings API endpoint; when SMTP is unconfigured the app continues to function with copyable-link fallback for invites and a clear error for password reset
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 22: Email Alert Channel
+**Goal**: Alert rules can deliver notifications by email through the same quiet-period suppression path as webhooks; the Alerts UI lets users configure email-channel rules
+**Depends on**: Phase 21
+**Requirements**: ALERT-01, ALERT-02, ALERT-03, ALERT-04
+**Success Criteria** (what must be TRUE):
+  1. An admin can create an alert rule with channel = email and a recipient address; the address is validated at rule-creation time
+  2. When a matching device event fires, an email alert is delivered to the configured recipient and logged in alert_deliveries
+  3. Email alerts are suppressed by the same quiet-period logic as webhooks — a rapid-fire sequence of events produces at most one delivery per quiet period
+  4. Existing webhook-channel alert rules continue to work without modification after the schema migration
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 23: Security Hardening + Nginx Cutover
+**Goal**: Browser authentication transitions to session-only; nginx no longer injects X-API-Token; users can view and revoke active sessions; expired sessions and tokens are swept periodically
+**Depends on**: Phase 22
+**Requirements**: SEC-05, SEC-06, SEC-07
+**Success Criteria** (what must be TRUE):
+  1. A user can view all their active sessions in Settings and revoke any of them ("log out other devices"); revoking a session invalidates it immediately
+  2. Expired sessions and used or expired invite/reset tokens are deleted automatically (on startup and periodically), keeping the database clean without manual intervention
+  3. After nginx X-API-Token injection is removed, browser users authenticate via session cookie only; API_TOKEN continues to work for direct API callers (scripts, Home Assistant) via x-api-token header
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -69,6 +128,10 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 10-17 | v1.2 | 25/25 | Complete | 2026-04-16 |
 | 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
 | 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
+| 20 | v1.4 | 0/? | Not started | - |
+| 21 | v1.4 | 0/? | Not started | - |
+| 22 | v1.4 | 0/? | Not started | - |
+| 23 | v1.4 | 0/? | Not started | - |
 
 ## Candidates / Backlog
 

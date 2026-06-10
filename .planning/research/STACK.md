@@ -1,8 +1,8 @@
-# Stack Research — UI Redesign (v1.2)
+# Stack Research — Multi-User Auth & Email (v1.4)
 
-**Domain:** React SPA UI overhaul (charts, sidebar nav, theming, dashboard layout)
-**Researched:** 2026-04-14
-**Confidence:** HIGH for charting and theming (verified official sources); MEDIUM for sidebar (shadcn copy-paste pattern, Vite-specific state persistence needs validation)
+**Domain:** Session-based multi-user auth (invite-only), email SMTP, frontend auth gate
+**Researched:** 2026-06-09
+**Confidence:** HIGH for session/hashing/email (npm-verified versions, official docs); MEDIUM for CSRF mitigation (same-origin argument depends on deployment topology; verified pattern, not tested against this specific nginx config)
 
 ---
 
@@ -10,300 +10,199 @@
 
 | Technology | Version | Role |
 |------------|---------|------|
-| React | 19.2.x | UI framework |
+| Node.js | 22 | Listener runtime |
+| Express | 5.2.x | REST API |
+| PostgreSQL | 16 | Database |
+| node-pg-migrate | 8.0.x | Schema migrations |
+| pg | 8.20.x | Connection pooling |
+| express-rate-limit | 8.3.x | Rate limiting |
+| React | 19.2.x | Web UI |
 | Vite | 8.x | Dev server + bundler |
 | Tailwind CSS | 4.2.x | Utility CSS |
 | TanStack Query | 5.51.x | Data fetching |
-| Lucide React | 0.408.x | Icons |
-| Recharts | 2.12.x | Charts (current, needs upgrade) |
 
 ---
 
 ## New Capabilities Required
 
-Three distinct areas need new or upgraded packages: charting, sidebar navigation, and theming. The backend is untouched.
+Four distinct areas need new packages: password hashing, session management, email, and frontend routing. The existing token auth model (`API_TOKEN` + nginx `proxy_set_header`) is replaced by server-side sessions.
 
 ---
 
-## Domain 1: Charting Library
+## Domain 1: Password Hashing
 
-### Recommendation: Upgrade Recharts 2.x → 3.x. Do NOT switch libraries.
+### Recommendation: argon2 ^0.44.0 (argon2id variant)
 
-**Version:** recharts ^3.8.1 (latest as of April 2026; was 2.12.7 in project)
-**Install:** `npm install recharts@^3`
+**Install (listener/):** `npm install argon2`
 
-#### Why stay with Recharts
+#### Why argon2id over bcrypt
 
-The case for switching is weaker than it appears. Recharts v3 now delivers gradient fills, smooth curves (`type="natural"` via D3 curve interpolation), CSS variable colors for dark mode, SVG drop shadows, and tooltip customization. The shadcn/ui chart component — the de facto standard for Tailwind-based dashboards in 2026 — is built on Recharts v3 and provides pre-styled, copy-paste chart components.
+argon2id is the current OWASP and NIST first-choice for new applications. It is memory-hard (resistant to GPU/ASIC attacks), handles passwords of arbitrary length (bcrypt silently truncates at 72 bytes — a real footgun for users with long passphrases), and has been the PHC competition winner since 2015.
 
-Recharts is already in the project. Switching to ApexCharts or Nivo would add ~130KB+ to the bundle while introducing new APIs that don't integrate with shadcn/ui's chart layer.
+The native-build concern that makes argon2 awkward in serverless deployments is not a concern here. The listener Dockerfile `build` stage already installs `python3 make g++` for hap-controller's native addons. argon2 ^0.44.0 ships **prebuilt binaries for Alpine ARM64, Alpine x86-64, Ubuntu ARM64, and Ubuntu x86-64** — the exact combinations used in HomeChronicle's amd64/arm64 multi-arch Docker builds. No source compilation needed at image build time if a matching prebuilt exists; the existing toolchain is a fallback.
 
-**Confidence:** HIGH — verified against recharts GitHub releases (3.8.1 published April 2026), shadcn/ui chart docs (explicitly states "Chart component now uses Recharts v3"), bundlephobia references.
+OWASP recommended minimum parameters: `memoryCost: 19456` (19 MiB), `timeCost: 2`, `parallelism: 1`. Use `argon2.argon2id` as the variant.
 
-#### Charting library comparison
+**Verified:** argon2 0.44.0 on npm (2026-06-09). Prebuilt binaries for Alpine ARM64 from v0.28.2, ARMv7 from v0.43.0, Alpine x86-64 from v0.28.1.
 
-| Criterion | Recharts v3 | ApexCharts v4 | Nivo | Chart.js |
-|-----------|-------------|---------------|------|----------|
-| React 19 support | YES (3.x series) | YES (react-apexcharts 2.1.0) | YES (issue #2618 closed) | YES (via react-chartjs-2) |
-| Bundle size (gzip) | ~130KB incl. D3 | ~131KB (apexcharts alone) | ~150KB+ | ~60KB (canvas-only) |
-| Rendering | SVG | SVG | SVG / Canvas / HTML | Canvas |
-| Gradient fills | YES (SVG linearGradient) | YES (built-in) | YES | YES |
-| Smooth curves | YES (D3 curve types) | YES | YES | YES |
-| CSS variable theming | YES (fill="url()" + CSS vars) | Partial (JS config) | Partial | NO |
-| shadcn/ui integration | NATIVE (built on Recharts) | NO | NO | NO |
-| Tree-shaking | YES (D3 submodules) | YES (v5.10.1+ /core export) | NO (monolithic) | YES |
-| Already in project | YES | NO | NO | NO |
+#### Why not bcrypt / bcryptjs
 
-**Why not ApexCharts:** Bundle size is equivalent to Recharts but adds a second charting dependency. react-apexcharts v2.1.0 is maintained (published March 2026) but React 19 peer dependency compatibility was not explicitly confirmed in official documentation. Theming uses a JS config object rather than CSS variables, which fights the Tailwind v4 CSS-variable approach.
+- `bcrypt`: native addon but 72-byte password truncation is a silent footgun. Lower resistance to GPU attacks due to lack of memory hardness. No meaningful advantage for this use case.
+- `bcryptjs`: pure JavaScript, no native build. Acceptable if native builds were prohibited. But builds are already enabled, so there is no reason to accept bcryptjs's slower performance and weaker security profile.
+- `crypto.scrypt` (Node.js built-in): zero new dependency, OWASP-acceptable. Reasonable fallback if argon2 causes Docker build problems on an obscure target architecture. argon2's prebuilt coverage makes this fallback unlikely to be needed, but it exists.
 
-**Why not Nivo:** React 19 support was added (issue #2618 resolved) but required `--legacy-peer-deps` historically. Larger bundle. No shadcn/ui integration. Multiple render modes (SVG/Canvas/HTML) add complexity without clear benefit for this use case.
+#### Why not JWT
 
-**Why not Chart.js:** Canvas-based. Smallest bundle at ~60KB but CSS variable theming is not native and dark mode integration is manual. Better for very large datasets (10K+ data points) — not a concern for HomeChronicle's device event volumes.
-
-#### Recharts v3 upgrade notes
-
-The project currently uses `recharts: ^2.12.7`. v3 has breaking changes: chart composition API is the same but some prop names changed. The `react-is` package may need a version override to match React 19.
-
-```bash
-# web/package.json overrides block (if react-is conflict occurs)
-"overrides": {
-  "react-is": "^19.0.0"
-}
-```
-
-Gradient fill pattern for area charts (stays the same between v2 and v3):
-
-```jsx
-<defs>
-  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="5%" stopColor="var(--hc-accent)" stopOpacity={0.4} />
-    <stop offset="95%" stopColor="var(--hc-accent)" stopOpacity={0} />
-  </linearGradient>
-</defs>
-<Area type="natural" fill="url(#colorValue)" stroke="var(--hc-accent)" />
-```
+JWT's primary advantage is stateless horizontal scaling — irrelevant for a single-instance self-hosted Docker deployment. JWTs cannot be instantly revoked without a server-side denylist (which adds the same complexity as sessions). The invite-only model requires admin to be able to disable a user account and have that take effect immediately. Server-side sessions stored in PostgreSQL deliver instant revocation with zero additional infrastructure.
 
 ---
 
-## Domain 2: Sidebar Navigation
+## Domain 2: Session Management
 
-### Recommendation: shadcn/ui Sidebar — copy-paste source files (no shadcn CLI needed)
+### Recommendation: express-session ^1.19.0 + connect-pg-simple ^10.0.0
 
-**Pattern:** Copy-paste component source into `web/src/components/sidebar/`
-**Radix UI packages to install:** listed below
+**Install (listener/):** `npm install express-session connect-pg-simple`
 
-The shadcn/ui Sidebar component is the right choice. It is not an npm package — it is a set of source files you copy into your project. It supports React 19 + Tailwind v4 natively (shadcn confirmed "It's here!" for both in their 2026 docs). It provides 16 sidebar variants including the exact `collapsible="icon"` mode (expanded ↔ icon-only) required by the PROJECT.md spec.
+#### Why server-side sessions stored in PostgreSQL
 
-**Confidence:** MEDIUM — shadcn/ui Tailwind v4 + React 19 support is confirmed. Vite-specific sidebar state persistence via localStorage (not cookies, which require Next.js server context) needs implementation care.
+Single-instance self-hosted deployments do not need Redis. PostgreSQL is already running. `connect-pg-simple` reuses the existing `pg.Pool` from `listener/src/db.js` — no second database connection or credential to manage. Sessions are durable across container restarts (unlike in-memory). The existing node-pg-migrate system manages the schema.
 
-#### Required Radix UI packages
+#### express-session 1.19.0
 
-The shadcn Sidebar component pulls in these Radix UI primitives:
+express-session 1.19.0 (published 2026-01-22) is the current release. It has no peerDependencies and no engines restriction — it does not declare a specific Express version requirement. The package is listed on the Express 5.x official docs site (expressjs.com/en/resources/middleware/session/) as the recommended session middleware, confirming Express 5 compatibility. Express 5 is a drop-in successor to Express 4 for middleware — `app.use()` and the `(req, res, next)` signature are identical.
 
-```bash
-# Install in web/
-npm install @radix-ui/react-slot @radix-ui/react-separator @radix-ui/react-dialog @radix-ui/react-tooltip @radix-ui/react-collapsible
-```
+Key configuration for this deployment:
+- `secret`: at minimum 32 bytes from `process.env.SESSION_SECRET`
+- `resave: false` — do not write unchanged sessions back to the store
+- `saveUninitialized: false` — do not create sessions for unauthenticated requests (important: prevents session table bloat)
+- `cookie.httpOnly: true`, `cookie.sameSite: 'lax'`, `cookie.secure: true` in production (nginx terminates TLS, so set `app.set('trust proxy', 1)`)
+- `cookie.maxAge`: 30 days (30 * 24 * 60 * 60 * 1000) — appropriate for a home server app
 
-Additionally needed for the full sidebar pattern:
+#### connect-pg-simple 10.0.0
 
-```bash
-npm install class-variance-authority
-```
+connect-pg-simple 10.0.0 requires Node.js `^18.18.0 || ^20.9.0 || >=22.0.0` (all satisfied by Node 22). It requires only `pg ^8.12.0` (project has `pg ^8.20.0`). It is CJS but imports cleanly via `import session from 'express-session'; const pgSession = pgSimple(session);` — same interop pattern already used for `cors`, `express-rate-limit`, and other CJS packages throughout the project.
 
-Note: `lucide-react` is already installed. `clsx` is already installed.
+**IMPORTANT — table creation discipline:** `connect-pg-simple` has a `createTableIfMissing` option that bypasses node-pg-migrate. Do NOT use it. Instead, add a node-pg-migrate migration that creates the `session` table using the SQL from `node_modules/connect-pg-simple/table.sql`. This keeps schema changes in the migration history alongside `users`, `invites`, `alert_rules`, etc.
 
-#### Sidebar state persistence (Vite, no Next.js)
+The table.sql creates: `session` table with `sid` (varchar primary key), `sess` (json), `expire` (timestamp). Add a matching migration file in `listener/migrations/`.
 
-The official shadcn docs use `next/headers` cookies for SSR sidebar state persistence. In a Vite SPA, use `localStorage` instead:
+#### Why not JWT + stateless
 
-```jsx
-// web/src/components/sidebar/sidebar-provider.jsx
-const STORAGE_KEY = 'hc-sidebar-open';
+As argued above: single instance makes Redis redundant; instant revocation requires server-side state; PostgreSQL is already present. The session cookie + server-side store is the simpler, more secure choice for this topology.
 
-function SidebarProvider({ children, defaultOpen = true }) {
-  const [open, setOpen] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored !== null ? stored === 'true' : defaultOpen;
-  });
+#### Why not cookie-session (signed cookie, no store)
 
-  const toggle = () => {
-    setOpen(prev => {
-      const next = !prev;
-      localStorage.setItem(STORAGE_KEY, String(next));
-      return next;
-    });
-  };
-
-  return (
-    <SidebarContext.Provider value={{ open, toggle }}>
-      {children}
-    </SidebarContext.Provider>
-  );
-}
-```
-
-#### Collapsible icon mode
-
-When `open === false`, sidebar items should show only their Lucide icon with a `<Tooltip>` providing the label. This uses `group-data-[collapsible=icon]:hidden` Tailwind classes on text spans and `group-data-[collapsible=icon]:flex` on icon wrappers — the exact pattern shadcn uses internally.
-
-#### Alternatives not chosen
-
-| Option | Why Not |
-|--------|---------|
-| Build sidebar from scratch | More work, no accessibility primitives built-in, reinvents what shadcn already solved |
-| Headless UI sidebar | Headless UI v2 doesn't have a sidebar primitive; only Dialog/Popover/etc. |
-| Flowbite React | Additional component library dependency; integrates less cleanly with Tailwind v4 CSS-first config |
-| react-pro-sidebar | npm package, not copy-paste; adds bundle weight; not Tailwind v4 native |
+`cookie-session` stores all session data in the cookie itself, signed but not encrypted. Session data would include user ID and role, serialized into a cookie that travels on every request. No revocation possible without rotating the signing secret (which logs out all users). Ruled out.
 
 ---
 
-## Domain 3: Theming System
+## Domain 3: Email
 
-### Recommendation: Native Tailwind v4 CSS custom properties — no additional library
+### Recommendation: nodemailer ^8.0.10
 
-**Pattern:** `@theme inline` directive + `[data-theme="dark"]` CSS selector overrides
-**No new npm packages required**
+**Install (listener/):** `npm install nodemailer`
 
-The existing 8-skin system uses CSS custom properties (`--hc-accent-rgb`, `--hc-panel-mid`, etc.) set via JavaScript. Replace this with a Tailwind v4-native pattern that: (1) defines semantic color tokens in `@theme inline`, (2) overrides those tokens under `[data-theme="dark"]`, and (3) toggles `data-theme` on `<html>` via a simple React context.
+nodemailer 8.0.10 is the current release (2026-06-09 per npm). It has **zero runtime dependencies** — the `deps: none` npm registry field confirms this. It is CJS, imports as a default import. Supports all standard SMTP providers (Gmail SMTP, AWS SES SMTP, Mailgun SMTP, self-hosted Postfix/Sendmail, Mailtrap for dev).
 
-**Confidence:** HIGH — pattern verified against official Tailwind v4 theme docs, GitHub discussion #18471 (Tailwind team's own recommended approach), and shadcn/ui v4 theming docs.
+No templating framework is needed. Invite emails and password reset emails are single-purpose transactional messages. Write them as inline HTML strings or tagged template literals. Adding Handlebars or MJML adds complexity that doesn't pay off for two or three email templates in a self-hosted app.
 
-#### How it works in Tailwind v4
+**Confidence:** HIGH — zero-dependency status verified against npm registry; version 8.0.10 confirmed.
 
-```css
-/* web/src/index.css */
-@import "tailwindcss";
+#### Invite and password-reset tokens — no package needed
 
-/* Step 1: Define semantic tokens that generate utility classes */
-@theme inline {
-  --color-surface:     var(--hc-surface);
-  --color-surface-mid: var(--hc-surface-mid);
-  --color-surface-low: var(--hc-surface-low);
-  --color-text:        var(--hc-text);
-  --color-text-muted:  var(--hc-text-muted);
-  --color-accent:      var(--hc-accent);
-  --color-accent-soft: var(--hc-accent-soft);
-  --color-border:      var(--hc-border);
-}
+Invite links and password-reset links require single-use tokens. Generate them with Node.js built-in `crypto.randomBytes(32).toString('hex')`. Store the SHA-256 hash of the token (not the raw token) in a `invites` or `password_reset_tokens` table with an `expires_at` column, via a node-pg-migrate migration. On redemption, hash the presented token and compare against the stored hash. No npm package needed; `crypto` is available in Node 22.
 
-/* Step 2: Light theme default values */
-:root {
-  --hc-surface:     oklch(0.98 0.005 240);
-  --hc-surface-mid: oklch(0.95 0.008 240);
-  --hc-surface-low: oklch(0.92 0.010 240);
-  --hc-text:        oklch(0.18 0.020 240);
-  --hc-text-muted:  oklch(0.50 0.015 240);
-  --hc-accent:      oklch(0.60 0.18 240);
-  --hc-accent-soft: oklch(0.85 0.08 240);
-  --hc-border:      oklch(0.88 0.008 240);
-}
+#### No alternative considered
 
-/* Step 3: Dark theme overrides — just replace the values */
-[data-theme="dark"] {
-  --hc-surface:     oklch(0.14 0.010 240);
-  --hc-surface-mid: oklch(0.18 0.012 240);
-  --hc-surface-low: oklch(0.22 0.014 240);
-  --hc-text:        oklch(0.95 0.008 240);
-  --hc-text-muted:  oklch(0.65 0.012 240);
-  --hc-accent:      oklch(0.72 0.18 240);
-  --hc-accent-soft: oklch(0.30 0.10 240);
-  --hc-border:      oklch(0.28 0.012 240);
-}
+nodemailer is the de facto standard for Node.js SMTP. There is no meaningful alternative to evaluate.
+
+#### Required new environment variables
+
+```
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false          # true for port 465 (TLS), false for STARTTLS on 587
+SMTP_USER=user@example.com
+SMTP_PASS=secret
+SMTP_FROM="HomeChronicle <noreply@example.com>"
 ```
 
-The `@theme inline` directive is key: it tells Tailwind to generate `bg-surface`, `text-text-muted`, `border-border`, etc. as utility classes that reference the CSS variables. No rebuild needed when the theme switches — the variables change at runtime.
-
-#### React ThemeProvider
-
-```jsx
-// web/src/components/theme-provider.jsx
-import { createContext, useContext, useEffect, useState } from 'react';
-
-const ThemeContext = createContext(null);
-const STORAGE_KEY = 'hc-theme';
-
-export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
-
-  return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-}
-
-export const useTheme = () => useContext(ThemeContext);
-```
-
-#### Why not next-themes
-
-`next-themes` is a Next.js-specific package. The project's existing `useSkin()` hook already handles localStorage theme state. The Tailwind v4 CSS variable approach means no third-party theme library is needed — the pattern is 30 lines of React context.
-
-#### Why not the 8-skin system
-
-The 8-skin system sets many CSS variables via inline JavaScript and requires maintaining skin definitions in a JS config. With Tailwind v4's `@theme inline`, the color system lives entirely in CSS. Two polished modes (light + dark) replace eight mediocre skins. This reduces the CSS variable surface from ~40 variables per skin × 8 skins to ~8 semantic tokens × 2 themes.
+Document alongside existing variables in `.env.example`.
 
 ---
 
-## Domain 4: Card Layout and Dashboard Widgets
+## Domain 4: Frontend Routing + Auth Gate
 
-### Recommendation: Tailwind v4 utilities only — no component library
+### Recommendation: react-router-dom ^7.17.0
 
-KPI stat cards, activity feeds, and room breakdown widgets are standard card layouts. Tailwind v4 provides everything needed: `rounded-xl`, `shadow-sm`, `bg-surface`, `border-border`. No additional component library (MUI, Mantine, Ant Design) should be introduced.
+**Install (web/):** `npm install react-router-dom`
 
-The card pattern:
+react-router-dom 7.17.0 is the current release. Its peerDependencies are `react: '>=18'` and `react-dom: '>=18'`, both satisfied by React 19.2.x. It requires `node: '>=20.0.0'` (satisfied). It is a thin wrapper over `react-router` 7.17.0 that re-exports everything plus browser-specific APIs (`BrowserRouter`, `Link`, etc.).
 
-```jsx
-// Standard card wrapper
-<div className="rounded-xl bg-surface border border-border shadow-sm p-4">
-  {children}
-</div>
-```
+#### SPA mode — use react-router-dom as a library, not a framework
 
-KPI stat cards (online/offline/stale counts) are simple number + label + trend indicator. These require no charting library — just Tailwind and Lucide icons.
+react-router v7 supports two modes: framework mode (requires `@react-router/dev`, a build plugin, and SSR/SPA config files) and library mode (use `createBrowserRouter` + `RouterProvider` directly). For HomeChronicle's existing Vite + React setup, **library mode is the correct choice** — no `react-router.config.ts`, no `@react-router/dev`, no changes to `vite.config.js`.
 
-**What NOT to add:** MUI, Mantine, Ant Design, Chakra UI, Radix Themes. These bring their own CSS-in-JS or component systems that conflict with Tailwind v4's utility approach. The project is already Tailwind-native; adding a component library introduces a parallel styling system.
+Library mode migration path from the current tab-state navigation:
+1. Wrap `main.jsx` with `RouterProvider` using `createBrowserRouter`
+2. Replace tab state with routes: `/` (dashboard), `/devices`, `/timeline`, `/alerts`, `/settings`, `/login`
+3. Add a `ProtectedRoute` layout component that reads auth state from a React context and redirects to `/login` if unauthenticated
+4. Add an `AuthProvider` context that fetches `GET /api/auth/me` on mount (TanStack Query) and exposes `{ user, isLoading }` — no new state library needed
+5. Nginx's existing `location / { try_files $uri $uri/ /index.html; }` block (verified in `web/nginx.conf.template` line 50-52) already handles deep-link fallback for client-side routes; no nginx changes needed for routing
+
+**Confidence:** HIGH — peerDependencies verified on npm registry; library vs framework mode distinction confirmed from official reactrouter.com/how-to/spa docs; nginx SPA fallback confirmed in `web/nginx.conf.template`.
+
+#### Why react-router over alternatives
+
+- **No react-router (tab state):** The current approach works for single-user tab navigation but provides no URL-based auth redirect, no `/login` route, and no `<ProtectedRoute>` boundary. Adding auth without routing produces awkward state management.
+- **TanStack Router:** Strong alternative with TypeScript-first design. Not recommended here because: (a) project is JavaScript, not TypeScript, (b) react-router v7 with library mode is equally capable for this use case, (c) migrating to TanStack Router is a larger change than routing itself warrants.
+
+---
+
+## Domain 5: CSRF Protection
+
+### Recommendation: SameSite=Lax + server-enforced custom header — no library needed
+
+#### The same-origin argument
+
+HomeChronicle's production topology has nginx serving the built SPA from the same origin as the API (`/api/*` proxied internally). The session cookie is set with `SameSite=Lax` and `httpOnly=true`. Under these conditions:
+
+- **SameSite=Lax** blocks cross-site POST requests from third-party sites (the primary CSRF vector). GET requests from cross-site navigations are allowed (required for normal link-following behavior), but GET requests must not mutate state — HomeChronicle's API already follows this convention (all mutations are POST/PUT/DELETE).
+- **httpOnly** prevents JavaScript on a malicious page from reading the cookie.
+- **Custom request header (server-enforced):** All mutating fetch calls from the SPA must include a custom header (e.g., `X-Requested-With: XMLHttpRequest`). **The server must reject any mutating request that lacks this header** — the header is only useful if it is validated server-side, not just sent client-side. CORS preflight blocks cross-origin requests with custom headers, so an attacker's HTML form or script on a foreign origin cannot satisfy this check.
+
+This combination is the OWASP-recognized defense for SPA+API deployments with same-origin topology. No library is needed.
+
+#### If a library is required (non-default nginx topology)
+
+If the deployment exposes the API on a separate origin (e.g., `api.homechronicle.local:3001` reached directly from the browser), use `csrf-csrf ^4.0.3` (double-submit cookie pattern). Do NOT use `csurf` — it was deprecated in 2023 and has known vulnerabilities. `csrf-csrf` 4.0.3 has no peerDependencies and depends only on `http-errors ^2.0.0`. If used, also install `cookie-parser ^1.4.7` (verified on npm), which `csrf-csrf` requires as companion middleware.
+
+**Confidence:** MEDIUM — same-origin SameSite argument is well-documented in OWASP guidance; whether HomeChronicle users will always run in same-origin topology is a deployment assumption that needs to be validated in requirements.
 
 ---
 
 ## Consolidated Install
 
 ```bash
-# From web/
-npm install recharts@^3
+# listener/ — new production dependencies
+npm install argon2 express-session connect-pg-simple nodemailer
 
-# Radix UI primitives for sidebar (5 packages)
-npm install @radix-ui/react-slot @radix-ui/react-separator @radix-ui/react-dialog @radix-ui/react-tooltip @radix-ui/react-collapsible
-
-# CVA for sidebar variant logic
-npm install class-variance-authority
+# web/ — new production dependency
+npm install react-router-dom
 ```
 
-That is the complete set of new npm installs. Theming and card layout require zero new packages.
+**No new devDependencies required.** The existing `supertest` in listener devDeps covers session route integration tests. The existing `vitest` + `@testing-library/react` covers the auth gate component tests.
 
 ---
 
-## Version Compatibility
+## Migration Notes (Existing Auth Model → Sessions)
 
-| Package | Version | React 19 | Tailwind v4 | Notes |
-|---------|---------|-----------|-------------|-------|
-| recharts | ^3.8.1 | YES | YES (CSS vars) | May need `overrides.react-is: ^19.0.0` if peer dep conflict |
-| @radix-ui/react-collapsible | ^1.1.x | YES | YES | Latest: 1.1.12 (Aug 2025) |
-| @radix-ui/react-tooltip | ^1.x | YES | YES | Peer dep on radix-ui/react-popper |
-| @radix-ui/react-dialog | ^1.x | YES | YES | Used for mobile overlay sidebar |
-| @radix-ui/react-slot | ^1.x | YES | YES | Used for asChild prop pattern |
-| @radix-ui/react-separator | ^1.x | YES | YES | Used for sidebar dividers |
-| class-variance-authority | ^0.7.x | YES | YES | Framework-agnostic, no peer deps |
+The existing auth model injects `API_TOKEN` into all requests via nginx `proxy_set_header X-API-Token $api_token`. This must be unwound carefully:
+
+1. The new session cookie replaces the shared API token as the authentication mechanism for browser clients.
+2. The nginx `proxy_set_header X-API-Token` block should be removed once the session middleware is in place, or left as a fallback for existing API clients that still use the token (decide in requirements).
+3. The `secureTokenEquals()` function in `security.js` can remain for machine-to-machine API calls (e.g., Dockhand, CI, external scripts) that still present `X-API-Token`. Session auth and token auth can coexist on different route groups during transition.
+4. The `API_TOKEN_READS_ENABLED` env var logic in `index.js` needs re-evaluation: once users have sessions, read endpoints should be session-gated, not token-gated.
 
 ---
 
@@ -311,29 +210,49 @@ That is the complete set of new npm installs. Theming and card layout require ze
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| ApexCharts / react-apexcharts | Same bundle size as Recharts v3, no shadcn integration, JS-config theming conflicts with CSS var approach | Recharts v3 |
-| Nivo | Larger bundle, historically needs `--legacy-peer-deps` for React 19, no shadcn integration | Recharts v3 |
-| next-themes | Next.js-specific; SPA doesn't need SSR theme flash prevention | Custom React context + localStorage (30 lines) |
-| shadcn CLI (`npx shadcn init`) | Designed for TypeScript projects; generates config HomeChronicle doesn't use (components.json, path aliases). Copy-paste the sidebar source files directly | Manual copy-paste of sidebar/ source |
-| MUI / Mantine / Ant Design | Parallel styling system; conflicts with Tailwind v4 | Tailwind utilities |
-| react-pro-sidebar / other sidebar npm packages | Bundle weight, not Tailwind v4 native | shadcn sidebar copy-paste |
-| Chart.js | Canvas rendering; no CSS variable theming; worse DX for composable React charts | Recharts v3 |
+| Redis / connect-redis | No horizontal scaling needed; adds operational complexity for a home server | connect-pg-simple (reuses existing PostgreSQL) |
+| JWT (jsonwebtoken) | No instant revocation; requires server-side denylist for logout; advantage (stateless scale) is irrelevant here | express-session |
+| bcrypt / bcryptjs | bcrypt: 72-byte truncation footgun; bcryptjs: slower, weaker than argon2id with no benefit for this deployment | argon2 (argon2id variant) |
+| csurf | Deprecated 2023, known vulnerabilities | csrf-csrf if a library is needed; SameSite=Lax + server-enforced custom header if same-origin |
+| passport / passport-local | Adds middleware abstraction on top of express-session without reducing code for a single-strategy auth system; overkill for invite-only multi-user | Direct session read/write in auth middleware |
+| Helmet (full) | HomeChronicle's security headers are already set in nginx.conf.template (CSP, X-Frame-Options, CORP, COOP, Permissions-Policy) and in Express middleware (X-Content-Type-Options, X-Frame-Options, Referrer-Policy). Adding Helmet risks duplicating headers. | Continue setting security headers directly |
+| next-auth / Auth.js | Next.js-specific provider model; massive overkill for invite-only auth | express-session + argon2 directly |
+| @react-router/dev | Framework mode build plugin; only needed for SSR or file-based routing conventions | react-router-dom in library mode (createBrowserRouter) |
+| Handlebars / MJML | Email templating complexity for 2-3 transactional emails | Inline HTML template literals in email helper |
+| uuid / nanoid (for invite tokens) | Node.js built-in `crypto.randomBytes(32).toString('hex')` produces a secure random token; no package needed | `node:crypto` randomBytes |
+
+---
+
+## Version Compatibility
+
+| Package | Version | Node 22 | Express 5 | ES Modules | Notes |
+|---------|---------|---------|-----------|------------|-------|
+| argon2 | ^0.44.0 | YES | n/a | CJS, default import | Prebuilt binaries for Alpine ARM64 + x86-64; existing Dockerfile build tools are sufficient fallback |
+| express-session | ^1.19.0 | YES | YES | CJS, default import | Listed on Express 5.x docs; no peerDep restriction; published Jan 2026 |
+| connect-pg-simple | ^10.0.0 | YES (>=22 in engines) | YES | CJS, default import pattern | Must NOT use createTableIfMissing; add node-pg-migrate migration from table.sql |
+| nodemailer | ^8.0.10 | YES | n/a | CJS, default import | Zero runtime dependencies |
+| react-router-dom | ^7.17.0 | YES | n/a | ESM | peerDeps: react >=18, react-dom >=18 — satisfied by React 19 |
+| csrf-csrf | ^4.0.3 | YES | YES | CJS | Only if library needed; requires cookie-parser ^1.4.7 as companion |
+| cookie-parser | ^1.4.7 | YES | YES | CJS | Only if csrf-csrf is used |
 
 ---
 
 ## Sources
 
-- Recharts GitHub releases — 3.8.1 current as of April 2026: https://github.com/recharts/recharts/releases
-- shadcn/ui chart docs — "chart component now uses Recharts v3": https://ui.shadcn.com/docs/components/radix/chart
-- shadcn/ui Tailwind v4 + React 19 support confirmation: https://ui.shadcn.com/docs/tailwind-v4
-- shadcn/ui sidebar blocks (16 variants, icon collapse confirmed): https://ui.shadcn.com/blocks/sidebar
-- Tailwind v4 @theme directive official docs: https://tailwindcss.com/docs/theme
-- Tailwind v4 theming best practices (official team discussion): https://github.com/tailwindlabs/tailwindcss/discussions/18471
-- Nivo React 19 support (issue closed): https://github.com/plouc/nivo/issues/2618
-- ApexCharts react-apexcharts npm (v2.1.0, March 2026): https://www.npmjs.com/package/react-apexcharts
-- LogRocket React chart libraries comparison 2025: https://blog.logrocket.com/best-react-chart-libraries-2025/
-- shadcn sidebar Vite + localStorage pattern (community): https://adiletsatylganov.medium.com/how-to-keep-shadcn-sidebar-state-when-reloading-a-page-client-side-90310a146fe0
+- argon2 npm registry (0.44.0, prebuilt binary matrix): https://www.npmjs.com/package/argon2
+- argon2 GitHub README (prebuilt binary platforms): https://github.com/ranisalt/node-argon2
+- OWASP Password Storage Cheat Sheet (argon2id parameters): https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+- express-session npm (1.19.0, 2026-01-22 release): https://www.npmjs.com/package/express-session
+- express-session on Express 5.x official docs: https://expressjs.com/en/resources/middleware/session/
+- connect-pg-simple npm (10.0.0, engines >=22): https://www.npmjs.com/package/connect-pg-simple
+- connect-pg-simple README (createTableIfMissing option, table.sql): https://github.com/voxpelli/node-connect-pg-simple
+- nodemailer npm (8.0.10, zero deps): https://www.npmjs.com/package/nodemailer
+- react-router-dom npm (7.17.0, peerDeps react >=18): https://www.npmjs.com/package/react-router-dom
+- React Router SPA mode (library mode vs framework mode): https://reactrouter.com/how-to/spa
+- OWASP CSRF Prevention (SameSite=Lax + custom header): https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Request_Forgery_Prevention_Cheat_Sheet.html
+- csrf-csrf npm (4.0.3, double-submit pattern): https://www.npmjs.com/package/csrf-csrf
+- HomeChronicle web/nginx.conf.template (try_files SPA fallback verified at line 50-52)
 
 ---
-*Stack research for: HomeChronicle v1.2 UI Redesign*
-*Researched: 2026-04-14*
+*Stack research for: HomeChronicle v1.4 Multi-User Auth & Email*
+*Researched: 2026-06-09*
