@@ -9,7 +9,7 @@ import { networkInterfaces } from 'os';
 import express from 'express';
 import cors from 'cors';
 import { HttpClient } from 'hap-controller'; // injected into setup-router and accessories-router for testability
-import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep } from './db.js';
+import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep, validateSession } from './db.js';
 import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter } from './events-router.js';
@@ -31,7 +31,10 @@ import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { cached } from './query-cache.js';
 import { log } from './logger.js';
-import { secureTokenEquals } from './security.js';
+import { secureTokenEquals, hashToken } from './security.js';
+import cookieParser from 'cookie-parser';
+import { createCsrf } from './csrf.js';
+import { createAuthPublicRouter, createAuthProtectedRouter } from './auth-router.js';
 import {
   cacheAccessoryMetadata,
   getAllDiscoveredAccessories,
@@ -92,9 +95,31 @@ const ALERT_RETENTION_DAYS = Number.parseInt(process.env.ALERT_RETENTION_DAYS ??
 const RETENTION_ARCHIVE_DEFAULT = /^(1|true|yes|on)$/i.test(process.env.RETENTION_ARCHIVE ?? 'true');
 const STALE_THRESHOLD_HOURS_DEFAULT = Number.parseInt(process.env.STALE_THRESHOLD_HOURS ?? '12', 10);
 
-if (IS_PRODUCTION && !API_TOKEN) {
-  log.error('[api] API_TOKEN is required when NODE_ENV=production');
+// -- Auth system (Phase 20) --
+// AUTH_ENABLED defaults true; set AUTH_ENABLED=false to revert to legacy API_TOKEN-only mode.
+const AUTH_ENABLED = !/^(0|false|no|off)$/i.test(process.env.AUTH_ENABLED ?? 'true');
+// SESSION_COOKIE_SECURE: set to true for HTTPS deployments. NEVER derived from NODE_ENV (D-14/SEC-01).
+const SESSION_COOKIE_SECURE = /^(1|true|yes|on)$/i.test(process.env.SESSION_COOKIE_SECURE ?? 'false');
+// Session max-age in milliseconds (D-07): default 7 days; 30 days for rememberMe
+const SESSION_MAX_AGE_DEFAULT = parseIntInRange(
+  process.env.SESSION_MAX_AGE_DEFAULT,
+  7 * 24 * 60 * 60 * 1000,
+  60_000,
+  365 * 24 * 60 * 60 * 1000,
+);
+const SESSION_MAX_AGE_REMEMBER = parseIntInRange(
+  process.env.SESSION_MAX_AGE_REMEMBER,
+  30 * 24 * 60 * 60 * 1000,
+  60_000,
+  365 * 24 * 60 * 60 * 1000,
+);
+
+if (IS_PRODUCTION && !AUTH_ENABLED && !API_TOKEN) {
+  log.error('[api] API_TOKEN is required when NODE_ENV=production and AUTH_ENABLED=false');
   process.exit(1);
+}
+if (AUTH_ENABLED && !SESSION_COOKIE_SECURE) {
+  log.warn('[api] AUTH_ENABLED=true but SESSION_COOKIE_SECURE is not set — cookies will be sent over HTTP (acceptable for self-hosted HTTP; set SESSION_COOKIE_SECURE=true for HTTPS)');
 }
 if (IS_PRODUCTION && CORS_ALLOW_LOCALHOST) {
   log.warn('[api] CORS_ALLOW_LOCALHOST is enabled in production — set to false if not needed');
@@ -366,7 +391,7 @@ app.use(cors({
     }
   },
   methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Token', 'X-CSRF-Token'],
   maxAge: 600,
 }));
 app.use(express.json({ limit: API_JSON_LIMIT }));
@@ -390,6 +415,26 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// -- Auth middleware stack (Phase 20) --
+// cookie-parser must run before csrf-sync and the session gate (req.cookies needed)
+app.use(cookieParser());
+
+// Build the csrf instance; generateCsrfToken is injected into the public auth router
+// so GET /api/auth/csrf-token returns real tokens.
+const { csrfSynchronisedProtection, generateCsrfToken } = createCsrf({ pool });
+
+// Public auth routes — mounted BEFORE the gate so login/claim-admin/csrf-token/user-count
+// are reachable without a session (D-02 PUBLIC_AUTH_PATHS).
+app.use('/api/auth', createAuthPublicRouter({
+  pool,
+  SESSION_COOKIE_SECURE,
+  SESSION_MAX_AGE_DEFAULT,
+  SESSION_MAX_AGE_REMEMBER,
+  generateCsrfToken,
+}));
+
+// -- Session gate (replaces v1.3 API_TOKEN-only gate in Task 2) --
 app.use((req, res, next) => {
   if (!API_TOKEN) return next();
   if (req.method === 'OPTIONS') return next();
@@ -405,6 +450,14 @@ app.use((req, res, next) => {
   res.setHeader('WWW-Authenticate', 'Bearer realm="homechronicle-api"');
   return res.status(401).json({ error: 'Unauthorized' });
 });
+
+// csrf-sync protection — mounts AFTER cookie-parser and the session gate so
+// req.hcSession is populated before storeTokenInState/getTokenFromState run.
+// Public auth routes (pre-gate) are exempt by position.
+app.use(csrfSynchronisedProtection);
+
+// Protected auth routes — gate populates req.hcSession before these run.
+app.use('/api/auth', createAuthProtectedRouter({ pool }));
 
 // Setup routes (discovery, pairing, rooms, display names, notes, log level)
 app.use('/api/setup', createSetupRouter({
@@ -517,7 +570,11 @@ app.use('/api', createHealthRouter({
 // ─── Global error handler — MUST remain the final app.use() in index.js ───
 // D-03: Returns { error: 'Internal server error' } — matches existing route handler pattern
 // D-06: Safety net only; existing route try/catch blocks are preserved
+// SEC-02: Handles EBADCSRFTOKEN errors from csrfSynchronisedProtection (status 403)
 app.use(function globalExpressErrorHandler(err, req, res, _next) {
+  if (err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({ error: 'Invalid or missing CSRF token' });
+  }
   log.error(`[express] Unhandled route error ${req.method} ${req.path}:`, err.message ?? err.stack ?? err);
   if (res.headersSent) return;
   res.status(500).json({ error: 'Internal server error' });
