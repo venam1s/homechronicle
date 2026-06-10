@@ -80,7 +80,17 @@ See `milestones/v1.3-ROADMAP.md` for full details.
   3. A user can log out, destroying the server-side session so subsequent requests return 401
   4. A plain-HTTP self-hosted deployment (e.g., RPi on http://nas.local) can log in without cookie lockout because SESSION_COOKIE_SECURE=false is respected
   5. All mutating endpoints are CSRF-protected; the React frontend fetches a CSRF token after login and includes it on mutations; pre-auth routes (login, claim-admin) are exempt
-**Plans**: TBD
+**Plans**: 10 plans (4 waves)
+- [ ] 20-01-PLAN.md — Listener package gate + install (argon2, cookie-parser, csrf-sync)
+- [ ] 20-02-PLAN.md — Web package gate + install (react-router-dom v7)
+- [ ] 20-03-PLAN.md — security.js crypto helpers (argon2id hash/verify, hashToken, generateToken)
+- [ ] 20-04-PLAN.md — Migration 0003 (users+sessions) + db.js user/session CRUD
+- [ ] 20-05-PLAN.md — React router shell + AuthGate + useAuth/useUserCount + api.js credentials/CSRF
+- [ ] 20-06-PLAN.md — csrf-sync async-hook spike (gates CSRF coupling)
+- [ ] 20-07-PLAN.md — auth-router public (login/claim-admin/csrf-token/user-count, anti-fixation, auth limiter)
+- [ ] 20-08-PLAN.md — auth-router protected (/me, /logout) + csrf.js coupling
+- [ ] 20-09-PLAN.md — index.js gate replacement + middleware wiring + .env.example
+- [ ] 20-10-PLAN.md — LoginPage + SetupAdminPage (first-run) + ResetPasswordPage + routing
 **UI hint**: yes
 
 ### Phase 21: Email Infrastructure + Invites + Password Reset

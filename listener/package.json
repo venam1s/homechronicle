@@ -23,7 +23,10 @@
   "dependencies": {
     "@matter/main": "^0.16.10",
     "@project-chip/matter.js": "^0.16.10",
+    "argon2": "^0.44.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "csrf-sync": "^4.2.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
     "hap-controller": "^0.10.2",
