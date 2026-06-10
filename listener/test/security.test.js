@@ -131,3 +131,42 @@ test('verifyPassword handles legacy scrypt fallback (scrypt:<saltHex>:<hashHex>)
   assert.equal(await verifyPassword(legacyHash, password), true, 'correct password must verify against legacy hash');
   assert.equal(await verifyPassword(legacyHash, 'wrong'), false, 'wrong password must not verify against legacy hash');
 });
+
+// -- hashToken / generateToken (D-12 hash-at-rest) --
+
+test('generateToken() returns a 64-char lowercase hex string (32 bytes)', () => {
+  const token = generateToken();
+  assert.equal(typeof token, 'string');
+  assert.equal(token.length, 64);
+  assert.match(token, /^[0-9a-f]+$/, 'must be lowercase hex');
+});
+
+test('generateToken(16) returns a 32-char hex string', () => {
+  const token = generateToken(16);
+  assert.equal(token.length, 32);
+  assert.match(token, /^[0-9a-f]+$/);
+});
+
+test('generateToken() produces different values on successive calls (randomness)', () => {
+  const t1 = generateToken();
+  const t2 = generateToken();
+  assert.notEqual(t1, t2, 'two calls must not produce the same token');
+});
+
+test('hashToken is deterministic and produces a 64-char SHA-256 hex digest', () => {
+  const digest = hashToken('abc');
+  assert.equal(digest.length, 64, 'SHA-256 hex digest must be 64 chars');
+  assert.match(digest, /^[0-9a-f]+$/, 'must be lowercase hex');
+  // deterministic: same input same output
+  assert.equal(hashToken('abc'), digest, 'hashToken must be deterministic');
+  // different inputs produce different digests
+  assert.notEqual(hashToken('abc'), hashToken('xyz'), 'different inputs must produce different digests');
+});
+
+test('D-12 hash-at-rest: hashToken(rawToken) !== rawToken and is 64 hex chars', () => {
+  const raw = generateToken();
+  const hashed = hashToken(raw);
+  assert.equal(hashed.length, 64);
+  assert.notEqual(hashed, raw, 'stored digest must never equal the raw token (D-12)');
+  assert.match(hashed, /^[0-9a-f]+$/);
+});
