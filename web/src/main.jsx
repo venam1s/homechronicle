@@ -1,10 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import App from './App.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import AuthGate from './components/AuthGate.jsx';
+import LoginPage from './components/LoginPage.jsx';
+import SetupAdminPage from './components/SetupAdminPage.jsx';
+import ResetPasswordPage from './components/ResetPasswordPage.jsx';
+import { useUserCount } from './hooks/useAuth.js';
 // react-grid-layout base styles must load before ./index.css so our themed
 // overrides (placeholder, resize handle, drag state) take precedence.
 import 'react-grid-layout/css/styles.css';
@@ -19,21 +23,25 @@ const queryClient = new QueryClient({
   },
 });
 
-// Placeholders for Plan 10 (auth pages): LoginPage, SetupAdminPage, ResetPasswordPage
-// Plan 10 will replace these with fully implemented components.
-function LoginPage() {
-  return <div>Login — coming in Plan 10</div>;
+// First-run routing wrapper: if no users exist (count===0) redirect to /setup;
+// if users exist and on /setup, redirect to /login (D-04, AUTH-01).
+function LoginOrSetup() {
+  const { data, isLoading } = useUserCount();
+  if (isLoading) return null;
+  if (data?.count === 0) return <Navigate to="/setup" replace />;
+  return <LoginPage />;
 }
-function SetupAdminPage() {
-  return <div>Setup Admin — coming in Plan 10</div>;
-}
-function ResetPasswordPage() {
-  return <div>Reset Password — coming in Plan 10</div>;
+
+function SetupOrLogin() {
+  const { data, isLoading } = useUserCount();
+  if (isLoading) return null;
+  if (data?.count > 0) return <Navigate to="/login" replace />;
+  return <SetupAdminPage />;
 }
 
 const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
-  { path: '/setup', element: <SetupAdminPage /> },
+  { path: '/login', element: <LoginOrSetup /> },
+  { path: '/setup', element: <SetupOrLogin /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
   {
     path: '/*',
