@@ -36,9 +36,20 @@ function getGatewayHint(status) {
 }
 
 export async function fetchJson(url, options = {}) {
+  // Requires CORS_ALLOW_LOCALHOST=true in dev .env for cross-origin cookies to work.
+  const csrfToken = typeof sessionStorage !== 'undefined'
+    ? (sessionStorage.getItem('csrfToken') ?? '')
+    : '';
+  const isMutation = options.method &&
+    options.method !== 'GET' && options.method !== 'HEAD';
+
   const response = await fetch(url, {
     ...options,
-    headers: withApiAuthHeaders(options.headers ?? {}),
+    credentials: 'include',
+    headers: {
+      ...withApiAuthHeaders(options.headers ?? {}),
+      ...(isMutation && csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+    },
   });
 
   const raw = await response.text();
