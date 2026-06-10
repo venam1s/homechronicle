@@ -434,19 +434,56 @@ app.use('/api/auth', createAuthPublicRouter({
   generateCsrfToken,
 }));
 
-// -- Session gate (replaces v1.3 API_TOKEN-only gate in Task 2) --
-app.use((req, res, next) => {
-  if (!API_TOKEN) return next();
+// -- Auth gate: token-OR-session-OR-public (AUTH_ENABLED-aware) --
+// PUBLIC_AUTH_PATHS are exempt from the gate by position (public auth router
+// is mounted before this middleware). These paths are also listed here so the
+// gate correctly passes them even when mounted after a catch-all router.
+const PUBLIC_AUTH_PATHS = new Set([
+  '/api/auth/login',
+  '/api/auth/claim-admin',
+  '/api/auth/csrf-token',
+  '/api/auth/user-count',
+  '/api/health',
+]);
+
+// Express 5 propagates async errors natively — no try/catch wrapper needed.
+app.use(async (req, res, next) => {
+  if (!AUTH_ENABLED) {
+    // Legacy v1.3 behavior preserved verbatim (D-08)
+    if (!API_TOKEN) return next();
+    if (req.method === 'OPTIONS') return next();
+    const isReadMethod = req.method === 'GET' || req.method === 'HEAD';
+    if (isReadMethod && !API_TOKEN_READS_ENABLED) return next();
+    const providedToken = String(
+      req.get('x-api-token') ?? extractBearerToken(req.get('authorization'))
+    ).trim();
+    if (secureTokenEquals(API_TOKEN, providedToken)) return next();
+    res.setHeader('WWW-Authenticate', 'Bearer realm="homechronicle-api"');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // AUTH_ENABLED=true: session + token + public path gate
   if (req.method === 'OPTIONS') return next();
+  if (PUBLIC_AUTH_PATHS.has(req.path)) return next();
 
-  const isReadMethod = req.method === 'GET' || req.method === 'HEAD';
-  if (isReadMethod && !API_TOKEN_READS_ENABLED) return next();
+  // Service-token path: API_TOKEN still authorizes alongside sessions (AUTH-08/P11)
+  if (API_TOKEN) {
+    const providedToken = String(
+      req.get('x-api-token') ?? extractBearerToken(req.get('authorization'))
+    ).trim();
+    if (secureTokenEquals(API_TOKEN, providedToken)) return next();
+  }
 
-  const providedToken = String(
-    req.get('x-api-token') ?? extractBearerToken(req.get('authorization'))
-  ).trim();
+  // Session cookie path (D-03/D-12): SHA-256 hash before DB lookup
+  const rawCookie = req.cookies?.hc_session;
+  if (rawCookie) {
+    const session = await validateSession(pool, hashToken(rawCookie));
+    if (session) {
+      req.hcSession = session;
+      return next();
+    }
+  }
 
-  if (secureTokenEquals(API_TOKEN, providedToken)) return next();
   res.setHeader('WWW-Authenticate', 'Bearer realm="homechronicle-api"');
   return res.status(401).json({ error: 'Unauthorized' });
 });
