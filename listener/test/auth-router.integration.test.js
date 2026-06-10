@@ -68,13 +68,14 @@ function createMockPool() {
         return { rows: [{ n: String(users.length) }] };
       }
 
-      // Atomic claim-admin: INSERT INTO users ... WHERE NOT EXISTS (SELECT 1 FROM users) RETURNING ...
+      // Atomic claim-admin: INSERT INTO users ... SELECT $1, $2, 'admin' WHERE NOT EXISTS ...
+      // The role is a literal 'admin' in the SQL, not a parameter — only email ($1) and passwordHash ($2) are params.
       if (s.startsWith('INSERT INTO users') && s.includes('WHERE NOT EXISTS')) {
         if (users.length > 0) {
           return { rows: [] }; // no row = already exists
         }
-        const [email, passwordHash, role] = params;
-        const user = { id: BigInt(nextUserId++), email, password_hash: passwordHash, role };
+        const [email, passwordHash] = params;
+        const user = { id: nextUserId++, email, password_hash: passwordHash, role: 'admin' };
         users.push(user);
         return { rows: [{ id: user.id, email: user.email, role: user.role }] };
       }
@@ -82,7 +83,7 @@ function createMockPool() {
       // createUser (plain INSERT used by test setup helpers)
       if (s.startsWith('INSERT INTO users') && !s.includes('WHERE NOT EXISTS')) {
         const [email, passwordHash, role] = params;
-        const user = { id: BigInt(nextUserId++), email, password_hash: passwordHash, role: role ?? 'member' };
+        const user = { id: nextUserId++, email, password_hash: passwordHash, role: role ?? 'member' };
         users.push(user);
         return { rows: [{ id: user.id, email: user.email, role: user.role }] };
       }
@@ -98,7 +99,7 @@ function createMockPool() {
       if (s.startsWith('INSERT INTO sessions')) {
         const [userId, tokenHash, expiresAt] = params;
         const session = {
-          id: BigInt(nextSessionId++),
+          id: nextSessionId++,
           user_id: userId,
           token_hash: tokenHash,
           csrf_token: null,
@@ -143,7 +144,7 @@ test('GET /api/auth/user-count returns { count } reflecting pool state', async (
   assert.equal(res.body.count, 0);
 
   // Add a user
-  pool.users.push({ id: 1n, email: 'a@b.com', password_hash: 'x', role: 'admin' });
+  pool.users.push({ id: 1, email: 'a@b.com', password_hash: 'x', role: 'admin' });
   res = await supertest(app).get('/api/auth/user-count');
   assert.equal(res.status, 200);
   assert.equal(res.body.count, 1);
@@ -154,7 +155,7 @@ test('GET /api/auth/user-count returns { count } reflecting pool state', async (
 test('POST /api/auth/login returns 200 and sets hc_session cookie with HttpOnly + SameSite=Lax', async () => {
   const pool = createMockPool();
   const passwordHash = await hashPassword('secret123');
-  pool.users.push({ id: 1n, email: 'user@test.com', password_hash: passwordHash, role: 'member' });
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: passwordHash, role: 'member' });
 
   const app = buildApp({ pool });
   const res = await supertest(app)
@@ -178,7 +179,7 @@ test('POST /api/auth/login returns 200 and sets hc_session cookie with HttpOnly 
 test('POST /api/auth/login with bad password returns 401 Invalid credentials', async () => {
   const pool = createMockPool();
   const passwordHash = await hashPassword('correct');
-  pool.users.push({ id: 1n, email: 'user@test.com', password_hash: passwordHash, role: 'member' });
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: passwordHash, role: 'member' });
 
   const app = buildApp({ pool });
   const res = await supertest(app)
@@ -214,7 +215,7 @@ test('POST /api/auth/login with missing fields returns 400', async () => {
 test('POST /api/auth/login rememberMe=true sets 30-day maxAge; default is 7-day', async () => {
   const pool = createMockPool();
   const passwordHash = await hashPassword('pass1');
-  pool.users.push({ id: 1n, email: 'u@test.com', password_hash: passwordHash, role: 'member' });
+  pool.users.push({ id: 1, email: 'u@test.com', password_hash: passwordHash, role: 'member' });
 
   const app = buildApp({ pool });
 
@@ -242,17 +243,18 @@ test('POST /api/auth/login rememberMe=true sets 30-day maxAge; default is 7-day'
   const maxAgeDefault = parseInt((cookieDefault.match(/max-age=(\d+)/i) ?? [])[1] ?? '0', 10);
   const maxAgeRemember = parseInt((cookieRemember.match(/max-age=(\d+)/i) ?? [])[1] ?? '0', 10);
 
-  // 30-day > 7-day
-  assert.ok(maxAgeRemember > maxAgeDefault, 'rememberMe session must have longer maxAge than default');
-  // 7-day = 604800s; 30-day = 2592000s
+  // Express writes Max-Age in seconds into the Set-Cookie header.
+  // 7-day default = 604800s; 30-day remember-me = 2592000s.
   assert.ok(maxAgeDefault > 0, 'default maxAge must be positive');
-  assert.ok(maxAgeRemember > 604800, 'rememberMe maxAge must exceed 7 days');
+  assert.ok(maxAgeRemember > maxAgeDefault, 'rememberMe session must have longer maxAge than default');
+  assert.ok(maxAgeDefault >= 604800, `default maxAge must be >= 604800s (7 days), got ${maxAgeDefault}`);
+  assert.ok(maxAgeRemember >= 2592000, `rememberMe maxAge must be >= 2592000s (30 days), got ${maxAgeRemember}`);
 });
 
 test('POST /api/auth/login anti-fixation: second login issues a different hc_session token (SEC-04)', async () => {
   const pool = createMockPool();
   const passwordHash = await hashPassword('pass2');
-  pool.users.push({ id: 1n, email: 'anti@test.com', password_hash: passwordHash, role: 'member' });
+  pool.users.push({ id: 1, email: 'anti@test.com', password_hash: passwordHash, role: 'member' });
 
   const app = buildApp({ pool });
 
@@ -285,8 +287,8 @@ test('POST /api/auth/login Secure flag follows SESSION_COOKIE_SECURE, not NODE_E
   const pool1 = createMockPool();
   const pool2 = createMockPool();
   const passwordHash = await hashPassword('sec01test');
-  pool1.users.push({ id: 1n, email: 'sec@test.com', password_hash: passwordHash, role: 'member' });
-  pool2.users.push({ id: 1n, email: 'sec@test.com', password_hash: passwordHash, role: 'member' });
+  pool1.users.push({ id: 1, email: 'sec@test.com', password_hash: passwordHash, role: 'member' });
+  pool2.users.push({ id: 1, email: 'sec@test.com', password_hash: passwordHash, role: 'member' });
 
   const appInsecure = buildApp({ pool: pool1, SESSION_COOKIE_SECURE: false });
   const appSecure = buildApp({ pool: pool2, SESSION_COOKIE_SECURE: true });
@@ -333,7 +335,7 @@ test('POST /api/auth/claim-admin on empty table creates admin with role admin + 
 
 test('POST /api/auth/claim-admin returns 409 when any user already exists', async () => {
   const pool = createMockPool();
-  pool.users.push({ id: 1n, email: 'existing@test.com', password_hash: 'x', role: 'admin' });
+  pool.users.push({ id: 1, email: 'existing@test.com', password_hash: 'x', role: 'admin' });
   const app = buildApp({ pool });
 
   const res = await supertest(app)
