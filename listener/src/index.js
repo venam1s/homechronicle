@@ -479,7 +479,12 @@ app.use(async (req, res, next) => {
   if (rawCookie) {
     const session = await validateSession(pool, hashToken(rawCookie));
     if (session) {
-      req.hcSession = session;
+      // Normalize snake_case DB columns to camelCase so csrf.js getTokenFromState
+      // can read req.hcSession.csrfToken consistently (Rule 1 fix: snake/camel mismatch)
+      req.hcSession = {
+        ...session,
+        csrfToken: session.csrf_token ?? null,
+      };
       return next();
     }
   }

@@ -8,6 +8,7 @@ import {
   findUserByEmail,
   createSession,
   revokeSession,
+  validateSession,
 } from './db.js';
 
 // -- Auth rate limiter constants (D-16/SEC-03) --
@@ -77,8 +78,22 @@ export function createAuthPublicRouter({
   }
 
   // -- GET /csrf-token — public, SEC-02 --
+  // This endpoint is pre-gate (publicly reachable without a session — used for
+  // the pre-login CSRF token fetch). However, when a valid session cookie is
+  // present, it populates req.hcSession so that csrf-sync's storeTokenInState
+  // can persist the token to the session (Strategy B: in-memory write + lazy
+  // DB flush). Without this, the post-login CSRF flow would always fail because
+  // storeTokenInState no-ops when req.hcSession is absent.
   router.get('/csrf-token', async (req, res) => {
     try {
+      // Session-aware: populate req.hcSession if a valid cookie is present so
+      // storeTokenInState can write the CSRF token to the session object.
+      if (!req.hcSession && req.cookies?.hc_session) {
+        const session = await validateSession(pool, hashToken(req.cookies.hc_session));
+        if (session) {
+          req.hcSession = { ...session, csrfToken: session.csrf_token ?? null };
+        }
+      }
       const csrfToken = generateCsrfToken(req, res);
       res.json({ csrfToken });
     } catch (err) {
