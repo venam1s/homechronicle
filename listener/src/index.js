@@ -43,6 +43,10 @@ import {
 } from './accessory-metadata.js';
 import { getHomeKitPairings, createStoreHelpers } from './setup-helpers.js';
 import { createDiscoveryHelpers } from './discovery-helpers.js';
+import { initEmail, sendInvite, sendPasswordReset, isEmailEnabled } from './emails.js';
+import { readSmtpSecret, writeSmtpSecret, buildSmtpConfig, envOverriddenFields, getAppBaseUrl, SMTP_CONFIG_FILE } from './smtp-config.js';
+import { createSmtpRouter } from './smtp-router.js';
+import { createUsersRouter } from './users-router.js';
 
 // ─── Process-level error handlers — registered before any async operations ───
 // D-01: Log rejection but do NOT exit — exiting kills HAP subscriptions
@@ -131,6 +135,12 @@ const SESSION_MAX_AGE_REMEMBER = parseIntInRange(
   365 * 24 * 60 * 60 * 1000,
 );
 
+// APP_BASE_URL used for building invite/reset email links (EMAIL-01, PWD-02)
+const APP_BASE_URL = getAppBaseUrl();
+if (!APP_BASE_URL) {
+  log.warn('[api] APP_BASE_URL is not set — invite and password-reset email links will be unusable until APP_BASE_URL is configured');
+}
+
 if (IS_PRODUCTION && !AUTH_ENABLED && !API_TOKEN) {
   log.error('[api] API_TOKEN is required when NODE_ENV=production and AUTH_ENABLED=false');
   process.exit(1);
@@ -169,6 +179,8 @@ const alertsSettingsStore = new JsonObjectStore(ALERTS_SETTINGS_FILE, {
   defaultQuietMinutes: 0,
   webhookTimeoutMs: 5000,
 });
+// SMTP non-secret config store (password lives only in smtp-secret.json, never here)
+const smtpConfigStore = new JsonObjectStore(SMTP_CONFIG_FILE, {});
 let matterRuntime = null;
 
 const {
@@ -220,6 +232,10 @@ await notesStore.init();
 await retentionStore.init();
 await repairStore.init();
 await alertsSettingsStore.init();
+await smtpConfigStore.init();
+const smtpSecret = await readSmtpSecret();
+const smtpConfig = buildSmtpConfig(smtpConfigStore.getSnapshot(), smtpSecret);
+await initEmail(smtpConfig);
 setAlertsEnabledFn(() => alertsSettingsStore.getSnapshot().enabled);
 await initMatterController();
 matterRuntime = createMatterRuntime({
@@ -466,6 +482,9 @@ app.use('/api/auth', createAuthPublicRouter({
   SESSION_MAX_AGE_DEFAULT,
   SESSION_MAX_AGE_REMEMBER,
   generateCsrfToken,
+  sendPasswordReset,
+  isEmailEnabled,
+  appBaseUrl: APP_BASE_URL,
 }));
 
 // -- Auth gate: token-OR-session-OR-public (AUTH_ENABLED-aware) --
@@ -593,6 +612,24 @@ app.use('/api/setup', createAlertsSettingsRouter({
   onSettingsChange: (next) => {
     log.info(`[alerts-settings] Alerts ${next.enabled ? 'enabled' : 'disabled'}`);
   },
+}));
+
+app.use('/api/setup', createSmtpRouter({
+  smtpConfigStore,
+  readSmtpSecret,
+  writeSmtpSecret,
+  buildSmtpConfig,
+  envOverriddenFields,
+  initEmail,
+  sendTestEmail: (to) => sendInvite(to, `${APP_BASE_URL}/`, { from: smtpConfig.from }),
+  isEmailEnabled,
+}));
+
+app.use('/api/users', createUsersRouter({
+  pool,
+  sendInvite,
+  isEmailEnabled,
+  appBaseUrl: APP_BASE_URL,
 }));
 let matterDiscoveryCache = [];
 app.use('/api', createMatterRouter({
