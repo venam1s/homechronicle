@@ -38,10 +38,15 @@ function getGatewayHint(status) {
 // Re-fetch a fresh CSRF token and persist it to sessionStorage, mirroring
 // AuthGate's recovery path. Returns the new token, or '' on failure. Uses raw
 // fetch (not fetchJson) so it can never recurse into the 403-retry path (WR-06).
+//
+// Passes ?refresh=1 to force the server to regenerate the token (overwrite=true)
+// rather than re-handing the existing one (WR-04). When a stale token lingers in
+// sessions.csrf_token (e.g. after a failed lazy DB flush), reusing it would loop
+// the client through repeated 403s; forcing regeneration breaks that loop.
 async function refreshCsrfToken() {
   if (typeof sessionStorage === 'undefined') return '';
   try {
-    const res = await fetch(`${API_BASE}/auth/csrf-token`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/auth/csrf-token?refresh=1`, { credentials: 'include' });
     if (!res.ok) return '';
     const body = await res.json();
     const token = body?.csrfToken ?? '';
@@ -54,17 +59,22 @@ async function refreshCsrfToken() {
 
 function isCsrfRejection(status, data) {
   if (status !== 403) return false;
+  // Prefer the structured signal csrf-sync emits (IN-02). The text fallback is
+  // narrowed to the server's exact "Invalid or missing CSRF token" body so an
+  // unrelated 403 that merely mentions "csrf" no longer triggers a token re-fetch.
   const code = data?.code ?? '';
   const msg = String(data?.error ?? data?.message ?? '');
-  // csrf-sync surfaces EBADCSRFTOKEN; also match a generic "invalid csrf token" body.
-  return code === 'EBADCSRFTOKEN' || /csrf/i.test(msg);
+  return code === 'EBADCSRFTOKEN' || /invalid or missing csrf token/i.test(msg);
 }
 
-export async function fetchJson(url, options = {}, { _csrfRetried = false } = {}) {
+export async function fetchJson(url, options = {}, { _csrfRetried = false, _csrfToken = null } = {}) {
   // Requires CORS_ALLOW_LOCALHOST=true in dev .env for cross-origin cookies to work.
-  const csrfToken = typeof sessionStorage !== 'undefined'
+  // On a CSRF retry, _csrfToken carries the freshly minted token threaded directly
+  // from refreshCsrfToken (IN-04) — making the data flow explicit rather than
+  // relying on a write-then-reread of sessionStorage.
+  const csrfToken = _csrfToken ?? (typeof sessionStorage !== 'undefined'
     ? (sessionStorage.getItem('csrfToken') ?? '')
-    : '';
+    : '');
   const isMutation = options.method &&
     options.method !== 'GET' && options.method !== 'HEAD';
 
@@ -95,7 +105,7 @@ export async function fetchJson(url, options = {}, { _csrfRetried = false } = {}
     if (isMutation && !_csrfRetried && isCsrfRejection(response.status, data)) {
       const fresh = await refreshCsrfToken();
       if (fresh) {
-        return fetchJson(url, options, { _csrfRetried: true });
+        return fetchJson(url, options, { _csrfRetried: true, _csrfToken: fresh });
       }
     }
 

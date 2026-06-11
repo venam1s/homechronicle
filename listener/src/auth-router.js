@@ -105,9 +105,15 @@ export function createAuthPublicRouter({
           req.hcSession = { ...session, csrfToken: session.csrf_token ?? null };
         }
       }
-      // Pass req only — omitting res so csrf-sync defaults overwrite=false,
-      // reusing the existing session token instead of regenerating on every call (SEC-02/CR-05)
-      const csrfToken = generateCsrfToken(req);
+      // Default (no ?refresh): omit overwrite so csrf-sync reuses the existing
+      // session token instead of regenerating on every call (SEC-02/CR-05).
+      // ?refresh=1 (WR-04): force a fresh token via overwrite=true. The client
+      // requests this on a post-403 CSRF retry so a stale/mismatched token (left
+      // behind by a failed lazy DB flush) is replaced rather than re-handed,
+      // breaking the 403 loop. csrf-sync's generator signature is
+      // generateToken(req, overwrite) — there is no res argument.
+      const forceRefresh = req.query?.refresh === '1';
+      const csrfToken = generateCsrfToken(req, forceRefresh);
       res.json({ csrfToken });
     } catch (err) {
       log.error('[api] /api/auth/csrf-token error:', err.message ?? err.stack ?? err);
