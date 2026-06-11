@@ -380,8 +380,9 @@ export function createAuthPublicRouter({
  * createAuthProtectedRouter — mounts AFTER the auth gate (req.hcSession populated).
  *
  * Routes:
- *   GET    /me      — AUTH-03: returns the authenticated user from the session
- *   DELETE /logout  — AUTH-03: revokes the server-side session + clears the hc_session cookie
+ *   GET    /me       — AUTH-03: returns the authenticated user from the session
+ *   DELETE /logout   — AUTH-03: revokes the server-side session + clears the hc_session cookie
+ *   PATCH  /password — PWD-01: change own password; revokes all sessions
  *
  * @param {object} deps
  * @param {import('pg').Pool} deps.pool
@@ -426,6 +427,61 @@ export function createAuthProtectedRouter({ pool }) {
       res.json({ ok: true });
     } catch (err) {
       log.error('[api] /api/auth/logout error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // -- PATCH /password — PWD-01: change own password --
+  // Requires valid session (auth gate). Verifies current password before accepting a
+  // new one, then revokes ALL sessions to force re-authentication on every device.
+  router.patch('/password', async (req, res) => {
+    try {
+      if (!req.hcSession) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const currentPassword = String(req.body?.currentPassword ?? '');
+      const newPassword = String(req.body?.newPassword ?? '');
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+      }
+
+      // Validate new password strength before loading user or verifying current
+      const strength = validatePasswordStrength(newPassword);
+      if (!strength.ok) {
+        return res.status(400).json({ error: strength.error });
+      }
+
+      // Load user to get current password_hash for verification
+      const result = await pool.query(
+        'SELECT id, email, password_hash, role FROM users WHERE id = $1',
+        [req.hcSession.user_id],
+      );
+      const user = result.rows[0] ?? null;
+      if (!user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Verify current password
+      const currentOk = await verifyPassword(user.password_hash, currentPassword);
+      if (!currentOk) {
+        return res.status(400).json({ error: 'Current password is incorrect.' });
+      }
+
+      // Hash and store new password
+      const newHash = await hashPassword(newPassword);
+      await pool.query(
+        'UPDATE users SET password_hash = $1 WHERE id = $2',
+        [newHash, user.id],
+      );
+
+      // Revoke all sessions to force re-login on all devices (PWD-01)
+      await revokeSessionsForUser(pool, user.id);
+
+      res.json({ ok: true });
+    } catch (err) {
+      log.error('[api] /api/auth/password error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
