@@ -351,7 +351,7 @@ test('POST /api/auth/claim-admin on empty table creates admin with role admin + 
 
   const res = await supertest(app)
     .post('/api/auth/claim-admin')
-    .send({ email: 'admin@test.com', password: 'adminpass1' });
+    .send({ email: 'admin@test.com', password: 'adminpass-12ch' });
 
   assert.ok(res.status === 200 || res.status === 201, `expected 2xx, got ${res.status}`);
   assert.ok(res.body.user, 'response must include user');
@@ -371,7 +371,7 @@ test('POST /api/auth/claim-admin returns 409 when any user already exists', asyn
 
   const res = await supertest(app)
     .post('/api/auth/claim-admin')
-    .send({ email: 'second@test.com', password: 'newpass1' });
+    .send({ email: 'second@test.com', password: 'newpass-12char' });
 
   assert.equal(res.status, 409);
   assert.ok(res.body.error, 'must return an error message');
@@ -388,13 +388,27 @@ test('POST /api/auth/claim-admin with missing fields returns 400', async () => {
   assert.equal(res.status, 400);
 });
 
+test('POST /api/auth/claim-admin rejects a password shorter than 12 chars (WR-01)', async () => {
+  const pool = createMockPool();
+  const app = buildApp({ pool });
+
+  const res = await supertest(app)
+    .post('/api/auth/claim-admin')
+    .send({ email: 'admin@test.com', password: 'short' });
+
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /at least 12 characters/i);
+  // No admin must be created on a rejected password.
+  assert.equal(pool.users.length, 0, 'no user row may be created for a too-short password');
+});
+
 test('POST /api/auth/claim-admin concurrent calls on empty table create exactly one admin (P10)', async () => {
   const pool = createMockPool();
   const app = buildApp({ pool });
 
   const [res1, res2] = await Promise.all([
-    supertest(app).post('/api/auth/claim-admin').send({ email: 'race1@test.com', password: 'password1' }),
-    supertest(app).post('/api/auth/claim-admin').send({ email: 'race2@test.com', password: 'password2' }),
+    supertest(app).post('/api/auth/claim-admin').send({ email: 'race1@test.com', password: 'password-1-12c' }),
+    supertest(app).post('/api/auth/claim-admin').send({ email: 'race2@test.com', password: 'password-2-12c' }),
   ]);
 
   const statuses = [res1.status, res2.status].sort();
