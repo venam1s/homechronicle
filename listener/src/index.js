@@ -393,6 +393,7 @@ app.use(cors({
   methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Token', 'X-CSRF-Token'],
   maxAge: 600,
+  credentials: true,
 }));
 app.use(express.json({ limit: API_JSON_LIMIT }));
 app.use((req, res, next) => {
@@ -466,15 +467,8 @@ app.use(async (req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   if (PUBLIC_AUTH_PATHS.has(req.path)) return next();
 
-  // Service-token path: API_TOKEN still authorizes alongside sessions (AUTH-08/P11)
-  if (API_TOKEN) {
-    const providedToken = String(
-      req.get('x-api-token') ?? extractBearerToken(req.get('authorization'))
-    ).trim();
-    if (secureTokenEquals(API_TOKEN, providedToken)) return next();
-  }
-
-  // Session cookie path (D-03/D-12): SHA-256 hash before DB lookup
+  // Session cookie path FIRST (D-01/D-03/CR-02): browser sessions win even when nginx
+  // unconditionally injects X-API-Token. SHA-256 hash before DB lookup (D-12).
   const rawCookie = req.cookies?.hc_session;
   if (rawCookie) {
     const session = await validateSession(pool, hashToken(rawCookie));
@@ -487,6 +481,15 @@ app.use(async (req, res, next) => {
       };
       return next();
     }
+  }
+
+  // Service-token fallback: API_TOKEN still authorizes alongside sessions (AUTH-08/P11)
+  // A valid token with no/invalid session cookie is accepted — AUTH_TOKEN path intact.
+  if (API_TOKEN) {
+    const providedToken = String(
+      req.get('x-api-token') ?? extractBearerToken(req.get('authorization'))
+    ).trim();
+    if (secureTokenEquals(API_TOKEN, providedToken)) return next();
   }
 
   res.setHeader('WWW-Authenticate', 'Bearer realm="homechronicle-api"');
