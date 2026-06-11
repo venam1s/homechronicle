@@ -31,6 +31,15 @@ export function createCsrf({ pool }) {
     generateToken,
   } = csrfSync({
     /**
+     * skipCsrfProtection — skip CSRF checks for sessionless service-token callers
+     * (API_TOKEN path, AUTH-08/CR-01/CR-03). When req.hcSession is absent the
+     * request authenticated via API_TOKEN (a high-entropy bearer secret not
+     * present in a cross-site browser context), so CSRF protection is not needed.
+     * Real browser sessions (req.hcSession present) always require X-CSRF-Token.
+     */
+    skipCsrfProtection: (req) => !req.hcSession,
+
+    /**
      * getTokenFromState — reads the CSRF token from the in-memory session.
      * Returns null when req.hcSession is absent (pre-auth/public routes).
      */

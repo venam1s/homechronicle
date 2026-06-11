@@ -60,22 +60,24 @@ function makeGate({ AUTH_ENABLED, API_TOKEN, API_TOKEN_READS_ENABLED = false, po
     if (req.method === 'OPTIONS') return next();
     if (PUBLIC_AUTH_PATHS.has(req.path)) return next();
 
-    // Service-token path: API_TOKEN still authorizes (AUTH-08/P11)
+    // Session cookie FIRST (D-01/D-03/CR-02): browser sessions win even when nginx
+    // unconditionally injects X-API-Token. SHA-256 hash before validateSession (D-12).
+    const rawCookie = req.cookies?.hc_session;
+    if (rawCookie) {
+      const session = await pool.validateSession(hashToken(rawCookie));
+      if (session) {
+        // Normalize snake_case → camelCase (mirrors index.js gate)
+        req.hcSession = { ...session, csrfToken: session.csrf_token ?? null };
+        return next();
+      }
+    }
+
+    // Service-token fallback: API_TOKEN still authorizes alongside sessions (AUTH-08/P11)
     if (API_TOKEN) {
       const providedToken = String(
         req.get('x-api-token') ?? extractBearerToken(req.get('authorization'))
       ).trim();
       if (secureTokenEquals(API_TOKEN, providedToken)) return next();
-    }
-
-    // Session cookie path
-    const rawCookie = req.cookies?.hc_session;
-    if (rawCookie) {
-      const session = await pool.validateSession(hashToken(rawCookie));
-      if (session) {
-        req.hcSession = session;
-        return next();
-      }
     }
 
     res.setHeader('WWW-Authenticate', 'Bearer realm="homechronicle-api"');
@@ -288,4 +290,51 @@ test('gate AUTH_ENABLED=true: OPTIONS passes without session', async () => {
   const app = buildApp({ AUTH_ENABLED: true, pool });
   const res = await supertest(app).options('/api/data');
   assert.notEqual(res.status, 401);
+});
+
+// ---------------------------------------------------------------------------
+// Tests: CR-02 session-first ordering regression (Plan 20-11)
+// ---------------------------------------------------------------------------
+
+test('gate AUTH_ENABLED=true: session wins over X-API-Token when BOTH present (CR-02)', async () => {
+  // CR-02: In Docker topology, nginx injects X-API-Token unconditionally.
+  // With session-first ordering, a valid hc_session cookie must populate
+  // req.hcSession even when X-API-Token header is also present.
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  const session = {
+    id: 99,
+    user_id: 777,
+    role: 'admin',
+    csrf_token: 'tok-abc',
+    token_hash: tokenHash,
+  };
+  const pool = createMockPool({ sessions: [session] });
+  const app = buildApp({ AUTH_ENABLED: true, API_TOKEN: 'svc-token', pool });
+
+  const res = await supertest(app)
+    .get('/api/data')
+    .set('Cookie', `hc_session=${rawToken}`)
+    .set('x-api-token', 'svc-token'); // nginx injection — session must still win
+
+  assert.equal(res.status, 200);
+  // Session-first: req.hcSession must be populated from the cookie, not the token path
+  // (the token path never sets req.hcSession; only validateSession does)
+  assert.ok(res.body.hcSession, 'req.hcSession must be populated from the session cookie');
+  assert.equal(res.body.hcSession.user_id, 777, 'user_id must come from the session row');
+  assert.equal(res.body.hcSession.id, 99, 'session.id must match the DB session');
+});
+
+test('gate AUTH_ENABLED=true: API_TOKEN fallback — valid token no session → authorized, no hcSession (AUTH-08)', async () => {
+  // AUTH-08: API_TOKEN must still authorize when no valid session cookie exists.
+  // Token fallback must NOT populate req.hcSession (only session path does).
+  const pool = createMockPool({ sessions: [] }); // no valid sessions
+  const app = buildApp({ AUTH_ENABLED: true, API_TOKEN: 'svc-token', pool });
+
+  const res = await supertest(app)
+    .get('/api/data')
+    .set('x-api-token', 'svc-token');
+
+  assert.equal(res.status, 200, 'valid API_TOKEN must authorize (AUTH-08 not weakened)');
+  assert.equal(res.body.hcSession, null, 'req.hcSession must NOT be set via token-only path');
 });

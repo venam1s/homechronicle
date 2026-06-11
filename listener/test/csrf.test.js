@@ -175,7 +175,7 @@ import supertest from 'supertest';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { createCsrf } from '../src/csrf.js';
-import { createAuthPublicRouter } from '../src/auth-router.js';
+import { createAuthPublicRouter, createAuthProtectedRouter } from '../src/auth-router.js';
 import { hashToken, generateToken, hashPassword, secureTokenEquals } from '../src/security.js';
 import { extractBearerToken } from '../src/utils.js';
 
@@ -326,6 +326,111 @@ async function buildSec02App(pool) {
 
   return app;
 }
+
+// ---------------------------------------------------------------------------
+// AUTH-08 + skipCsrfProtection: service-token POST passes without CSRF token
+// ---------------------------------------------------------------------------
+//
+// Builds a minimal app with:
+//   gate (session-first; falls through to API_TOKEN fallback) → csrfSynchronisedProtection
+// The service-token caller has no session cookie → req.hcSession is absent →
+// skipCsrfProtection returns true → POST succeeds without X-CSRF-Token header.
+
+function buildApiTokenApp(API_TOKEN) {
+  const pool = { async validateSession() { return null; } }; // no sessions
+  const { csrfSynchronisedProtection } = createCsrf({ pool });
+
+  const app = express();
+  app.use(express.json());
+  app.use(cookieParser());
+
+  // Gate: session-first then API_TOKEN fallback (mirrors index.js session-first ordering)
+  app.use(async (req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    // No valid session cookie → hcSession never set
+    if (API_TOKEN) {
+      const provided = String(req.get('x-api-token') ?? '').trim();
+      if (secureTokenEquals(API_TOKEN, provided)) return next();
+    }
+    res.setHeader('WWW-Authenticate', 'Bearer realm="homechronicle-api"');
+    return res.status(401).json({ error: 'Unauthorized' });
+  });
+
+  // CSRF protection (skipCsrfProtection: !req.hcSession skips for no-session token path)
+  app.use(csrfSynchronisedProtection);
+
+  // Stub mutation endpoint
+  app.post('/api/events', (req, res) => res.json({ ok: true }));
+
+  // Global error handler
+  app.use(function globalExpressErrorHandler(err, req, res, _next) {
+    if (err.code === 'EBADCSRFTOKEN') {
+      return res.status(403).json({ error: 'Invalid or missing CSRF token' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
+  return app;
+}
+
+test('AUTH-08/skipCsrfProtection: API_TOKEN POST mutation succeeds without X-CSRF-Token (CR-01/CR-03)', async () => {
+  // Service-token caller has no session cookie → req.hcSession absent →
+  // skipCsrfProtection returns true → no EBADCSRFTOKEN → 200
+  const app = buildApiTokenApp('my-api-token');
+
+  const res = await supertest(app)
+    .post('/api/events')
+    .set('x-api-token', 'my-api-token')
+    .send({ test: true });
+
+  assert.equal(res.status, 200, 'API_TOKEN POST mutation must NOT be rejected by CSRF (skipCsrfProtection)');
+  assert.deepEqual(res.body, { ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// GET /me without session returns 401 (not 500) — null-guard regression
+// ---------------------------------------------------------------------------
+
+function buildMeApp() {
+  const pool = { async validateSession() { return null; } };
+  const app = express();
+  app.use(express.json());
+  app.use(cookieParser());
+
+  // Gate: always passes (simulate public path override for this test)
+  app.use((req, res, next) => next());
+
+  // Mount the protected auth router (GET /api/auth/me)
+  app.use('/api/auth', createAuthProtectedRouter({ pool }));
+
+  // Global error handler
+  app.use(function globalExpressErrorHandler(err, req, res, _next) {
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
+  return app;
+}
+
+test('GET /api/auth/me without req.hcSession returns 401 not 500 (null-guard regression)', async () => {
+  // Verifies the /me null guard: req.hcSession absent → 401 (not TypeError → 500)
+  // Without the guard, session.user_id throws a TypeError caught as 500, which
+  // AuthGate misinterprets as "authenticated but server error" → infinite login loop.
+  const app = buildMeApp();
+
+  const res = await supertest(app).get('/api/auth/me');
+
+  assert.equal(res.status, 401, 'GET /me without a session must return 401 (not 500)');
+  assert.equal(res.body.error, 'Unauthorized');
+});
+
+// ---------------------------------------------------------------------------
+// SEC-02 integration test — full POST-login CSRF flow (Plan 09)
+// ---------------------------------------------------------------------------
+//
+// Wires an Express test app identically to index.js production mount order:
+//   cookie-parser → public auth router (pre-gate) → gate → csrfSynchronisedProtection → protected routes
+//
+// The mock pool provides in-memory users and sessions so no real DB is needed.
 
 test('SEC-02: POST /api/events without X-CSRF-Token after login returns 403', async (t) => {
   // Seed user with argon2id password hash
