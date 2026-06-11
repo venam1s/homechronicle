@@ -40,7 +40,8 @@ describe('AuthGate', () => {
   });
 
   it('renders children when /auth/me succeeds', async () => {
-    fetchJson.mockResolvedValueOnce({ id: 1, email: 'user@example.com', role: 'admin' });
+    // Real /auth/me envelope (WR-01): server returns { user: { id, email, role } }.
+    fetchJson.mockResolvedValueOnce({ user: { id: 1, email: 'user@example.com', role: 'admin' } });
 
     const Wrapper = makeWrapper();
     render(
@@ -149,9 +150,10 @@ describe('AuthGate', () => {
 
   describe('CSRF token recovery', () => {
     it('fetches /auth/csrf-token and stores it when authenticated but sessionStorage has no csrfToken', async () => {
-      const user = { id: 1, email: 'user@example.com', role: 'admin' };
+      // Real /auth/me envelope (WR-01): { user: { id, email, role } }.
+      const me = { user: { id: 1, email: 'user@example.com', role: 'admin' } };
       fetchJson.mockImplementation((url) => {
-        if (url.includes('/auth/me')) return Promise.resolve(user);
+        if (url.includes('/auth/me')) return Promise.resolve(me);
         if (url.includes('/auth/csrf-token')) return Promise.resolve({ csrfToken: 'recovered-token' });
         return Promise.reject(new Error(`Unexpected URL: ${url}`));
       });
@@ -187,9 +189,10 @@ describe('AuthGate', () => {
     it('does not fetch /auth/csrf-token when sessionStorage already has a csrfToken', async () => {
       sessionStorage.setItem('csrfToken', 'existing-token');
 
-      const user = { id: 1, email: 'user@example.com', role: 'admin' };
+      // Real /auth/me envelope (WR-01): { user: { id, email, role } }.
+      const me = { user: { id: 1, email: 'user@example.com', role: 'admin' } };
       fetchJson.mockImplementation((url) => {
-        if (url.includes('/auth/me')) return Promise.resolve(user);
+        if (url.includes('/auth/me')) return Promise.resolve(me);
         if (url.includes('/auth/csrf-token')) return Promise.resolve({ csrfToken: 'new-token' });
         return Promise.reject(new Error(`Unexpected URL: ${url}`));
       });
