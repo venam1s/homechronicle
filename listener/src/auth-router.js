@@ -30,6 +30,11 @@ const AUTH_RATE_LIMIT_MAX = parseIntInRange(
 // unknown-email and known-email branches cost the same — closing the
 // user-enumeration timing oracle. Uses the same argon2id params as real hashing.
 const DUMMY_PASSWORD_HASH = getDummyPasswordHash();
+// Observe a startup hashing failure (e.g. argon2 native-binding/memory-allocation
+// failure on a constrained host at memoryCost=19456) instead of letting it remain a
+// floating rejected Promise surfaced only on the first unknown-email login (WR-03).
+DUMMY_PASSWORD_HASH.catch((err) =>
+  log.error('[auth] dummy password hash precompute failed — login timing equalization degraded:', err.message));
 
 /**
  * createAuthPublicRouter — mounts BEFORE the auth gate.
