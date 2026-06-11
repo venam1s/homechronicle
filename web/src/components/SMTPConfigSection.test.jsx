@@ -95,7 +95,7 @@ describe('SMTPConfigSection', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /change/i }));
 
-      const passwordInput = screen.getByLabelText(/password/i);
+      const passwordInput = screen.getByLabelText('Password');
       expect(passwordInput).toBeInTheDocument();
       expect(passwordInput.value).toBe('');
     });
@@ -197,7 +197,7 @@ describe('SMTPConfigSection', () => {
       await userEvent.click(screen.getByRole('button', { name: /change/i }));
 
       // Type a new password
-      const pwInput = screen.getByLabelText(/password/i);
+      const pwInput = screen.getByLabelText('Password');
       await userEvent.type(pwInput, 'newSecret123!');
 
       await userEvent.click(screen.getByRole('button', { name: /save settings/i }));
