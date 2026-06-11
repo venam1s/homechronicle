@@ -95,6 +95,14 @@ services:
       API_PORT: ${API_PORT:-3002}
       API_TOKEN: ${API_TOKEN}
       NODE_ENV: production
+      # -- Phase 20/21 auth (multi-user, invites, password reset) --
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      # Beta is served over HTTPS (Traefik letsencrypt) — secure cookies.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      # Two proxies in front (Traefik -> web/nginx) — key auth rate limits per real client IP.
+      TRUST_PROXY: ${TRUST_PROXY:-2}
+      # Public base URL used to build invite + password-reset email links.
+      APP_BASE_URL: ${APP_BASE_URL:-https://${BETA_FQDN}}
       TZ: ${TZ:-America/Indianapolis}
     volumes:
       - /mnt/Primary/apps/hc-beta/listener-data-beta:/app/data
