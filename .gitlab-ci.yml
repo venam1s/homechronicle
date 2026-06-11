@@ -258,11 +258,16 @@ deploy-beta:
   image:
     name: curlimages/curl:latest
     entrypoint: [""]
+  # Gated on DOCKHAND_TOKEN: the job cleanly SKIPS when the token is not yet
+  # configured (no failed job), and runs only once the masked CI/CD variable is
+  # present. allow_failure keeps this best-effort async trigger from ever failing
+  # the main pipeline — the actual deploy happens asynchronously inside Dockhand,
+  # and scripts/deploy-beta.sh remains as a manual fallback.
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: '$CI_COMMIT_BRANCH == "main" && $DOCKHAND_TOKEN'
   needs: [test]
+  allow_failure: true
   script:
     - |
-      [ -n "$DOCKHAND_TOKEN" ] || { echo "DOCKHAND_TOKEN not set — add it as a masked, protected CI/CD variable in GitLab project settings"; exit 1; }
       curl -fsS -X POST -H "Authorization: Bearer $DOCKHAND_TOKEN" https://dh.venamis.net/api/git/stacks/10/sync
       echo "Triggered Dockhand async sync for beta stack 10"
