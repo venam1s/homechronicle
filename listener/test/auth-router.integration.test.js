@@ -112,8 +112,8 @@ function createMockPool() {
         return { rows: [{ id: user.id, email: user.email, role: user.role }] };
       }
 
-      // findUserByEmail
-      if (s.includes('SELECT id, email, password_hash, role FROM users WHERE email')) {
+      // findUserByEmail — matches both old SELECT and new SELECT (with disabled_at)
+      if (s.includes('FROM users WHERE email')) {
         const [email] = params;
         const user = users.find((u) => u.email === email.trim().toLowerCase()) ?? null;
         return { rows: user ? [user] : [] };
