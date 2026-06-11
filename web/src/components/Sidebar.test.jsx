@@ -135,4 +135,45 @@ describe('Sidebar', () => {
     render(<Sidebar {...defaultProps} onToggle={undefined} />);
     expect(screen.queryByRole('button', { name: /expand|collapse/i })).not.toBeInTheDocument();
   });
+
+  // -- Sign out control tests (AUTH-03) --
+
+  it('Test 12 (AUTH-03): renders a Sign out button in expanded sidebar (accessible name "Sign out")', () => {
+    render(<Sidebar {...defaultProps} collapsed={false} />);
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+  });
+
+  it('Test 13 (AUTH-03): renders a Sign out button when collapsed=true (accessible name "Sign out" via aria-label)', () => {
+    render(<Sidebar {...defaultProps} collapsed={true} />);
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+  });
+
+  it('Test 14 (AUTH-03): clicking Sign out calls logoutMutation.mutate', () => {
+    render(<Sidebar {...defaultProps} collapsed={false} />);
+    const signOutBtn = screen.getByRole('button', { name: 'Sign out' });
+    fireEvent.click(signOutBtn);
+    expect(mockLogoutMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it('Test 15 (AUTH-03): logout onSuccess clears csrfToken from sessionStorage and navigates to /login', () => {
+    // Configure mockLogoutMutate to invoke the onSuccess callback synchronously
+    mockLogoutMutate.mockImplementation((_arg, opts) => {
+      opts?.onSuccess?.();
+    });
+    sessionStorage.setItem('csrfToken', 'test-token-value');
+
+    render(<Sidebar {...defaultProps} collapsed={false} />);
+    const signOutBtn = screen.getByRole('button', { name: 'Sign out' });
+    fireEvent.click(signOutBtn);
+
+    expect(sessionStorage.getItem('csrfToken')).toBeNull();
+    expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+  });
+
+  it('Test 16 (AUTH-03): account label falls back gracefully when /auth/me has no email (shows role, not undefined)', () => {
+    // Default mock already has user: { user: { id: 1, role: 'admin' } } with no email
+    render(<Sidebar {...defaultProps} collapsed={false} />);
+    // The label should show a capitalized role ("Admin"), never undefined or blank
+    expect(screen.getByText('Admin')).toBeInTheDocument();
+  });
 });
