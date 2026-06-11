@@ -311,8 +311,8 @@ test('POST /api/users/invite returns 400 for duplicate pending invite', async ()
     poolBehavior: [
       // findUserByEmail → no user
       { match: 'FROM users WHERE', rows: [] },
-      // findInviteByEmail → pending invite exists
-      { match: 'FROM invites WHERE', rows: [{ id: 3, email: 'pending@example.com', status: 'pending', expires_at: new Date() }] },
+      // findInviteByEmail → pending invite exists (SQL has newline between FROM invites and WHERE)
+      { match: 'FROM invites', rows: [{ id: 3, email: 'pending@example.com', status: 'pending', expires_at: new Date() }] },
     ],
   });
   const res = await request(app, 'POST', '/api/users/invite', { email: 'pending@example.com' });
