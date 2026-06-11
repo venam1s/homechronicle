@@ -58,29 +58,51 @@ function createMockPool() {
   const sessions = [];
   let nextUserId = 1;
   let nextSessionId = 1;
+  let advisoryCalls = 0;
 
-  return {
-    users,
-    sessions,
-    async query(sql, params = []) {
-      const s = sql.trim().replace(/\s+/g, ' ');
+  // Async advisory-lock mutex modelling pg_advisory_xact_lock: one holder at a
+  // time, FIFO waiters, released at COMMIT/ROLLBACK (or client.release()). This
+  // lets the concurrency test exercise the real serialization the fix relies on.
+  let lockHeld = false;
+  const lockWaiters = [];
+  function acquireLock() {
+    if (!lockHeld) {
+      lockHeld = true;
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => lockWaiters.push(resolve));
+  }
+  function releaseLock() {
+    const next = lockWaiters.shift();
+    if (next) next();
+    else lockHeld = false;
+  }
 
-      // getUserCount
-      if (s.includes('COUNT(*) AS n FROM users')) {
-        return { rows: [{ n: String(users.length) }] };
+  async function runQuery(sql, params = []) {
+    const s = sql.trim().replace(/\s+/g, ' ');
+
+    // getUserCount
+    if (s.includes('COUNT(*) AS n FROM users')) {
+      return { rows: [{ n: String(users.length) }] };
+    }
+
+    // Atomic claim-admin: INSERT INTO users ... SELECT $1, $2, 'admin' WHERE NOT EXISTS ...
+    // The role is a literal 'admin' in the SQL, not a parameter — only email ($1) and passwordHash ($2) are params.
+    if (s.startsWith('INSERT INTO users') && s.includes('WHERE NOT EXISTS')) {
+      const wasEmpty = users.length === 0;
+      // Model the READ COMMITTED snapshot gap between the existence check and the
+      // insert. Without the advisory lock, two interleaved claim-admins both
+      // observe wasEmpty=true here and both insert — exactly the bug. With the
+      // lock, the second request is blocked before it reaches this branch.
+      await Promise.resolve();
+      if (!wasEmpty) {
+        return { rows: [] }; // no row = already exists
       }
-
-      // Atomic claim-admin: INSERT INTO users ... SELECT $1, $2, 'admin' WHERE NOT EXISTS ...
-      // The role is a literal 'admin' in the SQL, not a parameter — only email ($1) and passwordHash ($2) are params.
-      if (s.startsWith('INSERT INTO users') && s.includes('WHERE NOT EXISTS')) {
-        if (users.length > 0) {
-          return { rows: [] }; // no row = already exists
-        }
-        const [email, passwordHash] = params;
-        const user = { id: nextUserId++, email, password_hash: passwordHash, role: 'admin' };
-        users.push(user);
-        return { rows: [{ id: user.id, email: user.email, role: user.role }] };
-      }
+      const [email, passwordHash] = params;
+      const user = { id: nextUserId++, email, password_hash: passwordHash, role: 'admin' };
+      users.push(user);
+      return { rows: [{ id: user.id, email: user.email, role: user.role }] };
+    }
 
       // createUser (plain INSERT used by test setup helpers)
       if (s.startsWith('INSERT INTO users') && !s.includes('WHERE NOT EXISTS')) {
@@ -149,8 +171,49 @@ function createMockPool() {
         return { rowCount: session ? 1 : 0 };
       }
 
-      throw new Error(`Unexpected SQL: ${sql}`);
+    throw new Error(`Unexpected SQL: ${sql}`);
+  }
+
+  // Transactional client returned by connect(): handles BEGIN/COMMIT/ROLLBACK and
+  // the advisory lock; all other statements delegate to the shared runQuery.
+  function connect() {
+    let heldLock = false;
+    return {
+      async query(sql, params = []) {
+        const s = sql.trim().replace(/\s+/g, ' ');
+        if (s === 'BEGIN') return { rows: [] };
+        if (s.startsWith('SELECT pg_advisory_xact_lock')) {
+          advisoryCalls += 1;
+          await acquireLock();
+          heldLock = true;
+          return { rows: [{ pg_advisory_xact_lock: '' }] };
+        }
+        if (s === 'COMMIT' || s === 'ROLLBACK') {
+          if (heldLock) {
+            heldLock = false;
+            releaseLock();
+          }
+          return { rows: [] };
+        }
+        return runQuery(sql, params);
+      },
+      release() {
+        if (heldLock) {
+          heldLock = false;
+          releaseLock();
+        }
+      },
+    };
+  }
+
+  return {
+    users,
+    sessions,
+    get advisoryCalls() {
+      return advisoryCalls;
     },
+    query: runQuery,
+    connect,
   };
 }
 
@@ -421,6 +484,13 @@ test('POST /api/auth/claim-admin concurrent calls on empty table create exactly 
   // Final user count must be 1
   assert.equal(pool.users.length, 1, 'only one admin must exist after concurrent claims');
   assert.equal(pool.users[0].role, 'admin', 'the created user must have role admin');
+
+  // T-20-BOOTSTRAP-RACE: the exactly-one result must come from the advisory lock,
+  // not from the mock's incidental ordering. The mock yields between the existence
+  // check and the insert, so WITHOUT pg_advisory_xact_lock both requests would
+  // observe an empty table and both insert (count would be 2). Assert the lock was
+  // actually acquired so a regression to the lockless pool.query path fails here.
+  assert.ok(pool.advisoryCalls >= 1, 'claim-admin must acquire pg_advisory_xact_lock');
   void statuses;
 });
 

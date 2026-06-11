@@ -25,6 +25,16 @@ const AUTH_RATE_LIMIT_MAX = parseIntInRange(
   100_000,
 );
 
+// Transaction-scoped advisory-lock key for the first-admin bootstrap path
+// (T-20-BOOTSTRAP-RACE). A bare `INSERT … WHERE NOT EXISTS (SELECT 1 FROM users)`
+// is NOT race-safe under READ COMMITTED: two concurrent claim-admin requests with
+// different emails each evaluate the existence check against the still-empty table,
+// both pass, and both insert — the `email UNIQUE` constraint does not catch differing
+// emails. Serializing the check+insert behind a constant pg_advisory_xact_lock forces
+// the second request to wait until the first commits, after which it observes the row
+// and 409s. The lock is released automatically at COMMIT/ROLLBACK.
+const CLAIM_ADMIN_BOOTSTRAP_LOCK_KEY = 20_240_001;
+
 // Fixed dummy hash computed once at startup (CR-01). When login receives an
 // unknown email we still run argon2 verification against this constant so the
 // unknown-email and known-email branches cost the same — closing the
@@ -187,20 +197,36 @@ export function createAuthPublicRouter({
 
       const passwordHash = await hashPassword(password);
 
-      // Atomic INSERT ... WHERE NOT EXISTS (P10 — prevents bootstrap race)
-      const result = await pool.query(
-        `INSERT INTO users (email, password_hash, role)
-         SELECT $1, $2, 'admin'
-         WHERE NOT EXISTS (SELECT 1 FROM users)
-         RETURNING id, email, role`,
-        [email, passwordHash],
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(409).json({ error: 'Admin account already exists' });
+      // Race-safe bootstrap (T-20-BOOTSTRAP-RACE). Serialize the existence
+      // check + insert behind a transaction-scoped advisory lock so concurrent
+      // claim-admin requests cannot both observe an empty users table. The bare
+      // `WHERE NOT EXISTS` guard alone is NOT sufficient under READ COMMITTED —
+      // see CLAIM_ADMIN_BOOTSTRAP_LOCK_KEY. Canonical pool.connect() +
+      // BEGIN/COMMIT/ROLLBACK pattern (see runRetentionSweep in db.js).
+      const client = await pool.connect();
+      let user;
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [CLAIM_ADMIN_BOOTSTRAP_LOCK_KEY]);
+        const result = await client.query(
+          `INSERT INTO users (email, password_hash, role)
+           SELECT $1, $2, 'admin'
+           WHERE NOT EXISTS (SELECT 1 FROM users)
+           RETURNING id, email, role`,
+          [email, passwordHash],
+        );
+        await client.query('COMMIT');
+        user = result.rows[0];
+      } catch (txErr) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw txErr;
+      } finally {
+        client.release();
       }
 
-      const user = result.rows[0];
+      if (!user) {
+        return res.status(409).json({ error: 'Admin account already exists' });
+      }
 
       // Auto-login the first admin (no prior cookie to revoke)
       await issueSession(res, user.id, false);
