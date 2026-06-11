@@ -1,12 +1,16 @@
 /**
  * auth-router.integration.test.js
  * Integration tests for createAuthPublicRouter and createAuthProtectedRouter:
- *   GET  /csrf-token   — public, no session required (SEC-02)
- *   GET  /user-count   — public probe (Plan 05 cross-plan contract)
- *   POST /login        — AUTH-02, AUTH-06, SEC-01, SEC-04
- *   POST /claim-admin  — AUTH-01, P10 atomic bootstrap
- *   GET  /me           — AUTH-03, returns session user
- *   DELETE /logout     — AUTH-03, revokes server-side session + clears cookie
+ *   GET  /csrf-token      — public, no session required (SEC-02)
+ *   GET  /user-count      — public probe (Plan 05 cross-plan contract)
+ *   POST /login           — AUTH-02, AUTH-06, SEC-01, SEC-04
+ *   POST /claim-admin     — AUTH-01, P10 atomic bootstrap
+ *   POST /accept-invite   — PWD-01, T-21-05-REPLAY
+ *   POST /forgot-password — PWD-02, T-21-05-ENUM
+ *   POST /reset-confirm   — PWD-03, T-21-05-REPLAY, session revocation
+ *   GET  /me              — AUTH-03, returns session user
+ *   DELETE /logout        — AUTH-03, revokes server-side session + clears cookie
+ *   PATCH /password       — PWD-01, change own password
  */
 
 import test from 'node:test';
@@ -27,11 +31,16 @@ const SESSION_MAX_AGE_REMEMBER = 30 * DAY_MS;
  * Build a minimal express app that mounts the auth router under /api/auth.
  * SESSION_COOKIE_SECURE and generateCsrfToken are injectable so we can
  * test Secure flag without touching NODE_ENV.
+ *
+ * sendPasswordReset, isEmailEnabled, appBaseUrl added for Plan 21-05 routes.
  */
 function buildApp({
   pool,
   SESSION_COOKIE_SECURE = false,
   generateCsrfToken = (_req, _res) => 'test-csrf-token-value',
+  sendPasswordReset = async () => {},
+  isEmailEnabled = () => true,
+  appBaseUrl = 'https://test.example.com',
 } = {}) {
   const app = express();
   app.use(express.json());
@@ -44,6 +53,9 @@ function buildApp({
       SESSION_MAX_AGE_DEFAULT,
       SESSION_MAX_AGE_REMEMBER,
       generateCsrfToken,
+      sendPasswordReset,
+      isEmailEnabled,
+      appBaseUrl,
     }),
   );
   return app;
@@ -51,13 +63,17 @@ function buildApp({
 
 /**
  * Minimal in-memory pool that satisfies auth-router queries.
- * Supports: users table (INSERT, SELECT by email, COUNT), sessions table (INSERT, DELETE by token_hash).
+ * Supports: users, sessions, invites, password_reset_tokens tables.
  */
 function createMockPool() {
   const users = [];
   const sessions = [];
+  const invites = [];
+  const passwordResetTokens = [];
   let nextUserId = 1;
   let nextSessionId = 1;
+  let nextInviteId = 1;
+  let nextResetTokenId = 1;
   let advisoryCalls = 0;
 
   // Async advisory-lock mutex modelling pg_advisory_xact_lock: one holder at a
@@ -171,6 +187,63 @@ function createMockPool() {
         return { rowCount: session ? 1 : 0 };
       }
 
+      // redeemInvite: atomically accepts an invite (single-use, T-21-05-REPLAY)
+      if (s.includes('UPDATE invites') && s.includes("status = 'accepted'") && s.includes('token_hash = $1')) {
+        const [tokenHash] = params;
+        const now = new Date();
+        const invite = invites.find(
+          (i) => i.token_hash === tokenHash && i.status === 'pending' && new Date(i.expires_at) > now && !i.used_at,
+        ) ?? null;
+        if (!invite) return { rows: [] };
+        invite.status = 'accepted';
+        invite.used_at = now;
+        return { rows: [{ id: invite.id, email: invite.email, role: invite.role }] };
+      }
+
+      // createPasswordResetToken: INSERT INTO password_reset_tokens
+      if (s.startsWith('INSERT INTO password_reset_tokens')) {
+        const [userId, tokenHash, expiresAt] = params;
+        const token = { id: nextResetTokenId++, user_id: userId, token_hash: tokenHash, expires_at: expiresAt, used_at: null };
+        passwordResetTokens.push(token);
+        return { rows: [{ id: token.id }] };
+      }
+
+      // redeemResetToken: single-use UPDATE
+      if (s.includes('UPDATE password_reset_tokens') && s.includes('used_at = NOW()') && s.includes('token_hash = $1')) {
+        const [tokenHash] = params;
+        const now = new Date();
+        const token = passwordResetTokens.find(
+          (t) => t.token_hash === tokenHash && new Date(t.expires_at) > now && !t.used_at,
+        ) ?? null;
+        if (!token) return { rows: [] };
+        token.used_at = now;
+        return { rows: [{ id: token.id, user_id: token.user_id }] };
+      }
+
+      // UPDATE users SET password_hash (used by reset-confirm and change-password)
+      if (s.includes('UPDATE users SET password_hash') && s.includes('WHERE id = $2')) {
+        const [passwordHash, userId] = params;
+        const user = users.find((u) => u.id === userId);
+        if (user) user.password_hash = passwordHash;
+        return { rowCount: user ? 1 : 0 };
+      }
+
+      // revokeSessionsForUser: DELETE FROM sessions WHERE user_id = $1
+      if (s.startsWith('DELETE FROM sessions WHERE user_id')) {
+        const [userId] = params;
+        const before = sessions.length;
+        const toRemove = sessions.filter((s) => s.user_id === userId);
+        toRemove.forEach((s) => sessions.splice(sessions.indexOf(s), 1));
+        return { rowCount: before - sessions.length };
+      }
+
+      // findUserById: SELECT FROM users WHERE id = $1 (used by change-password)
+      if (s.includes('FROM users WHERE id = $1')) {
+        const [userId] = params;
+        const user = users.find((u) => u.id === userId) ?? null;
+        return { rows: user ? [user] : [] };
+      }
+
     throw new Error(`Unexpected SQL: ${sql}`);
   }
 
@@ -209,6 +282,8 @@ function createMockPool() {
   return {
     users,
     sessions,
+    invites,
+    passwordResetTokens,
     get advisoryCalls() {
       return advisoryCalls;
     },
@@ -494,6 +569,268 @@ test('POST /api/auth/claim-admin concurrent calls on empty table create exactly 
   void statuses;
 });
 
+// -- Plan 21-05 Task 1: POST /accept-invite, POST /forgot-password, POST /reset-confirm --
+
+// Helper: seed a pending invite in the mock pool
+function seedInvite(pool, { email = 'invited@test.com', role = 'member', hoursFromNow = 48 } = {}) {
+  const rawToken = 'raw-invite-token-' + Math.random().toString(36).slice(2);
+  const { hashToken: ht } = { hashToken: (t) => require('crypto').createHash('sha256').update(t).digest('hex') };
+  void ht; // We'll hash in tests using imported hashToken
+  const expiresAt = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
+  pool.invites.push({
+    id: pool.invites.length + 1,
+    email,
+    role,
+    status: 'pending',
+    token_hash: null, // caller will set via hashToken
+    expires_at: expiresAt,
+    used_at: null,
+  });
+  return { rawToken, expiresAt, invite: pool.invites[pool.invites.length - 1] };
+}
+
+test('POST /api/auth/accept-invite with valid token creates user, issues session, returns user (PWD-01)', async () => {
+  const pool = createMockPool();
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  pool.invites.push({
+    id: 1,
+    email: 'invited@test.com',
+    role: 'member',
+    status: 'pending',
+    token_hash: tokenHash,
+    expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000),
+    used_at: null,
+  });
+
+  const app = buildApp({ pool });
+  const res = await supertest(app)
+    .post('/api/auth/accept-invite')
+    .send({ token: rawToken, password: 'strongpass-12ch' });
+
+  assert.equal(res.status, 200, `expected 200, got ${res.status}: ${JSON.stringify(res.body)}`);
+  assert.ok(res.body.ok, 'response must include ok: true');
+  assert.ok(res.body.user, 'response must include user');
+  assert.equal(res.body.user.email, 'invited@test.com');
+  assert.equal(res.body.user.role, 'member');
+
+  // Session cookie must be set
+  const setCookie = res.headers['set-cookie'];
+  assert.ok(setCookie, 'hc_session cookie must be set');
+  const cookieStr = Array.isArray(setCookie) ? setCookie.join('; ') : setCookie;
+  assert.ok(cookieStr.includes('hc_session='), 'cookie must be hc_session');
+
+  // Invite must now be marked accepted
+  assert.equal(pool.invites[0].status, 'accepted', 'invite status must be accepted after redemption');
+  // User must exist in pool
+  assert.equal(pool.users.length, 1, 'one user must be created');
+  assert.equal(pool.users[0].email, 'invited@test.com');
+});
+
+test('POST /api/auth/accept-invite with invalid token returns 400 (T-21-05-REPLAY)', async () => {
+  const pool = createMockPool();
+  const app = buildApp({ pool });
+
+  const res = await supertest(app)
+    .post('/api/auth/accept-invite')
+    .send({ token: 'invalid-or-already-used-token', password: 'strongpass-12ch' });
+
+  assert.equal(res.status, 400, `expected 400, got ${res.status}`);
+  assert.ok(res.body.error, 'must return error');
+  assert.match(res.body.error, /invalid|expired/i);
+  assert.equal(pool.users.length, 0, 'no user must be created for an invalid invite');
+});
+
+test('POST /api/auth/accept-invite with already-used token returns 400 (T-21-05-REPLAY — second use)', async () => {
+  const pool = createMockPool();
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  pool.invites.push({
+    id: 1,
+    email: 'used@test.com',
+    role: 'member',
+    status: 'accepted', // already redeemed
+    token_hash: tokenHash,
+    expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000),
+    used_at: new Date(),
+  });
+
+  const app = buildApp({ pool });
+  const res = await supertest(app)
+    .post('/api/auth/accept-invite')
+    .send({ token: rawToken, password: 'strongpass-12ch' });
+
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /invalid|expired/i);
+});
+
+test('POST /api/auth/accept-invite with weak password returns 400', async () => {
+  const pool = createMockPool();
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  pool.invites.push({
+    id: 1,
+    email: 'weak@test.com',
+    role: 'member',
+    status: 'pending',
+    token_hash: tokenHash,
+    expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000),
+    used_at: null,
+  });
+
+  const app = buildApp({ pool });
+  const res = await supertest(app)
+    .post('/api/auth/accept-invite')
+    .send({ token: rawToken, password: 'short' });
+
+  assert.equal(res.status, 400);
+  assert.ok(res.body.error, 'must return error');
+  // Invite must NOT be redeemed on password rejection
+  assert.equal(pool.invites[0].status, 'pending', 'invite must remain pending on password rejection');
+  assert.equal(pool.users.length, 0, 'no user must be created for a weak password');
+});
+
+test('POST /api/auth/forgot-password returns identical body for known vs unknown email (T-21-05-ENUM)', async () => {
+  const pool = createMockPool();
+  const passwordHash = await hashPassword('correct-password-12ch');
+  pool.users.push({ id: 1, email: 'known@test.com', password_hash: passwordHash, role: 'member' });
+
+  const app = buildApp({ pool });
+
+  const resKnown = await supertest(app)
+    .post('/api/auth/forgot-password')
+    .send({ email: 'known@test.com' });
+  const resUnknown = await supertest(app)
+    .post('/api/auth/forgot-password')
+    .send({ email: 'unknown@test.com' });
+
+  assert.equal(resKnown.status, 200, `known: expected 200, got ${resKnown.status}`);
+  assert.equal(resUnknown.status, 200, `unknown: expected 200, got ${resUnknown.status}`);
+  // Bodies must be byte-identical (enumeration safety)
+  assert.deepEqual(
+    resKnown.body,
+    resUnknown.body,
+    `Response bodies must be identical for enumeration safety. Known: ${JSON.stringify(resKnown.body)} Unknown: ${JSON.stringify(resUnknown.body)}`,
+  );
+  assert.ok(resKnown.body.message, 'response must include a message');
+});
+
+test('POST /api/auth/forgot-password for known user calls sendPasswordReset (PWD-02)', async () => {
+  const pool = createMockPool();
+  const passwordHash = await hashPassword('correct-password-12ch');
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: passwordHash, role: 'member' });
+
+  let resetCallArgs = null;
+  const sendPasswordReset = async (to, resetUrl) => {
+    resetCallArgs = { to, resetUrl };
+  };
+
+  const app = buildApp({ pool, sendPasswordReset, appBaseUrl: 'https://app.example.com' });
+  const res = await supertest(app)
+    .post('/api/auth/forgot-password')
+    .send({ email: 'user@test.com' });
+
+  assert.equal(res.status, 200);
+  assert.ok(resetCallArgs !== null, 'sendPasswordReset must have been called for a known email');
+  assert.equal(resetCallArgs.to, 'user@test.com');
+  assert.ok(resetCallArgs.resetUrl.startsWith('https://app.example.com'), 'reset URL must use appBaseUrl');
+  // A reset token must have been stored
+  assert.equal(pool.passwordResetTokens.length, 1, 'reset token must be persisted');
+});
+
+test('POST /api/auth/forgot-password for unknown email does NOT call sendPasswordReset (PWD-02 — enumeration)', async () => {
+  const pool = createMockPool(); // empty
+  let sendCalled = false;
+  const sendPasswordReset = async () => { sendCalled = true; };
+  const app = buildApp({ pool, sendPasswordReset });
+
+  const res = await supertest(app)
+    .post('/api/auth/forgot-password')
+    .send({ email: 'nobody@test.com' });
+
+  assert.equal(res.status, 200);
+  assert.ok(!sendCalled, 'sendPasswordReset must NOT be called for unknown email');
+  assert.equal(pool.passwordResetTokens.length, 0, 'no reset token must be persisted for unknown email');
+});
+
+test('POST /api/auth/reset-confirm with valid token resets password and revokes sessions (PWD-03)', async () => {
+  const pool = createMockPool();
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  const passwordHash = await hashPassword('old-password-12ch');
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: passwordHash, role: 'member' });
+  // Add a session to prove it gets revoked
+  pool.sessions.push({ id: 1, user_id: 1, token_hash: 'session-hash', csrf_token: null, expires_at: new Date(Date.now() + 7 * 86400 * 1000) });
+  pool.passwordResetTokens.push({
+    id: 1,
+    user_id: 1,
+    token_hash: tokenHash,
+    expires_at: new Date(Date.now() + 60 * 60 * 1000),
+    used_at: null,
+  });
+
+  const app = buildApp({ pool });
+  const res = await supertest(app)
+    .post('/api/auth/reset-confirm')
+    .send({ token: rawToken, password: 'new-strong-password-12ch' });
+
+  assert.equal(res.status, 200, `expected 200, got ${res.status}: ${JSON.stringify(res.body)}`);
+  assert.ok(res.body.ok, 'response must include ok: true');
+  // Sessions must be revoked
+  assert.equal(pool.sessions.length, 0, 'all sessions must be revoked after password reset');
+  // Password hash must be updated (argon2id — just check it changed)
+  assert.notEqual(pool.users[0].password_hash, passwordHash, 'password hash must be updated');
+  // Token must be marked used
+  assert.ok(pool.passwordResetTokens[0].used_at !== null, 'reset token must be marked used');
+});
+
+test('POST /api/auth/reset-confirm with already-used token returns 400 (T-21-05-REPLAY)', async () => {
+  const pool = createMockPool();
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: 'hash', role: 'member' });
+  pool.passwordResetTokens.push({
+    id: 1,
+    user_id: 1,
+    token_hash: tokenHash,
+    expires_at: new Date(Date.now() + 60 * 60 * 1000),
+    used_at: new Date(), // already used
+  });
+
+  const app = buildApp({ pool });
+  const res = await supertest(app)
+    .post('/api/auth/reset-confirm')
+    .send({ token: rawToken, password: 'new-strong-password-12ch' });
+
+  assert.equal(res.status, 400);
+  assert.ok(res.body.error, 'must return error');
+  assert.match(res.body.error, /expired|already been used/i);
+});
+
+test('POST /api/auth/reset-confirm with weak password returns 400 (D-14)', async () => {
+  const pool = createMockPool();
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: 'hash', role: 'member' });
+  pool.passwordResetTokens.push({
+    id: 1,
+    user_id: 1,
+    token_hash: tokenHash,
+    expires_at: new Date(Date.now() + 60 * 60 * 1000),
+    used_at: null,
+  });
+
+  const app = buildApp({ pool });
+  const res = await supertest(app)
+    .post('/api/auth/reset-confirm')
+    .send({ token: rawToken, password: 'weak' });
+
+  assert.equal(res.status, 400);
+  assert.ok(res.body.error, 'must return error');
+  // Token must NOT be consumed on validation failure
+  assert.ok(pool.passwordResetTokens[0].used_at === null, 'reset token must NOT be marked used on weak password');
+});
+
 // -- Task 2 (TDD): createAuthProtectedRouter — GET /me, DELETE /logout --
 
 /**
@@ -594,4 +931,91 @@ test('DELETE /api/auth/logout with no hc_session cookie still returns 200 { ok: 
   const res = await supertest(app).delete('/api/auth/logout');
   assert.equal(res.status, 200);
   assert.deepEqual(res.body, { ok: true });
+});
+
+// -- Plan 21-05 Task 2: PATCH /password (change own password) --
+
+test('PATCH /api/auth/password with correct current password changes password and revokes sessions (PWD-01)', async () => {
+  const pool = createMockPool();
+  const oldPasswordHash = await hashPassword('old-password-12ch');
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: oldPasswordHash, role: 'member' });
+  // Add a session row to verify it gets revoked
+  pool.sessions.push({ id: 1, user_id: 1, token_hash: 'some-hash', csrf_token: null, expires_at: new Date(Date.now() + 7 * 86400 * 1000) });
+
+  const hcSession = { id: 1, user_id: 1, role: 'member', email: 'user@test.com', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  const res = await supertest(app)
+    .patch('/api/auth/password')
+    .send({ currentPassword: 'old-password-12ch', newPassword: 'new-strong-password-12ch' });
+
+  assert.equal(res.status, 200, `expected 200, got ${res.status}: ${JSON.stringify(res.body)}`);
+  assert.ok(res.body.ok, 'response must include ok: true');
+  // All sessions must be revoked (forces re-login on other devices)
+  assert.equal(pool.sessions.length, 0, 'all sessions must be revoked after password change (PWD-01)');
+  // Password hash must have changed
+  assert.notEqual(pool.users[0].password_hash, oldPasswordHash, 'password hash must be updated');
+});
+
+test('PATCH /api/auth/password with wrong current password returns 400 (not 401)', async () => {
+  const pool = createMockPool();
+  const oldPasswordHash = await hashPassword('correct-password-12ch');
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: oldPasswordHash, role: 'member' });
+
+  const hcSession = { id: 1, user_id: 1, role: 'member', email: 'user@test.com', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  const res = await supertest(app)
+    .patch('/api/auth/password')
+    .send({ currentPassword: 'wrong-password-12ch', newPassword: 'new-strong-password-12ch' });
+
+  assert.equal(res.status, 400, `expected 400, got ${res.status}`);
+  assert.match(res.body.error, /current password is incorrect/i);
+  // Password must NOT have changed
+  assert.equal(pool.users[0].password_hash, oldPasswordHash, 'password must not change on wrong current password');
+});
+
+test('PATCH /api/auth/password with weak new password returns 400 (D-14)', async () => {
+  const pool = createMockPool();
+  const oldPasswordHash = await hashPassword('correct-password-12ch');
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: oldPasswordHash, role: 'member' });
+
+  const hcSession = { id: 1, user_id: 1, role: 'member', email: 'user@test.com', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  const res = await supertest(app)
+    .patch('/api/auth/password')
+    .send({ currentPassword: 'correct-password-12ch', newPassword: 'weak' });
+
+  assert.equal(res.status, 400);
+  assert.ok(res.body.error, 'must return error');
+  // Password must NOT have changed
+  assert.equal(pool.users[0].password_hash, oldPasswordHash, 'password must not change on weak new password');
+});
+
+test('PATCH /api/auth/password with no session returns 401', async () => {
+  const pool = createMockPool();
+  const app = buildProtectedApp({ pool, hcSession: null });
+
+  const res = await supertest(app)
+    .patch('/api/auth/password')
+    .send({ currentPassword: 'any', newPassword: 'any' });
+
+  assert.equal(res.status, 401);
+});
+
+test('PATCH /api/auth/password missing required fields returns 400', async () => {
+  const pool = createMockPool();
+  const hcSession = { id: 1, user_id: 1, role: 'member', csrfToken: null };
+  const app = buildProtectedApp({ pool, hcSession });
+
+  let res = await supertest(app)
+    .patch('/api/auth/password')
+    .send({ newPassword: 'new-strong-password-12ch' });
+  assert.equal(res.status, 400);
+
+  res = await supertest(app)
+    .patch('/api/auth/password')
+    .send({ currentPassword: 'old-password-12ch' });
+  assert.equal(res.status, 400);
 });
