@@ -148,6 +148,85 @@ export function validateWebhookTargetUrl(rawUrl, { allowPrivateTargets = true } 
   return { ok: true, normalizedUrl: parsed.toString() };
 }
 
+// -- Password strength (PWD-04 / D-14 / D-15) --
+
+/**
+ * Inline common-password blocklist (<200 entries).
+ * Drawn from HaveIBeenPwned / NIST top-list subset + self-referential entry.
+ * Check is case-insensitive: toLowerCase() before Set lookup.
+ * D-15: inline only — NO external file, NO npm dependency.
+ */
+const COMMON_PASSWORDS = new Set([
+  // Top 10 most common
+  '123456', 'password', '12345678', 'qwerty', '123456789',
+  '12345', '1234', '111111', '1234567', 'dragon',
+  // Next tier
+  '123123', 'baseball', 'abc123', 'football', 'monkey',
+  'letmein', 'shadow', 'master', 'sunshine', 'princess',
+  'welcome', 'admin', 'login', 'iloveyou', 'solo',
+  'pass', 'qwerty123', 'password1', 'starwars', 'access',
+  'batman', 'trustno1', 'superman', 'mustang', 'michael',
+  'jessica', 'jordan', 'hunter', 'ranger', 'buster',
+  'thomas', 'robert', 'daniel', 'andrew', 'george',
+  'charlie', 'jessica', 'hunter', 'ranger', 'buster',
+  // Numeric sequences
+  '0987654321', '1234567890', '9876543210', '1111111111', '0000000000',
+  '1234512345', '0123456789', '9999999999',
+  // Common phrases
+  'iloveyou', 'welcome1', 'password1', 'password12', 'password123',
+  'passw0rd', 'p@ssword', 'p@ssw0rd', 'qwerty123', 'qwerty1234',
+  'qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1q2w3e4r', '1q2w3e4r5t',
+  'qazwsxedc', 'qweasdzxc', 'zxcvbnm123', 'abcdefghij', 'abcdefg',
+  // Default credentials
+  'administrator', 'changeme', 'rootroot', 'adminadmin', 'defaultpass',
+  'sysadmin', 'guestguest', 'testtest', 'demopassword', 'tester1234',
+  // Names and words
+  'superman', 'batman', 'spiderman', 'ironman', 'wolverine',
+  'captain', 'avengers', 'starwars', 'stargate', 'startrek',
+  'pokemon', 'pikachu', 'nintendo', 'playstation', 'minecraft',
+  'facebook', 'twitter', 'instagram', 'linkedin', 'youtube',
+  'google123', 'apple1234', 'microsoft', 'windowsxp', 'windows10',
+  'computer', 'internet', 'keyboard', 'password0', 'passpass',
+  'abc12345', 'abc1234', 'abc123456', 'qwerty12', 'asdf1234',
+  // Common keyboard patterns
+  '1qaz2wsx', '2wsx3edc', 'qazxswedcvfr', '1qazxsw2', 'q1w2e3r4',
+  'q1w2e3r4t5', '1q2w3e4r5t6y', 'zxcvbnm1', 'asdfghjkl1',
+  // Common phrases/themes
+  'monkey123', 'dragon123', 'sunshine1', 'sunshine12', 'princess1',
+  'football1', 'baseball1', 'soccer123', 'basketball', 'hockey123',
+  'baseball12', 'football12', 'letmein1', 'letmein12', 'letmein123',
+  'welcome12', 'welcome123', 'welcome1234', 'changeme1', 'trustno1',
+  'iloveyou1', 'iloveyou12', 'iloveyou123', 'fuckyou123', 'hello123',
+  'hello1234', 'hello12345', 'hello123456', 'killer123', 'master123',
+  'password2', 'password3', 'password4', 'password5', 'password6',
+  'password7', 'password8', 'password9', 'password10', 'password11',
+  // Common words + digits
+  'thomas1', 'thomas123', 'michael1', 'michael123', 'jessica1',
+  'charlie1', 'charlie123', 'daniel123', 'andrew123', 'george123',
+  // Self-referential block
+  'homechronicle',
+]);
+
+/**
+ * Validate password strength server-side (authoritative enforcement, PWD-04 / D-14).
+ * Rules: non-empty string, min 10 characters, not in the common-password blocklist.
+ * No character-class composition rules (NIST 800-63B / D-14).
+ * @param {unknown} password - Value to validate.
+ * @returns {{ ok: boolean, error?: string }}
+ */
+export function validatePasswordStrength(password) {
+  if (typeof password !== 'string') {
+    return { ok: false, error: 'Password is required.' };
+  }
+  if (password.length < 10) {
+    return { ok: false, error: 'Password must be at least 10 characters.' };
+  }
+  if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+    return { ok: false, error: 'That password is too common. Choose a less predictable passphrase.' };
+  }
+  return { ok: true };
+}
+
 // -- Password and token crypto helpers (AUTH-05/D-11/D-12) --
 
 /**
