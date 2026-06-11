@@ -9,7 +9,7 @@ import { networkInterfaces } from 'os';
 import express from 'express';
 import cors from 'cors';
 import { HttpClient } from 'hap-controller'; // injected into setup-router and accessories-router for testability
-import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep, validateSession } from './db.js';
+import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep, runSessionRetentionSweep, validateSession } from './db.js';
 import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter } from './events-router.js';
@@ -362,6 +362,16 @@ async function runRetentionSweepSafe() {
     } catch (err) {
       log.error('[retention] alert_deliveries sweep failed:', err.message ?? err.stack ?? err);
     }
+  }
+
+  // expired sessions (delete-only, absolute expiry — WR-03)
+  try {
+    const sessionResult = await runSessionRetentionSweep();
+    if (sessionResult.deleted > 0) {
+      log.info(`[retention] sessions expired deleted=${sessionResult.deleted}`);
+    }
+  } catch (err) {
+    log.error('[retention] sessions sweep failed:', err.message ?? err.stack ?? err);
   }
 }
 

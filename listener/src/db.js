@@ -185,6 +185,32 @@ export async function runRetentionSweep({
   }
 }
 
+/**
+ * Delete expired session rows (WR-03).
+ * validateSession already filters WHERE expires_at > NOW(), so expired rows are
+ * never returned — but without this sweep they accumulate forever (the common case:
+ * users close the tab and the session simply lapses). Runs alongside the event and
+ * alert_deliveries retention sweeps to keep the sessions table bounded on
+ * long-running self-hosted instances.
+ * @returns {Promise<{deleted: number}>}
+ */
+export async function runSessionRetentionSweep() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `DELETE FROM sessions WHERE expires_at < NOW()`,
+    );
+    await client.query('COMMIT');
+    return { deleted: result.rowCount };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function runAlertDeliveriesRetentionSweep({ retentionDays }) {
   if (!Number.isFinite(retentionDays) || retentionDays <= 0) {
     return { deleted: 0, cutoffDays: retentionDays };
