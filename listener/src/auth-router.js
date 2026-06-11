@@ -94,7 +94,9 @@ export function createAuthPublicRouter({
           req.hcSession = { ...session, csrfToken: session.csrf_token ?? null };
         }
       }
-      const csrfToken = generateCsrfToken(req, res);
+      // Pass req only — omitting res so csrf-sync defaults overwrite=false,
+      // reusing the existing session token instead of regenerating on every call (SEC-02/CR-05)
+      const csrfToken = generateCsrfToken(req);
       res.json({ csrfToken });
     } catch (err) {
       log.error('[api] /api/auth/csrf-token error:', err.message ?? err.stack ?? err);
@@ -199,6 +201,12 @@ export function createAuthProtectedRouter({ pool }) {
   // -- GET /me — AUTH-03: return authenticated user --
   router.get('/me', async (req, res) => {
     try {
+      // Null guard: return 401 when req.hcSession is absent (no valid session).
+      // Without this guard, accessing session.user_id throws a TypeError → 500,
+      // which AuthGate misreads as "authenticated but server error" → infinite login loop.
+      if (!req.hcSession) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
       const session = req.hcSession;
       const user = {
         id: session.user_id,
