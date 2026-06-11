@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
 status: executing
-stopped_at: Phase 20 UI-SPEC approved
-last_updated: "2026-06-11T04:53:35.443Z"
-last_activity: 2026-06-11 -- Phase 20 execution started
+stopped_at: Phase 20 complete — UAT 4/4 PASS, verified
+last_updated: "2026-06-11T17:01:00Z"
+last_activity: 2026-06-11 -- Phase 20 UAT complete (4/4 PASS, 0 issues); phase verified
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 13
-  completed_plans: 12
-  percent: 0
+  completed_plans: 13
+  percent: 25
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 20 — auth-foundation
+**Current focus:** Phase 21 — Email Infrastructure + Invites + Password Reset
 
 ## Current Position
 
-Phase: 20 (auth-foundation) — EXECUTING
-Plan: 1 of 13
-Status: Executing Phase 20
-Last activity: 2026-06-11 -- Phase 20 execution started
+Phase: 20 (auth-foundation) — COMPLETE (UAT 4/4 PASS, verified 2026-06-11)
+Next: Phase 21 — Email Infrastructure + Invites + Password Reset (not yet discussed/planned)
+Status: Phase 20 complete; ready to start Phase 21
+Last activity: 2026-06-11 -- Phase 20 UAT complete (4/4 PASS, 0 issues); phase verified
 
 ## Accumulated Context
 

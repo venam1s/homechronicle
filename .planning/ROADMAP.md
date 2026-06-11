@@ -63,7 +63,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 
 ### v1.4 Multi-User Auth & Email
 
-- [x] **Phase 20: Auth Foundation** — Users, sessions, token-OR-session gate, first-admin bootstrap, CSRF protection, LoginPage + AuthGate (executed 2026-06-10 — verification found 4 gaps, gap closure pending) (completed 2026-06-11)
+- [x] **Phase 20: Auth Foundation** — Users, sessions, token-OR-session gate, first-admin bootstrap, CSRF protection, LoginPage + AuthGate (executed 2026-06-10; 13 plans incl. gap-closure 20-11/12/13; UAT 4/4 PASS live on beta, VERIFICATION verified) (completed 2026-06-11)
 - [ ] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI
 - [ ] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI
 - [ ] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal
