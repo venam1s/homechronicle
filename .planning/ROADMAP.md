@@ -63,7 +63,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 
 ### v1.4 Multi-User Auth & Email
 
-- [ ] **Phase 20: Auth Foundation** — Users, sessions, token-OR-session gate, first-admin bootstrap, CSRF protection, LoginPage + AuthGate
+- [x] **Phase 20: Auth Foundation** — Users, sessions, token-OR-session gate, first-admin bootstrap, CSRF protection, LoginPage + AuthGate (executed 2026-06-10 — verification found 4 gaps, gap closure pending) (completed 2026-06-11)
 - [ ] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI
 - [ ] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI
 - [ ] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal
@@ -80,17 +80,18 @@ See `milestones/v1.3-ROADMAP.md` for full details.
   3. A user can log out, destroying the server-side session so subsequent requests return 401
   4. A plain-HTTP self-hosted deployment (e.g., RPi on http://nas.local) can log in without cookie lockout because SESSION_COOKIE_SECURE=false is respected
   5. All mutating endpoints are CSRF-protected; the React frontend fetches a CSRF token after login and includes it on mutations; pre-auth routes (login, claim-admin) are exempt
-**Plans**: 10 plans (4 waves)
-- [ ] 20-01-PLAN.md — Listener package gate + install (argon2, cookie-parser, csrf-sync)
-- [ ] 20-02-PLAN.md — Web package gate + install (react-router-dom v7)
-- [ ] 20-03-PLAN.md — security.js crypto helpers (argon2id hash/verify, hashToken, generateToken)
-- [ ] 20-04-PLAN.md — Migration 0003 (users+sessions) + db.js user/session CRUD
-- [ ] 20-05-PLAN.md — React router shell + AuthGate + useAuth/useUserCount + api.js credentials/CSRF
-- [ ] 20-06-PLAN.md — csrf-sync async-hook spike (gates CSRF coupling)
-- [ ] 20-07-PLAN.md — auth-router public (login/claim-admin/csrf-token/user-count, anti-fixation, auth limiter)
-- [ ] 20-08-PLAN.md — auth-router protected (/me, /logout) + csrf.js coupling
-- [ ] 20-09-PLAN.md — index.js gate replacement + middleware wiring + .env.example
-- [ ] 20-10-PLAN.md — LoginPage + SetupAdminPage (first-run) + ResetPasswordPage + routing
+**Plans**: 10 plans (5 waves)
+- [x] 20-01-PLAN.md — Listener package gate + install (argon2, cookie-parser, csrf-sync)
+- [x] 20-02-PLAN.md — Web package gate + install (react-router-dom v7)
+- [x] 20-03-PLAN.md — security.js crypto helpers (argon2id hash/verify, hashToken, generateToken)
+- [x] 20-04-PLAN.md — Migration 0003 (users+sessions) + db.js user/session CRUD
+- [x] 20-05-PLAN.md — React router shell + AuthGate + useAuth/useUserCount + api.js credentials/CSRF
+- [x] 20-06-PLAN.md — csrf-sync async-hook spike (gates CSRF coupling)
+- [x] 20-07-PLAN.md — auth-router public (login/claim-admin/csrf-token/user-count, anti-fixation, auth limiter)
+- [x] 20-08-PLAN.md — auth-router protected (/me, /logout) + csrf.js coupling
+- [x] 20-09-PLAN.md — index.js gate replacement + middleware wiring + .env.example
+- [x] 20-10-PLAN.md — LoginPage + SetupAdminPage (first-run) + ResetPasswordPage + routing
+- [x] 20-13-PLAN.md — Gap closure (GAP-1): Sidebar Sign out control wired to useAuth().logoutMutation (AUTH-03)
 **UI hint**: yes
 
 ### Phase 21: Email Infrastructure + Invites + Password Reset
@@ -138,7 +139,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 10-17 | v1.2 | 25/25 | Complete | 2026-04-16 |
 | 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
 | 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
-| 20 | v1.4 | 0/? | Not started | - |
+| 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
 | 21 | v1.4 | 0/? | Not started | - |
 | 22 | v1.4 | 0/? | Not started | - |
 | 23 | v1.4 | 0/? | Not started | - |

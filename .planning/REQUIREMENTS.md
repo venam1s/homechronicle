@@ -145,14 +145,14 @@ Invite-only multi-user authentication replacing the single shared-token model, p
 
 ### Authentication & Sessions
 
-- [ ] **AUTH-01**: First-run bootstrap creates an admin account (first user becomes admin); the bootstrap endpoint self-disables once any user exists
-- [ ] **AUTH-02**: User can log in with email + password and receives a session cookie
-- [ ] **AUTH-03**: User can log out, destroying the server-side session
-- [ ] **AUTH-04**: Session persists across browser refresh and expires after a configured lifetime
-- [ ] **AUTH-05**: Passwords are hashed with argon2id (built-in `crypto.scrypt` fallback if the native build is unavailable on the target image)
-- [ ] **AUTH-06**: Login offers a "remember me" option that issues a longer-lived session
-- [ ] **AUTH-07**: Frontend gates all app routes behind an auth check; unauthenticated users see a login page (react-router shell, existing tab navigation preserved)
-- [ ] **AUTH-08**: The shared `API_TOKEN` remains valid as a service token for non-browser callers (scripts, Home Assistant, CI) alongside sessions
+- [x] **AUTH-01**: First-run bootstrap creates an admin account (first user becomes admin); the bootstrap endpoint self-disables once any user exists
+- [x] **AUTH-02**: User can log in with email + password and receives a session cookie
+- [x] **AUTH-03**: User can log out, destroying the server-side session
+- [x] **AUTH-04**: Session persists across browser refresh and expires after a configured lifetime
+- [x] **AUTH-05**: Passwords are hashed with argon2id (built-in `crypto.scrypt` fallback if the native build is unavailable on the target image)
+- [x] **AUTH-06**: Login offers a "remember me" option that issues a longer-lived session
+- [x] **AUTH-07**: Frontend gates all app routes behind an auth check; unauthenticated users see a login page (react-router shell, existing tab navigation preserved)
+- [x] **AUTH-08**: The shared `API_TOKEN` remains valid as a service token for non-browser callers (scripts, Home Assistant, CI) alongside sessions
 
 ### User Management & Invites
 
@@ -187,10 +187,10 @@ Invite-only multi-user authentication replacing the single shared-token model, p
 
 ### Security Hardening
 
-- [ ] **SEC-01**: `SESSION_COOKIE_SECURE` env var (default-safe) lets HTTP-only self-hosted deployments work without lockout; session cookies are httpOnly + SameSite=Lax
-- [ ] **SEC-02**: CSRF protection (synchronizer token) is enforced on all mutating endpoints; pre-auth routes (login, claim-admin, accept-invite, reset) are exempt
-- [ ] **SEC-03**: A dedicated rate limiter protects auth routes (login, reset-request, accept-invite) separately from the write limiter
-- [ ] **SEC-04**: Login regenerates the session id (anti-fixation); logout destroys the session
+- [x] **SEC-01**: `SESSION_COOKIE_SECURE` env var (default-safe) lets HTTP-only self-hosted deployments work without lockout; session cookies are httpOnly + SameSite=Lax
+- [x] **SEC-02**: CSRF protection (synchronizer token) is enforced on all mutating endpoints; pre-auth routes (login, claim-admin, accept-invite, reset) are exempt
+- [x] **SEC-03**: A dedicated rate limiter protects auth routes (login, reset-request, accept-invite) separately from the write limiter
+- [x] **SEC-04**: Login regenerates the session id (anti-fixation); logout destroys the session
 - [ ] **SEC-05**: A user can view active sessions in Settings and revoke them ("log out other devices")
 - [ ] **SEC-06**: Expired sessions and used/expired tokens are swept periodically
 - [ ] **SEC-07**: At cutover, nginx `X-API-Token` injection is removed; the session-or-service-token gate becomes the sole browser auth path
@@ -288,18 +288,18 @@ Deferred to future milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 20 | Pending |
-| AUTH-02 | Phase 20 | Pending |
-| AUTH-03 | Phase 20 | Pending |
-| AUTH-04 | Phase 20 | Pending |
-| AUTH-05 | Phase 20 | Pending |
-| AUTH-06 | Phase 20 | Pending |
-| AUTH-07 | Phase 20 | Pending |
-| AUTH-08 | Phase 20 | Pending |
-| SEC-01 | Phase 20 | Pending |
-| SEC-02 | Phase 20 | Pending |
-| SEC-03 | Phase 20 | Pending |
-| SEC-04 | Phase 20 | Pending |
+| AUTH-01 | Phase 20 | Complete |
+| AUTH-02 | Phase 20 | Complete |
+| AUTH-03 | Phase 20 | Complete |
+| AUTH-04 | Phase 20 | Complete |
+| AUTH-05 | Phase 20 | Complete |
+| AUTH-06 | Phase 20 | Complete |
+| AUTH-07 | Phase 20 | Complete |
+| AUTH-08 | Phase 20 | Complete |
+| SEC-01 | Phase 20 | Complete |
+| SEC-02 | Phase 20 | Complete |
+| SEC-03 | Phase 20 | Complete |
+| SEC-04 | Phase 20 | Complete |
 | USER-01 | Phase 21 | Pending |
 | USER-02 | Phase 21 | Pending |
 | USER-03 | Phase 21 | Pending |

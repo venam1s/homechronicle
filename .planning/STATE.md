@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
-status: planning
-last_updated: "2026-06-09T00:00:00.000Z"
-last_activity: 2026-06-09
+status: executing
+stopped_at: Phase 20 UI-SPEC approved
+last_updated: "2026-06-11T04:53:35.443Z"
+last_activity: 2026-06-11 -- Phase 20 execution started
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 13
+  completed_plans: 12
   percent: 0
 ---
 
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** v1.4 Multi-User Auth & Email — roadmap defined, ready to plan Phase 20
+**Current focus:** Phase 20 — auth-foundation
 
 ## Current Position
 
-Phase: Phase 20 — Auth Foundation (not started)
-Plan: —
-Status: Roadmap defined
-Last activity: 2026-06-09 — v1.4 roadmap created (Phases 20-23)
+Phase: 20 (auth-foundation) — EXECUTING
+Plan: 1 of 13
+Status: Executing Phase 20
+Last activity: 2026-06-11 -- Phase 20 execution started
 
 ## Accumulated Context
 
@@ -38,6 +39,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Mirror setup-router.js manual repair order in scheduler: resetSubscriberStats → stopSubscriber → startSubscriber, applied to both needsRepair and isStale success branches
 - Inject performPairSetupAndPersist as a pre-wired 4-arg closure into scheduler rather than threading HttpClient + savePairings — minimizes dep surface and matches existing discoverDevice injection pattern
 - no-PIN skip runs before discoverDevice to avoid unnecessary mDNS churn for unrecoverable devices
+- [Phase ?]: csrf-sync 4.2.1 does NOT await storeTokenInState — Strategy B for Plans 08/09: sync req.hcSession.csrfToken + lazy DB flush
 
 ### Pending Todos
 
@@ -71,7 +73,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-09
-Stopped at: v1.4 roadmap created (Phases 20-23)
+Last session: 2026-06-10T20:24:50.656Z
+Stopped at: Phase 20 UI-SPEC approved
 Resume file: None
 ---
