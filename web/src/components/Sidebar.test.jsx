@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Sidebar from './Sidebar.jsx';
 
@@ -17,6 +17,26 @@ vi.mock('../hooks/useAccent.js', () => ({
   }),
 }));
 
+const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
+
+const { mockLogoutMutate } = vi.hoisted(() => ({ mockLogoutMutate: vi.fn() }));
+
+vi.mock('../hooks/useAuth.js', () => ({
+  useAuth: vi.fn(() => ({
+    user: { user: { id: 1, role: 'admin' } },
+    isLoading: false,
+    isError: false,
+    logoutMutation: {
+      mutate: mockLogoutMutate,
+      isPending: false,
+    },
+  })),
+}));
+
 const defaultProps = {
   collapsed: false,
   onToggle: vi.fn(),
@@ -32,6 +52,10 @@ const defaultProps = {
 };
 
 describe('Sidebar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('Test 1 (NAV-01): renders 5 nav buttons with accessible names', () => {
     render(<Sidebar {...defaultProps} />);
     expect(screen.getByRole('button', { name: 'Dashboard' })).toBeInTheDocument();

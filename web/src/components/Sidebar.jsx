@@ -2,12 +2,14 @@ import { useState } from 'react';
 import {
   BarChart2, Monitor, LayoutList, Bell, Settings,
   ChevronLeft, ChevronRight, Paintbrush2, Sun, Moon, SunMoon,
-  ExternalLink, Sparkles, ArrowUpCircle,
+  ExternalLink, Sparkles, ArrowUpCircle, LogOut,
 } from 'lucide-react';
 import clsx from 'clsx';
 import BrandLogo from './BrandLogo.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useAccent } from '../hooks/useAccent.js';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth.js';
 
 // -- Constants --
 
@@ -93,13 +95,31 @@ export default function Sidebar({
   const visibleNavItems = NAV_ITEMS.filter((item) => item.featureFlag !== 'alerts' || alertsEnabled);
   const { preference, resolvedTheme, setPreference } = useTheme();
   const { accent, setAccent } = useAccent();
+  const { user, logoutMutation } = useAuth();
+  const navigate = useNavigate();
   const [accentOpen, setAccentOpen] = useState(false);
 
   const isDark = resolvedTheme === 'dark';
   const swatchMap = isDark ? ACCENT_SWATCH_DARK : ACCENT_SWATCH;
 
+  const accountLabel = user?.user?.email
+    ?? (user?.user?.role
+      ? user.user.role.charAt(0).toUpperCase() + user.user.role.slice(1)
+      : 'Account');
+
   function handleThemeToggle() {
     setPreference(getNextPreference(preference));
+  }
+
+  function handleLogout() {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem('csrfToken');
+        }
+        navigate('/login', { replace: true });
+      },
+    });
   }
 
   return (
@@ -295,6 +315,41 @@ export default function Sidebar({
         {collapsed && availableUpdate && (
           <div className="flex justify-center px-2">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
+          </div>
+        )}
+
+        {/* User/account + Sign out */}
+        {collapsed ? (
+          <div className="flex justify-center px-2">
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+              aria-label="Sign out"
+              title="Sign out"
+              className={clsx(
+                'flex items-center justify-center w-10 h-10 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
+                FOCUS_RING,
+              )}
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1 px-4">
+            <span className="text-xs text-hc-muted truncate">{accountLabel}</span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+              className={clsx(
+                'flex items-center gap-2 w-full rounded-lg px-3 h-[36px] text-sm text-hc-fg hover:bg-hc-interactive transition-colors',
+                FOCUS_RING,
+              )}
+            >
+              <LogOut size={18} className="text-hc-muted" />
+              <span>Sign out</span>
+            </button>
           </div>
         )}
       </div>
