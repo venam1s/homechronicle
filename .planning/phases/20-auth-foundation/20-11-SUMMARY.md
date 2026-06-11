@@ -113,9 +113,19 @@ None — no external service configuration required.
 
 No new security-relevant surface introduced. All changes are within the scope of the existing auth gate composition documented in the plan's threat model (T-20-11-01 through T-20-11-06).
 
-## Self-Check
+## Self-Check: PASSED
 
-Will be run after SUMMARY commit.
+All files found: listener/src/index.js, listener/src/csrf.js, listener/src/auth-router.js, listener/test/gate.test.js, listener/test/csrf.test.js, .planning/phases/20-auth-foundation/20-11-SUMMARY.md
+
+All commits found: 4ad3c11 (Task 1), bf84528 (Task 2), b19690b (Task 3 RED), f67a620 (Task 3 GREEN), 526c387 (SUMMARY)
+
+Key acceptance criteria verified:
+- credentials: true present in cors() at line 396 of index.js
+- skipCsrfProtection: (req) => !req.hcSession present in csrf.js at line 40
+- Session-first ordering: rawCookie (line 472) before secureTokenEquals fallback (line 492) in AUTH_ENABLED=true branch
+- generateCsrfToken(req) (no res arg) at line 99 of auth-router.js
+- /me null guard: if (!req.hcSession) at line 207 of auth-router.js
+- 435 total tests passing (gate.test.js: 20, csrf.test.js: 6, all others unchanged)
 
 ---
 *Phase: 20-auth-foundation*
