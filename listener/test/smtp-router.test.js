@@ -12,6 +12,8 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { request as httpRequest } from 'node:http';
 
 // Import the factory function under test
 import { createSmtpRouter } from '../src/smtp-router.js';
@@ -42,7 +44,7 @@ function makeApp({
   initEmail = async () => {},
   sendTestEmail = async () => {},
   isEmailEnabled = () => false,
-  session = null,  // simulated req.hcSession (null = not authenticated)
+  session = null,
 } = {}) {
   const app = express();
   app.use(express.json());
@@ -72,72 +74,35 @@ function makeApp({
 
 /**
  * Perform a simple HTTP request against an Express app without starting a real server.
+ * Returns a Promise<{ status, body }>.
  */
-function request(app, method, path, body = null) {
-  return new Promise((resolve, reject) => {
-    const http = await import('node:http').then(m => m);
-    const server = http.createServer(app);
-    server.listen(0, '127.0.0.1', () => {
-      const port = server.address().port;
-      const opts = {
-        hostname: '127.0.0.1',
-        port,
-        path,
-        method: method.toUpperCase(),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      };
-      const req = http.request(opts, (res) => {
-        let data = '';
-        res.on('data', (chunk) => { data += chunk; });
-        res.on('end', () => {
-          server.close();
-          try {
-            resolve({ status: res.statusCode, body: JSON.parse(data) });
-          } catch {
-            resolve({ status: res.statusCode, body: data });
-          }
-        });
-      });
-      req.on('error', (err) => { server.close(); reject(err); });
-      if (body !== null) req.write(JSON.stringify(body));
-      req.end();
-    });
-  });
-}
-
-// Simpler approach: use supertest-like direct method with express
-// Use node:http directly instead
-
-async function httpRequest(app, { method = 'GET', path = '/', body = null } = {}) {
-  const { createServer } = await import('node:http');
+function fetch(app, method, path, body = null) {
   return new Promise((resolve, reject) => {
     const server = createServer(app);
     server.listen(0, '127.0.0.1', () => {
       const port = server.address().port;
-      const http = require ? null : null; // avoid require
-      import('node:http').then(({ request: req }) => {
-        const options = {
-          hostname: '127.0.0.1',
-          port,
-          path,
-          method: method.toUpperCase(),
-          headers: { 'Content-Type': 'application/json' },
-        };
-        const r = req(options, (res) => {
-          let data = '';
-          res.on('data', (c) => { data += c; });
-          res.on('end', () => {
-            server.close();
-            try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-            catch { resolve({ status: res.statusCode, body: data }); }
-          });
+      const bodyStr = body !== null ? JSON.stringify(body) : null;
+      const headers = { 'Content-Type': 'application/json' };
+      if (bodyStr !== null) headers['Content-Length'] = Buffer.byteLength(bodyStr);
+
+      const req = httpRequest({
+        hostname: '127.0.0.1',
+        port,
+        path,
+        method: method.toUpperCase(),
+        headers,
+      }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          server.close();
+          try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+          catch { resolve({ status: res.statusCode, body: data }); }
         });
-        r.on('error', (err) => { server.close(); reject(err); });
-        if (body !== null) r.write(JSON.stringify(body));
-        r.end();
-      }).catch(reject);
+      });
+      req.on('error', (err) => { server.close(); reject(err); });
+      if (bodyStr !== null) req.write(bodyStr);
+      req.end();
     });
     server.on('error', reject);
   });
@@ -152,7 +117,7 @@ test('GET /smtp: admin session → 200 with host/port/user/from/secure/passwordC
     envOverriddenFields: () => [],
     session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
   });
-  const res = await httpRequest(app, { method: 'GET', path: '/api/setup/smtp' });
+  const res = await fetch(app, 'GET', '/api/setup/smtp');
   assert.equal(res.status, 200, 'should return 200 for admin');
   assert.ok('host' in res.body, 'response should have host');
   assert.ok('passwordConfigured' in res.body, 'response should have passwordConfigured');
@@ -160,114 +125,133 @@ test('GET /smtp: admin session → 200 with host/port/user/from/secure/passwordC
   assert.ok('envFields' in res.body, 'response should have envFields');
 });
 
+test('GET /smtp: passwordConfigured is false when no secret', async () => {
+  const app = makeApp({
+    readSmtpSecret: async () => null,
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'GET', '/api/setup/smtp');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.passwordConfigured, false, 'passwordConfigured should be false when secret is null');
+});
+
 test('GET /smtp: response NEVER contains password or smtpPass key (EMAIL-04, T-21-04-SMTPLEAK)', async () => {
+  // Even if somehow the store snapshot has a password field (shouldn't happen, but be defensive)
   const app = makeApp({
     smtpConfigStore: makeStore({ host: 'smtp.example.com', port: 587, password: 'leaked!', smtpPass: 'also-leaked!' }),
     readSmtpSecret: async () => 'stored-secret',
     session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
   });
-  const res = await httpRequest(app, { method: 'GET', path: '/api/setup/smtp' });
+  const res = await fetch(app, 'GET', '/api/setup/smtp');
   assert.equal(res.status, 200, 'should return 200');
-  assert.ok(!('password' in res.body), 'response MUST NOT contain password key');
-  assert.ok(!('smtpPass' in res.body), 'response MUST NOT contain smtpPass key');
+  assert.ok(!('password' in res.body), 'response MUST NOT contain password key (EMAIL-04)');
+  assert.ok(!('smtpPass' in res.body), 'response MUST NOT contain smtpPass key (EMAIL-04)');
 });
 
-test('GET /smtp: non-admin (member) session → 403', async () => {
+test('GET /smtp: non-admin (member) session → 403 (T-21-04-ADMINONLY)', async () => {
   const app = makeApp({
     session: { role: 'member', email: 'user@example.com', user_id: 2 },
   });
-  const res = await httpRequest(app, { method: 'GET', path: '/api/setup/smtp' });
+  const res = await fetch(app, 'GET', '/api/setup/smtp');
   assert.equal(res.status, 403, 'member should get 403');
 });
 
-test('GET /smtp: no session → 403', async () => {
+test('GET /smtp: no session → 403 (T-21-04-ADMINONLY)', async () => {
   const app = makeApp({ session: null });
-  const res = await httpRequest(app, { method: 'GET', path: '/api/setup/smtp' });
+  const res = await fetch(app, 'GET', '/api/setup/smtp');
   assert.equal(res.status, 403, 'no session should get 403');
 });
 
 test('PUT /smtp: admin → 200 { ok: true }, persists non-secret fields', async () => {
-  let writtenData = null;
   const store = makeStore({ host: '', port: 587 });
-  const originalWrite = store.write.bind(store);
-  store.write = async (next) => { writtenData = next; return originalWrite(next); };
+  let writeArgs = null;
+  const origWrite = store.write.bind(store);
+  store.write = async (next) => { writeArgs = next; return origWrite(next); };
 
   const app = makeApp({
     smtpConfigStore: store,
     session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
   });
-  const res = await httpRequest(app, {
-    method: 'PUT',
-    path: '/api/setup/smtp',
-    body: { host: 'smtp.new.com', port: 465, user: 'u@new.com', from: 'HC <u@new.com>', secure: true },
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', {
+    host: 'smtp.new.com', port: 465, user: 'u@new.com', from: 'HC <u@new.com>', secure: true,
   });
   assert.equal(res.status, 200, 'should return 200');
-  assert.ok(res.body.ok === true, 'response should be { ok: true }');
+  assert.equal(res.body.ok, true, 'response should be { ok: true }');
+  assert.equal(writeArgs?.host, 'smtp.new.com', 'host should be persisted');
 });
 
-test('PUT /smtp: blank password preserves existing secret (does not call writeSmtpSecret, D-01)', async () => {
+test('PUT /smtp: blank password does NOT call writeSmtpSecret (D-01, T-21-04-CLEARSECRET)', async () => {
   let writeSecretCalled = false;
   const app = makeApp({
     writeSmtpSecret: async () => { writeSecretCalled = true; },
     session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
   });
-  const res = await httpRequest(app, {
-    method: 'PUT',
-    path: '/api/setup/smtp',
-    body: { host: 'smtp.example.com', port: 587, password: '' },  // blank password
-  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', port: 587, password: '' });
   assert.equal(res.status, 200, 'should return 200');
-  assert.equal(writeSecretCalled, false, 'writeSmtpSecret must NOT be called when password is blank (D-01)');
+  assert.equal(writeSecretCalled, false, 'writeSmtpSecret MUST NOT be called when password is blank (D-01)');
 });
 
-test('PUT /smtp: absent password preserves existing secret (D-01)', async () => {
+test('PUT /smtp: absent password does NOT call writeSmtpSecret (D-01)', async () => {
   let writeSecretCalled = false;
   const app = makeApp({
     writeSmtpSecret: async () => { writeSecretCalled = true; },
     session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
   });
-  const res = await httpRequest(app, {
-    method: 'PUT',
-    path: '/api/setup/smtp',
-    body: { host: 'smtp.example.com', port: 587 },  // no password field
-  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', port: 587 });
   assert.equal(res.status, 200, 'should return 200');
-  assert.equal(writeSecretCalled, false, 'writeSmtpSecret must NOT be called when password is absent (D-01)');
+  assert.equal(writeSecretCalled, false, 'writeSmtpSecret MUST NOT be called when password is absent (D-01)');
 });
 
-test('PUT /smtp: non-admin session → 403', async () => {
+test('PUT /smtp: non-empty password calls writeSmtpSecret once', async () => {
+  let writeSecretCallCount = 0;
+  let writeSecretArg = null;
+  const app = makeApp({
+    writeSmtpSecret: async (pass) => { writeSecretCallCount++; writeSecretArg = pass; },
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', password: 'new-secret' });
+  assert.equal(res.status, 200);
+  assert.equal(writeSecretCallCount, 1, 'writeSmtpSecret should be called once with non-empty password');
+  assert.equal(writeSecretArg, 'new-secret', 'writeSmtpSecret should receive the new password');
+});
+
+test('PUT /smtp: non-admin session → 403 (T-21-04-ADMINONLY)', async () => {
   const app = makeApp({
     session: { role: 'member', email: 'user@example.com', user_id: 2 },
   });
-  const res = await httpRequest(app, { method: 'PUT', path: '/api/setup/smtp', body: {} });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', {});
   assert.equal(res.status, 403, 'member should get 403');
 });
 
-test('POST /smtp/test: 503 when isEmailEnabled() is false', async () => {
+test('POST /smtp/test: 503 when isEmailEnabled() is false (D-03)', async () => {
   const app = makeApp({
     isEmailEnabled: () => false,
     session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
   });
-  const res = await httpRequest(app, { method: 'POST', path: '/api/setup/smtp/test' });
+  const res = await fetch(app, 'POST', '/api/setup/smtp/test');
   assert.equal(res.status, 503, 'should return 503 when email is not configured');
   assert.ok(res.body.error, 'error message should be present');
 });
 
-test('POST /smtp/test: 200 when email is enabled', async () => {
+test('POST /smtp/test: 200 when email is enabled and send succeeds (D-03)', async () => {
+  let sendCallCount = 0;
+  let sendTo = null;
   const app = makeApp({
     isEmailEnabled: () => true,
-    sendTestEmail: async () => {},
+    sendTestEmail: async (to) => { sendCallCount++; sendTo = to; },
     session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
   });
-  const res = await httpRequest(app, { method: 'POST', path: '/api/setup/smtp/test' });
+  const res = await fetch(app, 'POST', '/api/setup/smtp/test');
   assert.equal(res.status, 200, 'should return 200 when email sends successfully');
-  assert.ok(res.body.ok === true, 'response should be { ok: true }');
+  assert.equal(res.body.ok, true, 'response should be { ok: true }');
+  assert.equal(sendCallCount, 1, 'sendTestEmail should be called once');
+  assert.equal(sendTo, 'admin@example.com', 'sendTestEmail should be called with admin email (D-03)');
 });
 
-test('POST /smtp/test: non-admin → 403', async () => {
+test('POST /smtp/test: non-admin → 403 (T-21-04-ADMINONLY)', async () => {
   const app = makeApp({
     session: { role: 'member', email: 'user@example.com', user_id: 2 },
   });
-  const res = await httpRequest(app, { method: 'POST', path: '/api/setup/smtp/test' });
+  const res = await fetch(app, 'POST', '/api/setup/smtp/test');
   assert.equal(res.status, 403, 'member should get 403');
 });
