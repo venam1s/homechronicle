@@ -106,6 +106,8 @@ export default function Sidebar({
     ?? (user?.user?.role
       ? user.user.role.charAt(0).toUpperCase() + user.user.role.slice(1)
       : 'Account');
+  const accountInitials =
+    (accountLabel.split('@')[0].match(/[a-zA-Z0-9]/g)?.slice(0, 2).join('') || 'AC').toUpperCase();
 
   function handleThemeToggle() {
     setPreference(getNextPreference(preference));
@@ -219,30 +221,47 @@ export default function Sidebar({
           </div>
         ) : (
           <div className="flex flex-col gap-2 px-4">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={handleThemeToggle}
-                aria-label={getThemeToggleLabel(preference)}
-                className={clsx(
-                  'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
-                  FOCUS_RING,
+            <div className="flex items-center justify-between gap-1">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleThemeToggle}
+                  aria-label={getThemeToggleLabel(preference)}
+                  className={clsx(
+                    'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
+                    FOCUS_RING,
+                  )}
+                >
+                  <ThemeIcon preference={preference} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccentOpen((o) => !o)}
+                  aria-label={accentOpen ? 'Hide accent colors' : 'Show accent colors'}
+                  aria-expanded={accentOpen}
+                  className={clsx(
+                    'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
+                    FOCUS_RING,
+                  )}
+                >
+                  <Paintbrush2 size={18} />
+                </button>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onOpenChangelog}
+                  className={clsx(
+                    'text-xs text-hc-muted hover:text-hc-fg transition-colors',
+                    FOCUS_RING,
+                  )}
+                >
+                  {buildVersion}
+                </button>
+                {hasNewVersion && (
+                  <Sparkles size={12} className="text-amber-500" />
                 )}
-              >
-                <ThemeIcon preference={preference} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setAccentOpen((o) => !o)}
-                aria-label={accentOpen ? 'Hide accent colors' : 'Show accent colors'}
-                aria-expanded={accentOpen}
-                className={clsx(
-                  'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
-                  FOCUS_RING,
-                )}
-              >
-                <Paintbrush2 size={18} />
-              </button>
+              </div>
             </div>
             {accentOpen && (
               <div className="flex items-center gap-1 transition-all">
@@ -284,26 +303,7 @@ export default function Sidebar({
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-1 px-4">
-            <span className="text-xs text-hc-muted truncate">{accountLabel}</span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={logoutMutation.isPending}
-              className={clsx(
-                'flex items-center gap-2 w-full rounded-lg px-3 h-[36px] text-sm text-hc-fg hover:bg-hc-interactive transition-colors',
-                FOCUS_RING,
-              )}
-            >
-              <LogOut size={18} className="text-hc-muted" />
-              <span>Sign out</span>
-            </button>
-          </div>
-        )}
-
-        {/* Version/links */}
-        {!collapsed && (
-          <div className="flex flex-col gap-1 px-4">
+          <div className="flex flex-col gap-2 px-4">
             {availableUpdate && (
               <a
                 href={availableUpdate.url}
@@ -318,23 +318,31 @@ export default function Sidebar({
                 <span>{availableUpdate.tag} available</span>
               </a>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-xl bg-hc-panel-mid px-2.5 py-2">
+              <div
+                aria-hidden="true"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-hc-interactive text-hc-fg text-xs font-semibold shrink-0"
+              >
+                {accountInitials}
+              </div>
+              <span className="flex-1 min-w-0 text-xs text-hc-muted truncate">{accountLabel}</span>
               <button
                 type="button"
-                onClick={onOpenChangelog}
+                onClick={handleLogout}
+                disabled={logoutMutation.isPending}
+                aria-label="Sign out"
+                title="Sign out"
                 className={clsx(
-                  'text-xs text-hc-muted hover:text-hc-fg transition-colors',
+                  'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive hover:text-hc-fg transition-colors shrink-0',
                   FOCUS_RING,
                 )}
               >
-                {buildVersion}
+                <LogOut size={18} />
               </button>
-              {hasNewVersion && (
-                <Sparkles size={12} className="text-amber-500" />
-              )}
             </div>
           </div>
         )}
+
         {collapsed && availableUpdate && (
           <div className="flex justify-center px-2">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
