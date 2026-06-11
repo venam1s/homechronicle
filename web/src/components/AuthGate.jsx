@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -10,6 +11,28 @@ export default function AuthGate({ children }) {
     staleTime: 60_000,
     retry: false,
   });
+
+  // CSRF token recovery: when authenticated but sessionStorage has no token,
+  // fetch /auth/csrf-token to repopulate it (covers returning sessions and new tabs).
+  // Runs only when /auth/me succeeds (data truthy); never for unauthenticated users.
+  // Non-fatal: a failure does not block rendering children.
+  useEffect(() => {
+    if (!data) return;
+    const existing = typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('csrfToken')
+      : null;
+    if (existing) return;
+    (async () => {
+      try {
+        const result = await fetchJson(`${API_BASE}/auth/csrf-token`);
+        if (result?.csrfToken && typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('csrfToken', result.csrfToken);
+        }
+      } catch {
+        // Non-fatal: children still render even if CSRF recovery fails
+      }
+    })();
+  }, [data]);
 
   if (isLoading) {
     return (

@@ -36,6 +36,7 @@ function makeWrapper({ initialPath = '/' } = {}) {
 describe('AuthGate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('renders children when /auth/me succeeds', async () => {
@@ -144,5 +145,110 @@ describe('AuthGate', () => {
     expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
     // Spinner div should be present (animate-spin class)
     expect(document.querySelector('.animate-spin')).toBeInTheDocument();
+  });
+
+  describe('CSRF token recovery', () => {
+    it('fetches /auth/csrf-token and stores it when authenticated but sessionStorage has no csrfToken', async () => {
+      const user = { id: 1, email: 'user@example.com', role: 'admin' };
+      fetchJson.mockImplementation((url) => {
+        if (url.includes('/auth/me')) return Promise.resolve(user);
+        if (url.includes('/auth/csrf-token')) return Promise.resolve({ csrfToken: 'recovered-token' });
+        return Promise.reject(new Error(`Unexpected URL: ${url}`));
+      });
+
+      const Wrapper = makeWrapper();
+      render(
+        <Wrapper>
+          <Routes>
+            <Route
+              path="/*"
+              element={
+                <AuthGate>
+                  <div data-testid="protected-content">Protected</div>
+                </AuthGate>
+              }
+            />
+          </Routes>
+        </Wrapper>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(sessionStorage.getItem('csrfToken')).toBe('recovered-token');
+      });
+
+      const csrfCalls = fetchJson.mock.calls.filter(([url]) => url.includes('/auth/csrf-token'));
+      expect(csrfCalls.length).toBe(1);
+    });
+
+    it('does not fetch /auth/csrf-token when sessionStorage already has a csrfToken', async () => {
+      sessionStorage.setItem('csrfToken', 'existing-token');
+
+      const user = { id: 1, email: 'user@example.com', role: 'admin' };
+      fetchJson.mockImplementation((url) => {
+        if (url.includes('/auth/me')) return Promise.resolve(user);
+        if (url.includes('/auth/csrf-token')) return Promise.resolve({ csrfToken: 'new-token' });
+        return Promise.reject(new Error(`Unexpected URL: ${url}`));
+      });
+
+      const Wrapper = makeWrapper();
+      render(
+        <Wrapper>
+          <Routes>
+            <Route
+              path="/*"
+              element={
+                <AuthGate>
+                  <div data-testid="protected-content">Protected</div>
+                </AuthGate>
+              }
+            />
+          </Routes>
+        </Wrapper>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+      });
+
+      // Token must not be clobbered
+      expect(sessionStorage.getItem('csrfToken')).toBe('existing-token');
+
+      const csrfCalls = fetchJson.mock.calls.filter(([url]) => url.includes('/auth/csrf-token'));
+      expect(csrfCalls.length).toBe(0);
+    });
+
+    it('does not fetch /auth/csrf-token when unauthenticated (redirects to /login)', async () => {
+      const authError = new Error('Unauthorized');
+      authError.status = 401;
+      fetchJson.mockRejectedValueOnce(authError);
+
+      const Wrapper = makeWrapper();
+      render(
+        <Wrapper>
+          <Routes>
+            <Route
+              path="/*"
+              element={
+                <AuthGate>
+                  <div data-testid="protected-content">Protected</div>
+                </AuthGate>
+              }
+            />
+            <Route path="/login" element={<div data-testid="login-page">Login</div>} />
+          </Routes>
+        </Wrapper>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('login-page')).toBeInTheDocument();
+      });
+
+      const csrfCalls = fetchJson.mock.calls.filter(([url]) => url.includes('/auth/csrf-token'));
+      expect(csrfCalls.length).toBe(0);
+    });
   });
 });
