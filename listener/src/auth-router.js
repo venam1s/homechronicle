@@ -1,14 +1,20 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { parseIntInRange } from './utils.js';
 import { log } from './logger.js';
-import { rateLimitKeyGenerator, hashToken, generateToken, verifyPassword, hashPassword, getDummyPasswordHash } from './security.js';
+import { rateLimitKeyGenerator, hashToken, generateToken, verifyPassword, hashPassword, getDummyPasswordHash, validatePasswordStrength } from './security.js';
 import {
   getUserCount,
   findUserByEmail,
+  createUser,
   createSession,
   revokeSession,
+  revokeSessionsForUser,
   validateSession,
+  redeemInvite,
+  createPasswordResetToken,
+  redeemResetToken,
 } from './db.js';
 
 // -- Auth rate limiter constants (D-16/SEC-03) --
@@ -50,10 +56,13 @@ DUMMY_PASSWORD_HASH.catch((err) =>
  * createAuthPublicRouter — mounts BEFORE the auth gate.
  *
  * Routes:
- *   POST /login        — AUTH-02, AUTH-06, SEC-01, SEC-04
- *   POST /claim-admin  — AUTH-01, P10 atomic bootstrap
- *   GET  /csrf-token   — SEC-02 (public, no session required)
- *   GET  /user-count   — public probe (Plan 05 cross-plan contract)
+ *   POST /login           — AUTH-02, AUTH-06, SEC-01, SEC-04
+ *   POST /claim-admin     — AUTH-01, P10 atomic bootstrap
+ *   POST /accept-invite   — PWD-01, T-21-05-REPLAY
+ *   POST /forgot-password — PWD-02, T-21-05-ENUM (enumeration-safe)
+ *   POST /reset-confirm   — PWD-03, T-21-05-REPLAY, session revocation
+ *   GET  /csrf-token      — SEC-02 (public, no session required)
+ *   GET  /user-count      — public probe (Plan 05 cross-plan contract)
  *
  * @param {object} deps
  * @param {import('pg').Pool} deps.pool
@@ -61,6 +70,9 @@ DUMMY_PASSWORD_HASH.catch((err) =>
  * @param {number} deps.SESSION_MAX_AGE_DEFAULT — ms, default 7 days (D-07)
  * @param {number} deps.SESSION_MAX_AGE_REMEMBER — ms, default 30 days (AUTH-06)
  * @param {function} deps.generateCsrfToken — csrf-sync's generateToken(req, res), injected from index.js (Plan 09)
+ * @param {function} deps.sendPasswordReset — async (to, resetUrl) => void; injected from emails.js
+ * @param {function} deps.isEmailEnabled — () => boolean; injected from emails.js
+ * @param {string} deps.appBaseUrl — base URL for generating reset links (from smtp-config.js getAppBaseUrl)
  */
 export function createAuthPublicRouter({
   pool,
@@ -68,6 +80,9 @@ export function createAuthPublicRouter({
   SESSION_MAX_AGE_DEFAULT,
   SESSION_MAX_AGE_REMEMBER,
   generateCsrfToken,
+  sendPasswordReset = async () => {},
+  isEmailEnabled = () => false,
+  appBaseUrl = '',
 }) {
   const router = express.Router();
 
@@ -234,6 +249,126 @@ export function createAuthPublicRouter({
       res.json({ user: { id: user.id, email: user.email, role: user.role } });
     } catch (err) {
       log.error('[api] /api/auth/claim-admin error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // -- POST /accept-invite — PWD-01, T-21-05-REPLAY --
+  // Redeems a pending invite token to create the invited user's account and issue
+  // a session. The invite token is single-use: redeemInvite atomically marks it
+  // used_at so replayed tokens return null → 400.
+  router.post('/accept-invite', authLimiter, async (req, res) => {
+    try {
+      const rawToken = String(req.body?.token ?? '').trim();
+      const password = String(req.body?.password ?? '');
+
+      if (!rawToken || !password) {
+        return res.status(400).json({ error: 'token and password are required' });
+      }
+
+      // Validate password strength BEFORE redeeming the invite token so a weak
+      // password does not consume the single-use token (prevents lockout).
+      const strength = validatePasswordStrength(password);
+      if (!strength.ok) {
+        return res.status(400).json({ error: strength.error });
+      }
+
+      // Atomically redeem the invite (T-21-05-REPLAY — null on second use)
+      const invite = await redeemInvite(pool, hashToken(rawToken));
+      if (!invite) {
+        return res.status(400).json({ error: 'Invalid or expired invitation.' });
+      }
+
+      const passwordHash = await hashPassword(password);
+      const user = await createUser(pool, { email: invite.email, passwordHash, role: invite.role });
+
+      await issueSession(res, user.id, false);
+
+      res.json({ ok: true, user: { email: user.email, role: user.role } });
+    } catch (err) {
+      log.error('[api] /api/auth/accept-invite error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // -- POST /forgot-password — PWD-02, T-21-05-ENUM (enumeration-safe) --
+  // Always returns an identical success response for known and unknown emails so
+  // attackers cannot enumerate registered addresses via response differences.
+  // A constant artificial delay masks timing differences between the two code paths.
+  const FORGOT_BODY = { message: 'If that address is registered, a reset link has been sent.' };
+  const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+  router.post('/forgot-password', authLimiter, async (req, res) => {
+    // Start the minimum delay immediately so it runs concurrently with DB work
+    // (T-21-05-ENUM). The finally block awaits it before sending so SMTP latency
+    // from sendPasswordReset (fire-and-forget) adds no timing signal.
+    const delayMs = 200 + Math.floor(Math.random() * 200);
+    const delayPromise = sleep(delayMs);
+
+    try {
+      const email = String(req.body?.email ?? '').trim().toLowerCase();
+
+      if (email) {
+        const user = await findUserByEmail(pool, email);
+        if (user && !user.disabled_at) {
+          // Mint a reset token, store it, fire email as fire-and-forget
+          const rawToken = generateToken();
+          const tokenHash = hashToken(rawToken);
+          const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+          await createPasswordResetToken(pool, { userId: user.id, tokenHash, expiresAt });
+          const resetUrl = `${appBaseUrl}/reset-password?token=${rawToken}`;
+          // Fire-and-forget: do NOT await — SMTP latency must not add timing signal (T-21-05-ENUM)
+          sendPasswordReset(email, resetUrl).catch((err) =>
+            log.error('[api] /api/auth/forgot-password sendPasswordReset failed:', err.message ?? err),
+          );
+        }
+      }
+    } catch (err) {
+      log.error('[api] /api/auth/forgot-password error:', err.message ?? err.stack ?? err);
+      // Intentionally no error response — always return the generic body (T-21-05-ENUM)
+    } finally {
+      await delayPromise;
+      res.json(FORGOT_BODY);
+    }
+  });
+
+  // -- POST /reset-confirm — PWD-03, T-21-05-REPLAY, session revocation --
+  // Redeems a single-use reset token and updates the user's password.
+  // Atomically marks the token used_at so a replayed token returns null → 400.
+  // Revokes all active sessions after reset to force re-authentication everywhere.
+  router.post('/reset-confirm', authLimiter, async (req, res) => {
+    try {
+      const rawToken = String(req.body?.token ?? '').trim();
+      const password = String(req.body?.password ?? '');
+
+      if (!rawToken || !password) {
+        return res.status(400).json({ error: 'token and password are required' });
+      }
+
+      // Validate strength BEFORE redeeming — preserve the token on rejection
+      const strength = validatePasswordStrength(password);
+      if (!strength.ok) {
+        return res.status(400).json({ error: strength.error });
+      }
+
+      // Atomically redeem (T-21-05-REPLAY — null on second use or expiry)
+      const tokenRow = await redeemResetToken(pool, hashToken(rawToken));
+      if (!tokenRow) {
+        return res.status(400).json({ error: 'This reset link has expired or has already been used.' });
+      }
+
+      const passwordHash = await hashPassword(password);
+      await pool.query(
+        'UPDATE users SET password_hash = $1 WHERE id = $2',
+        [passwordHash, tokenRow.user_id],
+      );
+
+      // Revoke all active sessions to force re-login on every device (PWD-01)
+      await revokeSessionsForUser(pool, tokenRow.user_id);
+
+      res.json({ ok: true });
+    } catch (err) {
+      log.error('[api] /api/auth/reset-confirm error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
