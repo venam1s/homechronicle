@@ -38,6 +38,11 @@ export default function SetupAdminPage() {
 
   function handleSubmit(e) {
     e.preventDefault();
+    // Mirror the server-side minimum (WR-01); the server check in claim-admin is authoritative.
+    if (password.length < 12) {
+      setConfirmError('Password must be at least 12 characters.');
+      return;
+    }
     if (password !== confirm) {
       setConfirmError('Passwords do not match.');
       return;
