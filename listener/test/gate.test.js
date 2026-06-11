@@ -60,22 +60,24 @@ function makeGate({ AUTH_ENABLED, API_TOKEN, API_TOKEN_READS_ENABLED = false, po
     if (req.method === 'OPTIONS') return next();
     if (PUBLIC_AUTH_PATHS.has(req.path)) return next();
 
-    // Service-token path: API_TOKEN still authorizes (AUTH-08/P11)
+    // Session cookie FIRST (D-01/D-03/CR-02): browser sessions win even when nginx
+    // unconditionally injects X-API-Token. SHA-256 hash before validateSession (D-12).
+    const rawCookie = req.cookies?.hc_session;
+    if (rawCookie) {
+      const session = await pool.validateSession(hashToken(rawCookie));
+      if (session) {
+        // Normalize snake_case → camelCase (mirrors index.js gate)
+        req.hcSession = { ...session, csrfToken: session.csrf_token ?? null };
+        return next();
+      }
+    }
+
+    // Service-token fallback: API_TOKEN still authorizes alongside sessions (AUTH-08/P11)
     if (API_TOKEN) {
       const providedToken = String(
         req.get('x-api-token') ?? extractBearerToken(req.get('authorization'))
       ).trim();
       if (secureTokenEquals(API_TOKEN, providedToken)) return next();
-    }
-
-    // Session cookie path
-    const rawCookie = req.cookies?.hc_session;
-    if (rawCookie) {
-      const session = await pool.validateSession(hashToken(rawCookie));
-      if (session) {
-        req.hcSession = session;
-        return next();
-      }
     }
 
     res.setHeader('WWW-Authenticate', 'Bearer realm="homechronicle-api"');
