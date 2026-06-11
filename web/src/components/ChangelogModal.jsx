@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, ExternalLink } from 'lucide-react';
 import CHANGELOG from '../changelog.js';
 
 export default function ChangelogModal({ onClose }) {
@@ -51,7 +51,16 @@ export default function ChangelogModal({ onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-hc-panel-border">
+        <div className="px-5 py-3 border-t border-hc-panel-border space-y-2">
+          <a
+            href="https://gitlab.com/havuq/homechronicle/-/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1 text-xs text-hc-muted hover:text-hc-fg transition-colors"
+          >
+            <ExternalLink size={12} />
+            <span>Report issue</span>
+          </a>
           <button
             onClick={onClose}
             className="w-full py-2 text-sm font-medium rounded-xl transition-colors"
