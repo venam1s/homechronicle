@@ -167,6 +167,18 @@ export async function hashPassword(password) {
 }
 
 /**
+ * A fixed dummy argon2id hash, computed once at startup using the SAME params as
+ * hashPassword. The login handler verifies an unknown email's password against this
+ * so the unknown-email and known-email branches cost the same argon2 work — closing
+ * the user-enumeration timing oracle (CR-01). The plaintext is irrelevant; the value
+ * is never a real credential.
+ * @returns {Promise<string>} argon2id hash string.
+ */
+export function getDummyPasswordHash() {
+  return hashPassword('homechronicle-dummy-password-never-valid');
+}
+
+/**
  * Verify a password against a stored hash.
  * Supports argon2id hashes (primary) and legacy scrypt hashes (fallback).
  * Legacy format: "scrypt:<saltHex>:<derivedHex>" (64-byte output, timingSafeEqual comparison).

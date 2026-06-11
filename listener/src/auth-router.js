@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { parseIntInRange } from './utils.js';
 import { log } from './logger.js';
-import { rateLimitKeyGenerator, hashToken, generateToken, verifyPassword, hashPassword } from './security.js';
+import { rateLimitKeyGenerator, hashToken, generateToken, verifyPassword, hashPassword, getDummyPasswordHash } from './security.js';
 import {
   getUserCount,
   findUserByEmail,
@@ -24,6 +24,12 @@ const AUTH_RATE_LIMIT_MAX = parseIntInRange(
   1,
   100_000,
 );
+
+// Fixed dummy hash computed once at startup (CR-01). When login receives an
+// unknown email we still run argon2 verification against this constant so the
+// unknown-email and known-email branches cost the same — closing the
+// user-enumeration timing oracle. Uses the same argon2id params as real hashing.
+const DUMMY_PASSWORD_HASH = getDummyPasswordHash();
 
 /**
  * createAuthPublicRouter — mounts BEFORE the auth gate.
@@ -126,8 +132,14 @@ export function createAuthPublicRouter({
         return res.status(400).json({ error: 'email and password are required' });
       }
 
+      // Always run argon2 verification — even for an unknown email — against a
+      // fixed dummy hash so both branches cost the same and cannot be timed apart
+      // (CR-01). verifyPassword must be invoked unconditionally; never let ||/&&
+      // short-circuit it.
       const user = await findUserByEmail(pool, email);
-      if (!user || !(await verifyPassword(user.password_hash, password))) {
+      const hashToVerify = user?.password_hash ?? (await DUMMY_PASSWORD_HASH);
+      const passwordOk = await verifyPassword(hashToVerify, password);
+      if (!user || !passwordOk) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
