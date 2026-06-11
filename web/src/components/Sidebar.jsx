@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   BarChart2, Monitor, LayoutList, Bell, Settings,
   ChevronLeft, ChevronRight, Paintbrush2, Sun, Moon, SunMoon,
-  ExternalLink, Sparkles, ArrowUpCircle, LogOut,
+  Sparkles, ArrowUpCircle, LogOut,
 } from 'lucide-react';
 import clsx from 'clsx';
 import BrandLogo from './BrandLogo.jsx';
@@ -266,58 +266,6 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Version/links */}
-        {!collapsed && (
-          <div className="flex flex-col gap-1 px-4">
-            {availableUpdate && (
-              <a
-                href={availableUpdate.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={clsx(
-                  'flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors',
-                  FOCUS_RING,
-                )}
-              >
-                <ArrowUpCircle size={14} />
-                <span>{availableUpdate.tag} available</span>
-              </a>
-            )}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onOpenChangelog}
-                className={clsx(
-                  'text-xs text-hc-muted hover:text-hc-fg transition-colors',
-                  FOCUS_RING,
-                )}
-              >
-                {buildVersion}
-              </button>
-              {hasNewVersion && (
-                <Sparkles size={12} className="text-amber-500" />
-              )}
-            </div>
-            <a
-              href="https://gitlab.com/havuq/homechronicle/-/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={clsx(
-                'flex items-center gap-1 text-xs text-hc-muted hover:text-hc-fg transition-colors',
-                FOCUS_RING,
-              )}
-            >
-              <ExternalLink size={12} />
-              <span>Report issue</span>
-            </a>
-          </div>
-        )}
-        {collapsed && availableUpdate && (
-          <div className="flex justify-center px-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-          </div>
-        )}
-
         {/* User/account + Sign out */}
         {collapsed ? (
           <div className="flex justify-center px-2">
@@ -350,6 +298,46 @@ export default function Sidebar({
               <LogOut size={18} className="text-hc-muted" />
               <span>Sign out</span>
             </button>
+          </div>
+        )}
+
+        {/* Version/links */}
+        {!collapsed && (
+          <div className="flex flex-col gap-1 px-4">
+            {availableUpdate && (
+              <a
+                href={availableUpdate.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={clsx(
+                  'flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors',
+                  FOCUS_RING,
+                )}
+              >
+                <ArrowUpCircle size={14} />
+                <span>{availableUpdate.tag} available</span>
+              </a>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onOpenChangelog}
+                className={clsx(
+                  'text-xs text-hc-muted hover:text-hc-fg transition-colors',
+                  FOCUS_RING,
+                )}
+              >
+                {buildVersion}
+              </button>
+              {hasNewVersion && (
+                <Sparkles size={12} className="text-amber-500" />
+              )}
+            </div>
+          </div>
+        )}
+        {collapsed && availableUpdate && (
+          <div className="flex justify-center px-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
           </div>
         )}
       </div>
