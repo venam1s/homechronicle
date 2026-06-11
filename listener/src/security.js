@@ -3,10 +3,15 @@ import { promisify } from 'util';
 import argon2 from 'argon2';
 import { lookup as dnsLookup } from 'dns/promises';
 import { isIP } from 'net';
+import { parseIntInRange } from './utils.js';
 
 // -- Crypto constants (AUTH-05/D-11) --
-const ARGON2_MEMORY_COST = parseInt(process.env.ARGON2_MEMORY_COST ?? '19456', 10);
-const ARGON2_TIME_COST = parseInt(process.env.ARGON2_TIME_COST ?? '2', 10);
+// Validated via parseIntInRange so a malformed env value (e.g. ARGON2_MEMORY_COST=high)
+// falls back to the default instead of producing NaN — which argon2 rejects at hash time,
+// turning a config typo into a 500 on every login/claim-admin (WR-04). Floors keep a
+// too-low value from silently weakening the hash below OWASP-recommended argon2id params.
+const ARGON2_MEMORY_COST = parseIntInRange(process.env.ARGON2_MEMORY_COST, 19456, 8192, 1_048_576);
+const ARGON2_TIME_COST = parseIntInRange(process.env.ARGON2_TIME_COST, 2, 1, 10);
 const ARGON2_PARALLELISM = 1;
 
 const scryptAsync = promisify(scrypt);
