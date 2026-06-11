@@ -85,11 +85,10 @@ function makeMockPool({ invites = {}, resetTokens = {} } = {}) {
         return Promise.resolve({ rows });
       }
 
-      // listInvites
+      // listInvites — SELECT ... FROM invites WHERE status = 'pending' AND expires_at > NOW() ORDER BY
       if (
         s.includes('SELECT') &&
         s.includes('FROM invites') &&
-        !s.includes('WHERE') &&
         s.includes('ORDER BY')
       ) {
         const rows = Object.values(invites)
@@ -98,8 +97,8 @@ function makeMockPool({ invites = {}, resetTokens = {} } = {}) {
         return Promise.resolve({ rows });
       }
 
-      // revokeInvite — UPDATE invites SET status='revoked' WHERE id=$1 AND status='pending'
-      if (s.includes('UPDATE invites') && s.includes("status='revoked'")) {
+      // revokeInvite — UPDATE invites SET status = 'revoked' WHERE id=$1 AND status = 'pending'
+      if (s.includes('UPDATE invites') && s.includes("status = 'revoked'")) {
         const inviteId = params[0];
         const row = Object.values(invites).find(
           (r) => String(r.id) === String(inviteId) && r.status === 'pending',
