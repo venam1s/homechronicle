@@ -36,6 +36,13 @@ import {
   createUser,
   findUserByEmail,
   getUserCount,
+  listUsers,
+  disableUser,
+  enableUser,
+  removeUser,
+  revokeSessionsForUser,
+  setUserRole,
+  countAdmins,
 } from '../src/db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -61,21 +68,91 @@ function makeMockPool({ sessions = {}, users = {}, rowCount = 1 } = {}) {
         return Promise.resolve({ rows: [{ n: String(Object.keys(users).length) }] });
       }
 
+      // countAdmins — COUNT of non-disabled admins
+      if (s.includes('COUNT(*)') && s.includes("role='admin'")) {
+        const count = Object.values(users).filter(
+          (u) => u.role === 'admin' && !u.disabled_at,
+        ).length;
+        return Promise.resolve({ rows: [{ count }] });
+      }
+
       // createUser
       if (s.includes('INSERT INTO users')) {
         const email = String(params[0]).trim().toLowerCase();
         const passwordHash = params[1];
         const role = params[2] ?? 'member';
         const id = BigInt(Object.keys(users).length + 1);
-        users[email] = { id, email, password_hash: passwordHash, role };
+        users[email] = { id, email, password_hash: passwordHash, role, disabled_at: null, created_at: new Date() };
         return Promise.resolve({ rows: [{ id, email, role }] });
       }
 
-      // findUserByEmail
-      if (s.includes('SELECT id, email, password_hash, role FROM users WHERE email')) {
+      // findUserByEmail — supports both old and new SELECT (with disabled_at)
+      if (s.includes('FROM users WHERE email')) {
         const email = String(params[0]).trim().toLowerCase();
         const row = users[email] ?? null;
         return Promise.resolve({ rows: row ? [row] : [] });
+      }
+
+      // listUsers — SELECT all users
+      if (s.includes('SELECT') && s.includes('FROM users') && s.includes('ORDER BY created_at')) {
+        const rows = Object.values(users).sort(
+          (a, b) => new Date(a.created_at) - new Date(b.created_at),
+        );
+        return Promise.resolve({ rows });
+      }
+
+      // disableUser — SET disabled_at = NOW()
+      if (s.includes('UPDATE users') && s.includes('disabled_at = NOW()')) {
+        const userId = params[0];
+        const userEntry = Object.values(users).find((u) => String(u.id) === String(userId));
+        if (!userEntry) return Promise.resolve({ rows: [] });
+        userEntry.disabled_at = new Date();
+        return Promise.resolve({ rows: [{ id: userEntry.id, role: userEntry.role, disabled_at: userEntry.disabled_at }] });
+      }
+
+      // enableUser — SET disabled_at = NULL
+      if (s.includes('UPDATE users') && s.includes('disabled_at = NULL')) {
+        const userId = params[0];
+        const userEntry = Object.values(users).find((u) => String(u.id) === String(userId));
+        if (!userEntry) return Promise.resolve({ rows: [] });
+        userEntry.disabled_at = null;
+        return Promise.resolve({ rows: [{ id: userEntry.id, role: userEntry.role, disabled_at: null }] });
+      }
+
+      // setUserRole — UPDATE users SET role=$2
+      if (s.includes('UPDATE users') && s.includes('SET role')) {
+        const userId = params[0];
+        const role = params[1];
+        const userEntry = Object.values(users).find((u) => String(u.id) === String(userId));
+        if (!userEntry) return Promise.resolve({ rows: [] });
+        userEntry.role = role;
+        return Promise.resolve({ rows: [{ id: userEntry.id, email: userEntry.email, role }] });
+      }
+
+      // removeUser — DELETE FROM users
+      if (s.includes('DELETE FROM users WHERE id')) {
+        const userId = params[0];
+        const userEntry = Object.values(users).find((u) => String(u.id) === String(userId));
+        if (!userEntry) return Promise.resolve({ rows: [] });
+        // Also cascade-delete sessions
+        for (const [hash, sess] of Object.entries(sessions)) {
+          if (String(sess.user_id) === String(userId)) {
+            delete sessions[hash];
+          }
+        }
+        delete users[userEntry.email];
+        return Promise.resolve({ rows: [{ id: userEntry.id }] });
+      }
+
+      // revokeSessionsForUser — DELETE FROM sessions WHERE user_id=$1
+      if (s.includes('DELETE FROM sessions WHERE user_id')) {
+        const userId = params[0];
+        for (const [hash, sess] of Object.entries(sessions)) {
+          if (String(sess.user_id) === String(userId)) {
+            delete sessions[hash];
+          }
+        }
+        return Promise.resolve({ rowCount: 1 });
       }
 
       // createSession
@@ -91,7 +168,7 @@ function makeMockPool({ sessions = {}, users = {}, rowCount = 1 } = {}) {
 
       // validateSession — single atomic UPDATE sessions s ... FROM users u ...
       // RETURNING s.*, u.role, u.email (WR-05). Joins the user; only returns a row
-      // when the session is non-expired AND a matching user exists.
+      // when the session is non-expired AND a matching user exists AND user is not disabled.
       if (s.includes('UPDATE sessions') && s.includes('last_seen_at')) {
         const tokenHash = params[0];
         const row = sessions[tokenHash];
@@ -103,6 +180,8 @@ function makeMockPool({ sessions = {}, users = {}, rowCount = 1 } = {}) {
         // Simulate the FROM users u JOIN: no matching user -> no row returned.
         const user = Object.values(users).find((u) => String(u.id) === String(row.user_id));
         if (!user) return Promise.resolve({ rows: [] });
+        // Simulate AND u.disabled_at IS NULL guard (T-21-03-DISABLED / USER-05)
+        if (user.disabled_at) return Promise.resolve({ rows: [] });
         return Promise.resolve({ rows: [{ ...row, role: user.role, email: user.email }] });
       }
 
@@ -199,7 +278,7 @@ test('migration 0003 down section drops sessions before users (FK order)', () =>
   assert.ok(sessIdx < userIdx, 'Down Migration must drop sessions before users (FK dependency)');
 });
 
-test('db.js exports all seven CRUD functions with pool-first signatures', () => {
+test('db.js exports all seven Phase-20 CRUD functions with pool-first signatures', () => {
   const fns = [
     'getUserCount',
     'createUser',
@@ -215,6 +294,40 @@ test('db.js exports all seven CRUD functions with pool-first signatures', () => 
       `db.js must export async function ${fn}(pool, ...) with pool as first arg`,
     );
   }
+});
+
+test('db.js exports all Phase-21 user-management CRUD functions with pool-first signatures', () => {
+  const fns = [
+    'listUsers',
+    'disableUser',
+    'enableUser',
+    'removeUser',
+    'revokeSessionsForUser',
+    'setUserRole',
+    'countAdmins',
+  ];
+  for (const fn of fns) {
+    assert.ok(
+      dbSource.includes(`export async function ${fn}(pool`),
+      `db.js must export async function ${fn}(pool, ...) with pool as first arg`,
+    );
+  }
+});
+
+test('validateSession SQL includes AND u.disabled_at IS NULL (T-21-03-DISABLED / USER-05)', () => {
+  assert.ok(
+    dbSource.includes('disabled_at IS NULL'),
+    'validateSession WHERE clause must include AND u.disabled_at IS NULL to reject disabled users',
+  );
+});
+
+test('countAdmins SQL uses disabled_at IS NULL guard (so disabled admins are excluded)', () => {
+  // The source must contain disabled_at IS NULL at least twice (validateSession + countAdmins)
+  const matches = (dbSource.match(/disabled_at IS NULL/g) ?? []).length;
+  assert.ok(
+    matches >= 2,
+    `db.js must contain disabled_at IS NULL at least twice (validateSession + countAdmins); found ${matches}`,
+  );
 });
 
 test('createUser default role is member, not user (D-16)', () => {
@@ -384,7 +497,7 @@ test('revokeSession is idempotent — revoking a non-existent session does not t
 
 test('updateSessionCsrfToken sets csrf_token on the session row', async () => {
   const sessions = {};
-  const users = { 'hank@x.com': { id: 1n, email: 'hank@x.com', password_hash: 'ph', role: 'member' } };
+  const users = { 'hank@x.com': { id: 1n, email: 'hank@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date() } };
   const pool = makeMockPool({ sessions, users });
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const created = await createSession(pool, { userId: 1n, tokenHash: 'csrfhash', expiresAt });
@@ -393,4 +506,169 @@ test('updateSessionCsrfToken sets csrf_token on the session row', async () => {
   // Verify it was updated in the store
   const updatedRow = sessions['csrfhash'];
   assert.equal(updatedRow.csrf_token, 'new-csrf-token-value');
+});
+
+// ---------------------------------------------------------------------------
+// validateSession disabled_at guard tests (USER-05, T-21-03-DISABLED)
+// ---------------------------------------------------------------------------
+
+test('validateSession returns null after disableUser sets disabled_at (USER-05)', async () => {
+  const sessions = {};
+  const users = {
+    'iris@x.com': { id: 10n, email: 'iris@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date() },
+  };
+  const pool = makeMockPool({ sessions, users });
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await createSession(pool, { userId: 10n, tokenHash: 'activehash', expiresAt });
+  // Session must be valid before disable
+  const before = await validateSession(pool, 'activehash');
+  assert.ok(before, 'session must be valid for an active (non-disabled) user');
+  // Disable the user
+  await disableUser(pool, 10n);
+  // Session must NOW be rejected (disabled_at IS NOT NULL)
+  const after = await validateSession(pool, 'activehash');
+  assert.equal(after, null, 'validateSession must return null after user is disabled (USER-05)');
+});
+
+test('validateSession returns valid session again after enableUser clears disabled_at', async () => {
+  const sessions = {};
+  const users = {
+    'jake@x.com': { id: 11n, email: 'jake@x.com', password_hash: 'ph', role: 'member', disabled_at: new Date(), created_at: new Date() },
+  };
+  const pool = makeMockPool({ sessions, users });
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await createSession(pool, { userId: 11n, tokenHash: 'disabledhash', expiresAt });
+  // Disabled user should have no valid session
+  const whileDisabled = await validateSession(pool, 'disabledhash');
+  assert.equal(whileDisabled, null, 'disabled user must not have a valid session');
+  // Re-enable the user
+  await enableUser(pool, 11n);
+  const afterEnable = await validateSession(pool, 'disabledhash');
+  assert.ok(afterEnable, 'validateSession must succeed again after enableUser (disabled_at cleared)');
+});
+
+// ---------------------------------------------------------------------------
+// listUsers behavioral tests (USER-01)
+// ---------------------------------------------------------------------------
+
+test('listUsers returns all users with id, email, role, created_at, disabled_at', async () => {
+  const users = {
+    'lena@x.com': { id: 1n, email: 'lena@x.com', password_hash: 'ph', role: 'admin', disabled_at: null, created_at: new Date('2026-01-01') },
+    'mike@x.com': { id: 2n, email: 'mike@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date('2026-01-02') },
+  };
+  const pool = makeMockPool({ users });
+  const rows = await listUsers(pool);
+  assert.equal(rows.length, 2);
+  const emails = rows.map((r) => r.email);
+  assert.ok(emails.includes('lena@x.com'));
+  assert.ok(emails.includes('mike@x.com'));
+});
+
+// ---------------------------------------------------------------------------
+// disableUser / enableUser behavioral tests (USER-05)
+// ---------------------------------------------------------------------------
+
+test('disableUser sets disabled_at to a non-null value', async () => {
+  const users = {
+    'nina@x.com': { id: 20n, email: 'nina@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date() },
+  };
+  const pool = makeMockPool({ users });
+  const result = await disableUser(pool, 20n);
+  assert.ok(result, 'disableUser must return a row');
+  assert.ok(result.disabled_at, 'disableUser must set disabled_at to a non-null value');
+});
+
+test('enableUser sets disabled_at to null', async () => {
+  const users = {
+    'omar@x.com': { id: 21n, email: 'omar@x.com', password_hash: 'ph', role: 'member', disabled_at: new Date(), created_at: new Date() },
+  };
+  const pool = makeMockPool({ users });
+  const result = await enableUser(pool, 21n);
+  assert.ok(result, 'enableUser must return a row');
+  assert.equal(result.disabled_at, null, 'enableUser must set disabled_at to null');
+});
+
+// ---------------------------------------------------------------------------
+// removeUser behavioral tests (USER-06)
+// ---------------------------------------------------------------------------
+
+test('removeUser returns the deleted user id', async () => {
+  const users = {
+    'pam@x.com': { id: 30n, email: 'pam@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date() },
+  };
+  const pool = makeMockPool({ users });
+  const result = await removeUser(pool, 30n);
+  assert.ok(result, 'removeUser must return a row');
+  assert.equal(String(result.id), '30');
+});
+
+test('removeUser cascade-deletes sessions (T-21-03-ORPHAN)', async () => {
+  const sessions = {};
+  const users = {
+    'quinn@x.com': { id: 31n, email: 'quinn@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date() },
+  };
+  const pool = makeMockPool({ sessions, users });
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await createSession(pool, { userId: 31n, tokenHash: 'orphanhash', expiresAt });
+  assert.ok('orphanhash' in sessions, 'session must exist before removeUser');
+  await removeUser(pool, 31n);
+  // The mock simulates cascade-delete; the real DB relies on FK ON DELETE CASCADE
+  assert.ok(!('orphanhash' in sessions), 'session must be gone after removeUser (cascade)');
+});
+
+// ---------------------------------------------------------------------------
+// revokeSessionsForUser behavioral tests
+// ---------------------------------------------------------------------------
+
+test('revokeSessionsForUser deletes all sessions for that user', async () => {
+  const sessions = {};
+  const users = {
+    'rosa@x.com': { id: 40n, email: 'rosa@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date() },
+  };
+  const pool = makeMockPool({ sessions, users });
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await createSession(pool, { userId: 40n, tokenHash: 'sess1', expiresAt });
+  await createSession(pool, { userId: 40n, tokenHash: 'sess2', expiresAt });
+  assert.equal(Object.keys(sessions).length, 2);
+  await revokeSessionsForUser(pool, 40n);
+  assert.equal(Object.keys(sessions).length, 0, 'revokeSessionsForUser must delete all sessions for the user');
+});
+
+// ---------------------------------------------------------------------------
+// setUserRole behavioral tests (USER-07)
+// ---------------------------------------------------------------------------
+
+test('setUserRole updates the role and returns id, email, role', async () => {
+  const users = {
+    'sam@x.com': { id: 50n, email: 'sam@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date() },
+  };
+  const pool = makeMockPool({ users });
+  const result = await setUserRole(pool, 50n, 'admin');
+  assert.ok(result, 'setUserRole must return a row');
+  assert.equal(result.role, 'admin');
+  assert.equal(users['sam@x.com'].role, 'admin');
+});
+
+// ---------------------------------------------------------------------------
+// countAdmins behavioral tests
+// ---------------------------------------------------------------------------
+
+test('countAdmins returns count of non-disabled admin users', async () => {
+  const users = {
+    'tina@x.com': { id: 60n, email: 'tina@x.com', password_hash: 'ph', role: 'admin', disabled_at: null, created_at: new Date() },
+    'uma@x.com': { id: 61n, email: 'uma@x.com', password_hash: 'ph', role: 'admin', disabled_at: new Date(), created_at: new Date() },
+    'vic@x.com': { id: 62n, email: 'vic@x.com', password_hash: 'ph', role: 'member', disabled_at: null, created_at: new Date() },
+  };
+  const pool = makeMockPool({ users });
+  const count = await countAdmins(pool);
+  assert.equal(count, 1, 'countAdmins must count only non-disabled admin users (excludes disabled uma@x.com)');
+});
+
+test('countAdmins returns 0 when all admins are disabled', async () => {
+  const users = {
+    'wendy@x.com': { id: 70n, email: 'wendy@x.com', password_hash: 'ph', role: 'admin', disabled_at: new Date(), created_at: new Date() },
+  };
+  const pool = makeMockPool({ users });
+  const count = await countAdmins(pool);
+  assert.equal(count, 0, 'countAdmins must return 0 when all admins are disabled');
 });
