@@ -8,6 +8,7 @@ import AuthGate from './components/AuthGate.jsx';
 import LoginPage from './components/LoginPage.jsx';
 import SetupAdminPage from './components/SetupAdminPage.jsx';
 import ResetPasswordPage from './components/ResetPasswordPage.jsx';
+import AcceptInvitePage from './pages/AcceptInvitePage.jsx';
 import { useUserCount } from './hooks/useAuth.js';
 // react-grid-layout base styles must load before ./index.css so our themed
 // overrides (placeholder, resize handle, drag state) take precedence.
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
   { path: '/login', element: <LoginOrSetup /> },
   { path: '/setup', element: <SetupOrLogin /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  { path: '/accept-invite', element: <AcceptInvitePage /> },
   {
     path: '/*',
     element: (
