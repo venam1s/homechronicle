@@ -474,7 +474,9 @@ app.use(async (req, res, next) => {
     const session = await validateSession(pool, hashToken(rawCookie));
     if (session) {
       // Normalize snake_case DB columns to camelCase so csrf.js getTokenFromState
-      // can read req.hcSession.csrfToken consistently (Rule 1 fix: snake/camel mismatch)
+      // can read req.hcSession.csrfToken consistently (Rule 1 fix: snake/camel mismatch).
+      // The spread also carries session.email (now selected by validateSession's join,
+      // WR-02) and session.role through to req.hcSession so GET /me can surface them.
       req.hcSession = {
         ...session,
         csrfToken: session.csrf_token ?? null,

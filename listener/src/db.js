@@ -275,28 +275,30 @@ export async function createSession(pool, { userId, tokenHash, expiresAt }) {
 
 /**
  * Validate a session by its token hash.
- * Updates last_seen_at; only matches non-expired sessions.
- * Returns session row with user role attached, or null if not found / expired (AUTH-04).
+ * Updates last_seen_at; only matches non-expired sessions whose user still exists.
+ * Returns session row with user role + email attached, or null if not found / expired
+ * / user deleted (AUTH-04).
+ *
+ * Single atomic UPDATE ... FROM users join (WR-05): collapses the former two-query
+ * read (UPDATE then a separate SELECT role on a different pooled connection) into one
+ * round trip. last_seen_at is now updated only when a matching user row exists, so a
+ * concurrently-deleted user no longer leaves an inconsistent intermediate. The join
+ * also surfaces u.email so the gate can populate req.hcSession.email (WR-02), making
+ * the GET /me email branch real instead of permanently dead.
  * @param {pg.Pool} pool
  * @param {string} tokenHash - SHA-256 hex of the raw token
- * @returns {Promise<{id: bigint, user_id: bigint, csrf_token: string|null, expires_at: Date, role: string}|null>}
+ * @returns {Promise<{id: bigint, user_id: bigint, csrf_token: string|null, expires_at: Date, role: string, email: string}|null>}
  */
 export async function validateSession(pool, tokenHash) {
   const result = await pool.query(
-    `UPDATE sessions
+    `UPDATE sessions s
      SET last_seen_at = NOW()
-     WHERE token_hash = $1 AND expires_at > NOW()
-     RETURNING id, user_id, csrf_token, expires_at`,
+     FROM users u
+     WHERE s.token_hash = $1 AND s.expires_at > NOW() AND u.id = s.user_id
+     RETURNING s.id, s.user_id, s.csrf_token, s.expires_at, u.role, u.email`,
     [tokenHash],
   );
-  if (result.rows.length === 0) return null;
-  const session = result.rows[0];
-  const userResult = await pool.query(
-    `SELECT role FROM users WHERE id = $1`,
-    [session.user_id],
-  );
-  if (userResult.rows.length === 0) return null;
-  return { ...session, role: userResult.rows[0].role };
+  return result.rows[0] ?? null;
 }
 
 /**

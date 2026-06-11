@@ -89,7 +89,9 @@ function makeMockPool({ sessions = {}, users = {}, rowCount = 1 } = {}) {
         return Promise.resolve({ rows: [row] });
       }
 
-      // validateSession — UPDATE ... WHERE token_hash AND expires_at > NOW()
+      // validateSession — single atomic UPDATE sessions s ... FROM users u ...
+      // RETURNING s.*, u.role, u.email (WR-05). Joins the user; only returns a row
+      // when the session is non-expired AND a matching user exists.
       if (s.includes('UPDATE sessions') && s.includes('last_seen_at')) {
         const tokenHash = params[0];
         const row = sessions[tokenHash];
@@ -98,15 +100,10 @@ function makeMockPool({ sessions = {}, users = {}, rowCount = 1 } = {}) {
         if (new Date(row.expires_at) <= new Date()) {
           return Promise.resolve({ rows: [] }); // expired
         }
-        return Promise.resolve({ rows: [{ ...row }] });
-      }
-
-      // validateSession follow-up: SELECT role FROM users WHERE id
-      if (s.includes('SELECT role FROM users WHERE id')) {
-        const userId = params[0];
-        const user = Object.values(users).find((u) => String(u.id) === String(userId));
+        // Simulate the FROM users u JOIN: no matching user -> no row returned.
+        const user = Object.values(users).find((u) => String(u.id) === String(row.user_id));
         if (!user) return Promise.resolve({ rows: [] });
-        return Promise.resolve({ rows: [{ role: user.role }] });
+        return Promise.resolve({ rows: [{ ...row, role: user.role, email: user.email }] });
       }
 
       // revokeSession
