@@ -107,8 +107,8 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 **Plans**: 10 plans (6 waves)
 - [x] 21-01-PLAN.md — Migration 0004 + nodemailer install + Wave 0 test stubs + .env.example
 - [x] 21-02-PLAN.md — Password strength: validatePasswordStrength + blocklist (listener) + strength.js (web)
-- [ ] 21-03-PLAN.md — db.js invite/reset-token/user-mgmt CRUD + validateSession disabled_at guard
-- [ ] 21-04-PLAN.md — emails.js transport + SMTP secret isolation + smtp-router (GET/PUT/test)
+- [x] 21-03-PLAN.md — db.js invite/reset-token/user-mgmt CRUD + validateSession disabled_at guard
+- [x] 21-04-PLAN.md — emails.js transport + SMTP secret isolation + smtp-router (GET/PUT/test)
 - [ ] 21-05-PLAN.md — auth-router public (accept-invite/forgot-password/reset-confirm) + change-password
 - [ ] 21-06-PLAN.md — users-router CRUD + invite mgmt + last-admin/self guards
 - [ ] 21-07-PLAN.md — index.js email/router wiring + nginx /api/auth/* log redaction
@@ -150,7 +150,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
 | 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
 | 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
-| 21 | v1.4 | 2/10 | In Progress|  |
+| 21 | v1.4 | 4/10 | In Progress|  |
 | 22 | v1.4 | 0/? | Not started | - |
 | 23 | v1.4 | 0/? | Not started | - |
 
