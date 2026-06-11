@@ -1,3 +1,14 @@
+# Custom log format: mirrors the nginx default "combined" format but replaces
+# $request (which includes the query string) with "$request_method $uri$is_args"
+# to strip query strings from the logged URL. Used for /api/auth/* locations so
+# invite/reset tokens (?token=...) never appear in access logs (Pitfall 2 / P6).
+# log_format must be declared at http{} scope — this file is included via
+# include /etc/nginx/conf.d/*.conf inside the http{} block in nginx.conf,
+# so this directive is correctly placed.
+log_format combined_no_query '$remote_addr - $remote_user [$time_local] '
+                              '"$request_method $uri$is_args" $status $body_bytes_sent '
+                              '"$http_referer" "$http_user_agent"';
+
 server {
     listen 80;
     root /usr/share/nginx/html;
@@ -65,6 +76,21 @@ server {
         proxy_set_header X-Forwarded-For ${DOLLAR}proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto ${DOLLAR}scheme;
         proxy_read_timeout 300s;
+    }
+
+    # Auth routes: use query-string-free log format so invite/reset tokens
+    # (?token=...) never appear in access logs (Pitfall 2 / P6 / T-21-07-TOKENLOG).
+    # Proxy directives are identical to the generic /api/ block (X-API-Token injection
+    # preserved for Phase 23 cutover — T-21-07-CUTOVER).
+    location ~ ^/api/auth/ {
+        access_log /var/log/nginx/access.log combined_no_query;
+        proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
+        proxy_set_header X-API-Token "${API_TOKEN}";
+        proxy_set_header Host ${DOLLAR}host;
+        proxy_set_header X-Real-IP ${DOLLAR}remote_addr;
+        proxy_set_header X-Forwarded-For ${DOLLAR}proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto ${DOLLAR}scheme;
+        proxy_read_timeout 30s;
     }
 
     # All other API routes use a shorter timeout.
