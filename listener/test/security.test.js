@@ -10,7 +10,37 @@ import {
   verifyPassword,
   hashToken,
   generateToken,
+  rateLimitKeyGenerator,
 } from '../src/security.js';
+
+// T-20-BRUTE: the auth rate limiter must key per real client IP behind a proxy,
+// but only when Express `trust proxy` is configured — otherwise X-Forwarded-For is
+// attacker-spoofable. These tests pin both halves of that contract.
+function fakeReq({ trustProxy, xff, ip } = {}) {
+  return {
+    app: { get: (key) => (key === 'trust proxy' ? trustProxy : undefined) },
+    headers: xff === undefined ? {} : { 'x-forwarded-for': xff },
+    ip,
+    socket: { remoteAddress: ip },
+  };
+}
+
+test('rateLimitKeyGenerator ignores X-Forwarded-For when trust proxy is unset (anti-spoof default)', () => {
+  // No trust proxy → all clients behind a proxy collapse to the socket IP. This is
+  // the spoof-safe default; the lockout footgun is fixed by SETTING trust proxy.
+  const req = fakeReq({ trustProxy: undefined, xff: '203.0.113.9', ip: '10.0.0.1' });
+  assert.equal(rateLimitKeyGenerator(req), '10.0.0.1');
+});
+
+test('rateLimitKeyGenerator keys on the first X-Forwarded-For client when trust proxy is set', () => {
+  const req = fakeReq({ trustProxy: 1, xff: '203.0.113.9, 10.0.0.1', ip: '10.0.0.1' });
+  assert.equal(rateLimitKeyGenerator(req), '203.0.113.9');
+});
+
+test('rateLimitKeyGenerator falls back to req.ip when trust proxy is set but no X-Forwarded-For present', () => {
+  const req = fakeReq({ trustProxy: 1, xff: undefined, ip: '198.51.100.7' });
+  assert.equal(rateLimitKeyGenerator(req), '198.51.100.7');
+});
 
 test('secureTokenEquals uses exact token match semantics', () => {
   assert.equal(secureTokenEquals('abc123', 'abc123'), true);

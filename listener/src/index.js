@@ -89,6 +89,23 @@ const CORS_ALLOW_LOCALHOST = /^(1|true|yes|on)$/i.test(
 const ALERTS_ENABLED = !/^(0|false|no|off)$/i.test(process.env.ALERTS_ENABLED ?? 'false');
 const DISCOVERY_SCAN_ENABLED = !/^(0|false|no|off)$/i.test(process.env.DISCOVERY_SCAN_ENABLED ?? 'true');
 
+// TRUST_PROXY (T-20-BRUTE): controls Express `trust proxy`. UNSET by default, so
+// req.ip is the direct socket address and the spoof-safe rateLimitKeyGenerator
+// (security.js) ignores X-Forwarded-For — correct for direct exposure and dev.
+// Behind a trusted reverse proxy (the documented nginx topology, which sets
+// X-Forwarded-For), set TRUST_PROXY to the hop count (e.g. 1) so the auth limiter
+// keys per real client IP instead of collapsing every client into one bucket and
+// letting 10 failed logins from anyone lock out the whole household. Accepts a hop
+// count, true/false, or any Express trust-proxy value ('loopback', a subnet, etc.).
+const TRUST_PROXY = (() => {
+  const raw = (process.env.TRUST_PROXY ?? '').trim();
+  if (!raw) return undefined; // unset → do not configure trust proxy
+  if (/^(1|true|yes|on)$/i.test(raw)) return true;
+  if (/^(0|false|no|off)$/i.test(raw)) return false;
+  if (/^\d+$/.test(raw)) return Number.parseInt(raw, 10); // hop count
+  return raw; // subnet list / 'loopback' / 'linklocal' / 'uniquelocal'
+})();
+
 const RETENTION_SWEEP_MS = Number.parseInt(process.env.RETENTION_SWEEP_MS ?? `${24 * 60 * 60 * 1000}`, 10);
 const RETENTION_DAYS_DEFAULT = Number.parseInt(process.env.RETENTION_DAYS ?? '365', 10);
 const ALERT_RETENTION_DAYS = Number.parseInt(process.env.ALERT_RETENTION_DAYS ?? '90', 10);
@@ -388,6 +405,12 @@ if (Number.isFinite(RETENTION_SWEEP_MS) && RETENTION_SWEEP_MS >= 60_000) {
 
 const app = express();
 app.disable('x-powered-by');
+// Configure trust proxy before any rate limiter so rateLimitKeyGenerator keys
+// per real client IP behind a reverse proxy (T-20-BRUTE). No-op when unset.
+if (TRUST_PROXY !== undefined) {
+  app.set('trust proxy', TRUST_PROXY);
+  log.info(`[api] trust proxy enabled (TRUST_PROXY=${process.env.TRUST_PROXY?.trim()}) — auth rate limits key per X-Forwarded-For client`);
+}
 app.use(cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
