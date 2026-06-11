@@ -274,7 +274,7 @@ export async function createUser(pool, { email, passwordHash, role = 'member' })
 export async function findUserByEmail(pool, email) {
   const normalizedEmail = String(email).trim().toLowerCase();
   const result = await pool.query(
-    `SELECT id, email, password_hash, role FROM users WHERE email = $1`,
+    `SELECT id, email, password_hash, role, disabled_at FROM users WHERE email = $1`,
     [normalizedEmail],
   );
   return result.rows[0] ?? null;
@@ -320,7 +320,7 @@ export async function validateSession(pool, tokenHash) {
     `UPDATE sessions s
      SET last_seen_at = NOW()
      FROM users u
-     WHERE s.token_hash = $1 AND s.expires_at > NOW() AND u.id = s.user_id
+     WHERE s.token_hash = $1 AND s.expires_at > NOW() AND u.id = s.user_id AND u.disabled_at IS NULL
      RETURNING s.id, s.user_id, s.csrf_token, s.expires_at, u.role, u.email`,
     [tokenHash],
   );
@@ -352,4 +352,240 @@ export async function updateSessionCsrfToken(pool, sessionId, csrfToken) {
     `UPDATE sessions SET csrf_token = $1 WHERE id = $2`,
     [csrfToken, sessionId],
   );
+}
+
+// -- User Management CRUD (pool-first positional arg for testability) --
+
+/**
+ * List all users with id, email, role, created_at, and disabled_at.
+ * Callers derive status: disabled_at !== null → 'disabled', else 'active'.
+ * @param {pg.Pool} pool
+ * @returns {Promise<Array<{id: bigint, email: string, role: string, created_at: Date, disabled_at: Date|null}>>}
+ */
+export async function listUsers(pool) {
+  const result = await pool.query(
+    `SELECT id, email, role, created_at, disabled_at FROM users ORDER BY created_at`,
+  );
+  return result.rows;
+}
+
+/**
+ * Disable a user account by setting disabled_at to NOW().
+ * Disabled users fail validateSession on their very next request (USER-05).
+ * Callers must also call revokeSessionsForUser to purge active sessions immediately.
+ * @param {pg.Pool} pool
+ * @param {bigint|number} userId
+ * @returns {Promise<{id: bigint, role: string, disabled_at: Date}|null>}
+ */
+export async function disableUser(pool, userId) {
+  const result = await pool.query(
+    `UPDATE users SET disabled_at = NOW() WHERE id = $1 RETURNING id, role, disabled_at`,
+    [userId],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Re-enable a previously disabled user account by clearing disabled_at.
+ * @param {pg.Pool} pool
+ * @param {bigint|number} userId
+ * @returns {Promise<{id: bigint, role: string, disabled_at: null}|null>}
+ */
+export async function enableUser(pool, userId) {
+  const result = await pool.query(
+    `UPDATE users SET disabled_at = NULL WHERE id = $1 RETURNING id, role, disabled_at`,
+    [userId],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Delete a user account.
+ * Sessions are cascade-deleted by the FK ON DELETE CASCADE defined in migration 0003.
+ * @param {pg.Pool} pool
+ * @param {bigint|number} userId
+ * @returns {Promise<{id: bigint}|null>}
+ */
+export async function removeUser(pool, userId) {
+  const result = await pool.query(
+    `DELETE FROM users WHERE id = $1 RETURNING id`,
+    [userId],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Delete all sessions for a given user.
+ * Used on account disable and password change (PWD-01) to force re-authentication.
+ * @param {pg.Pool} pool
+ * @param {bigint|number} userId
+ * @returns {Promise<void>}
+ */
+export async function revokeSessionsForUser(pool, userId) {
+  await pool.query(
+    `DELETE FROM sessions WHERE user_id = $1`,
+    [userId],
+  );
+}
+
+/**
+ * Update a user's role ('admin' or 'member').
+ * @param {pg.Pool} pool
+ * @param {bigint|number} userId
+ * @param {'admin'|'member'} role
+ * @returns {Promise<{id: bigint, email: string, role: string}|null>}
+ */
+export async function setUserRole(pool, userId, role) {
+  const result = await pool.query(
+    `UPDATE users SET role = $2 WHERE id = $1 RETURNING id, email, role`,
+    [userId, role],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Count the number of active (non-disabled) admin users.
+ * Primitive for the last-admin guard in users-router (Plan 21-06).
+ * @param {pg.Pool} pool
+ * @returns {Promise<number>}
+ */
+export async function countAdmins(pool) {
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM users WHERE role='admin' AND disabled_at IS NULL`,
+  );
+  return result.rows[0].count;
+}
+
+// -- Invite CRUD (pool-first positional arg for testability) --
+
+/**
+ * Insert a new pending invite.
+ * The tokenHash must be the SHA-256 hex digest of the raw invite token (T-21-03-TOKENLEAK).
+ * Raw tokens are never stored — callers hash before passing tokenHash.
+ * @param {pg.Pool} pool
+ * @param {{ email: string, tokenHash: string, role?: string, invitedBy?: bigint|number|null, expiresAt: Date }} params
+ * @returns {Promise<{id: bigint, email: string, role: string, expires_at: Date}>}
+ */
+export async function createInvite(pool, { email, tokenHash, role = 'member', invitedBy = null, expiresAt }) {
+  const result = await pool.query(
+    `INSERT INTO invites (email, token_hash, role, invited_by, expires_at)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, email, role, expires_at`,
+    [email, tokenHash, role, invitedBy, expiresAt],
+  );
+  return result.rows[0];
+}
+
+/**
+ * Find the most recent pending invite for an email address.
+ * Used to check for duplicate pending invites before creating a new one.
+ * @param {pg.Pool} pool
+ * @param {string} email
+ * @returns {Promise<object|null>}
+ */
+export async function findInviteByEmail(pool, email) {
+  const result = await pool.query(
+    `SELECT id, email, role, status, expires_at, created_at
+     FROM invites
+     WHERE email = $1 AND status = 'pending'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [email],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * List all pending, non-expired invites ordered by creation date descending.
+ * @param {pg.Pool} pool
+ * @returns {Promise<Array<{id: bigint, email: string, role: string, status: string, created_at: Date, expires_at: Date}>>}
+ */
+export async function listInvites(pool) {
+  const result = await pool.query(
+    `SELECT id, email, role, status, created_at, expires_at
+     FROM invites
+     WHERE status = 'pending' AND expires_at > NOW()
+     ORDER BY created_at DESC`,
+  );
+  return result.rows;
+}
+
+/**
+ * Revoke a pending invite by id.
+ * Only succeeds when the invite is still pending; returns null if already handled.
+ * @param {pg.Pool} pool
+ * @param {bigint|number} inviteId
+ * @returns {Promise<{id: bigint}|null>}
+ */
+export async function revokeInvite(pool, inviteId) {
+  const result = await pool.query(
+    `UPDATE invites
+     SET status = 'revoked'
+     WHERE id = $1 AND status = 'pending'
+     RETURNING id`,
+    [inviteId],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Atomically redeem a pending invite token (single-use, T-21-03-REPLAY).
+ * The UPDATE wins only when status='pending', expires_at>NOW(), and used_at IS NULL.
+ * A second call with the same token_hash returns null because used_at is already set.
+ * @param {pg.Pool} pool
+ * @param {string} tokenHash - SHA-256 hex of the raw invite token
+ * @returns {Promise<{id: bigint, email: string, role: string}|null>}
+ */
+export async function redeemInvite(pool, tokenHash) {
+  const result = await pool.query(
+    `UPDATE invites
+     SET status = 'accepted', used_at = NOW()
+     WHERE token_hash = $1
+       AND status = 'pending'
+       AND expires_at > NOW()
+       AND used_at IS NULL
+     RETURNING id, email, role`,
+    [tokenHash],
+  );
+  return result.rows[0] ?? null;
+}
+
+// -- Password Reset Token CRUD (pool-first positional arg for testability) --
+
+/**
+ * Insert a new password reset token.
+ * The tokenHash must be the SHA-256 hex digest of the raw reset token (T-21-03-TOKENLEAK).
+ * @param {pg.Pool} pool
+ * @param {{ userId: bigint|number, tokenHash: string, expiresAt: Date }} params
+ * @returns {Promise<{id: bigint}>}
+ */
+export async function createPasswordResetToken(pool, { userId, tokenHash, expiresAt }) {
+  const result = await pool.query(
+    `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [userId, tokenHash, expiresAt],
+  );
+  return result.rows[0];
+}
+
+/**
+ * Atomically redeem a password reset token (single-use, T-21-03-REPLAY / PWD-03).
+ * The UPDATE wins only when expires_at>NOW() and used_at IS NULL.
+ * A second call with the same token_hash returns null because used_at is already set.
+ * @param {pg.Pool} pool
+ * @param {string} tokenHash - SHA-256 hex of the raw reset token
+ * @returns {Promise<{id: bigint, user_id: bigint}|null>}
+ */
+export async function redeemResetToken(pool, tokenHash) {
+  const result = await pool.query(
+    `UPDATE password_reset_tokens
+     SET used_at = NOW()
+     WHERE token_hash = $1
+       AND expires_at > NOW()
+       AND used_at IS NULL
+     RETURNING id, user_id`,
+    [tokenHash],
+  );
+  return result.rows[0] ?? null;
 }
