@@ -34,11 +34,6 @@ function makeWrapper({ initialPath = '/reset-password' } = {}) {
 describe('ResetPasswordPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   describe('View A — no token (request form)', () => {
@@ -123,6 +118,7 @@ describe('ResetPasswordPage', () => {
     });
 
     it('success: shows success banner then navigates to /login after 2s', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       fetchJson.mockResolvedValueOnce({ ok: true });
 
       const Wrapper = makeWrapper({ initialPath: '/reset-password?token=validtoken' });
@@ -140,7 +136,7 @@ describe('ResetPasswordPage', () => {
         expect(screen.getByText(/your password has been reset/i)).toBeInTheDocument();
       });
 
-      // Advance fake timer by 2s to trigger navigation
+      // Advance timer by 2s to trigger navigation
       act(() => {
         vi.advanceTimersByTime(2000);
       });
@@ -148,6 +144,8 @@ describe('ResetPasswordPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('login-page')).toBeInTheDocument();
       });
+
+      vi.useRealTimers();
     });
 
     it('400 invalid token: renders token-invalid card with "Request a new link"', async () => {
