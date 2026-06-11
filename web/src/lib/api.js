@@ -35,7 +35,32 @@ function getGatewayHint(status) {
   return null;
 }
 
-export async function fetchJson(url, options = {}) {
+// Re-fetch a fresh CSRF token and persist it to sessionStorage, mirroring
+// AuthGate's recovery path. Returns the new token, or '' on failure. Uses raw
+// fetch (not fetchJson) so it can never recurse into the 403-retry path (WR-06).
+async function refreshCsrfToken() {
+  if (typeof sessionStorage === 'undefined') return '';
+  try {
+    const res = await fetch(`${API_BASE}/auth/csrf-token`, { credentials: 'include' });
+    if (!res.ok) return '';
+    const body = await res.json();
+    const token = body?.csrfToken ?? '';
+    if (token) sessionStorage.setItem('csrfToken', token);
+    return token;
+  } catch {
+    return '';
+  }
+}
+
+function isCsrfRejection(status, data) {
+  if (status !== 403) return false;
+  const code = data?.code ?? '';
+  const msg = String(data?.error ?? data?.message ?? '');
+  // csrf-sync surfaces EBADCSRFTOKEN; also match a generic "invalid csrf token" body.
+  return code === 'EBADCSRFTOKEN' || /csrf/i.test(msg);
+}
+
+export async function fetchJson(url, options = {}, { _csrfRetried = false } = {}) {
   // Requires CORS_ALLOW_LOCALHOST=true in dev .env for cross-origin cookies to work.
   const csrfToken = typeof sessionStorage !== 'undefined'
     ? (sessionStorage.getItem('csrfToken') ?? '')
@@ -63,6 +88,17 @@ export async function fetchJson(url, options = {}) {
   }
 
   if (!response.ok) {
+    // CSRF self-recovery (WR-06): a stale token (e.g. after a failed lazy DB
+    // flush) makes every mutation 403 with no client recovery. On the first such
+    // failure for a mutation, re-fetch a fresh token and retry the request once
+    // before surfacing the error.
+    if (isMutation && !_csrfRetried && isCsrfRejection(response.status, data)) {
+      const fresh = await refreshCsrfToken();
+      if (fresh) {
+        return fetchJson(url, options, { _csrfRetried: true });
+      }
+    }
+
     const apiMessage = data?.error ?? data?.message ?? null;
     const statusLabel = response.statusText?.trim() || 'Request failed';
     const fallback = `HTTP ${response.status} (${statusLabel})`;
