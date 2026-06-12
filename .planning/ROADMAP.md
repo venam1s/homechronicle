@@ -126,7 +126,11 @@ See `milestones/v1.3-ROADMAP.md` for full details.
   2. When a matching device event fires, an email alert is delivered to the configured recipient and logged in alert_deliveries
   3. Email alerts are suppressed by the same quiet-period logic as webhooks — a rapid-fire sequence of events produces at most one delivery per quiet period
   4. Existing webhook-channel alert rules continue to work without modification after the schema migration
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+- [x] 22-01-PLAN.md — Migration 0005 (additive email-channel schema) + Wave 0 test scaffolds
+- [ ] 22-02-PLAN.md — Backend send branch: sendEmailAlert + channel branch + delivery logging + startup emailFrom wiring
+- [ ] 22-03-PLAN.md — Alerts API: channel/target_email validation, toApiRule exposure (D-08), INSERT/PATCH/GET wiring
+- [ ] 22-04-PLAN.md — Alerts UI: channel picker + conditional email field + admin-email prefill + SMTP hint (ALERT-04)
 **UI hint**: yes
 
 ### Phase 23: Security Hardening + Nginx Cutover
@@ -151,7 +155,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
 | 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
 | 21 | v1.4 | 10/10 | Complete    | 2026-06-12 |
-| 22 | v1.4 | 0/? | Not started | - |
+| 22 | v1.4 | 1/4 | In Progress|  |
 | 23 | v1.4 | 0/? | Not started | - |
 
 ## Candidates / Backlog
