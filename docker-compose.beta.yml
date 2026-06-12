@@ -97,8 +97,11 @@ services:
       NODE_ENV: production
       # -- Phase 20/21 auth (multi-user, invites, password reset) --
       AUTH_ENABLED: ${AUTH_ENABLED:-true}
-      # Beta is served over HTTPS (Traefik letsencrypt) — secure cookies.
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      # Session cookie Secure flag. Kept OFF by default: with it on, the new
+      # session cookie did not round-trip through the Traefik->nginx chain and
+      # login looped (POST /login 200 then GET /me 401). Opt back in via
+      # SESSION_COOKIE_SECURE=true in .env.beta once the proxy chain is verified.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       # Two proxies in front (Traefik -> web/nginx) — key auth rate limits per real client IP.
       TRUST_PROXY: ${TRUST_PROXY:-2}
       # Public base URL used to build invite + password-reset email links.

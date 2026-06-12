@@ -70,7 +70,7 @@ export async function initEmail(config) {
  * @param {{ from: string }} opts
  * @throws {Error} 'Email not configured' when transporter is null
  */
-export async function sendInvite(to, inviteUrl, { from }) {
+export async function sendInvite(to, inviteUrl, { from } = {}) {
   if (!transporter) throw new Error('Email not configured');
   await transporter.sendMail({
     from,
@@ -88,7 +88,7 @@ export async function sendInvite(to, inviteUrl, { from }) {
  * @param {{ from: string }} opts
  * @throws {Error} 'Email not configured' when transporter is null
  */
-export async function sendPasswordReset(to, resetUrl, { from }) {
+export async function sendPasswordReset(to, resetUrl, { from } = {}) {
   if (!transporter) throw new Error('Email not configured');
   await transporter.sendMail({
     from,
@@ -109,7 +109,7 @@ export async function sendPasswordReset(to, resetUrl, { from }) {
  * @param {{ from: string }} opts
  * @throws {Error} 'Email not configured' when transporter is null
  */
-export async function sendAlertEmail(to, subject, body, { from }) {
+export async function sendAlertEmail(to, subject, body, { from } = {}) {
   if (!transporter) throw new Error('Email not configured');
   await transporter.sendMail({ from, to, subject, text: body });
 }

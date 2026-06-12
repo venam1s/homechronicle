@@ -142,6 +142,28 @@ test('sendPasswordReset: throws "Email not configured" when email disabled', asy
   );
 });
 
+// Regression: auth-router calls sendPasswordReset(to, url) with NO options arg.
+// The signature must default the options object so it throws the clean
+// "Email not configured" instead of "Cannot destructure property 'from' of
+// 'undefined'" (which crashed the fire-and-forget forgot-password path).
+test('sendPasswordReset: no options arg → "Email not configured", not a destructure TypeError', async () => {
+  await resetTransport();
+  await assert.rejects(
+    () => sendPasswordReset('user@example.com', 'https://example.com/reset?token=xyz'),
+    (err) => err.message === 'Email not configured',
+    'sendPasswordReset() with no opts must not throw a destructure TypeError',
+  );
+});
+
+test('sendInvite: no options arg → "Email not configured", not a destructure TypeError', async () => {
+  await resetTransport();
+  await assert.rejects(
+    () => sendInvite('user@example.com', 'https://example.com/invite?token=abc'),
+    (err) => err.message === 'Email not configured',
+    'sendInvite() with no opts must not throw a destructure TypeError',
+  );
+});
+
 test('sendPasswordReset: calls sendMail with correct to and body containing the reset URL', async () => {
   const mockTransport = makeMockTransport();
   await initEmail({

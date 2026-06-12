@@ -482,7 +482,7 @@ app.use('/api/auth', createAuthPublicRouter({
   SESSION_MAX_AGE_DEFAULT,
   SESSION_MAX_AGE_REMEMBER,
   generateCsrfToken,
-  sendPasswordReset,
+  sendPasswordReset: (to, resetUrl) => sendPasswordReset(to, resetUrl, { from: smtpConfig.from }),
   isEmailEnabled,
   appBaseUrl: APP_BASE_URL,
 }));
@@ -627,7 +627,7 @@ app.use('/api/setup', createSmtpRouter({
 
 app.use('/api/users', createUsersRouter({
   pool,
-  sendInvite,
+  sendInvite: (to, inviteUrl) => sendInvite(to, inviteUrl, { from: smtpConfig.from }),
   isEmailEnabled,
   appBaseUrl: APP_BASE_URL,
 }));
