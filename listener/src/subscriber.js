@@ -18,6 +18,7 @@ import {
 import { log } from './logger.js';
 
 let isAlertsEnabled = () => false;
+let alertEmailFrom = '';
 
 /**
  * Set the function used to check whether alerts are enabled at runtime.
@@ -25,6 +26,14 @@ let isAlertsEnabled = () => false;
  */
 export function setAlertsEnabledFn(fn) {
   isAlertsEnabled = fn;
+}
+
+/**
+ * Set the SMTP `from` address threaded into the email alert send branch.
+ * Called from index.js after initEmail so the alert From matches invites/resets (D-07).
+ */
+export function setAlertEmailFrom(value) {
+  alertEmailFrom = value ?? '';
 }
 
 // Milliseconds before attempting reconnect after a lost connection
@@ -112,7 +121,7 @@ async function processAlertsSafe(eventPayload, insertedRow) {
       ...eventPayload,
       eventId: insertedRow?.id,
       timestamp: insertedRow?.timestamp ?? new Date().toISOString(),
-    });
+    }, alertEmailFrom);
   } catch (err) {
     log.error('[alerts] Processing failed:', err.message ?? err.stack ?? err);
   }

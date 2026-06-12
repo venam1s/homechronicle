@@ -26,7 +26,7 @@ import { createRepairScheduler } from './repair-scheduler.js';
 import { performPairSetupAndPersist } from './repair-helpers.js';
 import { createRepairRouter } from './repair-router.js';
 import { createAlertsSettingsRouter } from './alerts-settings-router.js';
-import { setAlertsEnabledFn } from './subscriber.js';
+import { setAlertsEnabledFn, setAlertEmailFrom } from './subscriber.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { cached } from './query-cache.js';
@@ -237,6 +237,7 @@ const smtpSecret = await readSmtpSecret();
 const smtpConfig = buildSmtpConfig(smtpConfigStore.getSnapshot(), smtpSecret);
 await initEmail(smtpConfig);
 setAlertsEnabledFn(() => alertsSettingsStore.getSnapshot().enabled);
+setAlertEmailFrom(smtpConfig.from ?? '');
 await initMatterController();
 matterRuntime = createMatterRuntime({
   insertEvent,
