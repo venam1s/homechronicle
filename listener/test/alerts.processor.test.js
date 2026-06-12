@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { processAlertsForEvent } from '../src/alerts.js';
+import { initEmail } from '../src/emails.js';
 
 function makeRule(overrides = {}) {
   return {
@@ -41,7 +42,7 @@ test('processAlertsForEvent records sent delivery for matching rule', async () =
       if (sql.includes('FROM alert_rules')) return { rows: [makeRule()] };
       if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
-        deliveries.push({ ruleId: params[0], eventId: params[1], status: params[2], responseCode: params[4] });
+        deliveries.push({ ruleId: params[0], eventId: params[1], status: params[2], responseCode: params[6] });
         return { rowCount: 1 };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
@@ -69,7 +70,7 @@ test('processAlertsForEvent records suppressed delivery when within quiet period
         return { rows: [{ rule_id: 1, sent_at: new Date().toISOString() }] };
       }
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
-        deliveries.push({ status: params[2], error: params[5] });
+        deliveries.push({ status: params[2], error: params[7] });
         return { rowCount: 1 };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
@@ -99,7 +100,7 @@ test('processAlertsForEvent records failed delivery for non-2xx response', async
       if (sql.includes('FROM alert_rules')) return { rows: [makeRule()] };
       if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
-        deliveries.push({ status: params[2], responseCode: params[4], error: params[5] });
+        deliveries.push({ status: params[2], responseCode: params[6], error: params[7] });
         return { rowCount: 1 };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
@@ -131,7 +132,7 @@ test('processAlertsForEvent blocks localhost webhook targets', async () => {
       }
       if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
-        deliveries.push({ status: params[2], error: params[5] });
+        deliveries.push({ status: params[2], error: params[7] });
         return { rowCount: 1 };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
@@ -187,9 +188,18 @@ test('processAlertsForEvent sends email delivery for matching email rule (Wave 0
     },
   };
 
-  // Suppress any actual network calls (email send is mocked via emailFrom injection in 22-02)
+  // Email IS configured at fire time: the send branch gates on isEmailEnabled()
+  // (transporter !== null), so a stub transport must be installed for status to
+  // reach 'sent'. _testTransport avoids any real network call. Reset in finally
+  // so the D-09 and suppression scaffolds below still observe email disabled.
   const originalFetch = global.fetch;
   global.fetch = async () => { throw new Error('fetch should not be called for email rules'); };
+  await initEmail({
+    host: 'smtp.test',
+    smtpPass: 'x',
+    from: 'noreply@homechronicle.test',
+    _testTransport: { verify: async () => true, sendMail: async () => ({ messageId: 'test-id' }) },
+  });
   try {
     await processAlertsForEvent(pool, makeEvent(), 'noreply@homechronicle.test');
     assert.equal(deliveries.length, 1, 'one delivery row expected');
@@ -199,6 +209,7 @@ test('processAlertsForEvent sends email delivery for matching email rule (Wave 0
     assert.equal(deliveries[0].targetUrl, null, 'targetUrl must be null for email rules');
   } finally {
     global.fetch = originalFetch;
+    await initEmail({}); // tear down transport → isEmailEnabled() false for later tests
   }
 });
 

@@ -1,4 +1,5 @@
 import { resolveAndValidateWebhookTarget } from './security.js';
+import { sendAlertEmail, isEmailEnabled } from './emails.js';
 
 const ALERTS_WEBHOOK_TIMEOUT_MS = (() => {
   const parsed = Number.parseInt(process.env.ALERTS_WEBHOOK_TIMEOUT_MS ?? '5000', 10);
@@ -83,16 +84,31 @@ function buildPayload(rule, event, firedAt) {
   };
 }
 
+function buildAlertBody(rule, event) {
+  const ts = new Date().toISOString();
+  const lines = [
+    `Rule:           ${rule.name}`,
+    `Accessory:      ${event.accessoryName ?? ''} (${event.accessoryId ?? ''})`,
+    `Room:           ${event.roomName ?? '(no room)'}`,
+    `Characteristic: ${event.characteristic ?? ''}`,
+    `Change:         ${event.oldValue ?? '(none)'} → ${event.newValue ?? ''}`,
+    `Time:           ${event.timestamp ?? ts}`,
+  ];
+  return lines.join('\n');
+}
+
 async function createDelivery(pool, data) {
   await pool.query(
     `INSERT INTO alert_deliveries
-       (rule_id, event_id, status, target_url, response_code, error)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+       (rule_id, event_id, status, target_url, channel, recipient, response_code, error)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       data.ruleId,
       data.eventId ?? null,
       data.status,
-      data.targetUrl,
+      data.targetUrl ?? null,
+      data.channel ?? 'webhook',
+      data.recipient ?? null,
       data.responseCode ?? null,
       data.error ?? null,
     ]
@@ -154,12 +170,36 @@ async function sendWebhook(rule, event) {
   }
 }
 
-export async function processAlertsForEvent(pool, event) {
+async function sendEmailAlertForRule(rule, event, emailFrom) {
+  if (!isEmailEnabled()) {
+    return { status: 'failed', error: 'Email not configured' };
+  }
+  try {
+    const accessoryName = String(event.accessoryName ?? event.accessoryId ?? 'Unknown');
+    const characteristic = String(event.characteristic ?? '');
+    const newValue = String(event.newValue ?? '');
+    const subject = (accessoryName && characteristic && newValue)
+      ? `[HomeChronicle] ${accessoryName} ${characteristic} = ${newValue}`.slice(0, 200)
+      : `[HomeChronicle] ${String(rule.name ?? 'Alert').slice(0, 180)}`;
+    const body = buildAlertBody(rule, event);
+    await sendAlertEmail(rule.target_email, subject, body, { from: emailFrom });
+    return { status: 'sent' };
+  } catch (err) {
+    return {
+      status: 'failed',
+      error: err?.message === 'Email not configured'
+        ? 'Email not configured'
+        : (err?.message ?? 'Email send failed'),
+    };
+  }
+}
+
+export async function processAlertsForEvent(pool, event, emailFrom) {
   if (!event?.eventId) return;
 
   const rulesResult = await pool.query(
     `SELECT id, name, enabled, scope_type, scope_value, characteristic,
-            operator, match_value, target_url, quiet_minutes
+            operator, match_value, target_url, target_email, channel, quiet_minutes
      FROM alert_rules
      WHERE enabled = TRUE
      ORDER BY id ASC`
@@ -202,18 +242,24 @@ export async function processAlertsForEvent(pool, event) {
         ruleId: rule.id,
         eventId: event.eventId,
         status: 'suppressed',
-        targetUrl: rule.target_url,
+        targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
+        channel: rule.channel ?? 'webhook',
+        recipient: rule.channel === 'email' ? rule.target_email : null,
         error: `Suppressed by quiet period (${rule.quiet_minutes} minute(s))`,
       });
       continue;
     }
 
-    const delivery = await sendWebhook(rule, event);
+    const delivery = rule.channel === 'email'
+      ? await sendEmailAlertForRule(rule, event, emailFrom)
+      : await sendWebhook(rule, event);
     await createDelivery(pool, {
       ruleId: rule.id,
       eventId: event.eventId,
       status: delivery.status,
-      targetUrl: rule.target_url,
+      targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
+      channel: rule.channel ?? 'webhook',
+      recipient: rule.channel === 'email' ? rule.target_email : null,
       responseCode: delivery.responseCode,
       error: delivery.error,
     });
