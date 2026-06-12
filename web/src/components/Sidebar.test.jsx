@@ -27,7 +27,7 @@ const { mockLogoutMutate } = vi.hoisted(() => ({ mockLogoutMutate: vi.fn() }));
 
 vi.mock('../hooks/useAuth.js', () => ({
   useAuth: vi.fn(() => ({
-    user: { user: { id: 1, role: 'admin' } },
+    user: { id: 1, role: 'admin' },
     isLoading: false,
     isError: false,
     logoutMutation: {
@@ -171,7 +171,7 @@ describe('Sidebar', () => {
   });
 
   it('Test 16 (AUTH-03): account label falls back gracefully when /auth/me has no email (shows role, not undefined)', () => {
-    // Default mock already has user: { user: { id: 1, role: 'admin' } } with no email
+    // Default mock already has user: { id: 1, role: 'admin' } with no email
     render(<Sidebar {...defaultProps} collapsed={false} />);
     // The label should show a capitalized role ("Admin"), never undefined or blank
     expect(screen.getByText('Admin')).toBeInTheDocument();

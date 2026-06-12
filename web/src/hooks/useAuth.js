@@ -6,7 +6,9 @@ export function useAuth() {
 
   const { data: user, isLoading, isError } = useQuery({
     queryKey: ['auth', 'me'],
-    queryFn: () => fetchJson(`${API_BASE}/auth/me`),
+    // GET /api/auth/me responds { user: {...} }; unwrap so consumers get a flat
+    // user object (user.role, user.email, user.id) — never user.user.role.
+    queryFn: () => fetchJson(`${API_BASE}/auth/me`).then((data) => data?.user ?? null),
     staleTime: 60_000,
     retry: false,
   });

@@ -102,9 +102,9 @@ export default function Sidebar({
   const isDark = resolvedTheme === 'dark';
   const swatchMap = isDark ? ACCENT_SWATCH_DARK : ACCENT_SWATCH;
 
-  const accountLabel = user?.user?.email
-    ?? (user?.user?.role
-      ? user.user.role.charAt(0).toUpperCase() + user.user.role.slice(1)
+  const accountLabel = user?.email
+    ?? (user?.role
+      ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
       : 'Account');
   const accountInitials =
     (accountLabel.split('@')[0].match(/[a-zA-Z0-9]/g)?.slice(0, 2).join('') || 'AC').toUpperCase();
