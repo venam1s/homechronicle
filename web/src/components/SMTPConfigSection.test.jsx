@@ -211,6 +211,36 @@ describe('SMTPConfigSection', () => {
         expect(body.password).toBe('newSecret123!');
       });
     });
+
+    it('includes password on FIRST-TIME setup (passwordConfigured false, no Change click)', async () => {
+      fetchJson
+        .mockResolvedValueOnce({
+          host: 'smtp.mail.me.com',
+          port: 587,
+          user: 'me@icloud.com',
+          from: 'no-reply@example.com',
+          secure: false,
+          passwordConfigured: false, // never configured → editable field shown directly
+          envFields: [],
+        })
+        .mockResolvedValueOnce({}); // PUT response
+
+      render(<SMTPConfigSection />, { wrapper: makeWrapper() });
+
+      // No "Change" button when not configured — the password input is shown directly
+      const pwInput = await screen.findByLabelText('Password');
+      await userEvent.type(pwInput, 'app-specific-pw');
+      await userEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+      await waitFor(() => {
+        const putCall = fetchJson.mock.calls.find(
+          ([url, opts]) => url.includes('/setup/smtp') && opts?.method === 'PUT',
+        );
+        expect(putCall).toBeTruthy();
+        const body = JSON.parse(putCall[1].body);
+        expect(body.password).toBe('app-specific-pw');
+      });
+    });
   });
 
   describe('save invalidates the config query (Send test email enables without reload)', () => {

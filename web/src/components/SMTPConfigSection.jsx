@@ -97,11 +97,15 @@ export default function SMTPConfigSection() {
       secure,
     };
 
-    // D-01: only include password key when user has actively entered a new one
-    if (changingPassword && password) {
+    // Include the password whenever the editable field is shown and the user
+    // typed one: first-time setup (passwordConfigured === false) OR an explicit
+    // Change of an existing secret. Without the first-time case the typed password
+    // is silently dropped and SMTP never gets a password (passwordConfigured stays
+    // false → "Email is not configured"). D-01: a blank password is never sent, so
+    // it never clears the stored secret.
+    if ((changingPassword || !data?.passwordConfigured) && password) {
       body.password = password;
     }
-    // If changingPassword but password is blank, do NOT include key (blank never clears secret)
 
     saveMutation.mutate(body);
   }
