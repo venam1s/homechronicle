@@ -194,6 +194,37 @@ test('/api/alerts/rules validates bad payloads', async () => {
   assert.match(blockedTarget.jsonBody.error, /loopback/i);
 });
 
+test('PATCH switching an email rule to webhook without a URL returns 400, not 500 (CR-01)', async () => {
+  // Reproduces the channel-field CHECK violation: an existing email rule has
+  // target_url = NULL, so switching it to the webhook channel without supplying
+  // a target URL leaves the row invalid. The DB rejects it via
+  // chk_alert_channel_fields (SQLSTATE 23514); the router must surface that as a
+  // 400 client error rather than an opaque 500.
+  const channelConstraintPool = {
+    async query(sql) {
+      if (sql.startsWith('UPDATE alert_rules')) {
+        const err = new Error(
+          'new row for relation "alert_rules" violates check constraint "chk_alert_channel_fields"'
+        );
+        err.code = '23514';
+        err.constraint = 'chk_alert_channel_fields';
+        throw err;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+  const router = createAlertsRouter({ pool: channelConstraintPool });
+  const patch = getRouteHandler(router, 'PATCH', '/rules/:id');
+
+  const result = await invoke(patch, {
+    params: { id: '1' },
+    body: { channel: 'webhook' },
+  });
+
+  assert.equal(result.statusCode, 400, 'channel-field violation must be a 400, not 500');
+  assert.match(result.jsonBody.error, /target URL|recipient email/i);
+});
+
 test('/api/alerts/deliveries returns paginated response', async () => {
   const router = createAlertsRouter({ pool: createMockPool() });
   const handler = getRouteHandler(router, 'GET', '/deliveries');

@@ -219,6 +219,23 @@ function toApiRule(row) {
   };
 }
 
+// A Postgres CHECK-constraint violation (SQLSTATE 23514) on the per-channel
+// field rules means the client supplied an invalid channel/field combination —
+// e.g. switching an existing email rule (whose target_url is NULL) to the
+// webhook channel without supplying a target URL. The blind partial UPDATE in
+// PATCH (and the INSERT in POST) cannot see the row's prior state, so the DB is
+// the authoritative validator here. Map it to a 400 instead of leaking a 500.
+function isChannelFieldViolation(err) {
+  return Boolean(
+    err &&
+      err.code === '23514' &&
+      (err.constraint === 'chk_alert_channel_fields' || err.constraint === 'chk_alert_channel')
+  );
+}
+
+const CHANNEL_FIELD_ERROR =
+  'Webhook rules require a target URL and email rules require a recipient email';
+
 export function createAlertsRouter({ pool }) {
   const router = express.Router();
   const alertsReadLimiter = rateLimit({
@@ -290,6 +307,9 @@ export function createAlertsRouter({ pool }) {
       );
       res.status(201).json(toApiRule(result.rows[0]));
     } catch (err) {
+      if (isChannelFieldViolation(err)) {
+        return res.status(400).json({ error: CHANNEL_FIELD_ERROR });
+      }
       log.error('[api] /api/alerts/rules create error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -338,6 +358,9 @@ export function createAlertsRouter({ pool }) {
       if (!result.rows.length) return res.status(404).json({ error: 'Rule not found' });
       res.json(toApiRule(result.rows[0]));
     } catch (err) {
+      if (isChannelFieldViolation(err)) {
+        return res.status(400).json({ error: CHANNEL_FIELD_ERROR });
+      }
       log.error('[api] /api/alerts/rules patch error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
