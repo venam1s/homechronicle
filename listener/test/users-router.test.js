@@ -453,6 +453,8 @@ test('PATCH /api/users/:id disable returns 400 when disabling last active admin'
     session: { userId: 1, role: 'admin', email: 'admin@example.com' },
     poolBehavior: [
       { match: 'pg_advisory_xact_lock', rows: [] },
+      // target IS an admin → last-admin guard applies
+      { match: 'SELECT role FROM users WHERE id', rows: [{ role: 'admin' }] },
       // countAdmins → 1 (last admin)
       { match: 'COUNT', rows: [{ count: 1 }] },
     ],
@@ -460,6 +462,23 @@ test('PATCH /api/users/:id disable returns 400 when disabling last active admin'
   // Target user 5 is a different user (not self)
   const res = await request(app, 'PATCH', '/api/users/5', { action: 'disable' });
   assert.equal(res.status, 400);
+});
+
+test('PATCH /api/users/:id disable returns 200 for a member even when only one admin exists', async () => {
+  // Regression: the last-admin guard must NOT block disabling a non-admin.
+  const { app } = buildApp({
+    session: { userId: 1, role: 'admin', email: 'admin@example.com' },
+    poolBehavior: [
+      { match: 'pg_advisory_xact_lock', rows: [] },
+      // target is a MEMBER → guard must be skipped regardless of admin count
+      { match: 'SELECT role FROM users WHERE id', rows: [{ role: 'member' }] },
+      { match: 'COUNT', rows: [{ count: 1 }] },
+      { match: 'SET disabled_at', rows: [{ id: 2, role: 'member', disabled_at: new Date() }] },
+      { match: 'DELETE FROM sessions', rows: [] },
+    ],
+  });
+  const res = await request(app, 'PATCH', '/api/users/2', { action: 'disable' });
+  assert.equal(res.status, 200);
 });
 
 // -- PATCH /:id action:enable --
@@ -532,6 +551,8 @@ test('DELETE /api/users/:id returns 400 when removing the last admin', async () 
     session: adminSession,
     poolBehavior: [
       { match: 'pg_advisory_xact_lock', rows: [] },
+      // target IS an admin → last-admin guard applies
+      { match: 'SELECT role FROM users WHERE id', rows: [{ role: 'admin' }] },
       // countAdmins → 1
       { match: 'COUNT', rows: [{ count: 1 }] },
     ],
@@ -539,6 +560,22 @@ test('DELETE /api/users/:id returns 400 when removing the last admin', async () 
   // Target is a different user (not self) — user 2
   const res = await request(app, 'DELETE', '/api/users/2');
   assert.equal(res.status, 400);
+});
+
+test('DELETE /api/users/:id returns 200 for a member even when only one admin exists', async () => {
+  // Regression: the last-admin guard must NOT block removing a non-admin.
+  const { app } = buildApp({
+    session: adminSession,
+    poolBehavior: [
+      { match: 'pg_advisory_xact_lock', rows: [] },
+      { match: 'SELECT role FROM users WHERE id', rows: [{ role: 'member' }] },
+      { match: 'COUNT', rows: [{ count: 1 }] },
+      { match: 'DELETE FROM users', rows: [{ id: 2 }] },
+    ],
+  });
+  const res = await request(app, 'DELETE', '/api/users/2');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ok, true);
 });
 
 test('DELETE /api/users/:id returns 200 for regular member', async () => {

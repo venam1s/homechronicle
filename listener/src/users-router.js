@@ -260,14 +260,21 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
           await client.query('BEGIN');
           await client.query('SELECT pg_advisory_xact_lock($1)', [ADMIN_GUARD_LOCK_KEY]);
 
-          // Count active admins under the lock
-          const countResult = await client.query(
-            `SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin' AND disabled_at IS NULL`,
+          // Last-admin guard applies ONLY when the target is itself an admin —
+          // disabling a member must never be blocked by the admin count.
+          const targetRow = await client.query(
+            `SELECT role FROM users WHERE id = $1`,
+            [targetId],
           );
-          const adminCount = countResult.rows[0]?.count ?? 0;
-          if (adminCount <= 1) {
-            await client.query('ROLLBACK').catch(() => {});
-            return res.status(400).json({ error: 'Cannot disable the only admin account.' });
+          if ((targetRow.rows[0]?.role) === 'admin') {
+            const countResult = await client.query(
+              `SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin' AND disabled_at IS NULL`,
+            );
+            const adminCount = countResult.rows[0]?.count ?? 0;
+            if (adminCount <= 1) {
+              await client.query('ROLLBACK').catch(() => {});
+              return res.status(400).json({ error: 'Cannot disable the only admin account.' });
+            }
           }
 
           const updated = await client.query(
@@ -352,13 +359,21 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
         await client.query('BEGIN');
         await client.query('SELECT pg_advisory_xact_lock($1)', [ADMIN_GUARD_LOCK_KEY]);
 
-        const countResult = await client.query(
-          `SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin' AND disabled_at IS NULL`,
+        // Last-admin guard applies ONLY when the target is itself an admin —
+        // removing a member must never be blocked by the admin count.
+        const targetRow = await client.query(
+          `SELECT role FROM users WHERE id = $1`,
+          [targetId],
         );
-        const adminCount = countResult.rows[0]?.count ?? 0;
-        if (adminCount <= 1) {
-          await client.query('ROLLBACK').catch(() => {});
-          return res.status(400).json({ error: 'Cannot remove the only admin account.' });
+        if ((targetRow.rows[0]?.role) === 'admin') {
+          const countResult = await client.query(
+            `SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin' AND disabled_at IS NULL`,
+          );
+          const adminCount = countResult.rows[0]?.count ?? 0;
+          if (adminCount <= 1) {
+            await client.query('ROLLBACK').catch(() => {});
+            return res.status(400).json({ error: 'Cannot remove the only admin account.' });
+          }
         }
 
         await client.query(`DELETE FROM users WHERE id = $1`, [targetId]);
