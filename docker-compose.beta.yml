@@ -38,11 +38,10 @@ services:
       start_period: 30s
 
   # One-shot prod→beta data refresh, run before the listener on each (re)created
-  # deploy. Prod postgres is NOT published to the host loopback — it lives only on
-  # the prod compose's own docker network. So db-sync joins BOTH networks and
-  # reaches each postgres by its in-network name: beta at hc-beta-postgres:5432
-  # (my-network) and prod at PROD_DB_HOST (its container/service name on
-  # prod-network, default homechronicle-postgres-1). This needs no change to the
+  # deploy. Prod postgres is NOT published to the host loopback — but it shares the
+  # external my-network with beta, so db-sync reaches each postgres by its
+  # in-network name: beta at hc-beta-postgres:5432 and prod at PROD_DB_HOST (its
+  # container name, default homechronicle-postgres-1). This needs no change to the
   # prod stack. NOTE: a `restart: no` one-shot only runs when its container is
   # recreated; `service_completed_successfully` is satisfied by a prior exited-0
   # container and will NOT force a re-run — the deploy must recreate db-sync
@@ -52,7 +51,6 @@ services:
     restart: "no"
     networks:
       - my-network
-      - prod-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -172,9 +170,3 @@ networks:
     external: true
   empire-network:
     external: true
-  # Prod compose's network — db-sync joins it to reach prod postgres by name.
-  # Default assumes prod project "homechronicle" → "homechronicle_default";
-  # override PROD_NETWORK_NAME if prod uses a custom network.
-  prod-network:
-    external: true
-    name: ${PROD_NETWORK_NAME:-homechronicle_default}

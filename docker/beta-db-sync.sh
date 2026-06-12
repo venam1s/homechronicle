@@ -101,8 +101,16 @@ fi
 log "prod postgres reachable"
 
 # -- Dump prod (READ-ONLY) → restore beta -------------------------------------
-log "dumping prod and restoring into beta (--clean --if-exists, ON_ERROR_STOP)"
-PGPASSWORD="$PROD_DB_PASSWORD" pg_dump -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" -U "$PROD_DB_USER" -d "$PROD_DB_NAME" --clean --if-exists --no-owner \
+# Beta-local tables that must NEVER be overwritten from prod: the Phase 20/21 auth
+# tables (prod predates them and has no users) and pgmigrations (preserving beta's
+# migration state so the listener does not replay 0003/0004 on restart). Excluded
+# tables get no DROP/CREATE/COPY, so beta keeps its own rows.
+DUMP_EXCLUDE=""
+for t in users sessions invites password_reset_tokens pgmigrations; do
+  DUMP_EXCLUDE="$DUMP_EXCLUDE --exclude-table=public.${t}"
+done
+log "dumping prod and restoring into beta (--clean --if-exists, ON_ERROR_STOP; excluding auth + pgmigrations)"
+PGPASSWORD="$PROD_DB_PASSWORD" pg_dump -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" -U "$PROD_DB_USER" -d "$PROD_DB_NAME" --clean --if-exists --no-owner $DUMP_EXCLUDE \
   | PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -v ON_ERROR_STOP=1 -q
 rc=$?
 if [ "$rc" -ne 0 ]; then
