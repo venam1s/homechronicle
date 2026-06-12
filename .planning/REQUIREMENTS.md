@@ -156,27 +156,27 @@ Invite-only multi-user authentication replacing the single shared-token model, p
 
 ### User Management & Invites
 
-- [ ] **USER-01**: Admin can invite a user by email; an invite link is generated and shown as a copyable link in the admin UI
-- [ ] **USER-02**: Invitee accepts via the link and sets their password; acceptance doubles as email verification (no separate verify step)
-- [ ] **USER-03**: Invite tokens are single-use, expiring, and stored as SHA-256 hashes; lifecycle states are pending / accepted / expired / revoked
-- [ ] **USER-04**: Admin can revoke a pending invite
-- [ ] **USER-05**: Two roles exist (admin, member); admin-only actions are enforced server-side
-- [ ] **USER-06**: Admin can disable or remove a user, which revokes that user's active sessions
-- [ ] **USER-07**: Admin can view the list of users with their role and status
+- [x] **USER-01**: Admin can invite a user by email; an invite link is generated and shown as a copyable link in the admin UI
+- [x] **USER-02**: Invitee accepts via the link and sets their password; acceptance doubles as email verification (no separate verify step)
+- [x] **USER-03**: Invite tokens are single-use, expiring, and stored as SHA-256 hashes; lifecycle states are pending / accepted / expired / revoked
+- [x] **USER-04**: Admin can revoke a pending invite
+- [x] **USER-05**: Two roles exist (admin, member); admin-only actions are enforced server-side
+- [x] **USER-06**: Admin can disable or remove a user, which revokes that user's active sessions
+- [x] **USER-07**: Admin can view the list of users with their role and status
 
 ### Password Management
 
-- [ ] **PWD-01**: Logged-in user can change their own password
-- [ ] **PWD-02**: User can request a password reset by email; the reset link is single-use and expiring
-- [ ] **PWD-03**: Forgot-password returns an identical response for known and unknown emails (no account enumeration)
-- [ ] **PWD-04**: Password set/reset enforces strength rules (minimum length/complexity) with strength feedback in the UI
+- [x] **PWD-01**: Logged-in user can change their own password
+- [x] **PWD-02**: User can request a password reset by email; the reset link is single-use and expiring
+- [x] **PWD-03**: Forgot-password returns an identical response for known and unknown emails (no account enumeration)
+- [x] **PWD-04**: Password set/reset enforces strength rules (minimum length/complexity) with strength feedback in the UI
 
 ### Email Infrastructure
 
-- [ ] **EMAIL-01**: Listener sends email via SMTP (nodemailer) with connection and socket timeouts so a slow SMTP server never blocks request/event processing
-- [ ] **EMAIL-02**: Admin can configure SMTP (host/port/user/pass/from) from the Settings UI, with env-var fallback
-- [ ] **EMAIL-03**: Email flows degrade gracefully when SMTP is unconfigured — invites fall back to a copyable link; password reset surfaces a clear error
-- [ ] **EMAIL-04**: SMTP credentials are stored securely (never in plaintext JSON config exposed to the API)
+- [x] **EMAIL-01**: Listener sends email via SMTP (nodemailer) with connection and socket timeouts so a slow SMTP server never blocks request/event processing
+- [x] **EMAIL-02**: Admin can configure SMTP (host/port/user/pass/from) from the Settings UI, with env-var fallback
+- [x] **EMAIL-03**: Email flows degrade gracefully when SMTP is unconfigured — invites fall back to a copyable link; password reset surfaces a clear error
+- [x] **EMAIL-04**: SMTP credentials are stored securely (never in plaintext JSON config exposed to the API)
 
 ### Email Alert Channel
 
@@ -300,21 +300,21 @@ Deferred to future milestones.
 | SEC-02 | Phase 20 | Complete |
 | SEC-03 | Phase 20 | Complete |
 | SEC-04 | Phase 20 | Complete |
-| USER-01 | Phase 21 | Pending |
-| USER-02 | Phase 21 | Pending |
-| USER-03 | Phase 21 | Pending |
-| USER-04 | Phase 21 | Pending |
-| USER-05 | Phase 21 | Pending |
-| USER-06 | Phase 21 | Pending |
-| USER-07 | Phase 21 | Pending |
-| PWD-01 | Phase 21 | Pending |
-| PWD-02 | Phase 21 | Pending |
-| PWD-03 | Phase 21 | Pending |
-| PWD-04 | Phase 21 | Pending |
-| EMAIL-01 | Phase 21 | Pending |
-| EMAIL-02 | Phase 21 | Pending |
-| EMAIL-03 | Phase 21 | Pending |
-| EMAIL-04 | Phase 21 | Pending |
+| USER-01 | Phase 21 | Complete |
+| USER-02 | Phase 21 | Complete |
+| USER-03 | Phase 21 | Complete |
+| USER-04 | Phase 21 | Complete |
+| USER-05 | Phase 21 | Complete |
+| USER-06 | Phase 21 | Complete |
+| USER-07 | Phase 21 | Complete |
+| PWD-01 | Phase 21 | Complete |
+| PWD-02 | Phase 21 | Complete |
+| PWD-03 | Phase 21 | Complete |
+| PWD-04 | Phase 21 | Complete |
+| EMAIL-01 | Phase 21 | Complete |
+| EMAIL-02 | Phase 21 | Complete |
+| EMAIL-03 | Phase 21 | Complete |
+| EMAIL-04 | Phase 21 | Complete |
 | ALERT-01 | Phase 22 | Pending |
 | ALERT-02 | Phase 22 | Pending |
 | ALERT-03 | Phase 22 | Pending |

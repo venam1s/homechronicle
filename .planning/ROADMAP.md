@@ -64,7 +64,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 ### v1.4 Multi-User Auth & Email
 
 - [x] **Phase 20: Auth Foundation** — Users, sessions, token-OR-session gate, first-admin bootstrap, CSRF protection, LoginPage + AuthGate (executed 2026-06-10; 13 plans incl. gap-closure 20-11/12/13; UAT 4/4 PASS live on beta, VERIFICATION verified) (completed 2026-06-11)
-- [ ] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI
+- [x] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI (completed 2026-06-12)
 - [ ] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI
 - [ ] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal
 
@@ -109,7 +109,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] 21-02-PLAN.md — Password strength: validatePasswordStrength + blocklist (listener) + strength.js (web)
 - [x] 21-03-PLAN.md — db.js invite/reset-token/user-mgmt CRUD + validateSession disabled_at guard
 - [x] 21-04-PLAN.md — emails.js transport + SMTP secret isolation + smtp-router (GET/PUT/test)
-- [ ] 21-05-PLAN.md — auth-router public (accept-invite/forgot-password/reset-confirm) + change-password
+- [x] 21-05-PLAN.md — auth-router public (accept-invite/forgot-password/reset-confirm) + change-password
 - [x] 21-06-PLAN.md — users-router CRUD + invite mgmt + last-admin/self guards
 - [x] 21-07-PLAN.md — index.js email/router wiring + nginx /api/auth/* log redaction
 - [x] 21-08-PLAN.md — PasswordStrengthMeter + AcceptInvitePage + functional ResetPasswordPage + routes
@@ -150,7 +150,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
 | 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
 | 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
-| 21 | v1.4 | 9/10 | In Progress|  |
+| 21 | v1.4 | 10/10 | Complete    | 2026-06-12 |
 | 22 | v1.4 | 0/? | Not started | - |
 | 23 | v1.4 | 0/? | Not started | - |
 
