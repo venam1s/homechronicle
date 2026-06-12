@@ -4,13 +4,13 @@ milestone: v1.4
 milestone_name: Multi-User Auth & Email
 status: executing
 stopped_at: Phase 22 UI-SPEC approved
-last_updated: "2026-06-12T17:50:23.060Z"
+last_updated: "2026-06-12T17:56:29.416Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 27
-  completed_plans: 24
+  completed_plans: 26
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 ## Current Position
 
 Phase: 22 (email-alert-channel) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Next: Phase 22 — Email Alert Channel (not yet discussed/planned; depends on Phase 21, now complete)
 Status: Ready to execute
 Last activity: 2026-06-12
@@ -41,6 +41,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Inject performPairSetupAndPersist as a pre-wired 4-arg closure into scheduler rather than threading HttpClient + savePairings — minimizes dep surface and matches existing discoverDevice injection pattern
 - no-PIN skip runs before discoverDevice to avoid unnecessary mDNS churn for unrecoverable devices
 - [Phase ?]: csrf-sync 4.2.1 does NOT await storeTokenInState — Strategy B for Plans 08/09: sync req.hcSession.csrfToken + lazy DB flush
+- [Phase ?]: D-08 redaction asymmetry: delete targetUrl (can embed secrets), retain targetEmail (not a credential)
 
 ### Pending Todos
 
@@ -77,7 +78,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-12T17:36:56.246Z
+Last session: 2026-06-12T17:56:29.412Z
 Stopped at: Phase 22 UI-SPEC approved
 Resume file: None
 ---
