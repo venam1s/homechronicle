@@ -7,7 +7,10 @@ import { fetchJson, API_BASE } from '../lib/api.js';
 export default function AuthGate({ children }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['auth', 'me'],
-    queryFn: () => fetchJson(`${API_BASE}/auth/me`),
+    // Shares the ['auth','me'] cache entry with useAuth — MUST unwrap the same way,
+    // otherwise whichever query resolves first decides the shape and the other reads
+    // the wrong one (wrapped { user } leaves user.role/email undefined → no Admin tab).
+    queryFn: () => fetchJson(`${API_BASE}/auth/me`).then((d) => d?.user ?? null),
     staleTime: 60_000,
     retry: false,
   });
