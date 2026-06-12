@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { AlertCircle, Mail, Plus, Save, Trash2, Webhook } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fetchJson } from '../lib/api.js';
 import Card from './Card.jsx';
 import { useAlertRules, useAlertDeliveries } from '../hooks/useAlerts.js';
+import { useAuth } from '../hooks/useAuth.js';
 
 const EMPTY_FORM = {
   name: '',
@@ -15,7 +16,9 @@ const EMPTY_FORM = {
   characteristic: '',
   operator: 'equals',
   matchValue: '',
+  channel: 'webhook',
   targetUrl: '',
+  targetEmail: '',
   quietMinutes: 0,
 };
 
@@ -31,6 +34,14 @@ export default function Alerts() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
   const [deliveryPage, setDeliveryPage] = useState(1);
+
+  const { user } = useAuth();
+  const { data: smtpStatus } = useQuery({
+    queryKey: ['setup', 'smtp'],
+    queryFn: () => fetchJson('/api/setup/smtp'),
+    staleTime: 60_000,
+  });
+  const smtpUnconfigured = !Boolean(smtpStatus?.host && smtpStatus?.passwordConfigured);
 
   const { data: rules = [], isLoading: rulesLoading } = useAlertRules();
   const { data: deliveriesData, isLoading: deliveriesLoading } = useAlertDeliveries(deliveryPage, 15);
@@ -99,8 +110,16 @@ export default function Alerts() {
     // over unauthenticated reads), so it is never prefilled when editing. Omit
     // an empty targetUrl on edit so the backend (`if ('targetUrl' in body)`)
     // preserves the existing URL; only send a replacement the user typed.
-    if (editingId && !String(payload.targetUrl ?? '').trim()) {
+    if (payload.channel === 'webhook' && editingId && !String(payload.targetUrl ?? '').trim()) {
       delete payload.targetUrl;
+    }
+    // Email rules: omit targetUrl entirely (not applicable for this channel)
+    if (payload.channel === 'email') {
+      delete payload.targetUrl;
+    }
+    // Webhook rules: omit targetEmail entirely (not applicable for this channel)
+    if (payload.channel === 'webhook') {
+      delete payload.targetEmail;
     }
     setError('');
     saveRuleMutation.mutate(payload);
@@ -116,9 +135,11 @@ export default function Alerts() {
       characteristic: rule.characteristic ?? '',
       operator: rule.operator,
       matchValue: rule.matchValue,
+      channel: rule.channel ?? 'webhook',
       // targetUrl is redacted from the rules list response; leave blank and let
       // the user optionally enter a replacement (blank = keep existing URL).
       targetUrl: '',
+      targetEmail: rule.targetEmail ?? '',
       quietMinutes: rule.quietMinutes ?? 0,
     });
     setError('');
@@ -139,15 +160,93 @@ export default function Alerts() {
               className="border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
               required
             />
-            <input
-              type="url"
-              value={form.targetUrl}
-              onChange={(e) => setForm((prev) => ({ ...prev, targetUrl: e.target.value }))}
-              placeholder={editingId ? 'Leave blank to keep current webhook URL' : 'Webhook URL (https://...)'}
-              aria-label="Webhook URL"
-              className="border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
-              required={!editingId}
-            />
+            <div className="space-y-2">
+              <fieldset>
+                <legend className="sr-only">Delivery channel</legend>
+                <div className="flex items-center gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm text-hc-fg cursor-pointer">
+                    <input
+                      type="radio"
+                      name="channel"
+                      value="webhook"
+                      checked={form.channel === 'webhook'}
+                      onChange={(e) => {
+                        const newChannel = e.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          channel: newChannel,
+                          targetEmail: newChannel === 'email' && !prev.targetEmail
+                            ? (user?.email ?? '')
+                            : prev.targetEmail,
+                        }));
+                      }}
+                      style={{ accentColor: 'rgb(var(--hc-accent-rgb))' }}
+                      className="cursor-pointer"
+                    />
+                    <Webhook size={14} className="text-hc-muted" />
+                    Webhook
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-hc-fg cursor-pointer">
+                    <input
+                      type="radio"
+                      name="channel"
+                      value="email"
+                      checked={form.channel === 'email'}
+                      onChange={(e) => {
+                        const newChannel = e.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          channel: newChannel,
+                          targetEmail: newChannel === 'email' && !prev.targetEmail
+                            ? (user?.email ?? '')
+                            : prev.targetEmail,
+                        }));
+                      }}
+                      style={{ accentColor: 'rgb(var(--hc-accent-rgb))' }}
+                      className="cursor-pointer"
+                    />
+                    <Mail size={14} className="text-hc-muted" />
+                    Email
+                  </label>
+                </div>
+              </fieldset>
+              {form.channel === 'webhook' ? (
+                <input
+                  type="url"
+                  value={form.targetUrl}
+                  onChange={(e) => setForm((prev) => ({ ...prev, targetUrl: e.target.value }))}
+                  placeholder={editingId ? 'Leave blank to keep current webhook URL' : 'Webhook URL (https://...)'}
+                  aria-label="Webhook URL"
+                  className="w-full border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
+                  required={!editingId}
+                />
+              ) : (
+                <div className="space-y-1">
+                  <input
+                    type="email"
+                    value={form.targetEmail}
+                    onChange={(e) => setForm((prev) => ({ ...prev, targetEmail: e.target.value }))}
+                    placeholder="recipient@example.com"
+                    aria-label="Recipient email address"
+                    className="w-full border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
+                    required
+                    autoComplete="email"
+                  />
+                  {smtpUnconfigured && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className="flex items-start gap-2 p-2 bg-hc-warning-bg border border-hc-warning-border rounded-lg"
+                    >
+                      <AlertCircle size={13} className="text-hc-warning-text shrink-0 mt-1" />
+                      <p className="text-xs text-hc-warning-text leading-snug">
+                        Email delivery is inactive until SMTP is configured in Settings.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <select
               value={form.scopeType}
               onChange={(e) => setForm((prev) => ({ ...prev, scopeType: e.target.value }))}
@@ -268,6 +367,11 @@ export default function Alerts() {
                 >
                   {rule.name}
                 </button>
+                {rule.channel === 'email' && (
+                  <span className="text-xs px-2 py-1 rounded bg-hc-panel-mid text-hc-muted border border-hc-panel-border">
+                    email
+                  </span>
+                )}
                 <span className="text-xs text-hc-muted">{rule.scopeType}{rule.scopeValue ? `: ${rule.scopeValue}` : ''}</span>
                 <span className="text-xs text-hc-muted">{rule.operator} {rule.matchValue}</span>
                 <span className="text-xs text-hc-muted">quiet {rule.quietMinutes}m</span>
@@ -302,7 +406,11 @@ export default function Alerts() {
                   <span className="text-sm text-hc-fg-strong">{delivery.ruleName || `Rule #${delivery.ruleId}`}</span>
                   <span className="text-xs text-hc-muted">{formatDistanceToNow(new Date(delivery.sentAt), { addSuffix: true })}</span>
                 </div>
-                <p className="text-xs text-hc-muted mt-1 truncate">{delivery.targetUrl}</p>
+                <p className="text-xs text-hc-muted mt-1 truncate">
+                  {delivery.channel === 'email'
+                    ? (delivery.recipient ?? delivery.targetEmail ?? '')
+                    : delivery.targetUrl}
+                </p>
                 {delivery.error && <p className="text-xs text-red-600 mt-1">{delivery.error}</p>}
               </div>
             ))}
