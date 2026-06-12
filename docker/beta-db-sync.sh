@@ -101,20 +101,36 @@ fi
 log "prod postgres reachable"
 
 # -- Dump prod (READ-ONLY) → restore beta -------------------------------------
-# Beta-local tables that must NEVER be overwritten from prod: the Phase 20/21 auth
-# tables (prod predates them and has no users) and pgmigrations (preserving beta's
-# migration state so the listener does not replay 0003/0004 on restart). Excluded
-# tables get no DROP/CREATE/COPY, so beta keeps its own rows.
+# The Phase 20/21 auth tables must NEVER be overwritten from prod (prod predates
+# them and has no users) — exclude them so the dump never touches beta's accounts.
+# pgmigrations is NOT excluded: excluding it leaves a dangling DROP SEQUENCE
+# pgmigrations_id_seq that fails because the kept table still depends on it. Instead
+# pgmigrations is synced whole (prod's history replaces beta's), then beta's own
+# extra migration rows (e.g. 0003/0004) are re-applied by name below so the listener
+# never replays them on restart.
 DUMP_EXCLUDE=""
-for t in users sessions invites password_reset_tokens pgmigrations; do
+for t in users sessions invites password_reset_tokens; do
   DUMP_EXCLUDE="$DUMP_EXCLUDE --exclude-table=public.${t}"
 done
-log "dumping prod and restoring into beta (--clean --if-exists, ON_ERROR_STOP; excluding auth + pgmigrations)"
+
+# Capture beta's migration rows BEFORE the refresh as name-keyed, idempotent inserts.
+BETA_MIGRATIONS_SQL="$(PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -tAqc \
+  "SELECT string_agg(format('INSERT INTO pgmigrations (name, run_on) SELECT %L, %L WHERE NOT EXISTS (SELECT 1 FROM pgmigrations WHERE name = %L);', name, run_on, name), E'\n') FROM pgmigrations" 2>/dev/null || true)"
+
+log "dumping prod and restoring into beta (--clean --if-exists, single-transaction; excluding auth tables)"
 PGPASSWORD="$PROD_DB_PASSWORD" pg_dump -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" -U "$PROD_DB_USER" -d "$PROD_DB_NAME" --clean --if-exists --no-owner $DUMP_EXCLUDE \
-  | PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -v ON_ERROR_STOP=1 -q
+  | PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -v ON_ERROR_STOP=1 --single-transaction -q
 rc=$?
 if [ "$rc" -ne 0 ]; then
   fail_or_skip "prod→beta dump/restore failed (exit ${rc})"
+fi
+
+# Re-apply beta's own migration rows (name-keyed, no duplicates) and fix the
+# sequence so the listener sees 0003/0004 as already applied and does not replay.
+if [ -n "$BETA_MIGRATIONS_SQL" ]; then
+  printf '%s\nSELECT setval('\''pgmigrations_id_seq'\'', (SELECT MAX(id) FROM pgmigrations));\n' "$BETA_MIGRATIONS_SQL" \
+    | PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -v ON_ERROR_STOP=1 --single-transaction -q \
+    || log "WARN: could not re-stamp beta migration rows — verify pgmigrations before restarting the listener"
 fi
 
 beta_rows="$(PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -tAqc 'SELECT COUNT(*) FROM event_logs' 2>/dev/null || echo '?')"
