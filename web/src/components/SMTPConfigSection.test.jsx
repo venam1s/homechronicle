@@ -213,6 +213,55 @@ describe('SMTPConfigSection', () => {
     });
   });
 
+  describe('save invalidates the config query (Send test email enables without reload)', () => {
+    it('refetches GET /setup/smtp after a successful save and enables the test button', async () => {
+      fetchJson
+        // Initial GET — not configured → test button disabled
+        .mockResolvedValueOnce({
+          host: '',
+          port: 587,
+          user: '',
+          from: '',
+          secure: false,
+          passwordConfigured: false,
+          envFields: [],
+        })
+        .mockResolvedValueOnce({}) // PUT response
+        // Refetch after invalidation — now configured
+        .mockResolvedValueOnce({
+          host: 'smtp.example.com',
+          port: 587,
+          user: 'user@example.com',
+          from: 'noreply@example.com',
+          secure: false,
+          passwordConfigured: true,
+          envFields: [],
+        });
+
+      render(<SMTPConfigSection />, { wrapper: makeWrapper() });
+
+      // Initially disabled (not configured)
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /send test email/i })).toBeDisabled(),
+      );
+
+      await userEvent.type(screen.getByPlaceholderText('smtp.example.com'), 'smtp.example.com');
+      await userEvent.type(screen.getByLabelText('Password'), 'app-specific-pw');
+      await userEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+      // A second GET must fire (invalidation), and the button becomes enabled.
+      await waitFor(() => {
+        const getCalls = fetchJson.mock.calls.filter(
+          ([url, opts]) => url.includes('/setup/smtp') && (!opts || opts.method === undefined),
+        );
+        expect(getCalls.length).toBeGreaterThanOrEqual(2);
+      });
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /send test email/i })).toBeEnabled(),
+      );
+    });
+  });
+
   describe('SMTP not configured notice', () => {
     it('shows warning banner when SMTP is not configured', async () => {
       fetchJson.mockResolvedValueOnce({

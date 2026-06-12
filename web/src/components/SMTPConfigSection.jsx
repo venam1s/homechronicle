@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Eye, EyeOff, Loader2, Send } from 'lucide-react';
 import { fetchJson, API_BASE } from '../lib/api.js';
 import { useToast } from './Toast.jsx';
@@ -16,6 +16,7 @@ const INPUT_CLASS =
  */
 export default function SMTPConfigSection() {
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['setup', 'smtp'],
@@ -63,6 +64,10 @@ export default function SMTPConfigSection() {
       setChangingPassword(false);
       setPassword('');
       setShowPassword(false);
+      // Refetch so isConfigured / passwordConfigured reflect the just-saved
+      // config — otherwise the "Send test email" button stays disabled and the
+      // "not configured" banner persists until a full page reload.
+      queryClient.invalidateQueries({ queryKey: ['setup', 'smtp'] });
     },
     onError: () => {
       addToast('Could not save SMTP settings. Try again.', 'error');
