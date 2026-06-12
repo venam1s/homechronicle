@@ -51,6 +51,9 @@ function createMockPool() {
         return { rows: [...rules].sort((a, b) => b.id - a.id) };
       }
       if (sql.startsWith('INSERT INTO alert_rules')) {
+        // 11-param INSERT: $1=name, $2=enabled, $3=scope_type, $4=scope_value,
+        // $5=characteristic, $6=operator, $7=match_value, $8=channel,
+        // $9=target_url, $10=target_email, $11=quiet_minutes
         const row = {
           id: nextRuleId++,
           name: params[0],
@@ -60,8 +63,10 @@ function createMockPool() {
           characteristic: params[4],
           operator: params[5],
           match_value: params[6],
-          target_url: params[7],
-          quiet_minutes: params[8],
+          channel: params[7] ?? 'webhook',
+          target_url: params[8],
+          target_email: params[9] ?? null,
+          quiet_minutes: params[10],
           created_at: '2026-02-26T10:00:00.000Z',
           updated_at: '2026-02-26T10:00:00.000Z',
         };

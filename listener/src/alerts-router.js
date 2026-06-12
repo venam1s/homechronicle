@@ -6,6 +6,7 @@ import { validateWebhookTargetUrl, rateLimitKeyGenerator } from './security.js';
 
 const VALID_SCOPE_TYPES = new Set(['all', 'room', 'accessory', 'characteristic']);
 const VALID_OPERATORS = new Set(['equals', 'not_equals', 'contains']);
+const VALID_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseScopeType(value) {
   const scopeType = String(value ?? 'all').trim().toLowerCase();
@@ -15,6 +16,14 @@ function parseScopeType(value) {
 function parseOperator(value) {
   const operator = String(value ?? 'equals').trim().toLowerCase();
   return VALID_OPERATORS.has(operator) ? operator : null;
+}
+
+function validateTargetEmail(value) {
+  const email = String(value ?? '').trim().toLowerCase();
+  if (!email) return { error: 'target_email is required for channel=email' };
+  if (!VALID_EMAIL_RE.test(email)) return { error: 'target_email must be a valid email address' };
+  if (email.length > 254) return { error: 'target_email is too long' };
+  return { value: email };
 }
 
 function parseQuietMinutes(value, fallback = 0) {
@@ -70,10 +79,25 @@ function validateCreate(body = {}) {
   const matchValue = String(body.matchValue ?? '').trim();
   if (!matchValue) return { error: 'matchValue is required' };
 
-  const target = validateWebhookTargetUrl(body.targetUrl, {
-    allowPrivateTargets: ALERTS_ALLOW_PRIVATE_TARGETS,
-  });
-  if (!target.ok) return { error: target.error };
+  const channel = String(body.channel ?? 'webhook').trim().toLowerCase();
+  if (channel !== 'webhook' && channel !== 'email') {
+    return { error: 'channel must be webhook or email' };
+  }
+
+  let targetUrl = null;
+  let targetEmail = null;
+
+  if (channel === 'webhook') {
+    const target = validateWebhookTargetUrl(body.targetUrl, {
+      allowPrivateTargets: ALERTS_ALLOW_PRIVATE_TARGETS,
+    });
+    if (!target.ok) return { error: target.error };
+    targetUrl = target.normalizedUrl;
+  } else {
+    const emailResult = validateTargetEmail(body.targetEmail);
+    if (emailResult.error) return { error: emailResult.error };
+    targetEmail = emailResult.value;
+  }
 
   const quietMinutes = parseQuietMinutes(body.quietMinutes, 0);
   if (quietMinutes === null) return { error: 'quietMinutes must be an integer between 0 and 10080' };
@@ -88,7 +112,9 @@ function validateCreate(body = {}) {
       characteristic,
       operator,
       matchValue,
-      targetUrl: target.normalizedUrl,
+      channel,
+      targetUrl,
+      targetEmail,
       quietMinutes,
     },
   };
@@ -132,6 +158,18 @@ function validatePatch(body = {}) {
     if (!target.ok) return { error: target.error };
     updates.targetUrl = target.normalizedUrl;
   }
+  if ('channel' in body) {
+    const channel = String(body.channel ?? '').trim().toLowerCase();
+    if (channel !== 'webhook' && channel !== 'email') {
+      return { error: 'channel must be webhook or email' };
+    }
+    updates.channel = channel;
+  }
+  if ('targetEmail' in body) {
+    const emailResult = validateTargetEmail(body.targetEmail);
+    if (emailResult.error) return { error: emailResult.error };
+    updates.targetEmail = emailResult.value;
+  }
   if ('quietMinutes' in body) {
     const quietMinutes = parseQuietMinutes(body.quietMinutes, 0);
     if (quietMinutes === null) return { error: 'quietMinutes must be an integer between 0 and 10080' };
@@ -145,6 +183,17 @@ function validatePatch(body = {}) {
   }
   if (nextScopeType === 'all') {
     updates.scopeValue = null;
+  }
+
+  // Channel-switch field clearing: keep chk_alert_channel_fields satisfiable on PATCH
+  if (updates.channel === 'email') {
+    updates.targetUrl = null;
+    if (!updates.targetEmail) {
+      return { error: 'target_email is required when switching to email channel' };
+    }
+  }
+  if (updates.channel === 'webhook') {
+    updates.targetEmail = null;
   }
 
   if (!Object.keys(updates).length) return { error: 'No valid fields provided to update' };
@@ -162,6 +211,8 @@ function toApiRule(row) {
     operator: row.operator,
     matchValue: row.match_value,
     targetUrl: row.target_url,
+    channel: row.channel ?? 'webhook',
+    targetEmail: row.target_email ?? null,
     quietMinutes: row.quiet_minutes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -193,13 +244,15 @@ export function createAlertsRouter({ pool }) {
     try {
       const result = await pool.query(
         `SELECT id, name, enabled, scope_type, scope_value, characteristic,
-                operator, match_value, target_url, quiet_minutes, created_at, updated_at
+                operator, match_value, target_url, target_email, channel,
+                quiet_minutes, created_at, updated_at
          FROM alert_rules
          ORDER BY updated_at DESC, id DESC`
       );
       res.json(result.rows.map((row) => {
         const rule = toApiRule(row);
-        delete rule.targetUrl;
+        delete rule.targetUrl; // webhook URL redaction preserved (D-08)
+        // targetEmail NOT deleted — returned in plaintext (D-08)
         return rule;
       }));
     } catch (err) {
@@ -215,10 +268,12 @@ export function createAlertsRouter({ pool }) {
     try {
       const result = await pool.query(
         `INSERT INTO alert_rules
-           (name, enabled, scope_type, scope_value, characteristic, operator, match_value, target_url, quiet_minutes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           (name, enabled, scope_type, scope_value, characteristic, operator, match_value,
+            channel, target_url, target_email, quiet_minutes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING id, name, enabled, scope_type, scope_value, characteristic,
-                   operator, match_value, target_url, quiet_minutes, created_at, updated_at`,
+                   operator, match_value, channel, target_url, target_email,
+                   quiet_minutes, created_at, updated_at`,
         [
           parsed.value.name,
           parsed.value.enabled,
@@ -227,7 +282,9 @@ export function createAlertsRouter({ pool }) {
           parsed.value.characteristic,
           parsed.value.operator,
           parsed.value.matchValue,
+          parsed.value.channel,
           parsed.value.targetUrl,
+          parsed.value.targetEmail,
           parsed.value.quietMinutes,
         ]
       );
@@ -258,6 +315,8 @@ export function createAlertsRouter({ pool }) {
       operator: 'operator',
       matchValue: 'match_value',
       targetUrl: 'target_url',
+      channel: 'channel',
+      targetEmail: 'target_email',
       quietMinutes: 'quiet_minutes',
     };
     for (const [key, value] of Object.entries(parsed.value)) {
@@ -272,7 +331,8 @@ export function createAlertsRouter({ pool }) {
          SET ${fields.join(', ')}, updated_at = NOW()
          WHERE id = $${params.length}
          RETURNING id, name, enabled, scope_type, scope_value, characteristic,
-                   operator, match_value, target_url, quiet_minutes, created_at, updated_at`,
+                   operator, match_value, channel, target_url, target_email,
+                   quiet_minutes, created_at, updated_at`,
         params
       );
       if (!result.rows.length) return res.status(404).json({ error: 'Rule not found' });
@@ -307,8 +367,8 @@ export function createAlertsRouter({ pool }) {
       const countResult = await pool.query('SELECT COUNT(*)::int AS total FROM alert_deliveries');
       const total = countResult.rows[0]?.total ?? 0;
       const result = await pool.query(
-        `SELECT d.id, d.rule_id, d.event_id, d.status, d.target_url, d.response_code, d.error, d.sent_at,
-                r.name AS rule_name
+        `SELECT d.id, d.rule_id, d.event_id, d.status, d.target_url, d.channel, d.recipient,
+                d.response_code, d.error, d.sent_at, r.name AS rule_name
          FROM alert_deliveries d
          LEFT JOIN alert_rules r ON r.id = d.rule_id
          ORDER BY d.sent_at DESC, d.id DESC
@@ -326,7 +386,9 @@ export function createAlertsRouter({ pool }) {
           ruleName: row.rule_name,
           eventId: row.event_id,
           status: row.status,
+          channel: row.channel ?? 'webhook',
           targetUrl: row.target_url,
+          recipient: row.recipient ?? null,
           responseCode: row.response_code,
           error: row.error,
           sentAt: row.sent_at,
