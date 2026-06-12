@@ -114,7 +114,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] 21-07-PLAN.md — index.js email/router wiring + nginx /api/auth/* log redaction
 - [x] 21-08-PLAN.md — PasswordStrengthMeter + AcceptInvitePage + functional ResetPasswordPage + routes
 - [x] 21-09-PLAN.md — useUsers hooks + SMTPConfigSection + ChangePasswordSection
-- [ ] 21-10-PLAN.md — Settings restructure shell + UsersPanel + InviteCreateModal + human-verify
+- [x] 21-10-PLAN.md — Settings restructure shell + UsersPanel + InviteCreateModal + human-verify
 **UI hint**: yes
 
 ### Phase 22: Email Alert Channel
@@ -150,7 +150,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
 | 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
 | 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
-| 21 | v1.4 | 8/10 | In Progress|  |
+| 21 | v1.4 | 9/10 | In Progress|  |
 | 22 | v1.4 | 0/? | Not started | - |
 | 23 | v1.4 | 0/? | Not started | - |
 
