@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
-status: ready_to_plan
-stopped_at: Phase 22 complete (5/5, incl. 22-05 UAT gap closure) — ready to discuss Phase 23
-last_updated: 2026-06-13T03:10:00Z
-last_activity: 2026-06-13
+status: executing
+stopped_at: Phase 23 Wave 0 complete (Plan 01)
+last_updated: "2026-06-13T05:00:00.000Z"
+last_activity: 2026-06-13 -- Phase 23 executing: Plan 01 (Wave 0) complete
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 28
-  completed_plans: 28
-  percent: 50
+  completed_phases: 3
+  total_plans: 33
+  completed_plans: 29
+  percent: 78
 ---
 
 # Project State
@@ -26,10 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 ## Current Position
 
 Phase: 23
-Plan: Not started
-Next: Phase 22 — Email Alert Channel (not yet discussed/planned; depends on Phase 21, now complete)
-Status: Ready to plan
-Last activity: 2026-06-13
+Plan: 23-01 complete (Wave 0) — migration 0006 + RED/GREEN scaffolds
+Next: Wave 1 — 23-02 (sessions API) then 23-03 (nginx cutover, human-verify checkpoint)
+Status: Executing
+Last activity: 2026-06-13 -- Phase 23 Plan 01 (Wave 0) complete; scaffolds RED-by-design
+Resume file: .planning/phases/23-security-hardening-nginx-cutover/23-01-SUMMARY.md
 
 ## Accumulated Context
 
