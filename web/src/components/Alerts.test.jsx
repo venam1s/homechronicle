@@ -109,6 +109,27 @@ describe('Alerts edit flow with redacted targetUrl', () => {
   });
 });
 
+describe('Alerts edit affordance discoverability', () => {
+  beforeEach(() => {
+    fetchJson.mockClear();
+    fetchJson.mockImplementation(() => Promise.resolve({}));
+  });
+
+  it('renders an explicit Edit button per rule row', () => {
+    renderAlerts();
+    // The rule name button's accessible name is 'Test Rule'; an exact /^edit$/i
+    // match proves a separate, discoverable Edit affordance exists.
+    expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+  });
+
+  it('activating the Edit button enters edit mode with the form prefilled', () => {
+    renderAlerts();
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByRole('button', { name: /update rule/i })).toBeInTheDocument();
+    expect(screen.getByLabelText('Rule name').value).toBe('Test Rule');
+  });
+});
+
 describe('Alerts channel picker', () => {
   beforeEach(() => {
     fetchJson.mockClear();
