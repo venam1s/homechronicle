@@ -22,6 +22,13 @@ describe('Card', () => {
     expect(title).toHaveClass('text-hc-section', 'font-semibold', 'text-hc-fg-strong');
   });
 
+  it('Test 3b: Card.Header renders title as <h2> when headingLevel={2}', () => {
+    render(<Card><Card.Header title="My H2" headingLevel={2} /></Card>);
+    const title = screen.getByText('My H2');
+    expect(title.tagName).toBe('H2');
+    expect(title).toHaveClass('text-hc-section', 'font-semibold', 'text-hc-fg-strong');
+  });
+
   it('Test 4: Card.Header renders actions slot content when provided', () => {
     render(
       <Card>

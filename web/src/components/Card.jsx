@@ -8,10 +8,11 @@ export default function Card({ children, className }) {
   );
 }
 
-Card.Header = function CardHeader({ title, actions }) {
+Card.Header = function CardHeader({ title, actions, headingLevel }) {
+  const Heading = headingLevel ? `h${headingLevel}` : 'span';
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-hc-panel-border">
-      <span className="text-hc-section font-semibold text-hc-fg-strong">{title}</span>
+      <Heading className="text-hc-section font-semibold text-hc-fg-strong">{title}</Heading>
       {actions && <div>{actions}</div>}
     </div>
   );
