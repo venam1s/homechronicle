@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ActiveSessionsPanel from './ActiveSessionsPanel.jsx';
+import { ToastProvider } from './Toast.jsx';
 
 vi.mock('../lib/api.js', () => ({
   API_BASE: 'http://localhost:3001/api',
@@ -47,7 +48,11 @@ function makeWrapper() {
     defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
   });
   return function Wrapper({ children }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>{children}</ToastProvider>
+      </QueryClientProvider>
+    );
   };
 }
 
@@ -108,5 +113,30 @@ describe('ActiveSessionsPanel', () => {
       expect(fetchJson).toHaveBeenCalledWith('http://localhost:3001/api/auth/sessions/3', { method: 'DELETE' });
     });
     expect(fetchJson).not.toHaveBeenCalledWith('http://localhost:3001/api/auth/sessions/1', { method: 'DELETE' });
+  });
+
+  it('bulk revoke surfaces an error toast when a session fails to revoke, and still attempts the others (WR-03)', async () => {
+    // Session 2's DELETE rejects (e.g. CSRF 403 / transient 500); session 3 succeeds.
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === 'DELETE') {
+        if (url.endsWith('/auth/sessions/2')) return Promise.reject(new Error('revoke failed'));
+        return Promise.resolve({ ok: true });
+      }
+      return Promise.resolve({ sessions: MOCK_SESSIONS });
+    });
+
+    render(<ActiveSessionsPanel />, { wrapper: makeWrapper() });
+
+    const bulkBtn = await screen.findByRole('button', { name: /log out other devices/i });
+    await userEvent.click(bulkBtn);
+
+    // allSettled (not all): the failing revoke must NOT abort the other one.
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('http://localhost:3001/api/auth/sessions/2', { method: 'DELETE' });
+      expect(fetchJson).toHaveBeenCalledWith('http://localhost:3001/api/auth/sessions/3', { method: 'DELETE' });
+    });
+
+    // The partial failure must be surfaced to the user, not swallowed.
+    expect(await screen.findByText(/Could not log out 1 of 2 other devices\./i)).toBeInTheDocument();
   });
 });

@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Monitor } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useSessions, useRevokeSession } from '../hooks/useAuth.js';
+import { useToast } from './Toast.jsx';
 
 // Abbreviate a raw user_agent into a short "Browser on OS" label (SEC-05 / D-02).
 // Rendered as text (React-escaped) — never via dangerouslySetInnerHTML (T-23-XSS).
@@ -51,6 +53,8 @@ function fmtRelative(ts) {
 export default function ActiveSessionsPanel() {
   const { data, isLoading, isError } = useSessions();
   const revoke = useRevokeSession();
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
   const [pendingSessionId, setPendingSessionId] = useState(null);
   const [bulkPending, setBulkPending] = useState(false);
 
@@ -60,6 +64,7 @@ export default function ActiveSessionsPanel() {
   function handleRevoke(id) {
     setPendingSessionId(id);
     revoke.mutate(id, {
+      onError: () => addToast('Could not revoke that session.', 'error'),
       onSettled: () => setPendingSessionId((cur) => (cur === id ? null : cur)),
     });
   }
@@ -67,8 +72,20 @@ export default function ActiveSessionsPanel() {
   async function handleBulkRevoke() {
     setBulkPending(true);
     try {
-      await Promise.all(others.map((s) => revoke.mutateAsync(s.id)));
+      // allSettled (not all): one failed revoke must not abandon the rest, and a
+      // partial silent failure on a "log out other devices" action is a trust gap.
+      const results = await Promise.allSettled(others.map((s) => revoke.mutateAsync(s.id)));
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed > 0) {
+        addToast(
+          `Could not log out ${failed} of ${others.length} other device${others.length === 1 ? '' : 's'}.`,
+          'error',
+        );
+      }
     } finally {
+      // Always refetch so the list reflects reality even if every revoke failed —
+      // the per-mutation onSuccess only invalidates for the ones that succeeded.
+      queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
       setBulkPending(false);
     }
   }
