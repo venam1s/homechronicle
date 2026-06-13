@@ -145,7 +145,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 **Plans**: 5 plans (3 waves)
 - [x] 23-01-PLAN.md — Migration 0006 (session metadata) + Wave 0 RED scaffolds (nginx render test, auth-gate empty-token, db.js stubs)
 - [x] 23-02-PLAN.md — SEC-05 backend: listSessionsForUser/revokeSessionById + UA/IP capture + GET/DELETE /api/auth/sessions
-- [ ] 23-03-PLAN.md — SEC-07 nginx cutover: NGINX_API_TOKEN template + entrypoints (web + standalone) + AUTH_ENABLED in 3 compose files
+- [x] 23-03-PLAN.md — SEC-07 nginx cutover: NGINX_API_TOKEN template + entrypoints (web + standalone) + AUTH_ENABLED in 3 compose files
 - [ ] 23-04-PLAN.md — SEC-06 token sweep: runInviteTokenSweep/runPasswordResetTokenSweep folded into runRetentionSweepSafe
 - [ ] 23-05-PLAN.md — SEC-05 frontend: useSessions/useRevokeSession + ActiveSessionsPanel under Settings → Account
 **UI hint**: yes
@@ -162,7 +162,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
 | 21 | v1.4 | 10/10 | Complete    | 2026-06-12 |
 | 22 | v1.4 | 5/5 | Complete    | 2026-06-13 |
-| 23 | v1.4 | 2/5 | In Progress|  |
+| 23 | v1.4 | 3/5 | In Progress|  |
 
 ## Candidates / Backlog
 

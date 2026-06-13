@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
 status: executing
-stopped_at: Phase 23 Plan 02 complete (Wave 1 — sessions API)
-last_updated: "2026-06-13T05:30:00.000Z"
-last_activity: 2026-06-13 -- Phase 23 executing: Plan 02 complete (sessions API, listener 603/603)
+stopped_at: Phase 23 Plan 03 complete (Wave 1 — nginx cutover, checkpoint approved)
+last_updated: "2026-06-13T06:00:00.000Z"
+last_activity: 2026-06-13 -- Phase 23 executing: Plan 03 complete (SEC-07 nginx cutover; render test 0/3 PASS)
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 33
-  completed_plans: 30
-  percent: 80
+  completed_plans: 31
+  percent: 82
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-28)
 ## Current Position
 
 Phase: 23
-Plan: 23-02 complete (Wave 1) — self-scoped sessions API (GET/DELETE), listener 603/603
-Next: Wave 1 — 23-03 (nginx X-API-Token cutover, human-verify checkpoint)
+Plan: 23-03 complete (Wave 1) — nginx X-API-Token cutover; checkpoint approved on render-test evidence
+Next: Wave 2 — 23-04 (token sweep, autonomous) then 23-05 (Active Sessions UI, human-verify checkpoint)
 Status: Executing
-Last activity: 2026-06-13 -- Phase 23 Plan 02 complete; sessions-metadata scaffold now GREEN
-Resume file: .planning/phases/23-security-hardening-nginx-cutover/23-02-SUMMARY.md
+Last activity: 2026-06-13 -- Phase 23 Plan 03 complete; render test 0/3 PASS; live checks deferred to HUMAN-UAT
+Resume file: .planning/phases/23-security-hardening-nginx-cutover/23-03-SUMMARY.md
 
 ## Accumulated Context
 
