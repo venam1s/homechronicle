@@ -26,8 +26,10 @@ COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 # SEC-07 cutover: compute NGINX_API_TOKEN from AUTH_ENABLED before the stock
 # 20-envsubst-on-templates.sh renders the template (the 15- prefix orders it first).
-COPY docker-entrypoint.d/15-compute-api-token.sh /docker-entrypoint.d/15-compute-api-token.sh
-RUN chmod +x /docker-entrypoint.d/15-compute-api-token.sh
+# Must be *.envsh so the stock entrypoint SOURCES it (executed *.sh loses the export
+# in a child process → literal ${NGINX_API_TOKEN} → nginx fails to start, CR-01).
+COPY docker-entrypoint.d/15-compute-api-token.envsh /docker-entrypoint.d/15-compute-api-token.envsh
+RUN chmod +x /docker-entrypoint.d/15-compute-api-token.envsh
 
 # LISTENER_HOST default: 127.0.0.1 (NAS host-network mode)
 # Override to "listener" when running in bridge mode (local dev via override file)
