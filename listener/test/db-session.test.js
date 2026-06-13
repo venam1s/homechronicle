@@ -155,13 +155,22 @@ function makeMockPool({ sessions = {}, users = {}, rowCount = 1 } = {}) {
         return Promise.resolve({ rowCount: 1 });
       }
 
-      // createSession
+      // createSession (5-column shape: user_id, token_hash, expires_at, user_agent, ip_address)
       if (s.includes('INSERT INTO sessions')) {
         const userId = params[0];
         const tokenHash = params[1];
         const expiresAt = params[2];
+        const userAgent = params[3] ?? null;
+        const ipAddress = params[4] ?? null;
         const id = BigInt(Object.keys(sessions).length + 1);
-        const row = { id, user_id: userId, csrf_token: null, expires_at: expiresAt };
+        const row = {
+          id,
+          user_id: userId,
+          csrf_token: null,
+          expires_at: expiresAt,
+          user_agent: userAgent,
+          ip_address: ipAddress,
+        };
         sessions[tokenHash] = row;
         return Promise.resolve({ rows: [row] });
       }
@@ -422,6 +431,42 @@ test('createSession returns id, user_id, csrf_token, expires_at', async () => {
   assert.equal(String(result.user_id), '1');
   assert.equal(result.csrf_token, null);
   assert.deepEqual(result.expires_at, expiresAt);
+});
+
+test('createSession persists user_agent + ip_address (5-column shape, D-01)', async () => {
+  const sessions = {};
+  const pool = makeMockPool({ sessions });
+  const expiresAt = new Date(Date.now() + 1000);
+  await createSession(pool, {
+    userId: 1n,
+    tokenHash: 'metahash',
+    expiresAt,
+    userAgent: 'Mozilla/5.0 Test',
+    ipAddress: '10.0.0.7',
+  });
+  assert.equal(sessions['metahash'].user_agent, 'Mozilla/5.0 Test');
+  assert.equal(sessions['metahash'].ip_address, '10.0.0.7');
+});
+
+test('createSession truncates a user_agent longer than 512 chars to 512 (T-23-UA-DOS)', async () => {
+  const sessions = {};
+  const pool = makeMockPool({ sessions });
+  const longUA = 'A'.repeat(2000);
+  await createSession(pool, {
+    userId: 1n,
+    tokenHash: 'longuahash',
+    expiresAt: new Date(Date.now() + 1000),
+    userAgent: longUA,
+  });
+  assert.equal(sessions['longuahash'].user_agent.length, 512, 'UA truncated to 512 before insert');
+});
+
+test('createSession defaults user_agent + ip_address to null when omitted', async () => {
+  const sessions = {};
+  const pool = makeMockPool({ sessions });
+  await createSession(pool, { userId: 1n, tokenHash: 'nometahash', expiresAt: new Date(Date.now() + 1000) });
+  assert.equal(sessions['nometahash'].user_agent, null);
+  assert.equal(sessions['nometahash'].ip_address, null);
 });
 
 test('createSession stores the exact tokenHash passed in (D-12: hash-at-rest)', async () => {

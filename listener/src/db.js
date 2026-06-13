@@ -285,16 +285,20 @@ export async function findUserByEmail(pool, email) {
 /**
  * Create a new session row.
  * The tokenHash must be the SHA-256 hex digest of the raw session token (D-12).
+ * userAgent is truncated to 512 chars before insert to neutralize the unbounded-header
+ * DB-bloat / authenticated-DoS vector (T-23-UA-DOS). ipAddress is the trust-proxy-resolved
+ * caller IP (::ffff: prefix stripped at the call site, D-01).
  * @param {pg.Pool} pool
- * @param {{ userId: bigint|number, tokenHash: string, expiresAt: Date }} params
+ * @param {{ userId: bigint|number, tokenHash: string, expiresAt: Date, userAgent?: string|null, ipAddress?: string|null }} params
  * @returns {Promise<{id: bigint, user_id: bigint, csrf_token: string|null, expires_at: Date}>}
  */
-export async function createSession(pool, { userId, tokenHash, expiresAt }) {
+export async function createSession(pool, { userId, tokenHash, expiresAt, userAgent = null, ipAddress = null }) {
+  const safeUserAgent = userAgent == null ? null : String(userAgent).slice(0, 512);
   const result = await pool.query(
-    `INSERT INTO sessions (user_id, token_hash, expires_at)
-     VALUES ($1, $2, $3)
+    `INSERT INTO sessions (user_id, token_hash, expires_at, user_agent, ip_address)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING id, user_id, csrf_token, expires_at`,
-    [userId, tokenHash, expiresAt],
+    [userId, tokenHash, expiresAt, safeUserAgent, ipAddress],
   );
   return result.rows[0];
 }
@@ -338,6 +342,43 @@ export async function revokeSession(pool, tokenHash) {
     `DELETE FROM sessions WHERE token_hash = $1`,
     [tokenHash],
   );
+}
+
+/**
+ * List a user's own active (non-expired) sessions for the Active Sessions UI (SEC-05).
+ * Self-scoped on user_id. token_hash and csrf_token are intentionally NEVER selected so
+ * session secrets can never leak through the GET /api/auth/sessions response (D-02).
+ * @param {pg.Pool} pool
+ * @param {bigint|number} userId
+ * @returns {Promise<Array<{id: bigint, created_at: Date, last_seen_at: Date, expires_at: Date, user_agent: string|null, ip_address: string|null}>>}
+ */
+export async function listSessionsForUser(pool, userId) {
+  const result = await pool.query(
+    `SELECT id, created_at, last_seen_at, expires_at, user_agent, ip_address
+       FROM sessions
+      WHERE user_id = $1 AND expires_at > NOW()
+      ORDER BY last_seen_at DESC`,
+    [userId],
+  );
+  return result.rows;
+}
+
+/**
+ * Revoke a single session owned by userId (SEC-05 "log out other devices").
+ * Ownership is enforced in SQL: the DELETE matches `id = $1 AND user_id = $2`, so a
+ * guessed or enumerated id belonging to another user deletes nothing (rowCount 0 →
+ * caller returns 404) and can never revoke another user's session (T-23-IDOR / D-04).
+ * @param {pg.Pool} pool
+ * @param {bigint|number} userId - the caller (req.hcSession.user_id)
+ * @param {bigint|number|string} sessionId - the session id to revoke
+ * @returns {Promise<boolean>} true when a row was deleted, false otherwise
+ */
+export async function revokeSessionById(pool, userId, sessionId) {
+  const result = await pool.query(
+    `DELETE FROM sessions WHERE id = $1 AND user_id = $2`,
+    [sessionId, userId],
+  );
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
