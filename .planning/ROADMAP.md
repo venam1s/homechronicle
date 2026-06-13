@@ -65,7 +65,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 
 - [x] **Phase 20: Auth Foundation** — Users, sessions, token-OR-session gate, first-admin bootstrap, CSRF protection, LoginPage + AuthGate (executed 2026-06-10; 13 plans incl. gap-closure 20-11/12/13; UAT 4/4 PASS live on beta, VERIFICATION verified) (completed 2026-06-11)
 - [x] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI (completed 2026-06-12)
-- [x] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI (completed 2026-06-12)
+- [x] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI (UAT gap closed by 22-05: explicit Edit control on Active Rules rows) (completed 2026-06-13)
 - [ ] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal
 
 ## Phase Details
@@ -126,11 +126,12 @@ See `milestones/v1.3-ROADMAP.md` for full details.
   2. When a matching device event fires, an email alert is delivered to the configured recipient and logged in alert_deliveries
   3. Email alerts are suppressed by the same quiet-period logic as webhooks — a rapid-fire sequence of events produces at most one delivery per quiet period
   4. Existing webhook-channel alert rules continue to work without modification after the schema migration
-**Plans**: 4 plans (3 waves)
+**Plans**: 5 plans (4 waves)
 - [x] 22-01-PLAN.md — Migration 0005 (additive email-channel schema) + Wave 0 test scaffolds
 - [x] 22-02-PLAN.md — Backend send branch: sendEmailAlert + channel branch + delivery logging + startup emailFrom wiring
 - [x] 22-03-PLAN.md — Alerts API: channel/target_email validation, toApiRule exposure (D-08), INSERT/PATCH/GET wiring
 - [x] 22-04-PLAN.md — Alerts UI: channel picker + conditional email field + admin-email prefill + SMTP hint (ALERT-04)
+- [x] 22-05-PLAN.md — Gap closure (UAT test 5): explicit Edit control on Active Rules rows (ALERT-04)
 **UI hint**: yes
 
 ### Phase 23: Security Hardening + Nginx Cutover
@@ -155,7 +156,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
 | 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
 | 21 | v1.4 | 10/10 | Complete    | 2026-06-12 |
-| 22 | v1.4 | 4/4 | Complete    | 2026-06-13 |
+| 22 | v1.4 | 5/5 | Complete    | 2026-06-13 |
 | 23 | v1.4 | 0/? | Not started | - |
 
 ## Candidates / Backlog
