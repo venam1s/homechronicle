@@ -7,6 +7,7 @@ import PageContainer from '../components/PageContainer.jsx';
 import UsersPanel from '../components/UsersPanel.jsx';
 import SMTPConfigSection from '../components/SMTPConfigSection.jsx';
 import ChangePasswordSection from '../components/ChangePasswordSection.jsx';
+import ActiveSessionsPanel from '../components/ActiveSessionsPanel.jsx';
 
 const NAV_ACTIVE =
   'px-3 py-2 rounded-lg bg-hc-panel-mid font-semibold text-hc-fg-strong border-l-2 border-hc-accent-strong cursor-pointer';
@@ -87,7 +88,10 @@ export default function SettingsPage() {
             <SettingsTab setup={setup} />
           )}
           {activeSection === 'account' && (
-            <ChangePasswordSection />
+            <>
+              <ChangePasswordSection />
+              <ActiveSessionsPanel />
+            </>
           )}
         </div>
       </div>
