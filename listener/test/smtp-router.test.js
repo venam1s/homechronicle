@@ -44,6 +44,7 @@ function makeApp({
   initEmail = async () => {},
   sendTestEmail = async () => {},
   isEmailEnabled = () => false,
+  onSmtpConfigChange = null,
   session = null,
 } = {}) {
   const app = express();
@@ -64,6 +65,7 @@ function makeApp({
     initEmail,
     sendTestEmail,
     isEmailEnabled,
+    onSmtpConfigChange,
   });
 
   // Mount at /api/setup (same as in production)
@@ -254,4 +256,42 @@ test('POST /smtp/test: non-admin → 403 (T-21-04-ADMINONLY)', async () => {
   });
   const res = await fetch(app, 'POST', '/api/setup/smtp/test');
   assert.equal(res.status, 403, 'member should get 403');
+});
+
+test('PUT /smtp: onSmtpConfigChange is invoked once after initEmail with built config (HIGH-1)', async () => {
+  let callCount = 0;
+  let receivedConfig = null;
+  const app = makeApp({
+    smtpConfigStore: makeStore({ host: 'smtp.example.com', port: 587, from: 'old@x.com' }),
+    // Default buildSmtpConfig: (snap, secret) => ({ ...snap, smtpPass: secret })
+    onSmtpConfigChange: (cfg) => { callCount++; receivedConfig = cfg; },
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', {
+    host: 'smtp.example.com', port: 587, from: 'new@x.com',
+  });
+  assert.equal(res.status, 200, 'PUT should return 200');
+  assert.equal(callCount, 1, 'onSmtpConfigChange must be called exactly once (HIGH-1)');
+  assert.equal(receivedConfig?.from, 'new@x.com', 'callback receives built config with new from value');
+});
+
+test('PUT /smtp: onSmtpConfigChange receives buildSmtpConfig output, not raw UI value — env precedence (HIGH-1)', async () => {
+  let receivedConfig = null;
+  // This buildSmtpConfig stub forces from to an env-controlled value, simulating SMTP_FROM env override
+  const envBuildSmtpConfig = (snap, secret) => ({ ...snap, from: 'env@x.com', smtpPass: secret });
+  const app = makeApp({
+    smtpConfigStore: makeStore({ host: 'smtp.example.com', port: 587, from: 'ui@x.com' }),
+    buildSmtpConfig: envBuildSmtpConfig,
+    onSmtpConfigChange: (cfg) => { receivedConfig = cfg; },
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', {
+    host: 'smtp.example.com', port: 587, from: 'ui@x.com',
+  });
+  assert.equal(res.status, 200, 'PUT should return 200');
+  assert.equal(
+    receivedConfig?.from,
+    'env@x.com',
+    'callback receives env-controlled from (buildSmtpConfig output), not raw UI nextConfig value',
+  );
 });

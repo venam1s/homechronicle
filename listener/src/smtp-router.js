@@ -29,6 +29,7 @@ import { rateLimitKeyGenerator } from './security.js';
  * @param {function} deps.initEmail — (config) => Promise<void>
  * @param {function} deps.sendTestEmail — (to: string) => Promise<void>
  * @param {function} deps.isEmailEnabled — () => boolean
+ * @param {function} [deps.onSmtpConfigChange] — (builtConfig) => void; called after initEmail so callers can re-thread `from` and other live state
  * @returns {Router}
  */
 export function createSmtpRouter({
@@ -40,6 +41,7 @@ export function createSmtpRouter({
   initEmail,
   sendTestEmail,
   isEmailEnabled,
+  onSmtpConfigChange,
 }) {
   const router = Router();
 
@@ -121,6 +123,8 @@ export function createSmtpRouter({
       const secret = await readSmtpSecret();
       const smtpConfig = buildSmtpConfig(nextConfig, secret);
       await initEmail(smtpConfig);
+      // Re-thread `from` and alert-channel sender in the caller (HIGH-1)
+      onSmtpConfigChange?.(smtpConfig);
 
       res.json({ ok: true });
     } catch (err) {

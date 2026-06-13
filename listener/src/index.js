@@ -644,6 +644,7 @@ app.use('/api/setup', createSmtpRouter({
   initEmail,
   sendTestEmail: (to) => sendInvite(to, `${APP_BASE_URL}/`, { from: smtpConfig.from }),
   isEmailEnabled,
+  onSmtpConfigChange: (cfg) => { smtpConfig.from = cfg.from ?? ''; setAlertEmailFrom(cfg.from ?? ''); },
 }));
 
 app.use('/api/users', createUsersRouter({
