@@ -30,3 +30,25 @@ export function useUserCount() {
     retry: false,
   });
 }
+
+// SEC-05: the caller's own active sessions (Active Sessions panel).
+// GET /api/auth/sessions responds { sessions: [...] }.
+export function useSessions() {
+  return useQuery({
+    queryKey: ['auth', 'sessions'],
+    queryFn: () => fetchJson(`${API_BASE}/auth/sessions`),
+  });
+}
+
+// SEC-05: revoke one of the caller's own sessions. fetchJson auto-attaches the
+// CSRF token to DELETE (api.js) and the server enforces ownership in SQL.
+export function useRevokeSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) =>
+      fetchJson(`${API_BASE}/auth/sessions/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+    },
+  });
+}
