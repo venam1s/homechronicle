@@ -67,6 +67,8 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI (completed 2026-06-12)
 - [x] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI (UAT gap closed by 22-05: explicit Edit control on Active Rules rows) (completed 2026-06-13)
 - [x] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal (completed 2026-06-13)
+- [ ] **Phase 24: Per-User UI Preferences (Phase 1)** — Per-user JSONB preferences blob (migration 0007) + `me-router` (`GET/PUT /api/me/preferences`) + `usePreference` layer; dashboard layout/ranges, appearance, muted, toast + grouping become per-account (localStorage fallback when unauthenticated/`AUTH_ENABLED=false`)
+- [ ] **Phase 25: Per-User Quiet Hours (Phase 2)** — Quiet hours per-user; `/stats/quiet-hours` applies the requesting session user's config (shared household value as fallback)
 
 ## Phase Details
 
@@ -204,3 +206,25 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - Worker vs. self-hosted endpoint (avoids Cloudflare dependency).
 - Bucket boundaries for `accessory_count_bucket` and any future fields.
 - Should the in-UI badge use the same endpoint or a separate `/latest.json` GitHub Pages file (cheaper, no infra)?
+
+### Phase 24: Per-User UI Preferences (Phase 1)
+
+**Goal:** Personal UI preferences follow the logged-in account across devices (server-backed), while infrastructure settings stay household-shared. Add a per-user JSONB preferences blob in Postgres (migration `0007_user_preferences`: `user_id` PK FK → `users(id)` ON DELETE CASCADE), a session-scoped `me-router` with `GET/PUT /api/me/preferences` (size-capped, object-validated), and a frontend `usePreference` layer (server-when-authenticated, localStorage-when-not; `AUTH_ENABLED=false` stays pure localStorage). Refactor consumers: `useDashboardLayout`, dashboard ranges (`DashboardPage` + `RoomChart`/`TopDevices`/`TrendChart`/`WeekdayHeatmap` `*_days` keys + sync toggle), `useTheme`/`useSkin`/`useAccent`/sidebar-collapsed, `useMutedDevices`, and the toast + episode/scene grouping controls in `SettingsTab` (these move off shared `retention.json` reads to the per-user blob). Seed the blob once on first authenticated load from existing localStorage + the user's current shared toast/grouping values. No listener/stats computation changes.
+**Spec:** `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md`
+**Requirements**: TBD (derive during plan-phase from spec)
+**Depends on:** Phase 20 (auth/sessions/users table)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 24 to break down)
+
+### Phase 25: Per-User Quiet Hours (Phase 2)
+
+**Goal:** Quiet hours become per-user. The listener's `GET /stats/quiet-hours` endpoint applies the requesting session user's quiet-hours config (enabled/start/end/excluded), with the shared household value as fallback; move the quiet-hours controls in `SettingsTab` into the per-user preferences blob from Phase 24.
+**Spec:** `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md` (Phase 2 section)
+**Requirements**: TBD (derive during plan-phase from spec)
+**Depends on:** Phase 24
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 25 to break down)

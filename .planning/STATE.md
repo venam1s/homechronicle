@@ -21,18 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Milestone complete
+**Current focus:** Phase 24 — Per-User UI Preferences (Phase 1), spec approved, ready to plan
 
 ## Current Position
 
-Phase: 23
+Phase: 24
 Plan: Not started
-Next: Phase 23 verification + completion; then /gsd:secure-phase 23
-Status: Milestone complete
-Last activity: 2026-06-13 - Completed quick task 260613-mas: normalize standalone entrypoint.sh to LF + .gitattributes (PE-01)
-Resume file: .planning/phases/23-security-hardening-nginx-cutover/23-05-SUMMARY.md
+Next: /gsd:plan-phase 24 (spec: docs/superpowers/specs/2026-06-13-per-user-preferences-design.md)
+Status: Phase 24 added, ready to plan
+Last activity: 2026-06-13 - Brainstormed + spec'd per-user UI preferences; added Phases 24/25 to roadmap
+Resume file: docs/superpowers/specs/2026-06-13-per-user-preferences-design.md
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 24 added: Per-User UI Preferences (Phase 1) — per-user prefs blob + me-router + usePreference layer (2026-06-13)
+- Phase 25 added: Per-User Quiet Hours (Phase 2) — per-user quiet-hours in /stats/quiet-hours (2026-06-13)
 
 ### Decisions
 
