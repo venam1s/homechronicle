@@ -9,7 +9,7 @@ import { networkInterfaces } from 'os';
 import express from 'express';
 import cors from 'cors';
 import { HttpClient } from 'hap-controller'; // injected into setup-router and accessories-router for testability
-import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep, runSessionRetentionSweep, validateSession } from './db.js';
+import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep, runSessionRetentionSweep, runInviteTokenSweep, runPasswordResetTokenSweep, validateSession } from './db.js';
 import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter } from './events-router.js';
@@ -406,6 +406,26 @@ async function runRetentionSweepSafe() {
     }
   } catch (err) {
     log.error('[retention] sessions sweep failed:', err.message ?? err.stack ?? err);
+  }
+
+  // expired/consumed invites (delete-only — SEC-06 / D-06)
+  try {
+    const inviteResult = await runInviteTokenSweep();
+    if (inviteResult.deleted > 0) {
+      log.info(`[retention] invites expired/consumed deleted=${inviteResult.deleted}`);
+    }
+  } catch (err) {
+    log.error('[retention] invites sweep failed:', err.message ?? err.stack ?? err);
+  }
+
+  // expired/used password-reset tokens (delete-only — SEC-06 / D-06)
+  try {
+    const resetResult = await runPasswordResetTokenSweep();
+    if (resetResult.deleted > 0) {
+      log.info(`[retention] password_reset_tokens expired/consumed deleted=${resetResult.deleted}`);
+    }
+  } catch (err) {
+    log.error('[retention] password_reset_tokens sweep failed:', err.message ?? err.stack ?? err);
   }
 }
 
