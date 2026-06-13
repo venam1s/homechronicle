@@ -66,7 +66,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] **Phase 20: Auth Foundation** — Users, sessions, token-OR-session gate, first-admin bootstrap, CSRF protection, LoginPage + AuthGate (executed 2026-06-10; 13 plans incl. gap-closure 20-11/12/13; UAT 4/4 PASS live on beta, VERIFICATION verified) (completed 2026-06-11)
 - [x] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI (completed 2026-06-12)
 - [x] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI (UAT gap closed by 22-05: explicit Edit control on Active Rules rows) (completed 2026-06-13)
-- [ ] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal
+- [x] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal (completed 2026-06-13)
 
 ## Phase Details
 
@@ -147,7 +147,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] 23-02-PLAN.md — SEC-05 backend: listSessionsForUser/revokeSessionById + UA/IP capture + GET/DELETE /api/auth/sessions
 - [x] 23-03-PLAN.md — SEC-07 nginx cutover: NGINX_API_TOKEN template + entrypoints (web + standalone) + AUTH_ENABLED in 3 compose files
 - [x] 23-04-PLAN.md — SEC-06 token sweep: runInviteTokenSweep/runPasswordResetTokenSweep folded into runRetentionSweepSafe
-- [ ] 23-05-PLAN.md — SEC-05 frontend: useSessions/useRevokeSession + ActiveSessionsPanel under Settings → Account
+- [x] 23-05-PLAN.md — SEC-05 frontend: useSessions/useRevokeSession + ActiveSessionsPanel under Settings → Account
 **UI hint**: yes
 
 ## Progress
@@ -162,7 +162,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
 | 21 | v1.4 | 10/10 | Complete    | 2026-06-12 |
 | 22 | v1.4 | 5/5 | Complete    | 2026-06-13 |
-| 23 | v1.4 | 4/5 | In Progress|  |
+| 23 | v1.4 | 5/5 | Complete   | 2026-06-13 |
 
 ## Candidates / Backlog
 
