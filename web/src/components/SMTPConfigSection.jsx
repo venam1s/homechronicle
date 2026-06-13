@@ -133,7 +133,7 @@ export default function SMTPConfigSection() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="bg-hc-panel border border-hc-panel-border rounded-xl p-4 space-y-3">
         {/* Host */}
         <div className="flex items-center justify-between gap-3">
           <label className="text-hc-body text-hc-fg shrink-0">Host</label>
