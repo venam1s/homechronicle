@@ -43,6 +43,19 @@ export LISTENER_HOST=127.0.0.1
 export LISTENER_PORT="$API_PORT"
 export DOLLAR='$'
 
+# SEC-07 cutover: compute NGINX_API_TOKEN from AUTH_ENABLED before envsubst.
+# Fail-safe default true → empty token (session-only browser auth, T-23-BYPASS);
+# only legacy 0/false/no/off inject the real API_TOKEN (v1.3 full-revert, D-07/D-09).
+auth_enabled_lc=$(printf '%s' "${AUTH_ENABLED:-true}" | tr '[:upper:]' '[:lower:]')
+# if/elif (not case) — this file uses CRLF line endings; `case ... in` breaks on a
+# trailing CR but if/then/else does not (matches the existing constructs in this file).
+if [ "$auth_enabled_lc" = "0" ] || [ "$auth_enabled_lc" = "false" ] || [ "$auth_enabled_lc" = "no" ] || [ "$auth_enabled_lc" = "off" ]; then
+  NGINX_API_TOKEN="${API_TOKEN:-}"  # legacy: inject the real token (v1.3 full-revert)
+else
+  NGINX_API_TOKEN=''                # auth on (default): suppress the token (T-23-BYPASS)
+fi
+export NGINX_API_TOKEN
+
 # Rewrite the listen directive to use WEB_PORT (matters in host network mode)
 envsubst < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 sed -i "s/listen 80;/listen ${WEB_PORT};/" /etc/nginx/conf.d/default.conf
