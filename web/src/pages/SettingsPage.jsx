@@ -3,6 +3,7 @@ import { useSetup } from '../hooks/useSetup.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import SettingsTab from '../components/setup/SettingsTab.jsx';
+import AdminAdvancedSection from '../components/setup/AdminAdvancedSection.jsx';
 import PageContainer from '../components/PageContainer.jsx';
 import UsersPanel from '../components/UsersPanel.jsx';
 import SMTPConfigSection from '../components/SMTPConfigSection.jsx';
@@ -20,7 +21,7 @@ export default function SettingsPage() {
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const isAdmin = user?.role === 'admin';
 
-  const [section, setSection] = useState(() => (user?.role === 'admin' ? 'admin' : 'account'));
+  const [section, setSection] = useState('configuration');
 
   // If a non-admin somehow lands on 'admin', redirect to 'account'
   const activeSection = (!isAdmin && section === 'admin') ? 'account' : section;
@@ -82,6 +83,7 @@ export default function SettingsPage() {
             <>
               <UsersPanel />
               <SMTPConfigSection />
+              <AdminAdvancedSection setup={setup} />
             </>
           )}
           {activeSection === 'configuration' && (
