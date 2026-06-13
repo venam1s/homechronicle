@@ -15,7 +15,22 @@ import {
   redeemInvite,
   createPasswordResetToken,
   redeemResetToken,
+  listSessionsForUser,
+  revokeSessionById,
 } from './db.js';
+
+/**
+ * Extract session metadata from a request for the Active Sessions UI (D-01).
+ * The IP is the Express trust-proxy-resolved req.ip (Phase-20 TRUST_PROXY); its
+ * leading `::ffff:` IPv6-mapped-IPv4 prefix is stripped and an empty result is
+ * coerced to null for clean storage/display (REVIEW LOW). user_agent is passed
+ * through; createSession truncates it to 512 chars (T-23-UA-DOS).
+ */
+function extractSessionMeta(req) {
+  const userAgent = req.headers?.['user-agent'] ?? null;
+  const ipAddress = String(req.ip ?? '').replace(/^::ffff:/, '') || null;
+  return { userAgent, ipAddress };
+}
 
 // -- Auth rate limiter constants (D-16/SEC-03) --
 const AUTH_RATE_LIMIT_WINDOW_MS = parseIntInRange(
@@ -97,11 +112,14 @@ export function createAuthPublicRouter({
   });
 
   // -- Helper: issue hc_session cookie and create session row --
-  async function issueSession(res, userId, rememberMe) {
+  // userAgent/ipAddress are captured from the caller's request at each call site
+  // (login / claim-admin / accept-invite) so the Active Sessions UI can show device
+  // info (D-01). createSession truncates userAgent to 512 chars (T-23-UA-DOS).
+  async function issueSession(res, userId, rememberMe, userAgent = null, ipAddress = null) {
     const maxAgeMs = rememberMe ? SESSION_MAX_AGE_REMEMBER : SESSION_MAX_AGE_DEFAULT;
     const expiresAt = new Date(Date.now() + maxAgeMs);
     const rawToken = generateToken();
-    await createSession(pool, { userId, tokenHash: hashToken(rawToken), expiresAt });
+    await createSession(pool, { userId, tokenHash: hashToken(rawToken), expiresAt, userAgent, ipAddress });
     // Express res.cookie maxAge is in milliseconds (D-07/D-14)
     res.cookie('hc_session', rawToken, {
       httpOnly: true,
@@ -184,7 +202,8 @@ export function createAuthPublicRouter({
         await revokeSession(pool, hashToken(req.cookies.hc_session));
       }
 
-      await issueSession(res, user.id, rememberMe);
+      const loginMeta = extractSessionMeta(req);
+      await issueSession(res, user.id, rememberMe, loginMeta.userAgent, loginMeta.ipAddress);
 
       res.json({ user: { id: user.id, email: user.email, role: user.role } });
     } catch (err) {
@@ -244,7 +263,8 @@ export function createAuthPublicRouter({
       }
 
       // Auto-login the first admin (no prior cookie to revoke)
-      await issueSession(res, user.id, false);
+      const claimMeta = extractSessionMeta(req);
+      await issueSession(res, user.id, false, claimMeta.userAgent, claimMeta.ipAddress);
 
       res.json({ user: { id: user.id, email: user.email, role: user.role } });
     } catch (err) {
@@ -282,7 +302,8 @@ export function createAuthPublicRouter({
       const passwordHash = await hashPassword(password);
       const user = await createUser(pool, { email: invite.email, passwordHash, role: invite.role });
 
-      await issueSession(res, user.id, false);
+      const inviteMeta = extractSessionMeta(req);
+      await issueSession(res, user.id, false, inviteMeta.userAgent, inviteMeta.ipAddress);
 
       res.json({ ok: true, user: { email: user.email, role: user.role } });
     } catch (err) {
@@ -482,6 +503,50 @@ export function createAuthProtectedRouter({ pool }) {
       res.json({ ok: true });
     } catch (err) {
       log.error('[api] /api/auth/password error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // -- GET /sessions — SEC-05: list the caller's own active sessions --
+  // Self-scoped on req.hcSession.user_id. token_hash/csrf_token are never returned
+  // (db.js excludes them, D-02). The caller's own session is flagged current:true via a
+  // strict presence check so an undefined id cannot false-match another undefined.
+  router.get('/sessions', async (req, res) => {
+    try {
+      if (!req.hcSession) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const rows = await listSessionsForUser(pool, req.hcSession.user_id);
+      const currentId = req.hcSession.id;
+      const sessions = rows.map((s) => ({
+        ...s,
+        current: currentId != null && String(s.id) === String(currentId),
+      }));
+      res.json({ sessions });
+    } catch (err) {
+      log.error('[api] /api/auth/sessions error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // -- DELETE /sessions/:id — SEC-05: revoke one of the caller's own sessions --
+  // Ownership enforced in SQL (revokeSessionById WHERE id=$1 AND user_id=$2): a guessed
+  // id for another user deletes nothing → 404 (T-23-IDOR / D-04). CSRF-protected by mount
+  // position (index.js mounts csrfSynchronisedProtection before this router) — no extra
+  // middleware here (T-23-CSRF). The "exclude current from bulk revoke" rule (D-03) is a
+  // Plan-05 UI concern; the API legitimately revokes any session the caller owns.
+  router.delete('/sessions/:id', async (req, res) => {
+    try {
+      if (!req.hcSession) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const deleted = await revokeSessionById(pool, req.hcSession.user_id, req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      log.error('[api] /api/auth/sessions/:id error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

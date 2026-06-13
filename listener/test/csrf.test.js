@@ -467,3 +467,71 @@ test('SEC-02: POST /api/events without X-CSRF-Token after login returns 403', as
   assert.equal(withTokenRes.status, 200, 'POST with valid X-CSRF-Token must succeed');
   assert.deepEqual(withTokenRes.body, { ok: true });
 });
+
+// ---------------------------------------------------------------------------
+// T-23-CSRF — DELETE /api/auth/sessions/:id without a CSRF token → 403 (Plan 23-02)
+// ---------------------------------------------------------------------------
+//
+// Proves the new session-revoke mutation inherits CSRF protection purely by mount
+// position: index.js mounts csrfSynchronisedProtection BEFORE createAuthProtectedRouter,
+// so the DELETE is rejected with 403 before its handler runs — no per-route CSRF wiring.
+// Mirrors buildSec02App's gate → csrf → protected-router chain.
+
+async function buildSessionsCsrfApp(pool) {
+  const { csrfSynchronisedProtection } = createCsrf({ pool });
+
+  const app = express();
+  app.use(express.json());
+  app.use(cookieParser());
+
+  // Gate — AUTH_ENABLED=true, session-only (mirrors index.js)
+  app.use(async (req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    const rawCookie = req.cookies?.hc_session;
+    if (rawCookie) {
+      const session = await pool.validateSession(hashToken(rawCookie));
+      if (session) {
+        req.hcSession = { ...session, csrfToken: session.csrf_token ?? null };
+        return next();
+      }
+    }
+    return res.status(401).json({ error: 'Unauthorized' });
+  });
+
+  // CSRF protection AFTER the gate, BEFORE the protected router (production order)
+  app.use(csrfSynchronisedProtection);
+  app.use('/api/auth', createAuthProtectedRouter({ pool }));
+
+  app.use(function globalExpressErrorHandler(err, req, res, _next) {
+    if (err.code === 'EBADCSRFTOKEN') {
+      return res.status(403).json({ error: 'Invalid or missing CSRF token' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
+  return app;
+}
+
+test('T-23-CSRF: DELETE /api/auth/sessions/:id without X-CSRF-Token → 403', async () => {
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  const sessionRow = { id: 7, user_id: 3, csrf_token: null, role: 'member', email: 'u@x.com' };
+  const pool = {
+    async validateSession(hash) {
+      return hash === tokenHash ? sessionRow : null;
+    },
+    // never reached: CSRF rejects before the route handler runs
+    async query() {
+      throw new Error('revokeSessionById must not run when CSRF check fails');
+    },
+  };
+  const app = await buildSessionsCsrfApp(pool);
+
+  const res = await supertest(app)
+    .delete('/api/auth/sessions/7')
+    .set('Cookie', `hc_session=${rawToken}`)
+    .send();
+
+  assert.equal(res.status, 403, 'DELETE without a CSRF token must be rejected with 403');
+  assert.equal(res.body.error, 'Invalid or missing CSRF token');
+});
