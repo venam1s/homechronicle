@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
-status: executing
-stopped_at: Phase 23 all 5 plans complete — phase verification
-last_updated: "2026-06-13T06:45:00.000Z"
+status: milestone_complete
+stopped_at: Milestone complete (Phase 23 was final phase)
+last_updated: 2026-06-13T13:26:45.212Z
 last_activity: 2026-06-13 -- Phase 23 all plans complete (listener 607/607, web 290/290); verifying
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 33
   completed_plans: 33
-  percent: 88
+  percent: 75
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 23 — security hardening + nginx cutover
+**Current focus:** Milestone complete
 
 ## Current Position
 
 Phase: 23
-Plan: All 5 plans complete (23-01..23-05) — Active Sessions UI mounted; web 290/290, listener 607/607
+Plan: Not started
 Next: Phase 23 verification + completion; then /gsd:secure-phase 23
-Status: Verifying
-Last activity: 2026-06-13 -- Phase 23 plans complete; both human-verify checkpoints approved on automated evidence (live checks → HUMAN-UAT)
+Status: Milestone complete
+Last activity: 2026-06-13 - Completed quick task 260613-mas: normalize standalone entrypoint.sh to LF + .gitattributes (PE-01)
 Resume file: .planning/phases/23-security-hardening-nginx-cutover/23-05-SUMMARY.md
 
 ## Accumulated Context
@@ -76,6 +76,8 @@ None.
 | fast | Fix failing `deploy-beta` CI job (pipeline #2594925976, first push to main since the job was added): the hard `[ -n "$DOCKHAND_TOKEN" ] \|\| exit 1` guard failed because DOCKHAND_TOKEN isn't set as a CI var yet. Gated the job on `$CI_COMMIT_BRANCH == "main" && $DOCKHAND_TOKEN` (clean SKIP when unset, no failed job) + `allow_failure: true` (fire-and-forget Dockhand async sync trigger must never block main's pipeline); removed the redundant in-script token guard. YAML validated. User to add DOCKHAND_TOKEN masked/protected CI var to actually enable beta auto-deploy | 2026-06-11 | 951fefd | — |
 | 260611-idc | Reorder Sidebar footer + relocate "Report issue": account label + Sign out moved up under the theme/accent toggles; version/update block moved to the very bottom (expanded + collapsed). Removed the standalone "Report issue" anchor (and now-unused `ExternalLink` import) from the sidebar nav — it's redundant with Settings — and added it to the ChangelogModal ("What's New") footer instead (GitLab issues, new tab). New ChangelogModal.test.jsx. 178 web tests pass (+2). Executor died after Task 1; orchestrator finished Task 2. Unit-verified, not yet browser-checked | 2026-06-11 | 7f11703, 23c9883 | [260611-idc-sidebar-footer-reorder](./quick/260611-idc-sidebar-footer-reorder/) |
 | 260608-fnr | Fix the timing-out GitLab beta-deploy webhook (`Net::ReadTimeout` on every push to main). Root cause is structural, not transient: the GitLab project push webhook calls Dockhand's BLOCKING `POST /api/git/stacks/10/webhook`, which rebuilds the beta stack from source (docker-compose.beta.yml builds images every deploy — minutes), so it can never answer within GitLab.com's hard, non-configurable 10s webhook read timeout; GitLab auto-disables webhooks after repeated failures, risking silent loss of beta auto-deploy. Fix: stop relying on the blocking webhook — add a `deploy` stage + `deploy-beta` job to `.gitlab-ci.yml` that triggers Dockhand's ASYNC `POST /api/git/stacks/10/sync` (returns 2xx immediately, builds in background — same endpoint scripts/deploy-beta.sh already uses). Job: `rules` only on `$CI_COMMIT_BRANCH == "main"`, `needs: [test]` (red build never deploys), `curlimages/curl:latest` with `entrypoint: [""]` (default ENTRYPOINT ["curl"] would swallow GitLab's injected shell script), `curl -fsS` (fail job on 4xx/5xx) with `$DOCKHAND_TOKEN` Bearer auth + unset-guard. YAML validated. **NON-FUNCTIONAL until the user does two manual GitLab steps: (1) add `DOCKHAND_TOKEN` as a masked+protected CI/CD variable; (2) delete the old `/webhook` push webhook.** Confirmed: runner can reach dh.venamis.net; /sync requires Bearer (401 without) | 2026-06-08 | 2256ba0 | [260608-fnr-fix-timing-out-gitlab-beta-deploy-webhoo](./quick/260608-fnr-fix-timing-out-gitlab-beta-deploy-webhoo/) |
+| 260613-e16 | Fix HIGH-1 from v1.4 milestone audit: SMTP `from` changed via the Settings UI was stale until the next listener restart (alert channel never re-threaded at all). Add optional `onSmtpConfigChange(builtConfig)` dep to `createSmtpRouter`; PUT /smtp calls it after `initEmail` passing the env-aware `buildSmtpConfig` output (preserves SMTP_FROM precedence). index.js wires `(cfg) => { smtpConfig.from = cfg.from ?? ''; setAlertEmailFrom(cfg.from ?? ''); }` — mutates the shared `const smtpConfig` object so all four call-time closures (password-reset, test, invite, alert-channel from) pick up the new value live, no restart. TDD red→green; listener 609/609. Affects EMAIL-01/03, PWD-02, ALERT-03 | 2026-06-13 | 00e04d2 | [260613-e16-rethread-smtp-from-ui-config](./quick/260613-e16-rethread-smtp-from-ui-config/) |
+| 260613-mas | Fix PE-01 (surfaced in Phase 23 code review): `docker/standalone/entrypoint.sh` was the only CRLF shell script in the repo; its `\`-continuation + `\|\|` block (lines 76/89/90 ending `\<CR><LF>`) is a fatal bash parse error (`syntax error near unexpected token '\|\|'`) on all bash versions → standalone Docker image couldn't boot. Long-standing (CR back through HEAD~12, NOT a Phase 23 regression). Fix: normalize entrypoint.sh CRLF→LF (no logic change; `bash -n` now passes, was a hard error; AUTH_ENABLED→NGINX_API_TOKEN compute re-verified unchanged) + new `.gitattributes` (`* text=auto` + `eol=lf` for `*.sh`/`*.envsh`/entrypoint) so CRLF can't regress. Updated stale in-file `# uses CRLF` comment. **Follow-up: standalone-image boot smoke test not run — Docker daemon unavailable locally.** | 2026-06-13 | 55789a0 | [260613-mas-normalize-standalone-entrypoint-sh-to-lf](./quick/260613-mas-normalize-standalone-entrypoint-sh-to-lf/) |
 
 ## Session Continuity
 

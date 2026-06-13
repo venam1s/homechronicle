@@ -162,7 +162,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 | 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
 | 21 | v1.4 | 10/10 | Complete    | 2026-06-12 |
 | 22 | v1.4 | 5/5 | Complete    | 2026-06-13 |
-| 23 | v1.4 | 5/5 | Complete   | 2026-06-13 |
+| 23 | v1.4 | 5/5 | Complete    | 2026-06-13 |
 
 ## Candidates / Backlog
 

@@ -191,9 +191,9 @@ Invite-only multi-user authentication replacing the single shared-token model, p
 - [x] **SEC-02**: CSRF protection (synchronizer token) is enforced on all mutating endpoints; pre-auth routes (login, claim-admin, accept-invite, reset) are exempt
 - [x] **SEC-03**: A dedicated rate limiter protects auth routes (login, reset-request, accept-invite) separately from the write limiter
 - [x] **SEC-04**: Login regenerates the session id (anti-fixation); logout destroys the session
-- [ ] **SEC-05**: A user can view active sessions in Settings and revoke them ("log out other devices")
-- [ ] **SEC-06**: Expired sessions and used/expired tokens are swept periodically
-- [ ] **SEC-07**: At cutover, nginx `X-API-Token` injection is removed; the session-or-service-token gate becomes the sole browser auth path
+- [x] **SEC-05**: A user can view active sessions in Settings and revoke them ("log out other devices")
+- [x] **SEC-06**: Expired sessions and used/expired tokens are swept periodically
+- [x] **SEC-07**: At cutover, nginx `X-API-Token` injection is removed; the session-or-service-token gate becomes the sole browser auth path
 
 ## Future Requirements
 
@@ -319,9 +319,9 @@ Deferred to future milestones.
 | ALERT-02 | Phase 22 | Complete |
 | ALERT-03 | Phase 22 | Complete |
 | ALERT-04 | Phase 22 | Complete |
-| SEC-05 | Phase 23 | Pending |
-| SEC-06 | Phase 23 | Pending |
-| SEC-07 | Phase 23 | Pending |
+| SEC-05 | Phase 23 | Complete |
+| SEC-06 | Phase 23 | Complete |
+| SEC-07 | Phase 23 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 34 total
