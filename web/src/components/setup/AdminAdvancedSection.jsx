@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, ChevronDown, Loader, Loader2, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
+import Card from '../Card.jsx';
 import { useToast } from '../Toast.jsx';
 
 const LOG_LEVELS = [
@@ -137,37 +138,37 @@ export default function AdminAdvancedSection({ setup }) {
     <div className="space-y-4">
 
       {/* — Advanced — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-3">Advanced</h3>
-
-      {/* Log level */}
-      <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <p className="text-sm font-medium text-hc-fg">Log level</p>
-            <p className="text-xs text-hc-muted mt-0.5">
-              Controls how much the listener logs to Docker output. Changes apply instantly — no restart needed.
+      <Card>
+        <Card.Header title="Advanced" />
+        <Card.Body>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-medium text-hc-fg">Log level</p>
+              <p className="text-xs text-hc-muted mt-0.5">
+                Controls how much the listener logs to Docker output. Changes apply instantly — no restart needed.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={logLevelInput}
+                onChange={(e) => handleLogLevelChange(e.target.value)}
+                className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              >
+                {LOG_LEVELS.map(({ value, label, desc }) => (
+                  <option key={value} value={value}>
+                    {label} — {desc}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {saveLogLevelMutation.isError && (
+            <p className="text-xs text-hc-danger-text mt-2">
+              Could not update log level: {saveLogLevelMutation.error?.message}
             </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={logLevelInput}
-              onChange={(e) => handleLogLevelChange(e.target.value)}
-              className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
-            >
-              {LOG_LEVELS.map(({ value, label, desc }) => (
-                <option key={value} value={value}>
-                  {label} — {desc}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {saveLogLevelMutation.isError && (
-          <p className="text-xs text-hc-danger-text mt-2">
-            Could not update log level: {saveLogLevelMutation.error?.message}
-          </p>
-        )}
-      </div>
+          )}
+        </Card.Body>
+      </Card>
 
       {/* Danger Zone */}
       <section className="border border-hc-danger-border rounded-xl overflow-hidden">

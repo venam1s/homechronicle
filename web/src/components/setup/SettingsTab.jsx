@@ -323,8 +323,10 @@ export default function SettingsTab({ setup }) {
 
       {/* — Device Management — */}
       {tab === 'device' && (
-      <>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-3">Device Management</h3>
+      <Card>
+        <Card.Header title="Device Management" />
+        <Card.Body>
+        <div className="space-y-4">
 
       {/* HomeKit auto-scan */}
       <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3">
@@ -350,70 +352,70 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* Scheduled Repair */}
-      <Card>
-        <Card.Header title="Scheduled Repair" />
-        <Card.Body>
-          <p className="text-xs text-hc-muted mb-3">
-            Automatically re-pairs HomeKit devices that lose their connection overnight.
-            Enable this if you notice devices going offline and not reconnecting on their own.
-          </p>
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-sm font-medium text-hc-fg">Scheduled Repair</p>
-            <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
-              <input
-                type="checkbox"
-                checked={repairEnabledInput}
-                onChange={(e) => {
-                  const v = e.target.checked;
-                  setRepairEnabledInput(v);
-                  saveRepairMutation.mutate({ enabled: v });
-                }}
-              />
-              <span>{repairEnabledInput ? 'On' : 'Off'}</span>
-            </label>
-          </div>
-          {repairEnabledInput && (
-            <>
-              <div className="flex items-center gap-3 mt-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-hc-muted">Repair Hour</span>
-                  <select
-                    value={repairHourInput}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      setRepairHourInput(v);
-                      saveRepairMutation.mutate({ hour: localHourToUtc(v) });
-                    }}
-                    className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong"
-                  >
-                    {HOURS_OPTIONS.map(({ value, label }) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
+      <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3">
+        <p className="text-xs text-hc-muted mb-3">
+          Automatically re-pairs HomeKit devices that lose their connection overnight.
+          Enable this if you notice devices going offline and not reconnecting on their own.
+        </p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm font-medium text-hc-fg">Scheduled Repair</p>
+          <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
+            <input
+              type="checkbox"
+              checked={repairEnabledInput}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setRepairEnabledInput(v);
+                saveRepairMutation.mutate({ enabled: v });
+              }}
+            />
+            <span>{repairEnabledInput ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+        {repairEnabledInput && (
+          <>
+            <div className="flex items-center gap-3 mt-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-hc-muted">Repair Hour</span>
+                <select
+                  value={repairHourInput}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setRepairHourInput(v);
+                    saveRepairMutation.mutate({ hour: localHourToUtc(v) });
+                  }}
+                  className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong"
+                >
+                  {HOURS_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
               </div>
-              <div className="mt-3 text-xs text-hc-muted">
-                {repairConfig?.lastRunAt ? (
-                  <span>Last run: {formatDistanceToNow(new Date(repairConfig.lastRunAt), { addSuffix: true })}</span>
-                ) : (
-                  <span>No runs yet</span>
-                )}
-                {repairConfig?.lastRunResult && (
-                  <span className="ml-2">
-                    &middot; {repairConfig.lastRunResult.repaired} repaired, {repairConfig.lastRunResult.failed} failed
-                  </span>
-                )}
-              </div>
-            </>
-          )}
+            </div>
+            <div className="mt-3 text-xs text-hc-muted">
+              {repairConfig?.lastRunAt ? (
+                <span>Last run: {formatDistanceToNow(new Date(repairConfig.lastRunAt), { addSuffix: true })}</span>
+              ) : (
+                <span>No runs yet</span>
+              )}
+              {repairConfig?.lastRunResult && (
+                <span className="ml-2">
+                  &middot; {repairConfig.lastRunResult.repaired} repaired, {repairConfig.lastRunResult.failed} failed
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+        </div>
         </Card.Body>
       </Card>
-
-      </>
       )}
 
       {/* — Data Management — */}
       {tab === 'data' && (
+      <div className="space-y-4">
       <Card>
         <Card.Header title="Data Management" />
         <Card.Body>
@@ -510,8 +512,13 @@ export default function SettingsTab({ setup }) {
         </p>
       )}
 
+        </Card.Body>
+      </Card>
+
       {/* — Alerts & Quiet Hours — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-3">Alerts &amp; Quiet Hours</h3>
+      <Card>
+        <Card.Header title="Alerts &amp; Quiet Hours" />
+        <Card.Body>
 
       {/* Webhook Alerts */}
       <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3">
@@ -667,8 +674,13 @@ export default function SettingsTab({ setup }) {
         )}
       </div>
 
+        </Card.Body>
+      </Card>
+
       {/* — Timeline — */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-hc-muted pt-3">Timeline</h3>
+      <Card>
+        <Card.Header title="Timeline" />
+        <Card.Body>
 
       {/* Episode capture interval */}
       <div className="bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3">
@@ -744,6 +756,7 @@ export default function SettingsTab({ setup }) {
 
         </Card.Body>
       </Card>
+      </div>
       )}
 
       {/* — Toast Notifications — */}
