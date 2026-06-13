@@ -1,0 +1,9 @@
+# Normalize line endings on checkin; let Git decide text vs binary by default.
+* text=auto
+
+# Shell scripts MUST use LF — a CRLF #!/bin/sh|bash script breaks in Linux
+# containers (a `\`-continuation before CRLF is a fatal bash parse error; CR is
+# not special to bash). Regression guard for PE-01 (docker/standalone/entrypoint.sh).
+*.sh    text eol=lf
+*.envsh text eol=lf
+docker/standalone/entrypoint.sh text eol=lf
