@@ -70,7 +70,7 @@ server {
     # Matter commissioning endpoints need extended timeout (2+ minutes).
     location ~ ^/api/setup/(pair|matter/pair) {
         proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
-        proxy_set_header X-API-Token "${API_TOKEN}";
+        proxy_set_header X-API-Token "${NGINX_API_TOKEN}";
         proxy_set_header Host ${DOLLAR}host;
         proxy_set_header X-Real-IP ${DOLLAR}remote_addr;
         proxy_set_header X-Forwarded-For ${DOLLAR}proxy_add_x_forwarded_for;
@@ -85,7 +85,7 @@ server {
     location ~ ^/api/auth/ {
         access_log /var/log/nginx/access.log combined_no_query;
         proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
-        proxy_set_header X-API-Token "${API_TOKEN}";
+        proxy_set_header X-API-Token "${NGINX_API_TOKEN}";
         proxy_set_header Host ${DOLLAR}host;
         proxy_set_header X-Real-IP ${DOLLAR}remote_addr;
         proxy_set_header X-Forwarded-For ${DOLLAR}proxy_add_x_forwarded_for;
@@ -96,7 +96,7 @@ server {
     # All other API routes use a shorter timeout.
     location /api/ {
         proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
-        proxy_set_header X-API-Token "${API_TOKEN}";
+        proxy_set_header X-API-Token "${NGINX_API_TOKEN}";
         proxy_set_header Host ${DOLLAR}host;
         proxy_set_header X-Real-IP ${DOLLAR}remote_addr;
         proxy_set_header X-Forwarded-For ${DOLLAR}proxy_add_x_forwarded_for;

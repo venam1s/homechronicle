@@ -24,11 +24,18 @@ RUN apk upgrade --no-cache
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
+# SEC-07 cutover: compute NGINX_API_TOKEN from AUTH_ENABLED before the stock
+# 20-envsubst-on-templates.sh renders the template (the 15- prefix orders it first).
+COPY docker-entrypoint.d/15-compute-api-token.sh /docker-entrypoint.d/15-compute-api-token.sh
+RUN chmod +x /docker-entrypoint.d/15-compute-api-token.sh
+
 # LISTENER_HOST default: 127.0.0.1 (NAS host-network mode)
 # Override to "listener" when running in bridge mode (local dev via override file)
 ENV LISTENER_HOST=127.0.0.1
 ENV LISTENER_PORT=3001
 ENV API_TOKEN=
 ENV DOLLAR=$
+# Fail-safe default matching listener index.js (auth on → real token suppressed, T-23-BYPASS)
+ENV AUTH_ENABLED=true
 
 EXPOSE 80
