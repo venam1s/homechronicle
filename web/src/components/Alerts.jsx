@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { AlertCircle, Mail, Plus, Save, Trash2, Webhook } from 'lucide-react';
+import { AlertCircle, Mail, Pencil, Plus, Save, Trash2, Webhook } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fetchJson } from '../lib/api.js';
 import Card from './Card.jsx';
@@ -362,7 +362,7 @@ export default function Alerts() {
                 </button>
                 <button
                   type="button"
-                  className="text-sm font-medium text-hc-fg-strong hover:text-blue-700"
+                  className="text-sm font-medium text-hc-fg-strong hover:text-blue-700 cursor-pointer"
                   onClick={() => startEdit(rule)}
                 >
                   {rule.name}
@@ -375,14 +375,24 @@ export default function Alerts() {
                 <span className="text-xs text-hc-muted">{rule.scopeType}{rule.scopeValue ? `: ${rule.scopeValue}` : ''}</span>
                 <span className="text-xs text-hc-muted">{rule.operator} {rule.matchValue}</span>
                 <span className="text-xs text-hc-muted">quiet {rule.quietMinutes}m</span>
-                <button
-                  type="button"
-                  className="ml-auto inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
-                  onClick={() => deleteRuleMutation.mutate(rule.id)}
-                >
-                  <Trash2 size={12} />
-                  Delete
-                </button>
+                <div className="ml-auto flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-xs text-hc-muted hover:text-hc-fg-strong"
+                    onClick={() => startEdit(rule)}
+                  >
+                    <Pencil size={12} />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
+                    onClick={() => deleteRuleMutation.mutate(rule.id)}
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
