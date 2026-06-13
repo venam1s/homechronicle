@@ -58,21 +58,28 @@ function renderTab(setup) {
   );
 }
 
+// Scheduled Repair lives in the (non-default) Device Management tab; click into it first.
+async function openDeviceTab() {
+  await userEvent.click(screen.getByRole('tab', { name: 'Device Management' }));
+}
+
 describe('Scheduled Repair section', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders "Scheduled Repair" label text when repairConfig is provided', () => {
+  it('renders "Scheduled Repair" label text when repairConfig is provided', async () => {
     renderTab(makeSetup());
+    await openDeviceTab();
     const matches = screen.getAllByText('Scheduled Repair');
     expect(matches.length).toBeGreaterThanOrEqual(1);
     // Scheduled Repair is now a card label inside Device Management, not a section heading
     expect(matches.some((el) => el.tagName === 'P')).toBe(true);
   });
 
-  it('renders explanatory text containing "re-pairs HomeKit devices"', () => {
+  it('renders explanatory text containing "re-pairs HomeKit devices"', async () => {
     renderTab(makeSetup());
+    await openDeviceTab();
     expect(screen.getByText(/re-pairs HomeKit devices/i)).toBeInTheDocument();
   });
 
@@ -82,15 +89,17 @@ describe('Scheduled Repair section', () => {
     return explanatoryText.closest('div[class*="bg-hc-panel"]');
   }
 
-  it('renders toggle checkbox as unchecked when repairConfig.enabled is false', () => {
+  it('renders toggle checkbox as unchecked when repairConfig.enabled is false', async () => {
     renderTab(makeSetup({ repairConfig: { enabled: false, hour: 3, lastRunAt: null, lastRunResult: null } }));
+    await openDeviceTab();
     const card = getRepairCard();
     const repairCheckbox = within(card).getByRole('checkbox');
     expect(repairCheckbox).not.toBeChecked();
   });
 
-  it('renders toggle checkbox as checked when repairConfig.enabled is true', () => {
+  it('renders toggle checkbox as checked when repairConfig.enabled is true', async () => {
     renderTab(makeSetup({ repairConfig: { enabled: true, hour: 3, lastRunAt: null, lastRunResult: null } }));
+    await openDeviceTab();
     const card = getRepairCard();
     const repairCheckbox = within(card).getByRole('checkbox');
     expect(repairCheckbox).toBeChecked();
@@ -102,28 +111,32 @@ describe('Scheduled Repair section', () => {
       repairConfig: { enabled: false, hour: 3, lastRunAt: null, lastRunResult: null },
       saveRepairMutation,
     }));
+    await openDeviceTab();
     const card = getRepairCard();
     const repairCheckbox = within(card).getByRole('checkbox');
     await userEvent.click(repairCheckbox);
     expect(saveRepairMutation.mutate).toHaveBeenCalledWith({ enabled: true });
   });
 
-  it('shows hour picker select when repairEnabled is true', () => {
+  it('shows hour picker select when repairEnabled is true', async () => {
     renderTab(makeSetup({ repairConfig: { enabled: true, hour: 3, lastRunAt: null, lastRunResult: null } }));
+    await openDeviceTab();
     expect(screen.getByText('Repair Hour')).toBeInTheDocument();
   });
 
-  it('hides hour picker select when repairEnabled is false', () => {
+  it('hides hour picker select when repairEnabled is false', async () => {
     renderTab(makeSetup({ repairConfig: { enabled: false, hour: 3, lastRunAt: null, lastRunResult: null } }));
+    await openDeviceTab();
     expect(screen.queryByText('Repair Hour')).not.toBeInTheDocument();
   });
 
-  it('shows "No runs yet" when lastRunAt is null', () => {
+  it('shows "No runs yet" when lastRunAt is null', async () => {
     renderTab(makeSetup({ repairConfig: { enabled: true, hour: 3, lastRunAt: null, lastRunResult: null } }));
+    await openDeviceTab();
     expect(screen.getByText('No runs yet')).toBeInTheDocument();
   });
 
-  it('shows outcome counts when lastRunResult is present', () => {
+  it('shows outcome counts when lastRunResult is present', async () => {
     renderTab(makeSetup({
       repairConfig: {
         enabled: true,
@@ -132,7 +145,42 @@ describe('Scheduled Repair section', () => {
         lastRunResult: { targeted: 3, repaired: 2, skipped: 1, failed: 0 },
       },
     }));
+    await openDeviceTab();
     expect(screen.getByText(/2 repaired/)).toBeInTheDocument();
     expect(screen.getByText(/0 failed/)).toBeInTheDocument();
+  });
+});
+
+describe('Tabbed Configuration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders the About tab content (Documentation link) by default', () => {
+    renderTab(makeSetup());
+    expect(screen.getByText('Documentation')).toBeInTheDocument();
+  });
+
+  it('reveals "Retention cutoff" after clicking the Data management tab', async () => {
+    renderTab(makeSetup());
+    expect(screen.queryByText('Retention cutoff')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Data management' }));
+    expect(screen.getByText('Retention cutoff')).toBeInTheDocument();
+  });
+
+  it('never renders "Log level" anywhere in SettingsTab', async () => {
+    renderTab(makeSetup());
+    for (const name of ['About', 'Device Management', 'Data management', 'Toast']) {
+      await userEvent.click(screen.getByRole('tab', { name }));
+      expect(screen.queryByText('Log level')).not.toBeInTheDocument();
+    }
+  });
+
+  it('never renders "Danger Zone" anywhere in SettingsTab', async () => {
+    renderTab(makeSetup());
+    for (const name of ['About', 'Device Management', 'Data management', 'Toast']) {
+      await userEvent.click(screen.getByRole('tab', { name }));
+      expect(screen.queryByText('Danger Zone')).not.toBeInTheDocument();
+    }
   });
 });
