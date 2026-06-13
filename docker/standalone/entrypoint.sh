@@ -1,5 +1,9 @@
 #!/bin/bash
-set -e
+# set -eu: fail fast on errors AND on references to unset vars — for a security-
+# sensitive entrypoint wiring auth tokens and Postgres credentials, a silently-empty
+# expansion is worse than a loud failure. Every expansion below is guarded (:= / :-)
+# or assigned earlier on an unconditional path, so -u is safe (matches the web hook).
+set -eu
 
 # ── Defaults ────────────────────────────────────────────────────────────────
 : "${POSTGRES_USER:=homekit}"
