@@ -183,7 +183,7 @@ Invite-only multi-user authentication replacing the single shared-token model, p
 - [x] **ALERT-01**: Alert rules support a delivery channel (webhook or email) via additive schema (`channel` + `target_email` columns, `target_url` nullable for email rules)
 - [x] **ALERT-02**: An email-channel rule has a recipient address validated at rule-creation time
 - [x] **ALERT-03**: Email alert delivery routes through the existing quiet-period suppression and is logged in `alert_deliveries` with its channel
-- [ ] **ALERT-04**: The Alerts UI lets the user pick a delivery channel and configure the email recipient
+- [x] **ALERT-04**: The Alerts UI lets the user pick a delivery channel and configure the email recipient
 
 ### Security Hardening
 
@@ -318,7 +318,7 @@ Deferred to future milestones.
 | ALERT-01 | Phase 22 | Complete |
 | ALERT-02 | Phase 22 | Complete |
 | ALERT-03 | Phase 22 | Complete |
-| ALERT-04 | Phase 22 | Pending |
+| ALERT-04 | Phase 22 | Complete |
 | SEC-05 | Phase 23 | Pending |
 | SEC-06 | Phase 23 | Pending |
 | SEC-07 | Phase 23 | Pending |

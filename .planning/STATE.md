@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
-status: executing
-stopped_at: Phase 22 UI-SPEC approved
-last_updated: "2026-06-12T17:56:29.416Z"
+status: ready_to_plan
+stopped_at: Phase 22 complete (4/4) — ready to discuss Phase 23
+last_updated: 2026-06-13T00:01:52.516Z
 last_activity: 2026-06-12
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 27
-  completed_plans: 26
+  completed_plans: 27
   percent: 50
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 22 — email-alert-channel
+**Current focus:** Phase 23 — security hardening + nginx cutover
 
 ## Current Position
 
-Phase: 22 (email-alert-channel) — EXECUTING
-Plan: 3 of 4
+Phase: 23
+Plan: Not started
 Next: Phase 22 — Email Alert Channel (not yet discussed/planned; depends on Phase 21, now complete)
-Status: Ready to execute
-Last activity: 2026-06-12
+Status: Ready to plan
+Last activity: 2026-06-13
 
 ## Accumulated Context
 
