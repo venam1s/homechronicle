@@ -211,6 +211,54 @@ export async function runSessionRetentionSweep() {
   }
 }
 
+/**
+ * Delete spent invite rows (SEC-06 / D-06). An invite is spent once it is consumed
+ * (used_at set / status no longer 'pending') or has lapsed (expires_at < NOW()).
+ * status is NOT NULL DEFAULT 'pending' (migration 0004), so `status != 'pending'` is
+ * null-safe. Delete-only; used invites carry no audit-retention requirement (D-06).
+ * Folded into runRetentionSweepSafe — no dedicated timer.
+ * @returns {Promise<{deleted: number}>}
+ */
+export async function runInviteTokenSweep() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `DELETE FROM invites WHERE used_at IS NOT NULL OR expires_at < NOW() OR status != 'pending'`,
+    );
+    await client.query('COMMIT');
+    return { deleted: result.rowCount };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Delete spent password-reset-token rows (SEC-06 / D-06). A token is spent once it is
+ * used (used_at set) or has lapsed (expires_at < NOW()). Delete-only; used reset tokens
+ * carry no audit-retention requirement (D-06). Folded into runRetentionSweepSafe.
+ * @returns {Promise<{deleted: number}>}
+ */
+export async function runPasswordResetTokenSweep() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `DELETE FROM password_reset_tokens WHERE used_at IS NOT NULL OR expires_at < NOW()`,
+    );
+    await client.query('COMMIT');
+    return { deleted: result.rowCount };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function runAlertDeliveriesRetentionSweep({ retentionDays }) {
   if (!Number.isFinite(retentionDays) || retentionDays <= 0) {
     return { deleted: 0, cutoffDays: retentionDays };
