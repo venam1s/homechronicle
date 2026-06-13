@@ -12,6 +12,7 @@ import {
 } from '../hooks/useUsers.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useToast } from './Toast.jsx';
+import Card from './Card.jsx';
 import InviteCreateModal from './InviteCreateModal.jsx';
 
 // -- Helpers --
@@ -337,60 +338,61 @@ export default function UsersPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-hc-section font-semibold text-hc-fg-strong">Users</h2>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="inline-flex items-center gap-2 px-3 py-1 bg-hc-accent-strong text-white text-hc-caption font-semibold rounded-lg hover:bg-hc-accent-stronger transition-colors"
-        >
-          <UserPlus size={14} />
-          Invite user
-        </button>
-      </div>
-
-      {/* User table */}
-      <div className="bg-hc-panel border border-hc-panel-border rounded-xl overflow-hidden">
-        {/* Table header */}
-        <div className="px-4 py-2 bg-hc-panel-mid border-b border-hc-panel-border flex items-center gap-4">
-          <span className="flex-1 text-hc-caption font-semibold uppercase tracking-wide text-hc-muted">
-            Name / Email
-          </span>
-          <span className="text-hc-caption font-semibold uppercase tracking-wide text-hc-muted">Role</span>
-          <span className="text-hc-caption font-semibold uppercase tracking-wide text-hc-muted">Status</span>
-          <span className="text-hc-caption font-semibold uppercase tracking-wide text-hc-muted">Actions</span>
-        </div>
-
-        {usersLoading ? (
-          <div className="px-4 py-8 text-center text-hc-caption text-hc-muted">Loading...</div>
-        ) : users.length === 0 ? (
-          <div className="px-4 py-8 text-center text-hc-caption text-hc-muted italic">
-            No other users yet. Use &apos;Invite user&apos; to add household members.
+      {/* Users */}
+      <Card>
+        <Card.Header
+          title="Users"
+          headingLevel={2}
+          actions={(
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="inline-flex items-center gap-2 px-3 py-1 bg-hc-accent-strong text-white text-hc-caption font-semibold rounded-lg hover:bg-hc-accent-stronger transition-colors"
+            >
+              <UserPlus size={14} />
+              Invite user
+            </button>
+          )}
+        />
+        <Card.Body>
+          {/* Table header */}
+          <div className="px-4 py-2 bg-hc-panel-mid border-b border-hc-panel-border flex items-center gap-4">
+            <span className="flex-1 text-hc-caption font-semibold uppercase tracking-wide text-hc-muted">
+              Name / Email
+            </span>
+            <span className="text-hc-caption font-semibold uppercase tracking-wide text-hc-muted">Role</span>
+            <span className="text-hc-caption font-semibold uppercase tracking-wide text-hc-muted">Status</span>
+            <span className="text-hc-caption font-semibold uppercase tracking-wide text-hc-muted">Actions</span>
           </div>
-        ) : (
-          users.map((user) => {
-            const isLastAdmin =
-              user.role === 'admin' && user.status === 'active' && activeAdminCount <= 1;
-            return (
-              <UserRow
-                key={user.id}
-                user={user}
-                currentUser={currentUser}
-                isLastAdmin={isLastAdmin}
-                expanded={expandedUserId === user.id}
-                onExpand={handleExpand}
-              />
-            );
-          })
-        )}
-      </div>
+
+          {usersLoading ? (
+            <div className="px-4 py-8 text-center text-hc-caption text-hc-muted">Loading...</div>
+          ) : users.length === 0 ? (
+            <div className="px-4 py-8 text-center text-hc-caption text-hc-muted italic">
+              No other users yet. Use &apos;Invite user&apos; to add household members.
+            </div>
+          ) : (
+            users.map((user) => {
+              const isLastAdmin =
+                user.role === 'admin' && user.status === 'active' && activeAdminCount <= 1;
+              return (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  currentUser={currentUser}
+                  isLastAdmin={isLastAdmin}
+                  expanded={expandedUserId === user.id}
+                  onExpand={handleExpand}
+                />
+              );
+            })
+          )}
+        </Card.Body>
+      </Card>
 
       {/* Pending invites */}
-      <div className="space-y-2">
-        <p className="text-hc-caption font-semibold uppercase tracking-wide text-hc-muted pt-2">
-          Pending invites
-        </p>
-        <div className="bg-hc-panel border border-hc-panel-border rounded-xl overflow-hidden">
+      <Card>
+        <Card.Header title="Pending invites" />
+        <Card.Body>
           {invitesLoading ? (
             <div className="px-4 py-6 text-center text-hc-caption text-hc-muted">Loading...</div>
           ) : invites.length === 0 ? (
@@ -402,8 +404,8 @@ export default function UsersPanel() {
               <InviteRow key={invite.id} invite={invite} />
             ))
           )}
-        </div>
-      </div>
+        </Card.Body>
+      </Card>
 
       {/* Invite modal */}
       {showInviteModal && (

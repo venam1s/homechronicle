@@ -4,6 +4,7 @@ import { Loader2, Monitor } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useSessions, useRevokeSession } from '../hooks/useAuth.js';
 import { useToast } from './Toast.jsx';
+import Card from './Card.jsx';
 
 // Abbreviate a raw user_agent into a short "Browser on OS" label (SEC-05 / D-02).
 // Rendered as text (React-escaped) — never via dangerouslySetInnerHTML (T-23-XSS).
@@ -91,19 +92,24 @@ export default function ActiveSessionsPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-hc-section font-semibold text-hc-fg-strong">Active Sessions</h2>
-        <button
-          type="button"
-          onClick={handleBulkRevoke}
-          disabled={others.length === 0 || bulkPending}
-          className="w-auto py-2 px-4 rounded-lg border border-hc-panel-border text-hc-body text-hc-fg hover:bg-hc-panel-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-        >
-          {bulkPending ? <Loader2 size={16} className="animate-spin" /> : null}
-          Log out other devices
-        </button>
-      </div>
+    <Card>
+      <Card.Header
+        title="Active Sessions"
+        headingLevel={2}
+        actions={(
+          <button
+            type="button"
+            onClick={handleBulkRevoke}
+            disabled={others.length === 0 || bulkPending}
+            className="w-auto py-2 px-4 rounded-lg border border-hc-panel-border text-hc-body text-hc-fg hover:bg-hc-panel-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            {bulkPending ? <Loader2 size={16} className="animate-spin" /> : null}
+            Log out other devices
+          </button>
+        )}
+      />
+      <Card.Body>
+      <div className="space-y-4">
 
       {isLoading && <p className="text-hc-caption text-hc-muted">Loading sessions…</p>}
       {isError && <p className="text-hc-caption text-hc-danger-text">Could not load sessions.</p>}
@@ -152,6 +158,8 @@ export default function ActiveSessionsPanel() {
           );
         })}
       </ul>
-    </div>
+      </div>
+      </Card.Body>
+    </Card>
   );
 }

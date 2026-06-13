@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Eye, EyeOff, Loader2, Send } from 'lucide-react';
 import { fetchJson, API_BASE } from '../lib/api.js';
 import { useToast } from './Toast.jsx';
+import Card from './Card.jsx';
 
 const INPUT_CLASS =
   'text-sm border border-hc-border-strong rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--hc-focus-ring)] bg-hc-panel text-hc-fg-strong';
@@ -119,8 +120,10 @@ export default function SMTPConfigSection() {
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-hc-section font-semibold text-hc-fg-strong">Email (SMTP)</h2>
+    <Card>
+      <Card.Header title="Email (SMTP)" headingLevel={2} />
+      <Card.Body>
+      <div className="space-y-4">
 
       {/* SMTP not configured notice */}
       {!isConfigured && (
@@ -133,7 +136,7 @@ export default function SMTPConfigSection() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-hc-panel border border-hc-panel-border rounded-xl p-4 space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {/* Host */}
         <div className="flex items-center justify-between gap-3">
           <label className="text-hc-body text-hc-fg shrink-0">Host</label>
@@ -290,6 +293,8 @@ export default function SMTPConfigSection() {
           </button>
         </div>
       </form>
-    </div>
+      </div>
+      </Card.Body>
+    </Card>
   );
 }

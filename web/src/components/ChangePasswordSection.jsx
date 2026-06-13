@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { fetchJson, API_BASE } from '../lib/api.js';
+import Card from './Card.jsx';
 import PasswordStrengthMeter from './PasswordStrengthMeter.jsx';
 
 const FIELD_CLASS =
@@ -90,18 +91,24 @@ export default function ChangePasswordSection() {
   if (success) {
     return (
       <div className="space-y-4">
-        <h2 className="text-hc-section font-semibold text-hc-fg-strong">Change password</h2>
-        <div className="flex items-start gap-3 p-3 bg-hc-success-bg border border-hc-success-border rounded-lg">
-          <CheckCircle2 size={16} className="text-hc-success-text shrink-0 mt-0.5" />
-          <p className="text-hc-caption text-hc-success-text">Password updated successfully.</p>
-        </div>
+        <Card>
+          <Card.Header title="Change password" headingLevel={2} />
+          <Card.Body>
+            <div className="flex items-start gap-3 p-3 bg-hc-success-bg border border-hc-success-border rounded-lg">
+              <CheckCircle2 size={16} className="text-hc-success-text shrink-0 mt-0.5" />
+              <p className="text-hc-caption text-hc-success-text">Password updated successfully.</p>
+            </div>
+          </Card.Body>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-hc-section font-semibold text-hc-fg-strong">Change password</h2>
+      <Card>
+        <Card.Header title="Change password" headingLevel={2} />
+        <Card.Body>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Current password */}
@@ -217,6 +224,9 @@ export default function ChangePasswordSection() {
           </button>
         </div>
       </form>
+
+        </Card.Body>
+      </Card>
     </div>
   );
 }
