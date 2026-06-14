@@ -220,6 +220,31 @@ Personal UI preferences follow the logged-in account across devices (server-back
 - [x] **PREF-09**: Muted devices (`useMutedDevices`) become per-user
 - [x] **PREF-10**: Toast preferences and episode/scene grouping params (`episodeWindowMinutes`, `sceneWindowSeconds`, `episodeMinEventCount`) move off shared `retention.json` reads to the per-user blob when authenticated
 
+## v1.6 Requirements (Active) — Per-User Quiet Hours (Phase 2)
+
+**Defined:** 2026-06-13
+Quiet hours become per-user by building on the Phase-24 preferences blob. The listener's `GET /api/stats/quiet-hours` endpoint applies the requesting session user's quiet-hours config (enabled/start/end/excluded accessories) read from their `user_preferences` JSONB blob, with the shared `retention.json` household config as whole-config fallback; the SettingsTab quiet-hours controls route through the `usePreference` layer when authenticated. No-session / `AUTH_ENABLED=false` paths keep today's shared behavior unchanged. Source spec: `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md` (Phase 2). Decisions: D-25-01..04 (`25-CONTEXT.md`).
+
+### Listener — Session-Aware Endpoint
+
+- [x] **QH-01**: `GET /api/stats/quiet-hours` reads `req.hcSession?.user_id`; when present, reads the four quiet-hours keys from the user's `user_preferences` blob (one parameterized round-trip), falling back to shared `retention.json` when the blob has no quiet-hours keys or there is no session (D-25-01)
+- [x] **QH-02**: Whole-config fallback — if the user's blob contains none of the quiet-hours keys (presence predicate: `quietHoursEnabled` present), the endpoint uses the shared `retention.json` config exclusively, with no partial merge (D-25-02)
+- [x] **QH-03**: Blob quiet-hours values are normalized (type-coerced + range-checked) via `normalizeRetentionSettings` before use, so malformed blob inputs cannot cause 500s or malformed SQL
+- [x] **QH-04**: Requests with no `req.hcSession` (service `API_TOKEN` path, `AUTH_ENABLED=false`) fall back to shared config only — byte-for-byte identical to pre-Phase-25 behavior
+- [x] **QH-05**: `quietHoursExcludedAccessories` (quiet-hours stat flagging) and `mutedDevices` (toast suppression) remain separate per-user blob keys with distinct semantics — do not unify them (D-25-04)
+- [x] **QH-09**: The endpoint must NOT wrap the per-user quiet-hours query in `cached()` unless the cache key includes `user_id` (it is uncached today; keep it uncached or user-key it) — prevents cross-user data leak
+
+### Frontend — SettingsTab Wiring
+
+- [x] **QH-06**: SettingsTab quiet-hours controls (enabled/start/end/excluded accessories) route through `usePreference` when authenticated; the shared-config path is unchanged when anonymous (D-25-01)
+- [x] **QH-07**: Quiet-hours controls prefill from effective values (per-user blob if the keys are present, else shared config) via a presence check — not `usePreference`'s default — and do not write to the blob on mount (D-25-03)
+- [x] **QH-08**: Any authed quiet-hours change in SettingsTab writes all four keys to the blob together, so the presence predicate stays consistent (no partial-key writes)
+
+### Validation
+
+- [x] **QH-10**: Listener integration tests for `GET /stats/quiet-hours` cover three paths: (a) no session → shared fallback, (b) authed user with quiet-hours keys → per-user config, (c) authed user without quiet-hours keys → shared fallback
+- [x] **QH-11**: Web component tests for the SettingsTab quiet-hours controls cover authed (writes to blob) vs anon (writes to shared retention config) paths plus effective-value prefill
+
 ## Future Requirements
 
 Deferred to future milestones.
@@ -358,14 +383,27 @@ Deferred to future milestones.
 | PREF-09 | Phase 24 | Complete |
 | PREF-10 | Phase 24 | Complete |
 | PREF-11 | Phase 24 | Complete |
+| QH-01 | Phase 25 | Active |
+| QH-02 | Phase 25 | Active |
+| QH-03 | Phase 25 | Active |
+| QH-04 | Phase 25 | Active |
+| QH-05 | Phase 25 | Active |
+| QH-06 | Phase 25 | Active |
+| QH-07 | Phase 25 | Active |
+| QH-08 | Phase 25 | Active |
+| QH-09 | Phase 25 | Active |
+| QH-10 | Phase 25 | Active |
+| QH-11 | Phase 25 | Active |
 
 **Coverage:**
 - v1.4 requirements: 34 total
 - v1.5 requirements: 11 total (PREF-01..11)
-- Mapped to phases: 45
+- v1.6 requirements: 11 total (QH-01..11)
+- Mapped to phases: 56
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-02*
+*2026-06-13 — v1.6 Per-User Quiet Hours defined (QH-01..11 mapped to Phase 25)*
 *Last updated: 2026-06-13 — v1.5 Per-User UI Preferences defined (PREF-01..11 mapped to Phase 24)**
 *2026-06-09 — v1.4 Multi-User Auth & Email roadmap defined (AUTH-01..08, USER-01..07, PWD-01..04, EMAIL-01..04, ALERT-01..04, SEC-01..07 mapped to Phases 20-23)*

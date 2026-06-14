@@ -68,7 +68,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI (UAT gap closed by 22-05: explicit Edit control on Active Rules rows) (completed 2026-06-13)
 - [x] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal (completed 2026-06-13)
 - [x] **Phase 24: Per-User UI Preferences (Phase 1)** — Per-user JSONB preferences blob (migration 0007) + `me-router` (`GET/PUT /api/me/preferences`) + `usePreference` layer; dashboard layout/ranges, appearance, muted, toast + grouping become per-account (localStorage fallback when unauthenticated/`AUTH_ENABLED=false`) (completed 2026-06-14)
-- [ ] **Phase 25: Per-User Quiet Hours (Phase 2)** — Quiet hours per-user; `/stats/quiet-hours` applies the requesting session user's config (shared household value as fallback)
+- [x] **Phase 25: Per-User Quiet Hours (Phase 2)** — Quiet hours per-user; `/stats/quiet-hours` applies the requesting session user's config (shared household value as fallback) (completed 2026-06-14)
 
 ## Phase Details
 
@@ -230,8 +230,8 @@ Plans:
 **Spec:** `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md` (Phase 2 section)
 **Requirements**: QH-01, QH-02, QH-03, QH-04, QH-05, QH-06, QH-07, QH-08, QH-09, QH-10, QH-11
 **Depends on:** Phase 24
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 25-01-PLAN.md — Session-aware GET /stats/quiet-hours (per-user blob read, whole-config fallback, normalization, three-path tests)
-- [ ] 25-02-PLAN.md — SettingsTab quiet-hours controls via usePreference (presence-check prefill, grouped four-key write, component tests)
+- [x] 25-02-PLAN.md — SettingsTab quiet-hours controls via usePreference (presence-check prefill, grouped four-key write, component tests)
