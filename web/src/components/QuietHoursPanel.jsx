@@ -152,7 +152,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
                 {row.count} event{row.count !== 1 ? 's' : ''}
                 {row.accessoryId && (
                   <button
-                    onClick={() => excludeMutation.mutate(row.accessoryId)}
+                    onClick={(e) => { e.stopPropagation(); excludeMutation.mutate(row.accessoryId); }}
                     disabled={excludeMutation.isPending}
                     className="p-0.5 rounded hover:bg-black/10 transition-colors"
                     title={`Exclude ${row.accessoryName} from quiet hours`}

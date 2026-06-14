@@ -206,6 +206,7 @@ export function useSetup() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['setup', 'display-names'] });
+      queryClient.invalidateQueries({ queryKey: ['accessories'] });
     },
   });
 

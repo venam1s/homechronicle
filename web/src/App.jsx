@@ -223,7 +223,7 @@ export default function App() {
         )}
         <main className={clsx('overflow-y-auto', isMobile && 'pt-12')}>
           {selectedAccessoryId ? (
-            <ErrorBoundary key="detail"><AccessoryDetail accessoryId={selectedAccessoryId} onBack={handleAccessoryBack} /></ErrorBoundary>
+            <ErrorBoundary key={selectedAccessoryId}><AccessoryDetail accessoryId={selectedAccessoryId} onBack={handleAccessoryBack} /></ErrorBoundary>
           ) : (
             <ErrorBoundary key={activePage}>
               {activePage === 'dashboard' && <DashboardPage onSelectAccessory={handleSelectAccessory} onSelectRoom={handleSelectRoom} onNavigateToAccessory={handleToastNav} onViewDeviceRepair={() => setActivePage('devices')} />}
