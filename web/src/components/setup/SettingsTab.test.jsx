@@ -156,8 +156,15 @@ describe('Tabbed Configuration', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the About tab content (Documentation link) by default', () => {
+  it('selects the Device Management tab by default (first tab); About is not shown until selected', () => {
     renderTab(makeSetup());
+    expect(screen.getByRole('tab', { name: 'Device Management' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByText('Documentation')).not.toBeInTheDocument();
+  });
+
+  it('reveals the About tab content (Documentation link) when the About tab is selected', async () => {
+    renderTab(makeSetup());
+    await userEvent.click(screen.getByRole('tab', { name: 'About' }));
     expect(screen.getByText('Documentation')).toBeInTheDocument();
   });
 

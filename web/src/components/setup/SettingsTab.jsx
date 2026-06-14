@@ -26,10 +26,10 @@ function utcHourToLocal(utcHour) {
 }
 
 const TABS = [
-  { id: 'about', label: 'About' },
   { id: 'device', label: 'Device Management' },
   { id: 'data', label: 'Data management' },
   { id: 'toast', label: 'Toast' },
+  { id: 'about', label: 'About' },
 ];
 
 export default function SettingsTab({ setup }) {
@@ -97,7 +97,7 @@ export default function SettingsTab({ setup }) {
   const [episodeWindowInput, setEpisodeWindowInput] = useState('');
   const [sceneWindowInput, setSceneWindowInput] = useState('');
   const [episodeMinEventInput, setEpisodeMinEventInput] = useState('');
-  const [tab, setTab] = useState('about');
+  const [tab, setTab] = useState('device');
   const [saveFeedback, setSaveFeedback] = useState(null);
   const [toastsEnabledInput, setToastsEnabledInput] = useState(true);
   const [liveEventToastsEnabledInput, setLiveEventToastsEnabledInput] = useState(false);
