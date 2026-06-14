@@ -9,10 +9,11 @@
  * - queryFn unwraps d?.prefs ?? {} (self-contained, mirrors useAuth.js pattern)
  * - query disabled when user is null (PREF-05/D-15)
  * - PUT mutation sends { prefs: <blob> } and updates the cache
+ * - debounce in setPrefs coalesces rapid writes into ONE fetchJson PUT (D-09)
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 
@@ -37,9 +38,9 @@ function makeWrapper() {
       mutations: { retry: false },
     },
   });
-  return function Wrapper({ children }) {
+  return { wrapper: function Wrapper({ children }) {
     return createElement(QueryClientProvider, { client: queryClient }, children);
-  };
+  }, queryClient };
 }
 
 describe('useUserPreferences', () => {
@@ -51,22 +52,24 @@ describe('useUserPreferences', () => {
     useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
     fetchJson.mockResolvedValue({ prefs: { theme: 'dark' } });
 
-    const { result } = renderHook(() => useUserPreferences(), { wrapper: makeWrapper() });
+    const { wrapper, queryClient } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
     await waitFor(() => expect(result.current.prefs).toBeDefined());
 
     // Verify the hook fetches the correct endpoint (implies correct query key).
     expect(fetchJson).toHaveBeenCalledWith(
       expect.stringContaining('/me/preferences'),
     );
-    // Explicit query key assertion via the hook's internal structure.
-    expect(result.current._queryKey).toEqual(['me', 'preferences']);
+    // Assert via React Query cache: the correct key must hold the unwrapped blob.
+    expect(queryClient.getQueryData(['me', 'preferences'])).toEqual({ theme: 'dark' });
   });
 
   it('queryFn unwraps d?.prefs ?? {} — does not return the raw envelope', async () => {
     useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
     fetchJson.mockResolvedValue({ prefs: { theme: 'dark', accent: 'ocean' } });
 
-    const { result } = renderHook(() => useUserPreferences(), { wrapper: makeWrapper() });
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
     await waitFor(() => expect(result.current.prefs).toBeDefined());
 
     // Must be the unwrapped blob, not { prefs: { ... } }.
@@ -78,7 +81,8 @@ describe('useUserPreferences', () => {
     useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
     fetchJson.mockResolvedValue({ prefs: {} });
 
-    const { result } = renderHook(() => useUserPreferences(), { wrapper: makeWrapper() });
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
     await waitFor(() => expect(result.current.prefs).toBeDefined());
 
     expect(result.current.prefs).toEqual({});
@@ -87,7 +91,8 @@ describe('useUserPreferences', () => {
   it('query is DISABLED and fetchJson not called when user is null (PREF-05/D-15)', async () => {
     useAuth.mockReturnValue({ user: null });
 
-    const { result } = renderHook(() => useUserPreferences(), { wrapper: makeWrapper() });
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
     // Give the query a tick to settle.
     await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -101,7 +106,8 @@ describe('useUserPreferences', () => {
     useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
     fetchJson.mockResolvedValue({ prefs: {} });
 
-    const { result } = renderHook(() => useUserPreferences(), { wrapper: makeWrapper() });
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
     await waitFor(() => expect(result.current.prefs).toBeDefined());
 
     const newBlob = { theme: 'light', accent: 'purple' };
@@ -121,7 +127,8 @@ describe('useUserPreferences', () => {
     useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
     fetchJson.mockResolvedValue({ prefs: {} });
 
-    const { result } = renderHook(() => useUserPreferences(), { wrapper: makeWrapper() });
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
     await waitFor(() => expect(result.current.prefs).toBeDefined());
 
     const newBlob = { theme: 'dark' };
@@ -129,5 +136,39 @@ describe('useUserPreferences', () => {
     await result.current.setPrefsBlob(newBlob);
 
     await waitFor(() => expect(result.current.prefs).toEqual(newBlob));
+  });
+
+  it('debounce coalesces rapid setPrefsBlob calls into ONE fetchJson PUT (D-09)', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    // Initial GET returns empty blob.
+    fetchJson.mockResolvedValue({ prefs: {} });
+
+    vi.useFakeTimers();
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+
+    // Let the initial GET settle.
+    await act(async () => { vi.advanceTimersByTime(0); });
+    fetchJson.mockClear();
+
+    // Rapid successive setPrefsBlob calls with different keys.
+    await act(async () => {
+      result.current.setPrefsBlob({ theme: 'dark' });
+      result.current.setPrefsBlob({ accent: 'purple' });
+    });
+
+    // Advance past the debounce window.
+    await act(async () => { vi.advanceTimersByTime(1000); });
+
+    vi.useRealTimers();
+
+    // D-09: debounce must coalesce into ONE PUT.
+    const putCalls = fetchJson.mock.calls.filter(
+      ([, opts]) => opts?.method === 'PUT',
+    );
+    expect(putCalls).toHaveLength(1);
+    // The single PUT must carry BOTH keys merged.
+    const body = JSON.parse(putCalls[0][1].body);
+    expect(body.prefs).toMatchObject({ theme: 'dark', accent: 'purple' });
   });
 });

@@ -8,7 +8,7 @@
  * - Authed: value from server blob; setter calls PUT + mirrors localStorage (PREF-04/D-10)
  * - Anon: zero fetchJson calls; value from localStorage; setter writes localStorage only (PREF-05/D-15)
  * - Seeding: exactly ONE PUT on empty blob; zero PUTs on non-empty blob (PREF-11/D-14)
- * - Debounce: multiple rapid set calls coalesce into ONE PUT with ALL keys (D-05/advisor item 3)
+ * - Setter delegates to setPrefsBlob per-key (D-10); cross-key debounce coalescing is in useUserPreferences.test.js (D-09)
  * - Malformed blob: falls back to per-key default (D-18)
  */
 
@@ -232,52 +232,34 @@ describe('usePreference — seeding (PREF-11/D-14)', () => {
   });
 });
 
-describe('usePreference — debounce coalescing (D-05)', () => {
+describe('usePreference — setter delegates to setPrefsBlob (D-09/D-10)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  it('coalesces multiple rapid set calls into ONE PUT containing ALL keys set in the window', async () => {
+  it('setter calls setPrefsBlob with the updated key when authenticated', async () => {
+    // Note: debounce COALESCING across multiple usePreference instances is tested in
+    // useUserPreferences.test.js (D-09), where the setPrefsBlob+fetchJson observable
+    // contract lives. Here we only verify usePreference delegates per-key writes to
+    // setPrefsBlob (D-10: the single consumer abstraction).
     const setPrefsBlob = vi.fn().mockResolvedValue(undefined);
     useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
-    useUserPreferences.mockReturnValue({
-      prefs: {},
-      setPrefsBlob,
-    });
+    useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob });
     vi.stubGlobal('localStorage', makeStorage());
 
-    // Mount two preference hooks for different keys.
-    const { result: themeResult } = renderHook(
+    const { result } = renderHook(
       () => usePreference('theme', 'system', { localStorageKey: 'hc_theme_preference' }),
       { wrapper: makeWrapper() },
     );
-    const { result: accentResult } = renderHook(
-      () => usePreference('accent', 'ocean', { localStorageKey: 'hc_accent' }),
-      { wrapper: makeWrapper() },
-    );
 
-    // Rapidly set both keys.
-    act(() => {
-      themeResult.current[1]('dark');
-      accentResult.current[1]('purple');
-    });
+    act(() => { result.current[1]('dark'); });
 
-    // Advance timers past the debounce window.
-    act(() => { vi.advanceTimersByTime(1000); });
-
-    // MUST have been called exactly once (debounce coalesced).
-    expect(setPrefsBlob).toHaveBeenCalledTimes(1);
-
-    // The single call MUST contain BOTH keys set during the window (not just the last one).
-    // D-05: whole-blob replace — the blob passed to PUT must contain every key updated.
-    const callArg = setPrefsBlob.mock.calls[0][0];
-    expect(callArg).toMatchObject({ theme: 'dark', accent: 'purple' });
+    await waitFor(() => expect(setPrefsBlob).toHaveBeenCalled());
+    expect(setPrefsBlob).toHaveBeenCalledWith(expect.objectContaining({ theme: 'dark' }));
   });
 });
 
