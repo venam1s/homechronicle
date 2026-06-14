@@ -8,6 +8,7 @@ import Card from '../Card.jsx';
 import { useToast } from '../Toast.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePreference } from '../../hooks/usePreference.js';
+import { useUserPreferences } from '../../hooks/useUserPreferences.js';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, h) => {
   const period = h < 12 ? 'AM' : 'PM';
@@ -46,6 +47,7 @@ export default function SettingsTab({ setup }) {
 
   const { addToast, configure: configureToasts } = useToast();
   const { user } = useAuth();
+  const { prefs, setPrefsBlob } = useUserPreferences();
 
   // PREF-10: toast + grouping per-user blob fields (authed path only).
   // Default codec (JSON) is correct for bool/number/string-enum values.
@@ -58,6 +60,24 @@ export default function SettingsTab({ setup }) {
   const [blobEpisodeWindowMinutes, setBlobEpisodeWindowMinutes] = usePreference('episodeWindowMinutes', 3, { localStorageKey: 'hc_pref_episodeWindowMinutes' });
   const [blobSceneWindowSeconds, setBlobSceneWindowSeconds] = usePreference('sceneWindowSeconds', 5, { localStorageKey: 'hc_pref_sceneWindowSeconds' });
   const [blobEpisodeMinEventCount, setBlobEpisodeMinEventCount] = usePreference('episodeMinEventCount', 3, { localStorageKey: 'hc_pref_episodeMinEventCount' });
+
+  // QH-06/QH-07/QH-08: per-user quiet-hours blob fields.
+  // Value read path — hooks reconcile from blob when present (D-18 type guard in usePreference).
+  // Write path — change handlers call setPrefsBlob with ALL FOUR keys to keep presence predicate
+  // coherent (QH-08). Do NOT add these to D12_KEYS (D-25-03: no force-seed).
+  const [blobQhEnabled] = usePreference('quietHoursEnabled', false, { localStorageKey: 'hc_pref_quietHoursEnabled' });
+  const [blobQhStart] = usePreference('quietHoursStart', 23, { localStorageKey: 'hc_pref_quietHoursStart' });
+  const [blobQhEnd] = usePreference('quietHoursEnd', 6, { localStorageKey: 'hc_pref_quietHoursEnd' });
+  const [blobQhExcluded] = usePreference('quietHoursExcludedAccessories', [], {
+    localStorageKey: 'hc_pref_quietHoursExcludedAccessories',
+    serialize: JSON.stringify,
+    deserialize: JSON.parse,
+  });
+
+  // Presence check (D-25-03): branch on whether the blob already has the QH key, NOT on user
+  // truthiness. An authed Phase-24 user with a non-empty blob but no quietHoursEnabled key must
+  // prefill from retentionConfig rather than the hook defaults (QH-07 — no write-on-mount).
+  const blobHasQh = !!user && prefs != null && 'quietHoursEnabled' in prefs;
 
   const queryClient = useQueryClient();
   const archiveCountQuery = useQuery({
@@ -177,6 +197,14 @@ export default function SettingsTab({ setup }) {
   const effectiveSceneWindowSeconds = user ? blobSceneWindowSeconds : sceneWindowCurrent;
   const effectiveEpisodeMinEventCount = user ? blobEpisodeMinEventCount : episodeMinEventCurrent;
   const repairHourCurrent = repairConfig?.hour != null ? utcHourToLocal(repairConfig.hour) : 3;
+
+  // QH effective values: branch on blobHasQh (presence check), NOT on `user` truthiness (D-25-03).
+  // When blobHasQh is false (anon OR authed Phase-24 user whose blob lacks quietHoursEnabled),
+  // fall back to retentionConfig values so the controls prefill correctly without seeding (QH-07).
+  const effectiveQhEnabled = blobHasQh ? blobQhEnabled : (retentionConfig?.quietHoursEnabled ?? false);
+  const effectiveQhStart = blobHasQh ? utcHourToLocal(blobQhStart) : quietHoursStartCurrent;
+  const effectiveQhEnd = blobHasQh ? utcHourToLocal(blobQhEnd) : quietHoursEndCurrent;
+  const effectiveQhExcluded = blobHasQh ? blobQhExcluded : (retentionConfig?.quietHoursExcludedAccessories ?? []);
 
   useEffect(() => {
     if (retentionDaysCurrent === null) return;
@@ -652,19 +680,46 @@ export default function SettingsTab({ setup }) {
           <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
             <input
               type="checkbox"
-              checked={quietHoursEnabledInput}
-              onChange={(e) => { const v = e.target.checked; setQuietHoursEnabledInput(v); autoSave({ quietHoursEnabled: v }); }}
+              checked={effectiveQhEnabled}
+              onChange={(e) => {
+                const v = e.target.checked;
+                if (user) {
+                  // Authed: grouped four-key write to blob (QH-08 — keeps presence predicate coherent).
+                  setPrefsBlob({
+                    quietHoursEnabled: v,
+                    quietHoursStart: localHourToUtc(effectiveQhStart),
+                    quietHoursEnd: localHourToUtc(effectiveQhEnd),
+                    quietHoursExcludedAccessories: effectiveQhExcluded,
+                  });
+                } else {
+                  setQuietHoursEnabledInput(v);
+                  autoSave({ quietHoursEnabled: v });
+                }
+              }}
             />
-            <span>{quietHoursEnabledInput ? 'On' : 'Off'}</span>
+            <span>{effectiveQhEnabled ? 'On' : 'Off'}</span>
           </label>
         </div>
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-xs text-hc-muted">From</span>
             <select
-              value={quietHoursStartInput}
-              onChange={(e) => { const v = Number(e.target.value); setQuietHoursStartInput(v); autoSave({ quietHoursStart: localHourToUtc(v) }); }}
-              disabled={!quietHoursEnabledInput}
+              value={effectiveQhStart}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (user) {
+                  setPrefsBlob({
+                    quietHoursEnabled: effectiveQhEnabled,
+                    quietHoursStart: localHourToUtc(v),
+                    quietHoursEnd: localHourToUtc(effectiveQhEnd),
+                    quietHoursExcludedAccessories: effectiveQhExcluded,
+                  });
+                } else {
+                  setQuietHoursStartInput(v);
+                  autoSave({ quietHoursStart: localHourToUtc(v) });
+                }
+              }}
+              disabled={!effectiveQhEnabled}
               className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
@@ -675,9 +730,22 @@ export default function SettingsTab({ setup }) {
           <div className="flex items-center gap-2">
             <span className="text-xs text-hc-muted">to</span>
             <select
-              value={quietHoursEndInput}
-              onChange={(e) => { const v = Number(e.target.value); setQuietHoursEndInput(v); autoSave({ quietHoursEnd: localHourToUtc(v) }); }}
-              disabled={!quietHoursEnabledInput}
+              value={effectiveQhEnd}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (user) {
+                  setPrefsBlob({
+                    quietHoursEnabled: effectiveQhEnabled,
+                    quietHoursStart: localHourToUtc(effectiveQhStart),
+                    quietHoursEnd: localHourToUtc(v),
+                    quietHoursExcludedAccessories: effectiveQhExcluded,
+                  });
+                } else {
+                  setQuietHoursEndInput(v);
+                  autoSave({ quietHoursEnd: localHourToUtc(v) });
+                }
+              }}
+              disabled={!effectiveQhEnabled}
               className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
@@ -686,12 +754,12 @@ export default function SettingsTab({ setup }) {
             </select>
           </div>
         </div>
-        {/* Excluded accessories */}
-        {(retentionConfig?.quietHoursExcludedAccessories ?? []).length > 0 && (
+        {/* Excluded accessories — rendered from effectiveQhExcluded (blob or retentionConfig) */}
+        {effectiveQhExcluded.length > 0 && (
           <div className="mt-3 pt-3 border-t border-hc-panel-border">
             <p className="text-xs text-hc-muted mb-2">Excluded from quiet hours:</p>
             <div className="flex flex-wrap gap-1.5">
-              {retentionConfig.quietHoursExcludedAccessories.map((id) => {
+              {effectiveQhExcluded.map((id) => {
                 const matchedAcc = paired.find((a) => a.id === id) ?? dbAccessories.find((a) => a.accessory_id === id);
                 const label = matchedAcc?.name ?? matchedAcc?.accessory_name ?? id;
                 return (
@@ -699,12 +767,22 @@ export default function SettingsTab({ setup }) {
                   <span className="truncate max-w-[180px]">{label}</span>
                   <button
                     onClick={async () => {
-                      const next = retentionConfig.quietHoursExcludedAccessories.filter((a) => a !== id);
-                      try {
-                        const result = await saveRetentionMutation.mutateAsync({ quietHoursExcludedAccessories: next });
-                        queryClient.setQueryData(['setup', 'retention'], result);
+                      const next = effectiveQhExcluded.filter((a) => a !== id);
+                      if (user) {
+                        setPrefsBlob({
+                          quietHoursEnabled: effectiveQhEnabled,
+                          quietHoursStart: localHourToUtc(effectiveQhStart),
+                          quietHoursEnd: localHourToUtc(effectiveQhEnd),
+                          quietHoursExcludedAccessories: next,
+                        });
                         queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
-                      } catch { /* handled by mutation */ }
+                      } else {
+                        try {
+                          const result = await saveRetentionMutation.mutateAsync({ quietHoursExcludedAccessories: next });
+                          queryClient.setQueryData(['setup', 'retention'], result);
+                          queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
+                        } catch { /* handled by mutation */ }
+                      }
                     }}
                     disabled={savePending}
                     className="p-0.5 rounded-full hover:bg-hc-panel-mid transition-colors"
