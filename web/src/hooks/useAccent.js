@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { usePreference } from './usePreference.js';
 
 const NEW_KEY = 'hc_accent';
 const LEGACY_KEY = 'hc_ui_skin';
@@ -38,21 +39,17 @@ export function storeAccent(accent, storage) {
 }
 
 export function useAccent() {
-  const [accent, setAccentState] = useState(getStoredAccent);
+  // Identity codec: hc_accent stores raw strings (not JSON).
+  // getStoredAccent() as defaultValue captures the legacy hc_ui_skin fallback for migration.
+  const [accent, setAccent] = usePreference(
+    'accent',
+    getStoredAccent(),
+    { localStorageKey: NEW_KEY, serialize: (v) => v, deserialize: (v) => v },
+  );
 
   useEffect(() => {
     applyAccent(accent);
   }, [accent]);
-
-  useEffect(() => {
-    const storage = getStorage();
-    if (!storage) return;
-    storeAccent(accent, storage);
-  }, [accent]);
-
-  function setAccent(newAccent) {
-    setAccentState(newAccent);
-  }
 
   return { accent, setAccent };
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { usePreference } from './hooks/usePreference.js';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from './lib/api.js';
 import { useMediaQuery } from './hooks/useMediaQuery.js';
@@ -34,9 +35,12 @@ export default function App() {
   const [timelineFilters, setTimelineFilters] = useState(null);
   const [showChangelog, setShowChangelog] = useState(false);
   const [hasNewVersion, setHasNewVersion] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return window.localStorage.getItem(SIDEBAR_KEY) === 'true'; } catch { return false; }
-  });
+  // Identity codec: hc_sidebar_collapsed stores raw boolean-string ('true'/'false'), not JSON.
+  const [collapsed, setCollapsed] = usePreference(
+    'sidebarCollapsed',
+    false,
+    { localStorageKey: SIDEBAR_KEY, serialize: String, deserialize: (v) => v === 'true' },
+  );
 
   const isMobile = useMediaQuery('(max-width: 767px)');
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
@@ -60,8 +64,6 @@ export default function App() {
   useEffect(() => {
     if (retentionConfig) configureToasts({ position: retentionConfig.toastPosition, duration: retentionConfig.toastDuration, maxVisible: retentionConfig.toastMaxVisible });
   }, [retentionConfig?.toastPosition, retentionConfig?.toastDuration, retentionConfig?.toastMaxVisible, configureToasts]);
-
-  useEffect(() => { try { window.localStorage.setItem(SIDEBAR_KEY, String(collapsed)); } catch {} }, [collapsed]);
 
   // Close drawer when viewport leaves mobile (prevents inconsistent state on resize)
   useEffect(() => {

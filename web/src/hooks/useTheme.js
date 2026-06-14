@@ -1,33 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { usePreference } from './usePreference.js';
 
 const STORAGE_KEY = 'hc_theme_preference';
 
-function getStorage() {
-  if (typeof window === 'undefined') return null;
-  const storage = window.localStorage;
-  if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
-    return null;
-  }
-  return storage;
-}
-
 function getStoredPreference() {
-  const storage = getStorage();
-  if (!storage) return 'system';
-  let value = null;
   try {
-    value = storage.getItem(STORAGE_KEY);
+    const value = window.localStorage.getItem(STORAGE_KEY);
+    return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
   } catch {
     return 'system';
   }
-  return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
-}
-
-function getResolvedTheme(preference) {
-  if (preference !== 'system') return preference;
-  if (typeof window === 'undefined') return 'light';
-  if (typeof window.matchMedia !== 'function') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 function applyTheme(theme) {
@@ -39,7 +21,13 @@ function applyTheme(theme) {
 }
 
 export function useTheme() {
-  const [preference, setPreference] = useState(getStoredPreference);
+  // Identity codec: hc_theme_preference stores raw strings ('light'/'dark'/'system'), not JSON.
+  const [preference, setPreference] = usePreference(
+    'theme',
+    getStoredPreference(),
+    { localStorageKey: STORAGE_KEY, serialize: (v) => v, deserialize: (v) => v },
+  );
+
   const [systemDark, setSystemDark] = useState(() =>
     typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -52,16 +40,6 @@ export function useTheme() {
   useEffect(() => {
     applyTheme(resolvedTheme);
   }, [resolvedTheme]);
-
-  useEffect(() => {
-    const storage = getStorage();
-    if (!storage) return;
-    try {
-      storage.setItem(STORAGE_KEY, preference);
-    } catch {
-      // Ignore write failures (private mode, blocked storage, test env stubs).
-    }
-  }, [preference]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
