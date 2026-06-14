@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSetup } from '../hooks/useSetup.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { useAuthConfig } from '../hooks/useAuthConfig.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import SettingsTab from '../components/setup/SettingsTab.jsx';
 import AdminAdvancedSection from '../components/setup/AdminAdvancedSection.jsx';
@@ -18,22 +19,33 @@ const NAV_INACTIVE =
 export default function SettingsPage() {
   const setup = useSetup();
   const { user } = useAuth();
+  const { authEnabled } = useAuthConfig();
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const isAdmin = user?.role === 'admin';
 
+  // Advanced (log level + Danger Zone) visible to admins in auth-on, and to
+  // the sole operator in auth-off (no session = full access, same as v1.3).
+  const showAdvanced = isAdmin || !authEnabled;
+
   const [section, setSection] = useState('configuration');
 
-  // If a non-admin somehow lands on 'admin', redirect to 'account'
-  const activeSection = (!isAdmin && section === 'admin') ? 'account' : section;
-
+  // Build visible nav items based on auth state:
+  // - Admin tab: only when auth is on AND user is admin (Users + SMTP)
+  // - Configuration: always present
+  // - Account tab: only when auth is on (no password/session management in auth-off)
   const navItems = [
-    ...(isAdmin ? [{ id: 'admin', label: 'Admin' }] : []),
+    ...(authEnabled && isAdmin ? [{ id: 'admin', label: 'Admin' }] : []),
     { id: 'configuration', label: 'Configuration' },
-    { id: 'account', label: 'Account' },
+    ...(authEnabled ? [{ id: 'account', label: 'Account' }] : []),
   ];
 
+  // Generalized guard: if the stored section is not in the visible nav, fall back
+  // to 'configuration'. This handles auth-off (no admin/account) as well as the
+  // prior member-on-admin case.
+  const activeSection = navItems.some((i) => i.id === section) ? section : 'configuration';
+
   function handleNavChange(id) {
-    if (id === 'admin' && !isAdmin) return;
+    if (!navItems.some((i) => i.id === id)) return;
     setSection(id);
   }
 
@@ -79,17 +91,22 @@ export default function SettingsPage() {
 
         {/* Content area */}
         <div className="flex-1 min-w-0 space-y-4">
-          {activeSection === 'admin' && isAdmin && (
+          {/* Admin section: Users + SMTP only; shown when auth is on and user is admin.
+              AdminAdvancedSection has been moved to Configuration so Advanced has a
+              single home visible to admins and the auth-off sole operator. */}
+          {activeSection === 'admin' && authEnabled && isAdmin && (
             <>
               <UsersPanel />
               <SMTPConfigSection />
-              <AdminAdvancedSection setup={setup} />
             </>
           )}
           {activeSection === 'configuration' && (
-            <SettingsTab setup={setup} />
+            <>
+              <SettingsTab setup={setup} />
+              {showAdvanced && <AdminAdvancedSection setup={setup} />}
+            </>
           )}
-          {activeSection === 'account' && (
+          {activeSection === 'account' && authEnabled && (
             <>
               <ChangePasswordSection />
               <ActiveSessionsPanel />
