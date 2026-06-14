@@ -92,6 +92,13 @@ const CORS_ALLOW_LOCALHOST = /^(1|true|yes|on)$/i.test(
   process.env.CORS_ALLOW_LOCALHOST ?? (IS_PRODUCTION ? 'false' : 'true')
 );
 const ALERTS_ENABLED = !/^(0|false|no|off)$/i.test(process.env.ALERTS_ENABLED ?? 'false');
+
+// M-8: warn when loopback origins are reflected with credentials in production.
+// Legitimate production deployments should not reflect localhost origins;
+// this configuration is safe only in development.
+if (CORS_ALLOW_LOCALHOST && IS_PRODUCTION) {
+  log.warn('[cors] CORS_ALLOW_LOCALHOST is enabled in production — loopback origins are reflected with credentials');
+}
 const DISCOVERY_SCAN_ENABLED = !/^(0|false|no|off)$/i.test(process.env.DISCOVERY_SCAN_ENABLED ?? 'true');
 
 // TRUST_PROXY (T-20-BRUTE): controls Express `trust proxy`. UNSET by default, so

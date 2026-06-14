@@ -21,8 +21,9 @@ function parseOperator(value) {
 function validateTargetEmail(value) {
   const email = String(value ?? '').trim().toLowerCase();
   if (!email) return { error: 'target_email is required for channel=email' };
-  if (!VALID_EMAIL_RE.test(email)) return { error: 'target_email must be a valid email address' };
+  // Length check before regex to avoid ReDoS on megabyte-length strings (L-12b)
   if (email.length > 254) return { error: 'target_email is too long' };
+  if (!VALID_EMAIL_RE.test(email)) return { error: 'target_email must be a valid email address' };
   return { value: email };
 }
 

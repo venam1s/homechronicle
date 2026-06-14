@@ -35,7 +35,7 @@ export function normalizeRetentionSettings(input = {}) {
   const emc = Number.parseInt(String(input.episodeMinEventCount ?? ''), 10);
   const episodeMinEventCount = Number.isFinite(emc) && emc >= 1 && emc <= 20 ? emc : 3;
   const quietHoursExcludedAccessories = Array.isArray(input.quietHoursExcludedAccessories)
-    ? input.quietHoursExcludedAccessories.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim())
+    ? input.quietHoursExcludedAccessories.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim()).slice(0, 200)
     : [];
   const toastsEnabled = input.toastsEnabled === undefined ? true : Boolean(input.toastsEnabled);
   const liveEventToastsEnabled = Boolean(input.liveEventToastsEnabled ?? false);
@@ -155,7 +155,7 @@ export function createRetentionRouter({ getSettings, saveSettings, sweepMs = 0 }
       if (body.quietHoursExcludedAccessories.some((v) => typeof v !== 'string' || !v.trim())) {
         return res.status(400).json({ error: 'Each entry in quietHoursExcludedAccessories must be a non-empty string.' });
       }
-      updates.quietHoursExcludedAccessories = body.quietHoursExcludedAccessories.map((v) => v.trim());
+      updates.quietHoursExcludedAccessories = body.quietHoursExcludedAccessories.map((v) => v.trim()).slice(0, 200);
     }
 
     if (body.episodeWindowMinutes !== undefined) {

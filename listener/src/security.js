@@ -239,8 +239,8 @@ export function validatePasswordStrength(password) {
   if (typeof password !== 'string') {
     return { ok: false, error: 'Password is required.' };
   }
-  if (password.length < 10) {
-    return { ok: false, error: 'Password must be at least 10 characters.' };
+  if (password.length < 12) {
+    return { ok: false, error: 'Password must be at least 12 characters.' };
   }
   if (COMMON_PASSWORDS.has(password.toLowerCase())) {
     return { ok: false, error: 'That password is too common. Choose a less predictable passphrase.' };

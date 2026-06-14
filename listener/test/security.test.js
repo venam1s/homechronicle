@@ -217,16 +217,16 @@ test('validatePasswordStrength rejects undefined', () => {
   assert.equal(result.ok, false);
 });
 
-test('validatePasswordStrength rejects passwords under 10 chars', () => {
+test('validatePasswordStrength rejects passwords under 12 chars', () => {
   const result = validatePasswordStrength('short');
   assert.equal(result.ok, false);
-  assert.match(result.error, /at least 10 characters/i);
+  assert.match(result.error, /at least 12 characters/i);
 });
 
-test('validatePasswordStrength rejects passwords exactly 9 chars', () => {
-  const result = validatePasswordStrength('abcdefghi');
+test('validatePasswordStrength rejects passwords exactly 11 chars', () => {
+  const result = validatePasswordStrength('abcdefghijk');
   assert.equal(result.ok, false);
-  assert.match(result.error, /at least 10 characters/i);
+  assert.match(result.error, /at least 12 characters/i);
 });
 
 test('validatePasswordStrength rejects blocklisted passwords (case-insensitive)', () => {
@@ -236,10 +236,9 @@ test('validatePasswordStrength rejects blocklisted passwords (case-insensitive)'
   // Note: 'password' is 8 chars so it would fail on length first — test a 10+ char blocklisted word
 });
 
-test('validatePasswordStrength rejects blocklisted password "iloveyou1" (case-insensitive lookup)', () => {
-  // Test case-insensitive blocklist check; we need a blocklisted entry that is >= 10 chars
-  // Using '1234567890' which is 10 chars and should be in the blocklist
-  const result = validatePasswordStrength('1234567890');
+test('validatePasswordStrength rejects blocklisted password that is >= 12 chars (case-insensitive lookup)', () => {
+  // homechronicle is 13 chars and explicitly blocklisted — must hit the blocklist check, not the length check
+  const result = validatePasswordStrength('homechronicle');
   assert.equal(result.ok, false);
   assert.match(result.error, /too common/i);
 });
@@ -255,14 +254,14 @@ test('validatePasswordStrength blocklist check is case-insensitive', () => {
   assert.match(resultUpper.error, /too common/i);
 });
 
-test('validatePasswordStrength accepts a valid >=10 char non-blocklisted passphrase', () => {
+test('validatePasswordStrength accepts a valid >=12 char non-blocklisted passphrase', () => {
   const result = validatePasswordStrength('a-perfectly-fine-passphrase');
   assert.equal(result.ok, true);
   assert.equal(result.error, undefined);
 });
 
-test('validatePasswordStrength accepts exactly 10 non-blocklisted chars', () => {
-  const result = validatePasswordStrength('xYz9!@#$%^');
+test('validatePasswordStrength accepts exactly 12 non-blocklisted chars', () => {
+  const result = validatePasswordStrength('xYz9!@#$%^ab');
   assert.equal(result.ok, true);
 });
 
