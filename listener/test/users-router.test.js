@@ -119,8 +119,8 @@ async function request(app, method, path, body) {
 }
 
 // -- Session fixtures --
-const adminSession = { userId: 1, role: 'admin', email: 'admin@example.com' };
-const memberSession = { userId: 2, role: 'member', email: 'member@example.com' };
+const adminSession = { user_id: 1, role: 'admin', email: 'admin@example.com' };
+const memberSession = { user_id: 2, role: 'member', email: 'member@example.com' };
 
 // =============================================================================
 // TASK 1 TESTS: list users, list/create/revoke/resend invites
@@ -450,7 +450,7 @@ test('PATCH /api/users/:id disable returns 400 when disabling self (D-06)', asyn
 
 test('PATCH /api/users/:id disable returns 400 when disabling last active admin', async () => {
   const { app } = buildApp({
-    session: { userId: 1, role: 'admin', email: 'admin@example.com' },
+    session: { user_id: 1, role: 'admin', email: 'admin@example.com' },
     poolBehavior: [
       { match: 'pg_advisory_xact_lock', rows: [] },
       // target IS an admin → last-admin guard applies
@@ -467,7 +467,7 @@ test('PATCH /api/users/:id disable returns 400 when disabling last active admin'
 test('PATCH /api/users/:id disable returns 200 for a member even when only one admin exists', async () => {
   // Regression: the last-admin guard must NOT block disabling a non-admin.
   const { app } = buildApp({
-    session: { userId: 1, role: 'admin', email: 'admin@example.com' },
+    session: { user_id: 1, role: 'admin', email: 'admin@example.com' },
     poolBehavior: [
       { match: 'pg_advisory_xact_lock', rows: [] },
       // target is a MEMBER → guard must be skipped regardless of admin count

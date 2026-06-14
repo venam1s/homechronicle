@@ -146,7 +146,7 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
         email,
         tokenHash,
         role,
-        invitedBy: req.hcSession.userId,
+        invitedBy: req.hcSession.user_id,
         expiresAt,
       });
 
@@ -208,7 +208,7 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
         email: old.email,
         tokenHash,
         role: old.role,
-        invitedBy: req.hcSession.userId,
+        invitedBy: req.hcSession.user_id,
         expiresAt,
       });
 
@@ -242,7 +242,7 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
       if (action === 'disable' || action === 'setRole') {
         // For disable: self-modification blocked entirely
         // For setRole: self-demotion allowed only when another admin exists (handled below)
-        if (action === 'disable' && req.hcSession.userId === targetId) {
+        if (action === 'disable' && req.hcSession.user_id === targetId) {
           return res.status(400).json({ error: 'You cannot disable your own account.' });
         }
       }
@@ -350,7 +350,7 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
       const targetId = Number(req.params.id);
 
       // Self guard — acting admin cannot remove self (D-06)
-      if (req.hcSession.userId === targetId) {
+      if (req.hcSession.user_id === targetId) {
         return res.status(400).json({ error: 'You cannot remove your own account.' });
       }
 
