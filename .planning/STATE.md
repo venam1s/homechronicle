@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
 status: completed
-stopped_at: Phase 22 UI-SPEC approved
-last_updated: "2026-06-14T03:02:12.217Z"
+stopped_at: Phase 25 context gathered
+last_updated: "2026-06-14T03:11:26.971Z"
 last_activity: 2026-06-14 -- Phase 24 marked complete
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 33
-  completed_plans: 33
-  percent: 100
+  total_phases: 6
+  completed_phases: 5
+  total_plans: 39
+  completed_plans: 40
+  percent: 83
 ---
 
 # Project State
@@ -30,7 +30,7 @@ Plan: 1 of 6
 Next: /gsd:plan-phase 24 (spec: docs/superpowers/specs/2026-06-13-per-user-preferences-design.md)
 Status: Phase 24 complete
 Last activity: 2026-06-14 -- Phase 24 marked complete
-Resume file: docs/superpowers/specs/2026-06-13-per-user-preferences-design.md
+Resume file: .planning/phases/25-per-user-quiet-hours-phase-2/25-CONTEXT.md
 
 ## Accumulated Context
 
@@ -88,7 +88,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-12T17:56:29.412Z
-Stopped at: Phase 22 UI-SPEC approved
+Last session: 2026-06-14T03:11:26.968Z
+Stopped at: Phase 25 context gathered
 Resume file: None
 ---
