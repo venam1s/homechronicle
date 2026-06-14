@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import clsx from 'clsx';
 import { Link2, Unlink2, LayoutGrid, Check, RotateCcw } from 'lucide-react';
 import PairingHealthBanner from '../components/PairingHealthBanner.jsx';
 import DashboardGrid from '../components/DashboardGrid.jsx';
 import PageContainer from '../components/PageContainer.jsx';
 import { useDashboardLayout } from '../hooks/useDashboardLayout.js';
+import { usePreference } from '../hooks/usePreference.js';
 
 const DASHBOARD_WINDOWS = [
   { label: '7d', days: 7 },
@@ -20,18 +21,24 @@ export default function DashboardPage({
   onNavigateToAccessory,
   onViewDeviceRepair,
 }) {
-  const [dashboardDays, setDashboardDays] = useState(() => {
-    try {
-      const stored = Number.parseInt(window.localStorage.getItem(RANGE_KEY) ?? '', 10);
-      return DASHBOARD_WINDOWS.some((w) => w.days === stored) ? stored : 30;
-    } catch { return 30; }
-  });
-  const [syncDashboardRanges, setSyncDashboardRanges] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem(SYNC_KEY);
-      return stored == null ? true : stored !== 'false';
-    } catch { return true; }
-  });
+  // Route global range and sync toggle through the per-user preference layer (PREF-07/D-11).
+  // usePreference reads from localStorage on first paint (D-16) and writes through to
+  // localStorage + server blob when authenticated (D-10). Anon behavior is byte-for-byte
+  // identical to the previous useState+useEffect pattern (D-15):
+  //   - Same localStorage keys (RANGE_KEY / SYNC_KEY) — D-12 preserved.
+  //   - Same defaults (30 / true) — matches the old useState initializer fallbacks.
+  //   - JSON codec handles legacy bare-string values ('30', 'true', 'false') correctly
+  //     because JSON.parse of those strings yields the expected number/boolean.
+  const [dashboardDays, setDashboardDays] = usePreference(
+    'dashboardGlobalDays',
+    30,
+    { localStorageKey: RANGE_KEY },
+  );
+  const [syncDashboardRanges, setSyncDashboardRanges] = usePreference(
+    'dashboardSyncRanges',
+    true,
+    { localStorageKey: SYNC_KEY },
+  );
   const [editing, setEditing] = useState(false);
 
   const {
@@ -43,8 +50,8 @@ export default function DashboardPage({
     reset,
   } = useDashboardLayout();
 
-  useEffect(() => { try { window.localStorage.setItem(RANGE_KEY, String(dashboardDays)); } catch {} }, [dashboardDays]);
-  useEffect(() => { try { window.localStorage.setItem(SYNC_KEY, String(syncDashboardRanges)); } catch {} }, [syncDashboardRanges]);
+  // The direct localStorage read useStates (lines 23-34) and write useEffects (lines 46-47)
+  // are removed — usePreference owns first-paint read and write-through (D-15).
 
   function handleReset() {
     const ok = typeof window === 'undefined' || typeof window.confirm !== 'function'
@@ -82,7 +89,7 @@ export default function DashboardPage({
             ))}
           </div>
           <button
-            onClick={() => setSyncDashboardRanges((v) => !v)}
+            onClick={() => setSyncDashboardRanges(!syncDashboardRanges)}
             title={syncDashboardRanges ? 'Charts synced — click to unsync' : 'Charts independent — click to sync'}
             className={clsx(
               'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
