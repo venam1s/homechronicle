@@ -10,6 +10,7 @@ import { useTheme } from '../hooks/useTheme.js';
 import { useAccent } from '../hooks/useAccent.js';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
+import { useAuthConfig } from '../hooks/useAuthConfig.js';
 
 // -- Constants --
 
@@ -96,6 +97,7 @@ export default function Sidebar({
   const { preference, resolvedTheme, setPreference } = useTheme();
   const { accent, setAccent } = useAccent();
   const { user, logoutMutation } = useAuth();
+  const { authEnabled } = useAuthConfig();
   const navigate = useNavigate();
   const [accentOpen, setAccentOpen] = useState(false);
 
@@ -285,8 +287,8 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* User/account + Sign out */}
-        {collapsed ? (
+        {/* User/account + Sign out — hidden in auth-off (no session to end) */}
+        {authEnabled !== false && (collapsed ? (
           <div className="flex justify-center px-2">
             <button
               type="button"
@@ -341,7 +343,7 @@ export default function Sidebar({
               </button>
             </div>
           </div>
-        )}
+        ))}
 
         {collapsed && availableUpdate && (
           <div className="flex justify-center px-2">

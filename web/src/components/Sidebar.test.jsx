@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Sidebar from './Sidebar.jsx';
 
+// useAuthConfig lives in its own file; mock it so Sidebar tests don't need a QueryClientProvider.
+// Default: auth-on (authEnabled: true) — existing 16 tests see unchanged behavior.
+const { mockUseAuthConfig } = vi.hoisted(() => ({ mockUseAuthConfig: vi.fn(() => ({ authEnabled: true })) }));
+vi.mock('../hooks/useAuthConfig.js', () => ({
+  useAuthConfig: () => mockUseAuthConfig(),
+}));
+
 vi.mock('../hooks/useTheme.js', () => ({
   useTheme: () => ({
     preference: 'system',
@@ -175,5 +182,25 @@ describe('Sidebar', () => {
     render(<Sidebar {...defaultProps} collapsed={false} />);
     // The label should show a capitalized role ("Admin"), never undefined or blank
     expect(screen.getByText('Admin')).toBeInTheDocument();
+  });
+
+  // -- Auth-off sidebar tests --
+
+  it('Test 17 (AUTH-OFF): hides Sign out button in expanded sidebar when authEnabled is false', () => {
+    mockUseAuthConfig.mockReturnValueOnce({ authEnabled: false });
+    render(<Sidebar {...defaultProps} collapsed={false} />);
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+  });
+
+  it('Test 18 (AUTH-OFF): hides Sign out button in collapsed sidebar when authEnabled is false', () => {
+    mockUseAuthConfig.mockReturnValueOnce({ authEnabled: false });
+    render(<Sidebar {...defaultProps} collapsed={true} />);
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+  });
+
+  it('Test 19 (AUTH-OFF): shows Sign out button when authEnabled is true (guard does not over-suppress)', () => {
+    mockUseAuthConfig.mockReturnValueOnce({ authEnabled: true });
+    render(<Sidebar {...defaultProps} collapsed={false} />);
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
   });
 });

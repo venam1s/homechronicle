@@ -11,6 +11,7 @@ import SetupAdminPage from './components/SetupAdminPage.jsx';
 import ResetPasswordPage from './components/ResetPasswordPage.jsx';
 import AcceptInvitePage from './pages/AcceptInvitePage.jsx';
 import { useUserCount } from './hooks/useAuth.js';
+import { useAuthConfig } from './hooks/useAuthConfig.js';
 // react-grid-layout base styles must load before ./index.css so our themed
 // overrides (placeholder, resize handle, drag state) take precedence.
 import 'react-grid-layout/css/styles.css';
@@ -27,16 +28,22 @@ const queryClient = new QueryClient({
 
 // First-run routing wrapper: if no users exist (count===0) redirect to /setup;
 // if users exist and on /setup, redirect to /login (D-04, AUTH-01).
+// In auth-off mode both /login and /setup redirect to / so stale bookmarks do
+// not strand the operator (there is no login flow when auth is disabled).
 function LoginOrSetup() {
+  const { authEnabled, isLoading: configLoading } = useAuthConfig();
   const { data, isLoading } = useUserCount();
-  if (isLoading) return null;
+  if (configLoading || isLoading) return null;
+  if (authEnabled === false) return <Navigate to="/" replace />;
   if (data?.count === 0) return <Navigate to="/setup" replace />;
   return <LoginPage />;
 }
 
 function SetupOrLogin() {
+  const { authEnabled, isLoading: configLoading } = useAuthConfig();
   const { data, isLoading } = useUserCount();
-  if (isLoading) return null;
+  if (configLoading || isLoading) return null;
+  if (authEnabled === false) return <Navigate to="/" replace />;
   if (data?.count > 0) return <Navigate to="/login" replace />;
   return <SetupAdminPage />;
 }

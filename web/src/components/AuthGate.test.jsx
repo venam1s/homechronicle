@@ -33,6 +33,17 @@ function makeWrapper({ initialPath = '/' } = {}) {
   };
 }
 
+// Helper: build a URL-routing fetchJson mock. Routes /auth/config to { authEnabled: true }
+// (so all tests run in auth-on mode by default) and delegates /auth/me to the provided
+// meHandler. Any other URL rejects with an unexpected-URL error.
+function mockFetchJsonWithConfig(meHandler) {
+  fetchJson.mockImplementation((url) => {
+    if (url.includes('/auth/config')) return Promise.resolve({ authEnabled: true });
+    if (url.includes('/auth/me')) return meHandler(url);
+    return Promise.reject(new Error(`Unexpected URL in test: ${url}`));
+  });
+}
+
 describe('AuthGate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -41,7 +52,9 @@ describe('AuthGate', () => {
 
   it('renders children when /auth/me succeeds', async () => {
     // Real /auth/me envelope (WR-01): server returns { user: { id, email, role } }.
-    fetchJson.mockResolvedValueOnce({ user: { id: 1, email: 'user@example.com', role: 'admin' } });
+    mockFetchJsonWithConfig(() =>
+      Promise.resolve({ user: { id: 1, email: 'user@example.com', role: 'admin' } }),
+    );
 
     const Wrapper = makeWrapper();
     render(
@@ -67,7 +80,7 @@ describe('AuthGate', () => {
   it('redirects to /login when /auth/me returns 401', async () => {
     const authError = new Error('Unauthorized');
     authError.status = 401;
-    fetchJson.mockRejectedValueOnce(authError);
+    mockFetchJsonWithConfig(() => Promise.reject(authError));
 
     const Wrapper = makeWrapper();
     render(
@@ -92,10 +105,10 @@ describe('AuthGate', () => {
     expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
   });
 
-  it('does not retry on 401 (fetchJson called exactly once)', async () => {
+  it('does not retry on 401 (fetchJson called exactly once for /auth/me)', async () => {
     const authError = new Error('Unauthorized');
     authError.status = 401;
-    fetchJson.mockRejectedValue(authError);
+    mockFetchJsonWithConfig(() => Promise.reject(authError));
 
     const Wrapper = makeWrapper();
     render(
@@ -118,13 +131,18 @@ describe('AuthGate', () => {
       expect(screen.getByTestId('login-page')).toBeInTheDocument();
     });
 
-    // retry:false means fetchJson should only be called once
-    expect(fetchJson).toHaveBeenCalledTimes(1);
+    // retry:false means /auth/me fetchJson should only be called once (not retried).
+    // /auth/config is also called once by useAuthConfig — filter to /me calls only.
+    const meCalls = fetchJson.mock.calls.filter(([url]) => url.includes('/auth/me'));
+    expect(meCalls).toHaveLength(1);
   });
 
   it('renders loading state (spinner) while /auth/me is pending', () => {
-    // Never resolves — stays loading
-    fetchJson.mockReturnValueOnce(new Promise(() => {}));
+    // /auth/config resolves immediately (auth-on); /auth/me never resolves — stays loading.
+    fetchJson.mockImplementation((url) => {
+      if (url.includes('/auth/config')) return Promise.resolve({ authEnabled: true });
+      return new Promise(() => {}); // /auth/me hangs
+    });
 
     const Wrapper = makeWrapper();
     render(
@@ -153,6 +171,7 @@ describe('AuthGate', () => {
       // Real /auth/me envelope (WR-01): { user: { id, email, role } }.
       const me = { user: { id: 1, email: 'user@example.com', role: 'admin' } };
       fetchJson.mockImplementation((url) => {
+        if (url.includes('/auth/config')) return Promise.resolve({ authEnabled: true });
         if (url.includes('/auth/me')) return Promise.resolve(me);
         if (url.includes('/auth/csrf-token')) return Promise.resolve({ csrfToken: 'recovered-token' });
         return Promise.reject(new Error(`Unexpected URL: ${url}`));
@@ -192,6 +211,7 @@ describe('AuthGate', () => {
       // Real /auth/me envelope (WR-01): { user: { id, email, role } }.
       const me = { user: { id: 1, email: 'user@example.com', role: 'admin' } };
       fetchJson.mockImplementation((url) => {
+        if (url.includes('/auth/config')) return Promise.resolve({ authEnabled: true });
         if (url.includes('/auth/me')) return Promise.resolve(me);
         if (url.includes('/auth/csrf-token')) return Promise.resolve({ csrfToken: 'new-token' });
         return Promise.reject(new Error(`Unexpected URL: ${url}`));
@@ -227,7 +247,11 @@ describe('AuthGate', () => {
     it('does not fetch /auth/csrf-token when unauthenticated (redirects to /login)', async () => {
       const authError = new Error('Unauthorized');
       authError.status = 401;
-      fetchJson.mockRejectedValueOnce(authError);
+      fetchJson.mockImplementation((url) => {
+        if (url.includes('/auth/config')) return Promise.resolve({ authEnabled: true });
+        if (url.includes('/auth/me')) return Promise.reject(authError);
+        return Promise.reject(new Error(`Unexpected URL: ${url}`));
+      });
 
       const Wrapper = makeWrapper();
       render(

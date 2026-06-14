@@ -3,9 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { fetchJson, API_BASE } from '../lib/api.js';
+import { useAuthConfig } from '../hooks/useAuthConfig.js';
 
 export default function AuthGate({ children }) {
-  const { data, isLoading, isError } = useQuery({
+  const { authEnabled, isLoading: configLoading } = useAuthConfig();
+
+  const { data, isLoading: meLoading, isError } = useQuery({
     queryKey: ['auth', 'me'],
     // Shares the ['auth','me'] cache entry with useAuth — MUST unwrap the same way,
     // otherwise whichever query resolves first decides the shape and the other reads
@@ -13,6 +16,9 @@ export default function AuthGate({ children }) {
     queryFn: () => fetchJson(`${API_BASE}/auth/me`).then((d) => d?.user ?? null),
     staleTime: 60_000,
     retry: false,
+    // Only run the /me query when auth is enabled; in auth-off mode there is no
+    // session to validate and the call would 401 → redirect loop.
+    enabled: authEnabled === true,
   });
 
   // CSRF token recovery: when authenticated but sessionStorage has no token,
@@ -37,7 +43,22 @@ export default function AuthGate({ children }) {
     })();
   }, [data]);
 
-  if (isLoading) {
+  // While we're still loading the auth config, show the spinner.
+  if (configLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-hc-bg">
+        <Loader2 size={32} className="animate-spin text-hc-muted" />
+      </div>
+    );
+  }
+
+  // Auth is off — render children directly without any session requirement.
+  if (authEnabled === false) {
+    return children;
+  }
+
+  // Auth is on — require a valid session (existing behavior unchanged).
+  if (meLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-hc-bg">
         <Loader2 size={32} className="animate-spin text-hc-muted" />
