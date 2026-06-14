@@ -406,8 +406,7 @@ test('GET /stats/quiet-hours — no session uses shared config (path a)', async 
 
 // (b) Authed user whose blob has quietHoursEnabled:true → per-user values drive the response.
 // Shared config uses start:22/end:7; blob uses start:1/end:5 → response must reflect 1/5.
-// This test FAILS until Task 2 lands (RED).
-test('GET /stats/quiet-hours — authed user with QH blob uses per-user values (path b, RED until task 2)', async () => {
+test('GET /stats/quiet-hours — authed user with QH blob uses per-user values (path b)', async () => {
   const perUserBlob = {
     quietHoursEnabled: true,
     quietHoursStart: 1,
@@ -468,8 +467,7 @@ test('GET /stats/quiet-hours — authed user without QH key falls back to shared
 
 // (d) Malformed blob value: quietHoursEnabled present but quietHoursStart is a non-numeric string.
 // normalizeRetentionSettings must coerce it; handler must NOT 500 (QH-03).
-// This test FAILS until Task 2 lands (RED).
-test('GET /stats/quiet-hours — malformed blob start value does not 500 (path d, RED until task 2)', async () => {
+test('GET /stats/quiet-hours — malformed blob start value does not 500 (path d)', async () => {
   const malformedBlob = {
     quietHoursEnabled: true,
     quietHoursStart: 'abc',   // non-numeric — normalizeRetentionSettings coerces to default 23
