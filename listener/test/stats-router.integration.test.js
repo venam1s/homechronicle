@@ -12,10 +12,10 @@ function getRouteHandler(router, method, path) {
   throw new Error(`Route not found: ${method} ${path}`);
 }
 
-async function invoke(handler, { query = {}, params = {}, body = {} } = {}) {
+async function invoke(handler, { query = {}, params = {}, body = {}, hcSession } = {}) {
   let statusCode = 200;
   let jsonBody = null;
-  const req = { query, params, body };
+  const req = { query, params, body, hcSession };
   const res = {
     status(code) {
       statusCode = code;
@@ -355,6 +355,140 @@ test('GET /stats/retention-health — archive count error degrades to null witho
   assert.equal(jsonBody.totalRows, 100);
   assert.equal(jsonBody.retentionDays, 365);
   assert.equal(jsonBody.avgEventsPerDay, 10, '300 rows over 30 days');
+});
+
+// -- GET /stats/quiet-hours — session-aware resolution (Phase 25) --
+
+// Helper: builds a mock pool that returns prefs blobs for user_preferences SELECT
+// and event rows for the quiet-hours aggregation query.
+function makeQuietHoursPool({ prefsBlob = null, eventRows = [] } = {}) {
+  return {
+    async query(sql, _params) {
+      if (String(sql).includes('user_preferences')) {
+        const rows = prefsBlob !== null ? [{ prefs: prefsBlob }] : [];
+        return { rows };
+      }
+      // quiet-hours aggregation or any other stats query
+      return { rows: eventRows };
+    },
+  };
+}
+
+// (a) No session → resolves shared config (getRetentionSettings), not per-user blob.
+// Uses shared config with quietHoursEnabled:false → returns { enabled:false }, pool never issues
+// a user_preferences query.
+test('GET /stats/quiet-hours — no session uses shared config (path a)', async () => {
+  let prefsCalled = false;
+  const pool = {
+    async query(sql, _params) {
+      if (String(sql).includes('user_preferences')) {
+        prefsCalled = true;
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({ quietHoursEnabled: false }),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/quiet-hours');
+  // No hcSession — simulates API_TOKEN / AUTH_ENABLED=false path
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  assert.equal(jsonBody.enabled, false, 'shared config (disabled) used when no session');
+  assert.equal(prefsCalled, false, 'user_preferences must NOT be queried with no session');
+});
+
+// (b) Authed user whose blob has quietHoursEnabled:true → per-user values drive the response.
+// Shared config uses start:22/end:7; blob uses start:1/end:5 → response must reflect 1/5.
+// This test FAILS until Task 2 lands (RED).
+test('GET /stats/quiet-hours — authed user with QH blob uses per-user values (path b, RED until task 2)', async () => {
+  const perUserBlob = {
+    quietHoursEnabled: true,
+    quietHoursStart: 1,
+    quietHoursEnd: 5,
+    quietHoursExcludedAccessories: [],
+  };
+  const pool = makeQuietHoursPool({
+    prefsBlob: perUserBlob,
+    eventRows: [{
+      accessory_id: 'b1',
+      accessory_name: 'Night Light',
+      room_name: 'Bedroom',
+      count: 2,
+      last_seen_at: '2026-06-14T03:00:00Z',
+    }],
+  });
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    // Shared config has DIFFERENT hours (22/7) so any bleed-through from shared fails the assertion
+    getRetentionSettings: () => ({
+      quietHoursEnabled: true,
+      quietHoursStart: 22,
+      quietHoursEnd: 7,
+      quietHoursExcludedAccessories: [],
+    }),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/quiet-hours');
+  const { statusCode, jsonBody } = await invoke(handler, { hcSession: { user_id: 99 } });
+
+  assert.equal(statusCode, 200);
+  assert.equal(jsonBody.enabled, true, 'per-user blob: enabled should be true');
+  assert.equal(jsonBody.quietHoursStart, 1, 'per-user start hour should be 1, not shared 22');
+  assert.equal(jsonBody.quietHoursEnd, 5, 'per-user end hour should be 5, not shared 7');
+});
+
+// (c) Authed user whose blob lacks the quietHoursEnabled key → whole-config fallback to shared.
+// D-25-02: no partial merge — shared config must be used exclusively.
+test('GET /stats/quiet-hours — authed user without QH key falls back to shared config (path c)', async () => {
+  // Blob has unrelated keys but no quietHoursEnabled
+  const prefsBlob = { theme: 'dark', accent: 'ocean' };
+  const pool = makeQuietHoursPool({ prefsBlob, eventRows: [] });
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({ quietHoursEnabled: false }),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/quiet-hours');
+  const { statusCode, jsonBody } = await invoke(handler, { hcSession: { user_id: 7 } });
+
+  assert.equal(statusCode, 200);
+  assert.equal(jsonBody.enabled, false, 'no quietHoursEnabled key → whole-config fallback → disabled');
+});
+
+// (d) Malformed blob value: quietHoursEnabled present but quietHoursStart is a non-numeric string.
+// normalizeRetentionSettings must coerce it; handler must NOT 500 (QH-03).
+// This test FAILS until Task 2 lands (RED).
+test('GET /stats/quiet-hours — malformed blob start value does not 500 (path d, RED until task 2)', async () => {
+  const malformedBlob = {
+    quietHoursEnabled: true,
+    quietHoursStart: 'abc',   // non-numeric — normalizeRetentionSettings coerces to default 23
+    quietHoursEnd: 6,
+    quietHoursExcludedAccessories: [],
+  };
+  const pool = makeQuietHoursPool({ prefsBlob: malformedBlob, eventRows: [] });
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({ quietHoursEnabled: false }),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/quiet-hours');
+  const { statusCode } = await invoke(handler, { hcSession: { user_id: 5 } });
+
+  assert.notEqual(statusCode, 500, 'malformed blob must not produce a 500');
+  assert.equal(statusCode, 200, 'handler should respond 200 with coerced defaults');
 });
 
 // -- GET /stats/characteristic-breakdown --
