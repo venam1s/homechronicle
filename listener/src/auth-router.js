@@ -407,8 +407,9 @@ export function createAuthPublicRouter({
  *
  * @param {object} deps
  * @param {import('pg').Pool} deps.pool
+ * @param {boolean} [deps.SESSION_COOKIE_SECURE] — must match issuance in createAuthPublicRouter (M-6)
  */
-export function createAuthProtectedRouter({ pool }) {
+export function createAuthProtectedRouter({ pool, SESSION_COOKIE_SECURE = false }) {
   const router = express.Router();
 
   // -- GET /me — AUTH-03: return authenticated user --
@@ -443,8 +444,8 @@ export function createAuthProtectedRouter({ pool }) {
       if (raw) {
         await revokeSession(pool, hashToken(raw));
       }
-      // Clear the cookie by setting Max-Age=0 (same name + path as issuance in createAuthPublicRouter)
-      res.clearCookie('hc_session', { httpOnly: true, sameSite: 'lax', path: '/' });
+      // Clear the cookie by setting Max-Age=0 (same name + path + flags as issuance in createAuthPublicRouter)
+      res.clearCookie('hc_session', { httpOnly: true, sameSite: 'lax', secure: SESSION_COOKIE_SECURE, path: '/' });
       res.json({ ok: true });
     } catch (err) {
       log.error('[api] /api/auth/logout error:', err.message ?? err.stack ?? err);

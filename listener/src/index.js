@@ -578,7 +578,7 @@ app.use(async (req, res, next) => {
 app.use(csrfSynchronisedProtection);
 
 // Protected auth routes — gate populates req.hcSession before these run.
-app.use('/api/auth', createAuthProtectedRouter({ pool }));
+app.use('/api/auth', createAuthProtectedRouter({ pool, SESSION_COOKIE_SECURE }));
 
 // Setup routes (discovery, pairing, rooms, display names, notes, log level)
 app.use('/api/setup', createSetupRouter({
