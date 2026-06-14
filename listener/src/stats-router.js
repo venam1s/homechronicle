@@ -351,9 +351,9 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
           [userId],
         );
         const blob = prefResult.rows[0]?.prefs ?? {};
-        if ('quietHoursEnabled' in blob) {
-          // Blob values pass through normalizeRetentionSettings so malformed input
-          // cannot 500 or inject into SQL parameters (QH-03).
+        if (blob && typeof blob === 'object' && !Array.isArray(blob) && 'quietHoursEnabled' in blob) {
+          // Blob values pass through normalizeRetentionSettings so malformed values
+          // (e.g. non-numeric start/end) cannot inject into SQL parameters (QH-03).
           settings = normalizeRetentionSettings(blob);
         }
       }
