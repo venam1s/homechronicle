@@ -54,7 +54,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
   const { data: retentionConfig }    = useQuery({
     queryKey: ['setup', 'retention'],
     queryFn: () => fetchJson('/api/setup/retention'),
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
   });
   const episodeWindowMs = (retentionConfig?.episodeWindowMinutes ?? 3) * 60_000;
   const sceneWindowMs = (retentionConfig?.sceneWindowSeconds ?? 5) * 1000;

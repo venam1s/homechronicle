@@ -59,6 +59,7 @@ export function useSetup() {
   const { data: retentionConfig } = useQuery({
     queryKey: ['setup', 'retention'],
     queryFn: () => fetchJson('/api/setup/retention'),
+    staleTime: 30_000,
   });
 
   const { data: logLevelConfig } = useQuery({
