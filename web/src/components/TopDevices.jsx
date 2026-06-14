@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTopDevices } from '../hooks/useEvents.js';
 import { SkeletonList } from './Skeleton.jsx';
 import { getServiceIcon } from '../lib/icons.js';
 import { getRoomColor } from '../lib/roomColors.js';
 import clsx from 'clsx';
+import { usePreference } from '../hooks/usePreference.js';
 
 const WINDOWS = [
   { label: '7d', days: 7 },
@@ -14,30 +15,13 @@ const STORAGE_KEY = 'hc_dashboard_top_devices_days';
 const VALID_DAYS = new Set(WINDOWS.map((w) => w.days));
 
 export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
-  const [days, setDays] = useState(() => {
-    if (typeof window === 'undefined') return 7;
-    try {
-      const stored = Number.parseInt(window.localStorage.getItem(STORAGE_KEY) ?? '', 10);
-      return VALID_DAYS.has(stored) ? stored : 7;
-    } catch {
-      return 7;
-    }
-  });
+  const [days, setDays] = usePreference('dashboardTopDevicesDays', 7, { localStorageKey: STORAGE_KEY });
   const { data, isLoading, isError } = useTopDevices(days);
 
   useEffect(() => {
     if (!VALID_DAYS.has(forcedDays) || forcedDays === days) return;
     setDays(forcedDays);
   }, [forcedDays, days]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, String(days));
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [days]);
 
   function handleSetDays(next) {
     setDays(next);

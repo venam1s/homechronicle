@@ -3,6 +3,7 @@ import { SkeletonBlock } from './Skeleton.jsx';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
+import { usePreference } from '../hooks/usePreference.js';
 
 const CELL = 18; // px
 const GAP  = 2;  // px
@@ -31,15 +32,7 @@ const AXIS_LABELS = ['midnight', '6 am', 'noon', '6 pm', ''];
 
 export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null }) {
   const accent = useAccentRgb();
-  const [days, setDays] = useState(() => {
-    if (typeof window === 'undefined') return 30;
-    try {
-      const stored = Number.parseInt(window.localStorage.getItem(STORAGE_KEY) ?? '', 10);
-      return VALID_DAYS.has(stored) ? stored : 30;
-    } catch {
-      return 30;
-    }
-  });
+  const [days, setDays] = usePreference('dashboardWeekdayDays', 30, { localStorageKey: STORAGE_KEY });
   const { data = [], isLoading, isError } = useWeekdayStats(days);
   const [hoveredCell, setHoveredCell] = useState(null);
 
@@ -47,15 +40,6 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
     if (!VALID_DAYS.has(forcedDays) || forcedDays === days) return;
     setDays(forcedDays);
   }, [forcedDays, days]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, String(days));
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [days]);
 
   function handleSetDays(next) {
     setDays(next);

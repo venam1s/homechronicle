@@ -7,6 +7,11 @@ vi.mock('../hooks/useEvents.js', () => ({
 vi.mock('../hooks/useAccentRgb.js', () => ({
   useAccentRgb: vi.fn(() => [37, 99, 235]),
 }));
+// Mock usePreference so TrendChart renders without a QueryClientProvider.
+// Returns the default 30 to preserve existing test expectations (empty-state says "last 30 days").
+vi.mock('../hooks/usePreference.js', () => ({
+  usePreference: vi.fn(() => [30, vi.fn()]),
+}));
 
 import { useDailyStats } from '../hooks/useEvents.js';
 import TrendChart from './TrendChart.jsx';

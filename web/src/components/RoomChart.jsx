@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import clsx from 'clsx';
 import { useRoomStats } from '../hooks/useEvents.js';
 import { SkeletonList } from './Skeleton.jsx';
 import { getRoomColor } from '../lib/roomColors.js';
+import { usePreference } from '../hooks/usePreference.js';
 
 const WINDOWS = [
   { label: '7d',  days: 7  },
@@ -18,30 +19,13 @@ function toCount(value) {
 }
 
 export default function RoomChart({ forcedDays = null, onDaysChange = null }) {
-  const [days, setDays] = useState(() => {
-    if (typeof window === 'undefined') return 7;
-    try {
-      const stored = Number.parseInt(window.localStorage.getItem(STORAGE_KEY) ?? '', 10);
-      return VALID_DAYS.has(stored) ? stored : 7;
-    } catch {
-      return 7;
-    }
-  });
+  const [days, setDays] = usePreference('dashboardRoomDays', 7, { localStorageKey: STORAGE_KEY });
   const { data, isLoading, isError } = useRoomStats(days);
 
   useEffect(() => {
     if (!VALID_DAYS.has(forcedDays) || forcedDays === days) return;
     setDays(forcedDays);
   }, [forcedDays, days]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, String(days));
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [days]);
 
   function handleSetDays(next) {
     setDays(next);
