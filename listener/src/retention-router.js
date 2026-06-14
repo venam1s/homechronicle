@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
-import { rateLimitKeyGenerator } from './security.js';
+import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 
 const RETENTION_DAYS_DEFAULT = Number.parseInt(process.env.RETENTION_DAYS ?? '365', 10);
 const RETENTION_ARCHIVE_DEFAULT = /^(1|true|yes|on)$/i.test(process.env.RETENTION_ARCHIVE ?? 'true');
@@ -91,7 +91,7 @@ export function createRetentionRouter({ getSettings, saveSettings, sweepMs = 0 }
     res.json(settingsToJson(getSettings(), sweepMs));
   });
 
-  router.patch('/retention', retentionWriteLimiter, async (req, res) => {
+  router.patch('/retention', requireAdminSession, retentionWriteLimiter, async (req, res) => {
     const body = req.body ?? {};
     const updates = {};
 

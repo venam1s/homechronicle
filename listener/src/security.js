@@ -91,6 +91,27 @@ function classifyResolvedAddress(address, allowPrivateTargets) {
   return { blocked: true, reason: 'hostname resolved to a non-IP address' };
 }
 
+/**
+ * Legacy-safe admin session guard (H-1 / admin-only enforcement).
+ *
+ * Blocks an authenticated MEMBER session (req.hcSession set, role !== 'admin') → 403.
+ * ALLOWS admin sessions (role === 'admin').
+ * ALLOWS the service API_TOKEN path (no session → req.hcSession undefined).
+ * ALLOWS AUTH_ENABLED=false legacy mode (no session ever set).
+ * The optional-chaining form (?.) is intentionally NOT used — that form would
+ * 403 every request without a session, breaking legacy/service deployments.
+ *
+ * Apply as route middleware BEFORE the write rate-limiter on destructive routes only.
+ * Do NOT apply to GET routes, /matter/events, /room, /display-name, /note, or
+ * /me/preferences.
+ */
+export function requireAdminSession(req, res, next) {
+  if (req.hcSession && req.hcSession.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  return next();
+}
+
 export function rateLimitKeyGenerator(req) {
   // Only trust X-Forwarded-For when Express trust proxy is configured,
   // otherwise an attacker can spoof the header to bypass rate limits.

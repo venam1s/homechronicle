@@ -1,7 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
-import { rateLimitKeyGenerator } from './security.js';
+import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { parseIntInRange } from './utils.js';
 
 const ARCHIVE_READ_RATE_LIMIT_WINDOW_MS = parseIntInRange(
@@ -124,7 +124,7 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
   });
 
   // Data management
-  router.delete('/data/accessory', archiveWriteLimiter, async (req, res) => {
+  router.delete('/data/accessory', requireAdminSession, archiveWriteLimiter, async (req, res) => {
     const { accessoryId } = req.body ?? {};
     if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
     try {
@@ -147,7 +147,7 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
     }
   });
 
-  router.delete('/data/all', archiveWriteLimiter, async (req, res) => {
+  router.delete('/data/all', requireAdminSession, archiveWriteLimiter, async (req, res) => {
     if (req.body?.confirm !== 'DELETE ALL') {
       return res.status(400).json({ error: 'Request body must include { "confirm": "DELETE ALL" }' });
     }

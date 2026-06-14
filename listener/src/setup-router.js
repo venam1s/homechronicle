@@ -1,7 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log, getLevel, setLevel } from './logger.js';
-import { rateLimitKeyGenerator } from './security.js';
+import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { parseIntInRange } from './utils.js';
 import { shortUuid } from './accessory-metadata.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
@@ -59,7 +59,7 @@ export function createSetupRouter({
     res.json({ accessories: results, cachedAt: new Date().toISOString() });
   });
 
-  router.post('/scan', setupWriteLimiter, async (_req, res) => {
+  router.post('/scan', requireAdminSession, setupWriteLimiter, async (_req, res) => {
     try {
       log.info('[setup] Manual scan triggered from UI');
       const results = await runDiscoveryScan();
@@ -76,7 +76,7 @@ export function createSetupRouter({
 
   // -- Pairing (HomeKit) --
 
-  router.post('/pair', setupWriteLimiter, async (req, res) => {
+  router.post('/pair', requireAdminSession, setupWriteLimiter, async (req, res) => {
     const { deviceId, pin, protocol = 'homekit' } = req.body ?? {};
     if (String(protocol).toLowerCase() !== 'homekit') {
       return res.status(400).json({ error: 'Unsupported protocol for this endpoint. Use /api/setup/matter/pair.' });
@@ -197,7 +197,7 @@ export function createSetupRouter({
     res.json(list);
   });
 
-  router.delete('/pairing/:deviceId', setupWriteLimiter, async (req, res) => {
+  router.delete('/pairing/:deviceId', requireAdminSession, setupWriteLimiter, async (req, res) => {
     const { deviceId } = req.params;
     const currentPairings = loadPairings();
 
@@ -220,7 +220,7 @@ export function createSetupRouter({
     res.json({ success: true, name });
   });
 
-  router.post('/repair/:deviceId', setupWriteLimiter, async (req, res) => {
+  router.post('/repair/:deviceId', requireAdminSession, setupWriteLimiter, async (req, res) => {
     const { deviceId } = req.params;
     const { pin: overridePin } = req.body ?? {};
     const currentPairings = loadPairings();
@@ -311,7 +311,7 @@ export function createSetupRouter({
     }
   });
 
-  router.post('/add-pairing', setupWriteLimiter, async (req, res) => {
+  router.post('/add-pairing', requireAdminSession, setupWriteLimiter, async (req, res) => {
     const { sourcePairings } = req.body ?? {};
     if (!sourcePairings || typeof sourcePairings !== 'object') {
       return res.status(400).json({ error: 'sourcePairings object is required' });
@@ -435,7 +435,7 @@ export function createSetupRouter({
     res.json({ level: getLevel() });
   });
 
-  router.patch('/log-level', setupWriteLimiter, (req, res) => {
+  router.patch('/log-level', requireAdminSession, setupWriteLimiter, (req, res) => {
     const { level } = req.body ?? {};
     try {
       setLevel(level);

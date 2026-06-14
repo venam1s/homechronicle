@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { parseIntInRange } from './utils.js';
 import { log } from './logger.js';
-import { validateWebhookTargetUrl, rateLimitKeyGenerator } from './security.js';
+import { validateWebhookTargetUrl, rateLimitKeyGenerator, requireAdminSession } from './security.js';
 
 const VALID_SCOPE_TYPES = new Set(['all', 'room', 'accessory', 'characteristic']);
 const VALID_OPERATORS = new Set(['equals', 'not_equals', 'contains']);
@@ -278,7 +278,7 @@ export function createAlertsRouter({ pool }) {
     }
   });
 
-  router.post('/rules', alertsWriteLimiter, async (req, res) => {
+  router.post('/rules', requireAdminSession, alertsWriteLimiter, async (req, res) => {
     const parsed = validateCreate(req.body);
     if (parsed.error) return res.status(400).json({ error: parsed.error });
 
@@ -315,7 +315,7 @@ export function createAlertsRouter({ pool }) {
     }
   });
 
-  router.patch('/rules/:id', alertsWriteLimiter, async (req, res) => {
+  router.patch('/rules/:id', requireAdminSession, alertsWriteLimiter, async (req, res) => {
     const ruleId = Number.parseInt(String(req.params.id ?? ''), 10);
     if (!Number.isFinite(ruleId) || ruleId < 1) {
       return res.status(400).json({ error: 'Invalid rule id' });
@@ -366,7 +366,7 @@ export function createAlertsRouter({ pool }) {
     }
   });
 
-  router.delete('/rules/:id', alertsWriteLimiter, async (req, res) => {
+  router.delete('/rules/:id', requireAdminSession, alertsWriteLimiter, async (req, res) => {
     const ruleId = Number.parseInt(String(req.params.id ?? ''), 10);
     if (!Number.isFinite(ruleId) || ruleId < 1) {
       return res.status(400).json({ error: 'Invalid rule id' });

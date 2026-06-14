@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
-import { rateLimitKeyGenerator } from './security.js';
+import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 
 export function createAlertsSettingsRouter({ getSettings, saveSettings, onSettingsChange }) {
   const router = Router();
@@ -22,7 +22,7 @@ export function createAlertsSettingsRouter({ getSettings, saveSettings, onSettin
     }
   });
 
-  router.patch('/alerts', writeLimiter, async (req, res) => {
+  router.patch('/alerts', requireAdminSession, writeLimiter, async (req, res) => {
     try {
       const body = req.body ?? {};
       const updates = {};

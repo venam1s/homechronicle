@@ -2,7 +2,7 @@ import express from 'express';
 import { randomBytes } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
-import { rateLimitKeyGenerator } from './security.js';
+import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { toOptionalText, toOptionalInt, normalizeNodeId, isMatterPairing } from './matter-utils.js';
 
 function generateNodeId(pairings) {
@@ -65,7 +65,7 @@ export function createMatterRouter({
     res.json({ devices, cachedAt: new Date().toISOString() });
   });
 
-  router.post('/setup/matter/scan', matterWriteLimiter, async (_req, res) => {
+  router.post('/setup/matter/scan', requireAdminSession, matterWriteLimiter, async (_req, res) => {
     if (!matterRuntime) {
       return res.status(503).json({ error: 'Matter runtime unavailable' });
     }
@@ -106,7 +106,7 @@ export function createMatterRouter({
     }
   });
 
-  router.post('/setup/matter/commission', matterWriteLimiter, async (req, res) => {
+  router.post('/setup/matter/commission', requireAdminSession, matterWriteLimiter, async (req, res) => {
     if (!matterRuntime) {
       return res.status(503).json({ error: 'Matter runtime unavailable' });
     }
@@ -154,7 +154,7 @@ export function createMatterRouter({
 
   // Phase 1 import path: register a pre-commissioned Matter node.
   // Commissioning workflows (BLE/thread dataset orchestration) are handled later.
-  router.post('/setup/matter/pair', matterWriteLimiter, async (req, res) => {
+  router.post('/setup/matter/pair', requireAdminSession, matterWriteLimiter, async (req, res) => {
     const requestedNodeId = normalizeNodeId(req.body?.nodeId);
     const name = toOptionalText(req.body?.name);
     if (!name) {
@@ -230,7 +230,7 @@ export function createMatterRouter({
     });
   });
 
-  router.delete('/setup/matter/pairing/:nodeId', matterWriteLimiter, async (req, res) => {
+  router.delete('/setup/matter/pairing/:nodeId', requireAdminSession, matterWriteLimiter, async (req, res) => {
     const nodeId = normalizeNodeId(req.params.nodeId);
     if (!nodeId) return res.status(400).json({ error: 'nodeId is required' });
 
