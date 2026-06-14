@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import App from './App.jsx';
 import { ToastProvider } from './components/Toast.jsx';
+import { UserPreferencesProvider } from './components/UserPreferencesProvider.jsx';
 import AuthGate from './components/AuthGate.jsx';
 import LoginPage from './components/LoginPage.jsx';
 import SetupAdminPage from './components/SetupAdminPage.jsx';
@@ -49,7 +50,9 @@ const router = createBrowserRouter([
     path: '/*',
     element: (
       <AuthGate>
-        <App />
+        <UserPreferencesProvider>
+          <App />
+        </UserPreferencesProvider>
       </AuthGate>
     ),
   },

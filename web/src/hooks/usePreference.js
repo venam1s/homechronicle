@@ -30,7 +30,7 @@
  * First paint (D-16): useState initializer reads localStorage synchronously — no flash.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from './useAuth.js';
 import { useUserPreferences } from './useUserPreferences.js';
 
@@ -78,24 +78,11 @@ export function usePreference(key, defaultValue, {
     return local !== null ? local : defaultValue;
   });
 
-  // Seeding guard — fires exactly once per hook instance when the blob is empty.
-  const seedFiredRef = useRef(false);
-
-  // SEEDING (PREF-11/D-14):
-  // When authenticated and the server blob is empty, fire ONE setPrefsBlob call with the
-  // current localStorage value for this key (per-key snapshot). Ref-guarded.
-  useEffect(() => {
-    if (!user) return;
-    if (seedFiredRef.current) return;
-    if (!prefs || typeof prefs !== 'object') return;
-    if (Object.keys(prefs).length > 0) return;
-
-    // Blob is empty — seed with the current local value.
-    seedFiredRef.current = true;
-    const localVal = readLocal(localStorageKey, deserialize);
-    const seedVal = localVal !== null ? localVal : defaultValue;
-    setPrefsBlob({ [key]: seedVal });
-  }, [user, prefs]); // eslint-disable-line react-hooks/exhaustive-deps
+  // SEEDING NOTE (PREF-11/D-14): seeding is owned solely by UserPreferencesProvider's
+  // seedIfEmpty (invoked once from App.jsx with the full localStorage snapshot + shared
+  // toast/grouping values). The previous per-key seeding effect here was removed — having
+  // both produced an uncoordinated race that could persist a partial blob and permanently
+  // block the full seed (CR-01 second harm).
 
   // RECONCILIATION (D-10):
   // When the server blob resolves (or updates), reconcile the local state to the blob value.
