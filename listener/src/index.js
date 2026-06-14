@@ -47,6 +47,7 @@ import { initEmail, sendInvite, sendPasswordReset, isEmailEnabled } from './emai
 import { readSmtpSecret, writeSmtpSecret, buildSmtpConfig, envOverriddenFields, getAppBaseUrl, SMTP_CONFIG_FILE } from './smtp-config.js';
 import { createSmtpRouter } from './smtp-router.js';
 import { createUsersRouter } from './users-router.js';
+import { createMeRouter } from './me-router.js';
 
 // ─── Process-level error handlers — registered before any async operations ───
 // D-01: Log rejection but do NOT exit — exiting kills HAP subscriptions
@@ -653,6 +654,9 @@ app.use('/api/users', createUsersRouter({
   isEmailEnabled,
   appBaseUrl: APP_BASE_URL,
 }));
+// D-08: me-router mounted after the global auth gate (line ~524) and csrfSynchronisedProtection
+// (line ~577). PUT is CSRF-protected automatically (SEC-02). Per-handler 401 rejects service tokens.
+app.use('/api/me', createMeRouter({ pool }));
 let matterDiscoveryCache = [];
 app.use('/api', createMatterRouter({
   insertEvent,
