@@ -229,6 +229,46 @@ describe('cross-instance debounce (CR-01 regression)', () => {
     const body = JSON.parse(putCalls[0][1].body);
     expect(body.prefs).toMatchObject({ theme: 'dark', accent: 'purple' });
   });
+
+  it('serializes PUTs across debounce windows — a later PUT waits for the in-flight one and carries all keys', async () => {
+    // Guards the across-window variant of CR-01: an earlier slow whole-blob PUT must not be sent
+    // concurrently with (or land after) a newer one, or the server's last-writer-wins replace
+    // would drop the newer keys.
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+
+    const putBodies = [];
+    let resolveFirstPut;
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === 'PUT') {
+        const sent = JSON.parse(opts.body).prefs;
+        putBodies.push(sent);
+        if (putBodies.length === 1) {
+          return new Promise((res) => { resolveFirstPut = () => res({ prefs: sent }); });
+        }
+        return Promise.resolve({ prefs: sent });
+      }
+      return Promise.resolve({ prefs: {} });
+    });
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toBeDefined());
+
+    vi.useFakeTimers();
+    act(() => { result.current.setPrefsBlob({ a: 1 }); });
+    await act(async () => { vi.advanceTimersByTime(500); });
+    expect(putBodies).toHaveLength(1); // first PUT dispatched, now in-flight
+
+    act(() => { result.current.setPrefsBlob({ b: 2 }); });
+    await act(async () => { vi.advanceTimersByTime(500); });
+    expect(putBodies).toHaveLength(1); // second PUT held back — first is still in-flight (serialized)
+
+    await act(async () => { resolveFirstPut(); await Promise.resolve(); });
+    vi.useRealTimers();
+
+    await waitFor(() => expect(putBodies).toHaveLength(2));
+    expect(putBodies[1]).toMatchObject({ a: 1, b: 2 }); // superset — no dropped key
+  });
 });
 
 describe('seedIfEmpty (PREF-11/D-14)', () => {

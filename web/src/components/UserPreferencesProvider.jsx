@@ -20,7 +20,7 @@
  * so consumers degrade to their pure-localStorage anon path (PREF-05/D-15) with zero server calls.
  */
 
-import { createContext, useRef } from 'react';
+import { createContext, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchJson, API_BASE } from '../lib/api.js';
 import { useAuth } from '../hooks/useAuth.js';
@@ -98,6 +98,13 @@ export function UserPreferencesProvider({ children }) {
   // SHARED once-only seeding guard — survives re-renders; one seed per app session.
   const seedFiredRef = useRef(false);
 
+  // PUT serialization: chain flushes so the server receives whole-blob replaces in dispatch
+  // order (the server does last-writer-wins — an out-of-order stale PUT would drop keys).
+  const inFlightRef = useRef(Promise.resolve());
+  // Monotonic flush sequence — guards the cache echo so a slow earlier PUT cannot clobber a
+  // newer flush's value.
+  const flushSeqRef = useRef(0);
+
   const { data: prefs, isLoading } = useQuery({
     queryKey: ['me', 'preferences'],
     // Self-contained queryFn — unwraps { prefs: {...} } envelope (D-09).
@@ -114,10 +121,15 @@ export function UserPreferencesProvider({ children }) {
         method: 'PUT',
         body: JSON.stringify({ prefs: blob }),
       }),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['me', 'preferences'], data?.prefs ?? {});
-    },
+    // Cache reconciliation is done in the serialized flush below (sequence-guarded), NOT here —
+    // an unguarded onSuccess lets a stale out-of-order echo overwrite a newer value.
   });
+
+  // Clear any pending debounce on unmount (e.g. logout/route change) so a trailing PUT is not
+  // fired against an unauthenticated session after the provider is gone.
+  useEffect(() => () => {
+    if (debounceTimerRef.current != null) clearTimeout(debounceTimerRef.current);
+  }, []);
 
   /**
    * setPrefsBlob(partial) — debounced merging PUT against the SHARED buffer.
@@ -136,13 +148,16 @@ export function UserPreferencesProvider({ children }) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    const promise = new Promise((resolve, reject) => {
-      pendingResolversRef.current.push({ resolve, reject });
+    // Returned promise always RESOLVES (never rejects) — callers are fire-and-forget; a
+    // rejecting promise nobody awaits becomes an unhandledrejection (e.g. PUT 401 after logout).
+    const promise = new Promise((resolve) => {
+      pendingResolversRef.current.push({ resolve });
     });
 
-    debounceTimerRef.current = setTimeout(async () => {
+    debounceTimerRef.current = setTimeout(() => {
       debounceTimerRef.current = null;
 
+      const mySeq = ++flushSeqRef.current;
       const latestCache = queryClient.getQueryData(['me', 'preferences']) ?? {};
       const merged = { ...latestCache, ...pendingPartialRef.current };
 
@@ -152,12 +167,27 @@ export function UserPreferencesProvider({ children }) {
       // Optimistically update the cache before the PUT.
       queryClient.setQueryData(['me', 'preferences'], merged);
 
-      try {
-        await putMutation.mutateAsync(merged);
-        resolvers.forEach(({ resolve }) => resolve());
-      } catch (err) {
-        resolvers.forEach(({ reject: rej }) => rej(err));
-      }
+      // Serialize: chain after any in-flight PUT so the server receives whole-blob replaces in
+      // dispatch order. Each merged body is a superset of the prior (it reads the optimistic
+      // cache), so ordered delivery converges correctly with no dropped keys (CR-01 across-window).
+      inFlightRef.current = inFlightRef.current
+        .catch(() => {})
+        .then(async () => {
+          try {
+            const data = await putMutation.mutateAsync(merged);
+            // Adopt the server echo only if no newer flush has superseded this one — prevents a
+            // slow earlier PUT's response from clobbering a fresher value in the cache.
+            if (mySeq === flushSeqRef.current) {
+              queryClient.setQueryData(['me', 'preferences'], data?.prefs ?? merged);
+            }
+          } catch {
+            // Swallow — the write failed server-side but localStorage already mirrors it; surfacing
+            // a rejection on a fire-and-forget promise would be an unhandledrejection. Last value
+            // re-syncs on the next successful PUT or page reload.
+          } finally {
+            resolvers.forEach(({ resolve }) => resolve());
+          }
+        });
     }, 500);
 
     return promise;
