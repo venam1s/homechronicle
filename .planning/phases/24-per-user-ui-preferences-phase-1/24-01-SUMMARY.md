@@ -110,12 +110,13 @@ Factory `createMeRouter({ pool })` exports an Express router with:
 
 ### web/src/hooks/useUserPreferences.test.js
 
-5 cases (all RED):
-- Query key `['me', 'preferences']` (not `['auth', 'me']` — D-09 collision guard)
+6 cases (all RED):
+- Query key `['me', 'preferences']` verified via `queryClient.getQueryData` (not via `_queryKey` fabricated property — D-09 collision guard)
 - `queryFn` unwraps `d?.prefs ?? {}` (not raw envelope)
 - Empty blob returns `{}`
 - Query disabled when `user === null` — zero fetchJson calls (PREF-05/D-15)
 - PUT mutation sends `{ prefs: blob }` and updates cache
+- Debounce: rapid `setPrefsBlob` calls coalesce into ONE `fetchJson` PUT with ALL keys (D-09, `vi.useFakeTimers()`)
 
 ### web/src/hooks/usePreference.test.js
 
@@ -124,12 +125,22 @@ Factory `createMeRouter({ pool })` exports an Express router with:
 - Anon: zero fetchJson, value from localStorage, setter writes localStorage only
 - Default value when localStorage is empty and user is null
 - Seeding: exactly ONE `setPrefsBlob` call on empty blob; zero calls on non-empty blob (PREF-11/D-14)
-- Debounce: multiple rapid set calls coalesce into ONE PUT with ALL keys in window (D-05, uses `vi.useFakeTimers()`)
+- Setter delegates per-key writes to `setPrefsBlob` (D-10)
 - Malformed blob: falls back to per-key default (D-18)
+
+Note: cross-key debounce coalescing is tested in `useUserPreferences.test.js` (D-09) where the observable `fetchJson` PUT contract lives.
 
 ## Deviations from Plan
 
-None — plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] Corrected RED web hook test assertions after advisor review**
+- **Found during:** Post-execution advisor review
+- **Issue 1:** `useUserPreferences.test.js` asserted `result.current._queryKey` — a fabricated property that forces 24-03 to expose an internal. The correct approach is `queryClient.getQueryData(['me','preferences'])` which verifies the key via observable cache state.
+- **Issue 2:** `usePreference.test.js` had a debounce-coalescing test asserting `setPrefsBlob` called exactly once across two separate hook instances. This invented a cross-hook module-level shared buffer architecture. Per D-09, debounce lives in `useUserPreferences.setPrefs`; the correct observable is `fetchJson` PUT call count, and the test belongs in `useUserPreferences.test.js`.
+- **Fix:** Moved debounce coalescing test to `useUserPreferences.test.js` asserting on `fetchJson` PUT; replaced `_queryKey` with `queryClient.getQueryData`; replaced `usePreference` debounce test with a per-key delegation test (D-10).
+- **Files modified:** `web/src/hooks/useUserPreferences.test.js`, `web/src/hooks/usePreference.test.js`
+- **Commit:** ed6edba
 
 The me-router skeleton was kept at minimal (501 stub) rather than implementing pool queries, preserving the 7 intentional RED stubs for 24-02 to turn green. This matches the plan's "handlers may be minimal placeholders" direction.
 
@@ -147,7 +158,7 @@ None — no new network endpoints, auth paths, or schema beyond the planned `use
 - listener/test/migration.0007.test.js: EXISTS, 8/8 GREEN
 - listener/src/me-router.js: EXISTS, exports createMeRouter
 - listener/test/me-router.integration.test.js: EXISTS, 10 GREEN / 7 RED (as required)
-- web/src/hooks/useUserPreferences.test.js: EXISTS, RED (import-level, expected)
-- web/src/hooks/usePreference.test.js: EXISTS, RED (import-level, expected)
-- Commits: 0e76f6b, bafe0e7, 73936ed (verified via git log)
+- web/src/hooks/useUserPreferences.test.js: EXISTS, 6 cases (RED, import-level, expected)
+- web/src/hooks/usePreference.test.js: EXISTS, 12 cases (RED, import-level, expected)
+- Commits: 0e76f6b, bafe0e7, 73936ed, ed6edba (verified via git log)
 - No regressions: 609 pre-existing listener tests all still pass (609 + 8 migration + 10 me-router-green = 627 passing)
