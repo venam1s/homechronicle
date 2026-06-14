@@ -6,6 +6,8 @@ import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
 import Card from '../Card.jsx';
 import { useToast } from '../Toast.jsx';
+import { useAuth } from '../../hooks/useAuth.js';
+import { usePreference } from '../../hooks/usePreference.js';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, h) => {
   const period = h < 12 ? 'AM' : 'PM';
@@ -43,6 +45,20 @@ export default function SettingsTab({ setup }) {
   } = setup;
 
   const { addToast, configure: configureToasts } = useToast();
+  const { user } = useAuth();
+
+  // PREF-10: toast + grouping per-user blob fields (authed path only).
+  // Default codec (JSON) is correct for bool/number/string-enum values.
+  // Unique localStorage keys (hc_pref_*) prevent cross-contamination between instances.
+  const [blobToastsEnabled, setBlobToastsEnabled] = usePreference('toastsEnabled', true, { localStorageKey: 'hc_pref_toastsEnabled' });
+  const [blobLiveEventToastsEnabled, setBlobLiveEventToastsEnabled] = usePreference('liveEventToastsEnabled', false, { localStorageKey: 'hc_pref_liveEventToastsEnabled' });
+  const [blobToastPosition, setBlobToastPosition] = usePreference('toastPosition', 'bottom-right', { localStorageKey: 'hc_pref_toastPosition' });
+  const [blobToastDuration, setBlobToastDuration] = usePreference('toastDuration', 3, { localStorageKey: 'hc_pref_toastDuration' });
+  const [blobToastMaxVisible, setBlobToastMaxVisible] = usePreference('toastMaxVisible', 3, { localStorageKey: 'hc_pref_toastMaxVisible' });
+  const [blobEpisodeWindowMinutes, setBlobEpisodeWindowMinutes] = usePreference('episodeWindowMinutes', 3, { localStorageKey: 'hc_pref_episodeWindowMinutes' });
+  const [blobSceneWindowSeconds, setBlobSceneWindowSeconds] = usePreference('sceneWindowSeconds', 5, { localStorageKey: 'hc_pref_sceneWindowSeconds' });
+  const [blobEpisodeMinEventCount, setBlobEpisodeMinEventCount] = usePreference('episodeMinEventCount', 3, { localStorageKey: 'hc_pref_episodeMinEventCount' });
+
   const queryClient = useQueryClient();
   const archiveCountQuery = useQuery({
     queryKey: ['archive', 'count'],
@@ -150,6 +166,16 @@ export default function SettingsTab({ setup }) {
   const sceneWindowCurrent = retentionConfig?.sceneWindowSeconds ?? 5;
   const episodeMinEventCurrent = retentionConfig?.episodeMinEventCount ?? 3;
   const repairEnabledCurrent = Boolean(repairConfig?.enabled ?? false);
+
+  // Effective values: authed reads from user blob (via usePreference), anon reads from retentionConfig.
+  const effectiveToastsEnabled = user ? blobToastsEnabled : toastsEnabledInput;
+  const effectiveLiveEventToastsEnabled = user ? blobLiveEventToastsEnabled : liveEventToastsEnabledInput;
+  const effectiveToastPosition = user ? blobToastPosition : toastPositionInput;
+  const effectiveToastDuration = user ? blobToastDuration : toastDurationInput;
+  const effectiveToastMaxVisible = user ? blobToastMaxVisible : toastMaxVisibleInput;
+  const effectiveEpisodeWindowMinutes = user ? blobEpisodeWindowMinutes : episodeWindowCurrent;
+  const effectiveSceneWindowSeconds = user ? blobSceneWindowSeconds : sceneWindowCurrent;
+  const effectiveEpisodeMinEventCount = user ? blobEpisodeMinEventCount : episodeMinEventCurrent;
   const repairHourCurrent = repairConfig?.hour != null ? utcHourToLocal(repairConfig.hour) : 3;
 
   useEffect(() => {
@@ -178,16 +204,22 @@ export default function SettingsTab({ setup }) {
   }, [quietHoursEnabledCurrent, quietHoursStartCurrent, quietHoursEndCurrent]);
 
   useEffect(() => {
-    setEpisodeWindowInput((prev) => (prev.trim() ? prev : String(episodeWindowCurrent)));
-  }, [episodeWindowCurrent]);
+    const src = user ? blobEpisodeWindowMinutes : episodeWindowCurrent;
+    setEpisodeWindowInput((prev) => (prev.trim() ? prev : String(src)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [episodeWindowCurrent, blobEpisodeWindowMinutes]);
 
   useEffect(() => {
-    setSceneWindowInput((prev) => (prev.trim() ? prev : String(sceneWindowCurrent)));
-  }, [sceneWindowCurrent]);
+    const src = user ? blobSceneWindowSeconds : sceneWindowCurrent;
+    setSceneWindowInput((prev) => (prev.trim() ? prev : String(src)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneWindowCurrent, blobSceneWindowSeconds]);
 
   useEffect(() => {
-    setEpisodeMinEventInput((prev) => (prev.trim() ? prev : String(episodeMinEventCurrent)));
-  }, [episodeMinEventCurrent]);
+    const src = user ? blobEpisodeMinEventCount : episodeMinEventCurrent;
+    setEpisodeMinEventInput((prev) => (prev.trim() ? prev : String(src)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [episodeMinEventCurrent, blobEpisodeMinEventCount]);
 
   useEffect(() => {
     if (retentionConfig) {
@@ -235,29 +267,43 @@ export default function SettingsTab({ setup }) {
     && (
       parsedRetentionDays !== retentionDaysCurrent
       || parsedStaleThresholdHours !== staleThresholdHoursCurrent
-      || parsedEpisodeWindow !== episodeWindowCurrent
-      || parsedSceneWindow !== sceneWindowCurrent
-      || parsedEpisodeMinEvent !== episodeMinEventCurrent
+      || parsedEpisodeWindow !== effectiveEpisodeWindowMinutes
+      || parsedSceneWindow !== effectiveSceneWindowSeconds
+      || parsedEpisodeMinEvent !== effectiveEpisodeMinEventCount
     );
 
   async function handleSaveSettings() {
     if (!isDirty || !retentionDaysValid || !staleThresholdValid) return;
     setSaveFeedback(null);
     try {
-      const nextRetention = await saveRetentionMutation.mutateAsync({
-        retentionDays: parsedRetentionDays,
-        staleThresholdHours: parsedStaleThresholdHours,
-        episodeWindowMinutes: parsedEpisodeWindow,
-        sceneWindowSeconds: parsedSceneWindow,
-        episodeMinEventCount: parsedEpisodeMinEvent,
-      });
-      setRetentionDaysInput(String(nextRetention.retentionDays));
-      setStaleThresholdHoursInput(String(nextRetention.staleThresholdHours));
-      if (nextRetention.episodeWindowMinutes != null) setEpisodeWindowInput(String(nextRetention.episodeWindowMinutes));
-      if (nextRetention.sceneWindowSeconds != null) setSceneWindowInput(String(nextRetention.sceneWindowSeconds));
-      if (nextRetention.episodeMinEventCount != null) setEpisodeMinEventInput(String(nextRetention.episodeMinEventCount));
+      if (user) {
+        // Authed: grouping fields go to per-user blob; shared admin fields go to saveRetentionMutation.
+        setBlobEpisodeWindowMinutes(parsedEpisodeWindow);
+        setBlobSceneWindowSeconds(parsedSceneWindow);
+        setBlobEpisodeMinEventCount(parsedEpisodeMinEvent);
+        const nextRetention = await saveRetentionMutation.mutateAsync({
+          retentionDays: parsedRetentionDays,
+          staleThresholdHours: parsedStaleThresholdHours,
+        });
+        setRetentionDaysInput(String(nextRetention.retentionDays));
+        setStaleThresholdHoursInput(String(nextRetention.staleThresholdHours));
+      } else {
+        // Anon: all fields via saveRetentionMutation (unchanged path).
+        const nextRetention = await saveRetentionMutation.mutateAsync({
+          retentionDays: parsedRetentionDays,
+          staleThresholdHours: parsedStaleThresholdHours,
+          episodeWindowMinutes: parsedEpisodeWindow,
+          sceneWindowSeconds: parsedSceneWindow,
+          episodeMinEventCount: parsedEpisodeMinEvent,
+        });
+        setRetentionDaysInput(String(nextRetention.retentionDays));
+        setStaleThresholdHoursInput(String(nextRetention.staleThresholdHours));
+        if (nextRetention.episodeWindowMinutes != null) setEpisodeWindowInput(String(nextRetention.episodeWindowMinutes));
+        if (nextRetention.sceneWindowSeconds != null) setSceneWindowInput(String(nextRetention.sceneWindowSeconds));
+        if (nextRetention.episodeMinEventCount != null) setEpisodeMinEventInput(String(nextRetention.episodeMinEventCount));
+      }
       setSaveFeedback('saved');
-      if (retentionConfig?.toastsEnabled !== false) {
+      if (effectiveToastsEnabled !== false) {
         addToast('Settings saved', 'success');
       }
     } catch {
@@ -776,16 +822,19 @@ export default function SettingsTab({ setup }) {
           <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
             <input
               type="checkbox"
-              checked={toastsEnabledInput}
-              onChange={(e) => { const v = e.target.checked; setToastsEnabledInput(v); autoSave({ toastsEnabled: v }); }}
+              checked={effectiveToastsEnabled}
+              onChange={(e) => {
+                const v = e.target.checked;
+                if (user) { setBlobToastsEnabled(v); } else { setToastsEnabledInput(v); autoSave({ toastsEnabled: v }); }
+              }}
             />
-            <span>{toastsEnabledInput ? 'On' : 'Off'}</span>
+            <span>{effectiveToastsEnabled ? 'On' : 'Off'}</span>
           </label>
         </div>
       </div>
 
       {/* Live event toasts */}
-      <div className={clsx('bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
+      <div className={clsx('bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3', !effectiveToastsEnabled && 'opacity-50 pointer-events-none')}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <p className="text-sm font-medium text-hc-fg">Live event toasts</p>
@@ -796,14 +845,17 @@ export default function SettingsTab({ setup }) {
           <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
             <input
               type="checkbox"
-              checked={liveEventToastsEnabledInput}
-              onChange={(e) => { const v = e.target.checked; setLiveEventToastsEnabledInput(v); autoSave({ liveEventToastsEnabled: v }); }}
-              disabled={!toastsEnabledInput}
+              checked={effectiveLiveEventToastsEnabled}
+              onChange={(e) => {
+                const v = e.target.checked;
+                if (user) { setBlobLiveEventToastsEnabled(v); } else { setLiveEventToastsEnabledInput(v); autoSave({ liveEventToastsEnabled: v }); }
+              }}
+              disabled={!effectiveToastsEnabled}
             />
-            <span>{liveEventToastsEnabledInput ? 'On' : 'Off'}</span>
+            <span>{effectiveLiveEventToastsEnabled ? 'On' : 'Off'}</span>
           </label>
         </div>
-        {liveEventToastsEnabledInput && !(retentionConfig?.toastAccessories?.length > 0) && (
+        {effectiveLiveEventToastsEnabled && !(retentionConfig?.toastAccessories?.length > 0) && (
           <p className="text-xs text-hc-warning-text mt-2">
             Select accessories to watch on the Manage Accessories tab.
           </p>
@@ -811,7 +863,7 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* Toast position */}
-      <div className={clsx('bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
+      <div className={clsx('bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3', !effectiveToastsEnabled && 'opacity-50 pointer-events-none')}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <p className="text-sm font-medium text-hc-fg">Toast position</p>
@@ -820,8 +872,11 @@ export default function SettingsTab({ setup }) {
             </p>
           </div>
           <select
-            value={toastPositionInput}
-            onChange={(e) => { const v = e.target.value; setToastPositionInput(v); autoSave({ toastPosition: v }); }}
+            value={effectiveToastPosition}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (user) { setBlobToastPosition(v); } else { setToastPositionInput(v); autoSave({ toastPosition: v }); }
+            }}
             className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="bottom-right">Bottom Right</option>
@@ -835,7 +890,7 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* Toast duration */}
-      <div className={clsx('bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
+      <div className={clsx('bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3', !effectiveToastsEnabled && 'opacity-50 pointer-events-none')}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <p className="text-sm font-medium text-hc-fg">Toast duration</p>
@@ -844,8 +899,11 @@ export default function SettingsTab({ setup }) {
             </p>
           </div>
           <select
-            value={toastDurationInput}
-            onChange={(e) => { const v = Number(e.target.value); setToastDurationInput(v); autoSave({ toastDuration: v }); }}
+            value={effectiveToastDuration}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              if (user) { setBlobToastDuration(v); } else { setToastDurationInput(v); autoSave({ toastDuration: v }); }
+            }}
             className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={2}>2 seconds</option>
@@ -857,7 +915,7 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* Toast max visible */}
-      <div className={clsx('bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3', !toastsEnabledInput && 'opacity-50 pointer-events-none')}>
+      <div className={clsx('bg-hc-panel border border-hc-panel-border rounded-lg px-4 py-3', !effectiveToastsEnabled && 'opacity-50 pointer-events-none')}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <p className="text-sm font-medium text-hc-fg">Max visible toasts</p>
@@ -866,8 +924,11 @@ export default function SettingsTab({ setup }) {
             </p>
           </div>
           <select
-            value={toastMaxVisibleInput}
-            onChange={(e) => { const v = Number(e.target.value); setToastMaxVisibleInput(v); autoSave({ toastMaxVisible: v }); }}
+            value={effectiveToastMaxVisible}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              if (user) { setBlobToastMaxVisible(v); } else { setToastMaxVisibleInput(v); autoSave({ toastMaxVisible: v }); }
+            }}
             className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={1}>1</option>
