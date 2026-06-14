@@ -195,6 +195,31 @@ Invite-only multi-user authentication replacing the single shared-token model, p
 - [x] **SEC-06**: Expired sessions and used/expired tokens are swept periodically
 - [x] **SEC-07**: At cutover, nginx `X-API-Token` injection is removed; the session-or-service-token gate becomes the sole browser auth path
 
+## v1.5 Requirements (Active) — Per-User UI Preferences
+
+**Defined:** 2026-06-13
+Personal UI preferences follow the logged-in account across devices (server-backed), while genuine infrastructure settings stay household-shared. A single per-user JSONB preferences blob in Postgres, read/written as a whole; a session-scoped `me-router`; and a frontend `usePreference` layer (server-when-authenticated, localStorage-when-not). `AUTH_ENABLED=false` stays pure localStorage. Source spec: `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md`. No listener/stats computation changes (per-user quiet hours deferred to Phase 2).
+
+### Data Model & API
+
+- [ ] **PREF-01**: Migration `0007_user_preferences` adds a `user_preferences` table (`user_id` INTEGER PRIMARY KEY FK → `users(id)` ON DELETE CASCADE, `prefs` JSONB NOT NULL DEFAULT `'{}'`, `updated_at` TIMESTAMPTZ); purely additive, with a clean up/down following the existing migration format
+- [ ] **PREF-02**: A new session-required `me-router` mounted at `/api/me` exposes `GET /preferences` (returns `{ prefs: {} }` when no row) and `PUT /preferences` (upsert that **replaces** the blob and returns the stored blob)
+- [ ] **PREF-03**: `me-router` guards reject a non-object `prefs` and serialized payloads over ~256 KB with 400; unauthenticated requests get 401, matching existing router conventions
+
+### Preference Layer
+
+- [ ] **PREF-04**: A frontend `usePreference` layer resolves values from the server blob when authenticated (localStorage as the synchronous first-paint cache and a write-through mirror), and from localStorage only when not authenticated
+- [ ] **PREF-05**: When `AUTH_ENABLED=false` or the user is logged out, the preference path is pure localStorage and behaviorally identical to today (no server calls)
+- [ ] **PREF-11**: On the first authenticated load where the server blob is empty, the blob is seeded exactly once from the existing localStorage snapshot plus the user's current shared toast/grouping values, then becomes authoritative
+
+### Consumer Refactor
+
+- [ ] **PREF-06**: Dashboard grid layout and hidden panels (`useDashboardLayout`) become per-user via the preference layer
+- [ ] **PREF-07**: Dashboard time ranges — global, per-panel (`RoomChart`/`TopDevices`/`TrendChart`/`WeekdayHeatmap` `*_days`), and the sync toggle — become per-user
+- [ ] **PREF-08**: Appearance preferences (`useTheme`, `useSkin`, `useAccent`, sidebar-collapsed) become per-user
+- [ ] **PREF-09**: Muted devices (`useMutedDevices`) become per-user
+- [ ] **PREF-10**: Toast preferences and episode/scene grouping params (`episodeWindowMinutes`, `sceneWindowSeconds`, `episodeMinEventCount`) move off shared `retention.json` reads to the per-user blob when authenticated
+
 ## Future Requirements
 
 Deferred to future milestones.
@@ -322,12 +347,25 @@ Deferred to future milestones.
 | SEC-05 | Phase 23 | Complete |
 | SEC-06 | Phase 23 | Complete |
 | SEC-07 | Phase 23 | Complete |
+| PREF-01 | Phase 24 | Pending |
+| PREF-02 | Phase 24 | Pending |
+| PREF-03 | Phase 24 | Pending |
+| PREF-04 | Phase 24 | Pending |
+| PREF-05 | Phase 24 | Pending |
+| PREF-06 | Phase 24 | Pending |
+| PREF-07 | Phase 24 | Pending |
+| PREF-08 | Phase 24 | Pending |
+| PREF-09 | Phase 24 | Pending |
+| PREF-10 | Phase 24 | Pending |
+| PREF-11 | Phase 24 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 34 total
-- Mapped to phases: 34
+- v1.5 requirements: 11 total (PREF-01..11)
+- Mapped to phases: 45
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-06-09 — v1.4 Multi-User Auth & Email roadmap defined (AUTH-01..08, USER-01..07, PWD-01..04, EMAIL-01..04, ALERT-01..04, SEC-01..07 mapped to Phases 20-23)*
+*Last updated: 2026-06-13 — v1.5 Per-User UI Preferences defined (PREF-01..11 mapped to Phase 24)**
+*2026-06-09 — v1.4 Multi-User Auth & Email roadmap defined (AUTH-01..08, USER-01..07, PWD-01..04, EMAIL-01..04, ALERT-01..04, SEC-01..07 mapped to Phases 20-23)*

@@ -211,12 +211,17 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 
 **Goal:** Personal UI preferences follow the logged-in account across devices (server-backed), while infrastructure settings stay household-shared. Add a per-user JSONB preferences blob in Postgres (migration `0007_user_preferences`: `user_id` PK FK → `users(id)` ON DELETE CASCADE), a session-scoped `me-router` with `GET/PUT /api/me/preferences` (size-capped, object-validated), and a frontend `usePreference` layer (server-when-authenticated, localStorage-when-not; `AUTH_ENABLED=false` stays pure localStorage). Refactor consumers: `useDashboardLayout`, dashboard ranges (`DashboardPage` + `RoomChart`/`TopDevices`/`TrendChart`/`WeekdayHeatmap` `*_days` keys + sync toggle), `useTheme`/`useSkin`/`useAccent`/sidebar-collapsed, `useMutedDevices`, and the toast + episode/scene grouping controls in `SettingsTab` (these move off shared `retention.json` reads to the per-user blob). Seed the blob once on first authenticated load from existing localStorage + the user's current shared toast/grouping values. No listener/stats computation changes.
 **Spec:** `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md`
-**Requirements**: TBD (derive during plan-phase from spec)
+**Requirements**: PREF-01, PREF-02, PREF-03, PREF-04, PREF-05, PREF-06, PREF-07, PREF-08, PREF-09, PREF-10, PREF-11
 **Depends on:** Phase 20 (auth/sessions/users table)
-**Plans:** 0 plans
+**Plans:** 6 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 24 to break down)
+- [ ] 24-01-PLAN.md — Wave 0: migration 0007 (BIGINT FK) + me-router skeleton + RED test stubs (listener + web)
+- [ ] 24-02-PLAN.md — me-router GET/PUT /preferences implementation + /api/me mount + integration tests
+- [ ] 24-03-PLAN.md — frontend preference layer (usePreference + useUserPreferences) + merging debounce + once-only seeding
+- [ ] 24-04-PLAN.md — consumers: useDashboardLayout (layout/hidden) + DashboardPage global range/sync
+- [ ] 24-05-PLAN.md — consumers: four per-panel *_days ranges + useMutedDevices
+- [ ] 24-06-PLAN.md — consumers: theme/accent/sidebar + toast/grouping (blob-when-authed, App.jsx owner) + seed shared values
 
 ### Phase 25: Per-User Quiet Hours (Phase 2)
 
