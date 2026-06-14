@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
@@ -7,6 +7,7 @@ import { useDailyStats } from '../hooks/useEvents.js';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
 import { SkeletonChart } from './Skeleton.jsx';
 import clsx from 'clsx';
+import { usePreference } from '../hooks/usePreference.js';
 
 const WINDOWS = [
   { label: '7d',  days: 7  },
@@ -22,30 +23,13 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
   const accent = useAccentRgb();
   const accentStr = `rgb(${accent[0]},${accent[1]},${accent[2]})`;
   const gradientId = useMemo(() => `trendGradient-${accent.join('-')}`, [accent]);
-  const [days, setDays] = useState(() => {
-    if (typeof window === 'undefined') return 30;
-    try {
-      const stored = Number.parseInt(window.localStorage.getItem(STORAGE_KEY) ?? '', 10);
-      return VALID_DAYS.has(stored) ? stored : 30;
-    } catch {
-      return 30;
-    }
-  });
+  const [days, setDays] = usePreference('dashboardTrendDays', 30, { localStorageKey: STORAGE_KEY });
   const { data, isLoading, isError } = useDailyStats(days);
 
   useEffect(() => {
     if (!VALID_DAYS.has(forcedDays) || forcedDays === days) return;
     setDays(forcedDays);
   }, [forcedDays, days]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, String(days));
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [days]);
 
   function handleSetDays(next) {
     setDays(next);
