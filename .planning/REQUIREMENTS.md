@@ -202,23 +202,23 @@ Personal UI preferences follow the logged-in account across devices (server-back
 
 ### Data Model & API
 
-- [ ] **PREF-01**: Migration `0007_user_preferences` adds a `user_preferences` table (`user_id` INTEGER PRIMARY KEY FK → `users(id)` ON DELETE CASCADE, `prefs` JSONB NOT NULL DEFAULT `'{}'`, `updated_at` TIMESTAMPTZ); purely additive, with a clean up/down following the existing migration format
-- [ ] **PREF-02**: A new session-required `me-router` mounted at `/api/me` exposes `GET /preferences` (returns `{ prefs: {} }` when no row) and `PUT /preferences` (upsert that **replaces** the blob and returns the stored blob)
-- [ ] **PREF-03**: `me-router` guards reject a non-object `prefs` and serialized payloads over ~256 KB with 400; unauthenticated requests get 401, matching existing router conventions
+- [x] **PREF-01**: Migration `0007_user_preferences` adds a `user_preferences` table (`user_id` BIGINT PRIMARY KEY FK → `users(id)` ON DELETE CASCADE, `prefs` JSONB NOT NULL DEFAULT `'{}'`, `updated_at` TIMESTAMPTZ); purely additive, with a clean up/down following the existing migration format
+- [x] **PREF-02**: A new session-required `me-router` mounted at `/api/me` exposes `GET /preferences` (returns `{ prefs: {} }` when no row) and `PUT /preferences` (upsert that **replaces** the blob and returns the stored blob)
+- [x] **PREF-03**: `me-router` guards reject a non-object `prefs` and serialized payloads over ~256 KB with 400; unauthenticated requests get 401, matching existing router conventions
 
 ### Preference Layer
 
-- [ ] **PREF-04**: A frontend `usePreference` layer resolves values from the server blob when authenticated (localStorage as the synchronous first-paint cache and a write-through mirror), and from localStorage only when not authenticated
-- [ ] **PREF-05**: When `AUTH_ENABLED=false` or the user is logged out, the preference path is pure localStorage and behaviorally identical to today (no server calls)
-- [ ] **PREF-11**: On the first authenticated load where the server blob is empty, the blob is seeded exactly once from the existing localStorage snapshot plus the user's current shared toast/grouping values, then becomes authoritative
+- [x] **PREF-04**: A frontend `usePreference` layer resolves values from the server blob when authenticated (localStorage as the synchronous first-paint cache and a write-through mirror), and from localStorage only when not authenticated
+- [x] **PREF-05**: When `AUTH_ENABLED=false` or the user is logged out, the preference path is pure localStorage and behaviorally identical to today (no server calls)
+- [x] **PREF-11**: On the first authenticated load where the server blob is empty, the blob is seeded exactly once from the existing localStorage snapshot plus the user's current shared toast/grouping values, then becomes authoritative
 
 ### Consumer Refactor
 
-- [ ] **PREF-06**: Dashboard grid layout and hidden panels (`useDashboardLayout`) become per-user via the preference layer
-- [ ] **PREF-07**: Dashboard time ranges — global, per-panel (`RoomChart`/`TopDevices`/`TrendChart`/`WeekdayHeatmap` `*_days`), and the sync toggle — become per-user
-- [ ] **PREF-08**: Appearance preferences (`useTheme`, `useSkin`, `useAccent`, sidebar-collapsed) become per-user
-- [ ] **PREF-09**: Muted devices (`useMutedDevices`) become per-user
-- [ ] **PREF-10**: Toast preferences and episode/scene grouping params (`episodeWindowMinutes`, `sceneWindowSeconds`, `episodeMinEventCount`) move off shared `retention.json` reads to the per-user blob when authenticated
+- [x] **PREF-06**: Dashboard grid layout and hidden panels (`useDashboardLayout`) become per-user via the preference layer
+- [x] **PREF-07**: Dashboard time ranges — global, per-panel (`RoomChart`/`TopDevices`/`TrendChart`/`WeekdayHeatmap` `*_days`), and the sync toggle — become per-user
+- [x] **PREF-08**: Appearance preferences (`useTheme`, `useSkin`, `useAccent`, sidebar-collapsed) become per-user
+- [x] **PREF-09**: Muted devices (`useMutedDevices`) become per-user
+- [x] **PREF-10**: Toast preferences and episode/scene grouping params (`episodeWindowMinutes`, `sceneWindowSeconds`, `episodeMinEventCount`) move off shared `retention.json` reads to the per-user blob when authenticated
 
 ## Future Requirements
 
@@ -347,17 +347,17 @@ Deferred to future milestones.
 | SEC-05 | Phase 23 | Complete |
 | SEC-06 | Phase 23 | Complete |
 | SEC-07 | Phase 23 | Complete |
-| PREF-01 | Phase 24 | Pending |
-| PREF-02 | Phase 24 | Pending |
-| PREF-03 | Phase 24 | Pending |
-| PREF-04 | Phase 24 | Pending |
-| PREF-05 | Phase 24 | Pending |
-| PREF-06 | Phase 24 | Pending |
-| PREF-07 | Phase 24 | Pending |
-| PREF-08 | Phase 24 | Pending |
-| PREF-09 | Phase 24 | Pending |
-| PREF-10 | Phase 24 | Pending |
-| PREF-11 | Phase 24 | Pending |
+| PREF-01 | Phase 24 | Complete |
+| PREF-02 | Phase 24 | Complete |
+| PREF-03 | Phase 24 | Complete |
+| PREF-04 | Phase 24 | Complete |
+| PREF-05 | Phase 24 | Complete |
+| PREF-06 | Phase 24 | Complete |
+| PREF-07 | Phase 24 | Complete |
+| PREF-08 | Phase 24 | Complete |
+| PREF-09 | Phase 24 | Complete |
+| PREF-10 | Phase 24 | Complete |
+| PREF-11 | Phase 24 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 34 total
