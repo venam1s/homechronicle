@@ -284,6 +284,9 @@ describe('C. seedIfEmpty assembles full D-12 snapshot (theme + dashboard + toast
     // For this test, use the real useAuth and useUserPreferences by un-mocking them.
     // We do this by dynamically importing the real modules.
     const { useUserPreferences: realUseUserPreferences } = await import('../../hooks/useUserPreferences.js');
+    // The query/debounce/seed logic lives in UserPreferencesProvider (CR-01 fix); the
+    // consumer hook reads it from context, so the provider must wrap the renderHook tree.
+    const { UserPreferencesProvider } = await import('../UserPreferencesProvider.jsx');
 
     const qc = new QC({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } });
 
@@ -291,7 +294,11 @@ describe('C. seedIfEmpty assembles full D-12 snapshot (theme + dashboard + toast
     // Note: we've already vi.mocked useAuth above; we re-use that mock here.
     useAuth.mockReturnValue({ user: { id: 99, role: 'admin', email: 'seed@example.com' } });
 
-    const wrapper = ({ children }) => createElement(QCP, { client: qc }, children);
+    const wrapper = ({ children }) => createElement(
+      QCP,
+      { client: qc },
+      createElement(UserPreferencesProvider, null, children),
+    );
     const { result } = renderHook(() => realUseUserPreferences(), { wrapper });
 
     // Wait for the prefs query to resolve (returns {}).

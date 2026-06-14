@@ -181,56 +181,9 @@ describe('usePreference — anonymous path (PREF-05/D-15)', () => {
   });
 });
 
-describe('usePreference — seeding (PREF-11/D-14)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('fires exactly ONE seed PUT when server blob is empty and user is authenticated', async () => {
-    const setPrefsBlob = vi.fn().mockResolvedValue(undefined);
-    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
-    // Blob starts empty.
-    useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob });
-    vi.stubGlobal('localStorage', makeStorage({ hc_theme_preference: '"dark"' }));
-
-    const { rerender } = renderHook(
-      () => usePreference('theme', 'system', { localStorageKey: 'hc_theme_preference' }),
-      { wrapper: makeWrapper() },
-    );
-
-    await waitFor(() => expect(setPrefsBlob).toHaveBeenCalledTimes(1));
-
-    // Re-render multiple times — seeding must NOT fire again.
-    rerender();
-    rerender();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
-    expect(setPrefsBlob).toHaveBeenCalledTimes(1);
-  });
-
-  it('fires zero seed PUTs when server blob is non-empty', async () => {
-    const setPrefsBlob = vi.fn();
-    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
-    // Blob already has data — seeding must not fire.
-    useUserPreferences.mockReturnValue({
-      prefs: { theme: 'dark', accent: 'ocean' },
-      setPrefsBlob,
-    });
-    vi.stubGlobal('localStorage', makeStorage({ hc_theme_preference: '"dark"' }));
-
-    renderHook(
-      () => usePreference('theme', 'system', { localStorageKey: 'hc_theme_preference' }),
-      { wrapper: makeWrapper() },
-    );
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
-    expect(setPrefsBlob).not.toHaveBeenCalled();
-  });
-});
+// Seeding (PREF-11/D-14) moved out of usePreference into UserPreferencesProvider.seedIfEmpty
+// — the per-key seeding effect was removed to eliminate the multi-instance seeding race
+// (CR-01). Seeding behavior is now covered in useUserPreferences.test.js.
 
 describe('usePreference — setter delegates to setPrefsBlob (D-09/D-10)', () => {
   beforeEach(() => {

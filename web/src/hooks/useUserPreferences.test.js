@@ -28,9 +28,13 @@ vi.mock('./useAuth.js', () => ({
 
 import { fetchJson } from '../lib/api.js';
 import { useAuth } from './useAuth.js';
-// Target module does not exist until 24-03 — import will fail, making these RED.
 import { useUserPreferences } from './useUserPreferences.js';
+import { usePreference } from './usePreference.js';
+import { UserPreferencesProvider } from '../components/UserPreferencesProvider.jsx';
 
+// The query/debounce/seed logic lives in UserPreferencesProvider; useUserPreferences is a
+// thin context consumer (CR-01 fix). The wrapper nests the provider so the consumer sees
+// the real shared buffer.
 function makeWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -39,7 +43,11 @@ function makeWrapper() {
     },
   });
   return { wrapper: function Wrapper({ children }) {
-    return createElement(QueryClientProvider, { client: queryClient }, children);
+    return createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(UserPreferencesProvider, null, children),
+    );
   }, queryClient };
 }
 
@@ -170,5 +178,105 @@ describe('useUserPreferences', () => {
     // The single PUT must carry BOTH keys merged.
     const body = JSON.parse(putCalls[0][1].body);
     expect(body.prefs).toMatchObject({ theme: 'dark', accent: 'purple' });
+  });
+});
+
+function makeStorage(initial = {}) {
+  const store = { ...initial };
+  return {
+    getItem: vi.fn((k) => (k in store ? store[k] : null)),
+    setItem: vi.fn((k, v) => { store[k] = String(v); }),
+    removeItem: vi.fn((k) => { delete store[k]; }),
+    clear: vi.fn(() => { Object.keys(store).forEach((k) => delete store[k]); }),
+  };
+}
+
+describe('cross-instance debounce (CR-01 regression)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('localStorage', makeStorage());
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('coalesces setValue across TWO usePreference instances into ONE PUT carrying both keys', async () => {
+    // The bug this guards: when each usePreference instance owned its own debounce buffer,
+    // two near-simultaneous setValue calls fired TWO racing whole-blob PUTs and the
+    // last-to-arrive (fewest keys) won server-side. With ONE shared provider buffer there is
+    // exactly ONE PUT containing every key.
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockResolvedValue({ prefs: {} });
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => ({
+      a: usePreference('theme', 'system', { localStorageKey: 'hc_theme_preference', serialize: (v) => v, deserialize: (v) => v }),
+      b: usePreference('accent', 'ocean', { localStorageKey: 'hc_accent', serialize: (v) => v, deserialize: (v) => v }),
+    }), { wrapper });
+
+    await waitFor(() => expect(result.current.a[0]).toBeDefined());
+    fetchJson.mockClear();
+    fetchJson.mockResolvedValue({ prefs: { theme: 'dark', accent: 'purple' } });
+
+    vi.useFakeTimers();
+    act(() => {
+      result.current.a[1]('dark');   // setValue on instance A
+      result.current.b[1]('purple'); // setValue on instance B (near-simultaneous)
+    });
+    await act(async () => { vi.advanceTimersByTime(600); });
+    vi.useRealTimers();
+
+    const putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(1);
+    const body = JSON.parse(putCalls[0][1].body);
+    expect(body.prefs).toMatchObject({ theme: 'dark', accent: 'purple' });
+  });
+});
+
+describe('seedIfEmpty (PREF-11/D-14)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('localStorage', makeStorage({ hc_theme_preference: 'dark' }));
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('seeds exactly once when the blob is empty (snapshot + shared values), ignoring repeat calls', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockResolvedValue({ prefs: {} });
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toBeDefined());
+    fetchJson.mockClear();
+    fetchJson.mockResolvedValue({ prefs: { theme: 'dark', toastsEnabled: true } });
+
+    vi.useFakeTimers();
+    act(() => {
+      result.current.seedIfEmpty({ toastsEnabled: true });
+      result.current.seedIfEmpty({ toastsEnabled: true }); // second call must be a no-op (ref-guarded)
+    });
+    await act(async () => { vi.advanceTimersByTime(600); });
+    vi.useRealTimers();
+
+    const putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(1);
+    const body = JSON.parse(putCalls[0][1].body);
+    expect(body.prefs).toMatchObject({ theme: 'dark', toastsEnabled: true });
+  });
+
+  it('does not seed when the blob is already non-empty', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockResolvedValue({ prefs: { theme: 'light' } });
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toEqual({ theme: 'light' }));
+    fetchJson.mockClear();
+
+    vi.useFakeTimers();
+    act(() => { result.current.seedIfEmpty({ toastsEnabled: true }); });
+    await act(async () => { vi.advanceTimersByTime(600); });
+    vi.useRealTimers();
+
+    const putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(0);
   });
 });
