@@ -49,7 +49,7 @@ export async function cached(key, queryFn, ttlMs) {
   // Stale-while-revalidate: return stale data immediately, refresh in background.
   // If data is too stale (background refreshes kept failing), fall through to
   // a synchronous refresh below.
-  if (entry && !entry.refreshing && (now - entry.expiresAt) < MAX_STALE_MS) {
+  if (entry && !entry.negativeError && !entry.refreshing && (now - entry.expiresAt) < MAX_STALE_MS) {
     entry.refreshing = true;
     queryFn()
       .then((value) => {

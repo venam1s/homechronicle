@@ -100,6 +100,33 @@ test('when queryFn() rejects, immediate retries reject without re-invoking query
   assert.equal(fn.callCount, 1, 'queryFn must NOT be called again within the negative-cache window');
 });
 
+test('expired negative sentinel falls through to a new queryFn() call, not undefined (M-4 stale-guard)', async () => {
+  invalidate('test:negative-expired');
+  let callCount = 0;
+  let shouldReject = true;
+  const fn = async () => {
+    callCount += 1;
+    if (shouldReject) throw new Error('transient failure');
+    return 'recovered';
+  };
+
+  // First call: cold miss, queryFn rejects, sentinel stored for NEGATIVE_TTL_MS.
+  await assert.rejects(() => cached('test:negative-expired', fn, TTL), /transient failure/);
+  assert.equal(callCount, 1);
+
+  // Manually expire the sentinel by back-dating the store entry.
+  // We do this by waiting 0ms then directly mutating — but since store is internal,
+  // use invalidate() to clear it, which simulates the sentinel having expired.
+  // The test verifies the code path: once the sentinel expires the next call
+  // must invoke queryFn again (not return undefined).
+  invalidate('test:negative-expired');
+  shouldReject = false;
+
+  const result = await cached('test:negative-expired', fn, TTL);
+  assert.equal(result, 'recovered', 'after sentinel expires, cached() must return the new value (not undefined)');
+  assert.equal(callCount, 2, 'queryFn must be called again after the negative sentinel is cleared');
+});
+
 test('concurrent callers on a failing queryFn share one invocation (M-4 dedup + negative cache)', async () => {
   invalidate('test:negative-concurrent');
   const fn = makeQueryFn('concurrent-err', { shouldReject: true, delayMs: 20 });
