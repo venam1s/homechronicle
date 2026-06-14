@@ -225,11 +225,11 @@ export default function SettingsTab({ setup }) {
   }, [autoScanHomeKit]);
 
   useEffect(() => {
-    setQuietHoursEnabledInput(quietHoursEnabledCurrent);
-    setQuietHoursStartInput(quietHoursStartCurrent);
-    setQuietHoursEndInput(quietHoursEndCurrent);
+    setQuietHoursEnabledInput(effectiveQhEnabled);
+    setQuietHoursStartInput(effectiveQhStart);
+    setQuietHoursEndInput(effectiveQhEnd);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quietHoursEnabledCurrent, quietHoursStartCurrent, quietHoursEndCurrent]);
+  }, [effectiveQhEnabled, effectiveQhStart, effectiveQhEnd]);
 
   useEffect(() => {
     const src = user ? blobEpisodeWindowMinutes : episodeWindowCurrent;
@@ -680,46 +680,46 @@ export default function SettingsTab({ setup }) {
           <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
             <input
               type="checkbox"
-              checked={effectiveQhEnabled}
+              checked={quietHoursEnabledInput}
               onChange={(e) => {
                 const v = e.target.checked;
+                setQuietHoursEnabledInput(v);
                 if (user) {
                   // Authed: grouped four-key write to blob (QH-08 — keeps presence predicate coherent).
                   setPrefsBlob({
                     quietHoursEnabled: v,
-                    quietHoursStart: localHourToUtc(effectiveQhStart),
-                    quietHoursEnd: localHourToUtc(effectiveQhEnd),
+                    quietHoursStart: localHourToUtc(quietHoursStartInput),
+                    quietHoursEnd: localHourToUtc(quietHoursEndInput),
                     quietHoursExcludedAccessories: effectiveQhExcluded,
                   });
                 } else {
-                  setQuietHoursEnabledInput(v);
                   autoSave({ quietHoursEnabled: v });
                 }
               }}
             />
-            <span>{effectiveQhEnabled ? 'On' : 'Off'}</span>
+            <span>{quietHoursEnabledInput ? 'On' : 'Off'}</span>
           </label>
         </div>
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-xs text-hc-muted">From</span>
             <select
-              value={effectiveQhStart}
+              value={quietHoursStartInput}
               onChange={(e) => {
                 const v = Number(e.target.value);
+                setQuietHoursStartInput(v);
                 if (user) {
                   setPrefsBlob({
-                    quietHoursEnabled: effectiveQhEnabled,
+                    quietHoursEnabled: quietHoursEnabledInput,
                     quietHoursStart: localHourToUtc(v),
-                    quietHoursEnd: localHourToUtc(effectiveQhEnd),
+                    quietHoursEnd: localHourToUtc(quietHoursEndInput),
                     quietHoursExcludedAccessories: effectiveQhExcluded,
                   });
                 } else {
-                  setQuietHoursStartInput(v);
                   autoSave({ quietHoursStart: localHourToUtc(v) });
                 }
               }}
-              disabled={!effectiveQhEnabled}
+              disabled={!quietHoursEnabledInput}
               className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
@@ -730,22 +730,22 @@ export default function SettingsTab({ setup }) {
           <div className="flex items-center gap-2">
             <span className="text-xs text-hc-muted">to</span>
             <select
-              value={effectiveQhEnd}
+              value={quietHoursEndInput}
               onChange={(e) => {
                 const v = Number(e.target.value);
+                setQuietHoursEndInput(v);
                 if (user) {
                   setPrefsBlob({
-                    quietHoursEnabled: effectiveQhEnabled,
-                    quietHoursStart: localHourToUtc(effectiveQhStart),
+                    quietHoursEnabled: quietHoursEnabledInput,
+                    quietHoursStart: localHourToUtc(quietHoursStartInput),
                     quietHoursEnd: localHourToUtc(v),
                     quietHoursExcludedAccessories: effectiveQhExcluded,
                   });
                 } else {
-                  setQuietHoursEndInput(v);
                   autoSave({ quietHoursEnd: localHourToUtc(v) });
                 }
               }}
-              disabled={!effectiveQhEnabled}
+              disabled={!quietHoursEnabledInput}
               className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
@@ -770,9 +770,9 @@ export default function SettingsTab({ setup }) {
                       const next = effectiveQhExcluded.filter((a) => a !== id);
                       if (user) {
                         setPrefsBlob({
-                          quietHoursEnabled: effectiveQhEnabled,
-                          quietHoursStart: localHourToUtc(effectiveQhStart),
-                          quietHoursEnd: localHourToUtc(effectiveQhEnd),
+                          quietHoursEnabled: quietHoursEnabledInput,
+                          quietHoursStart: localHourToUtc(quietHoursStartInput),
+                          quietHoursEnd: localHourToUtc(quietHoursEndInput),
                           quietHoursExcludedAccessories: next,
                         });
                         queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
