@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Moon, CheckCircle2, X, EyeOff } from 'lucide-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useQuietHours } from '../hooks/useEvents.js';
@@ -52,10 +52,12 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
   }
 
   // If quiet hours becomes enabled later, clear the dismissal so the panel reappears
-  if (dismissed && data?.enabled) {
-    localStorage.removeItem(DISMISS_KEY);
-    setDismissed(false);
-  }
+  useEffect(() => {
+    if (dismissed && data?.enabled) {
+      localStorage.removeItem(DISMISS_KEY);
+      setDismissed(false);
+    }
+  }, [dismissed, data?.enabled]);
 
   // When embedded as a dashboard grid panel, the grid's show/hide controls the
   // panel's visibility, so the legacy localStorage dismiss is ignored (otherwise
