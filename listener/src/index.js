@@ -514,6 +514,7 @@ app.use('/api/auth', createAuthPublicRouter({
   sendPasswordReset: (to, resetUrl) => sendPasswordReset(to, resetUrl, { from: smtpConfig.from }),
   isEmailEnabled,
   appBaseUrl: APP_BASE_URL,
+  authEnabled: AUTH_ENABLED,
 }));
 
 // -- Auth gate: token-OR-session-OR-public (AUTH_ENABLED-aware) --
@@ -523,6 +524,7 @@ app.use('/api/auth', createAuthPublicRouter({
 const PUBLIC_AUTH_PATHS = new Set([
   '/api/auth/login',
   '/api/auth/claim-admin',
+  '/api/auth/config',
   '/api/auth/csrf-token',
   '/api/auth/user-count',
   '/api/health',

@@ -88,6 +88,7 @@ DUMMY_PASSWORD_HASH.catch((err) =>
  * @param {function} deps.sendPasswordReset — async (to, resetUrl) => void; injected from emails.js
  * @param {function} deps.isEmailEnabled — () => boolean; injected from emails.js
  * @param {string} deps.appBaseUrl — base URL for generating reset links (from smtp-config.js getAppBaseUrl)
+ * @param {boolean} [deps.authEnabled] — mirrors AUTH_ENABLED; returned by GET /config so the browser can behave correctly in auth-off mode
  */
 export function createAuthPublicRouter({
   pool,
@@ -98,6 +99,7 @@ export function createAuthPublicRouter({
   sendPasswordReset = async () => {},
   isEmailEnabled = () => false,
   appBaseUrl = '',
+  authEnabled = true,
 }) {
   const router = express.Router();
 
@@ -173,6 +175,14 @@ export function createAuthPublicRouter({
       log.error('[api] /api/auth/user-count error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
+  });
+
+  // -- GET /config — public, no auth required --
+  // Returns the server-side AUTH_ENABLED flag so the browser can skip the login
+  // wall in auth-off mode (AUTH_ENABLED=false). No secrets are exposed — only a
+  // boolean indicating whether the auth system is active.
+  router.get('/config', (_req, res) => {
+    res.json({ authEnabled });
   });
 
   // -- POST /login — AUTH-02, AUTH-06, SEC-01, SEC-04 --
