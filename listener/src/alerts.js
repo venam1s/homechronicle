@@ -232,36 +232,42 @@ export async function processAlertsForEvent(pool, event, emailFrom) {
   const now = Date.now();
 
   for (const rule of matchingRules) {
-    // Check suppression using batch-loaded data
-    const quietMs = (Number.parseInt(String(rule.quiet_minutes ?? 0), 10) || 0) * 60_000;
-    const lastSent = lastSentByRule.get(rule.id);
-    const suppressed = quietMs > 0 && Number.isFinite(lastSent) && (now - lastSent) < quietMs;
+    try {
+      // Check suppression using batch-loaded data
+      const quietMs = (Number.parseInt(String(rule.quiet_minutes ?? 0), 10) || 0) * 60_000;
+      const lastSent = lastSentByRule.get(rule.id);
+      const suppressed = quietMs > 0 && Number.isFinite(lastSent) && (now - lastSent) < quietMs;
 
-    if (suppressed) {
+      if (suppressed) {
+        await createDelivery(pool, {
+          ruleId: rule.id,
+          eventId: event.eventId,
+          status: 'suppressed',
+          targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
+          channel: rule.channel ?? 'webhook',
+          recipient: rule.channel === 'email' ? rule.target_email : null,
+          error: `Suppressed by quiet period (${rule.quiet_minutes} minute(s))`,
+        });
+        continue;
+      }
+
+      const delivery = rule.channel === 'email'
+        ? await sendEmailAlertForRule(rule, event, emailFrom)
+        : await sendWebhook(rule, event);
       await createDelivery(pool, {
         ruleId: rule.id,
         eventId: event.eventId,
-        status: 'suppressed',
+        status: delivery.status,
         targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
         channel: rule.channel ?? 'webhook',
         recipient: rule.channel === 'email' ? rule.target_email : null,
-        error: `Suppressed by quiet period (${rule.quiet_minutes} minute(s))`,
+        responseCode: delivery.responseCode,
+        error: delivery.error,
       });
-      continue;
+    } catch (err) {
+      // Isolate per-rule failures: a broken webhook or DB error must not
+      // prevent delivery attempts for the remaining rules (M-5).
+      log.warn(`[alerts] rule ${rule.id} delivery failed:`, err.message);
     }
-
-    const delivery = rule.channel === 'email'
-      ? await sendEmailAlertForRule(rule, event, emailFrom)
-      : await sendWebhook(rule, event);
-    await createDelivery(pool, {
-      ruleId: rule.id,
-      eventId: event.eventId,
-      status: delivery.status,
-      targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
-      channel: rule.channel ?? 'webhook',
-      recipient: rule.channel === 'email' ? rule.target_email : null,
-      responseCode: delivery.responseCode,
-      error: delivery.error,
-    });
   }
 }

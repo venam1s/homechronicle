@@ -142,8 +142,14 @@ export function createMatterRuntime({
       };
 
       // eslint-disable-next-line no-await-in-loop
-      await insertEvent(eventPayload);
-      session.lastEventAt = nowIso();
+      try {
+        await insertEvent(eventPayload);
+        session.lastEventAt = nowIso();
+      } catch (err) {
+        // Isolate per-row DB failures: a single bad insert must not abort
+        // the remaining events in the polling batch (M-5).
+        log.warn('[matter] ingestRows insert failed for row:', err.message);
+      }
     }
 
     pruneCache();
