@@ -39,6 +39,8 @@ services:
       API_TOKEN: ${API_TOKEN:-}
       TZ: ${TZ:-UTC}
       ALERTS_ENABLED: ${ALERTS_ENABLED:-false}
+      # Trust the single nginx reverse proxy so rate-limit keys use the real client IP, not nginx's
+      TRUST_PROXY: ${TRUST_PROXY:-1}
     volumes:
       - ${LISTENER_DATA_SOURCE:-./listener/data}:/app/data
       # Let libdns_sd in the container talk to host avahi-daemon over D-Bus.
