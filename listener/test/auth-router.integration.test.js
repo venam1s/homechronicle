@@ -712,6 +712,94 @@ test('POST /api/auth/accept-invite with weak password returns 400', async () => 
   assert.equal(pool.users.length, 0, 'no user must be created for a weak password');
 });
 
+test('POST /api/auth/accept-invite rolls back invite redemption when createUser fails (M-2)', async () => {
+  // Purpose-built transactional pool: mutations are staged on BEGIN and
+  // applied only on COMMIT. ROLLBACK discards them, so the invite remains
+  // redeemable after a createUser error.
+  const rawToken = generateToken();
+  const tokenHash = hashToken(rawToken);
+  const pendingInvite = {
+    id: 1,
+    email: 'txfail@test.com',
+    role: 'member',
+    status: 'pending',
+    token_hash: tokenHash,
+    expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000),
+    used_at: null,
+  };
+
+  // Shared in-memory stores (committed state)
+  const invites = [pendingInvite];
+  const users = [];
+
+  function makeTxPool() {
+    let staged = null; // holds pending invite mutation during a transaction
+
+    const pool = {
+      // pool.query is used only by issueSession (createSession INSERT)
+      async query(sql) {
+        const s = sql.trim().replace(/\s+/g, ' ');
+        if (s.startsWith('INSERT INTO sessions')) {
+          return { rows: [{ id: 1, user_id: 1, csrf_token: null, expires_at: new Date(Date.now() + 86400000) }] };
+        }
+        throw new Error(`Unexpected pool.query: ${sql}`);
+      },
+      connect() {
+        const client = {
+          async query(sql, params = []) {
+            const s = sql.trim().replace(/\s+/g, ' ');
+            if (s === 'BEGIN') { staged = null; return { rows: [] }; }
+            if (s === 'COMMIT') {
+              // Apply staged invite mutation
+              if (staged) {
+                Object.assign(pendingInvite, staged);
+                staged = null;
+              }
+              return { rows: [] };
+            }
+            if (s === 'ROLLBACK') { staged = null; return { rows: [] }; }
+
+            // redeemInvite: UPDATE invites SET status='accepted' ...
+            if (s.includes("UPDATE invites") && s.includes("status = 'accepted'")) {
+              const [th] = params;
+              const now = new Date();
+              const inv = invites.find(
+                (i) => i.token_hash === th && i.status === 'pending' && new Date(i.expires_at) > now && !i.used_at
+              );
+              if (!inv) return { rows: [] };
+              // Stage — don't apply until COMMIT
+              staged = { status: 'accepted', used_at: now };
+              return { rows: [{ id: inv.id, email: inv.email, role: inv.role }] };
+            }
+
+            // createUser INSERT — throw to simulate duplicate email / DB error
+            if (s.startsWith('INSERT INTO users')) {
+              throw new Error('duplicate key value violates unique constraint "users_email_key"');
+            }
+
+            throw new Error(`Unexpected client.query: ${sql}`);
+          },
+          release() {},
+        };
+        return Promise.resolve(client);
+      },
+    };
+    return pool;
+  }
+
+  const app = buildApp({ pool: makeTxPool() });
+  const res = await supertest(app)
+    .post('/api/auth/accept-invite')
+    .send({ token: rawToken, password: 'strongpass-12ch' });
+
+  // The createUser failure must surface as a 500 (unhandled DB error)
+  assert.equal(res.status, 500, `expected 500 from DB error, got ${res.status}: ${JSON.stringify(res.body)}`);
+
+  // ROLLBACK must have kept the invite redeemable
+  assert.equal(pendingInvite.status, 'pending', 'invite must remain pending after rollback');
+  assert.equal(users.length, 0, 'no user must exist after rollback');
+});
+
 test('POST /api/auth/forgot-password returns identical body for known vs unknown email (T-21-05-ENUM)', async () => {
   const pool = createMockPool();
   const passwordHash = await hashPassword('correct-password-12ch');

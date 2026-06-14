@@ -298,14 +298,31 @@ export function createAuthPublicRouter({
         return res.status(400).json({ error: strength.error });
       }
 
-      // Atomically redeem the invite (T-21-05-REPLAY — null on second use)
-      const invite = await redeemInvite(pool, hashToken(rawToken));
-      if (!invite) {
-        return res.status(400).json({ error: 'Invalid or expired invitation.' });
-      }
-
       const passwordHash = await hashPassword(password);
-      const user = await createUser(pool, { email: invite.email, passwordHash, role: invite.role });
+
+      // Wrap redeemInvite + createUser in a transaction so a createUser failure
+      // (e.g. duplicate email) rolls back the invite redemption — preventing the
+      // token from being consumed without a user account being created (M-2).
+      // issueSession stays AFTER COMMIT: a session failure must not roll back
+      // the account that was successfully created.
+      const client = await pool.connect();
+      let invite, user;
+      try {
+        await client.query('BEGIN');
+        // Atomically redeem the invite (T-21-05-REPLAY — null on second use)
+        invite = await redeemInvite(client, hashToken(rawToken));
+        if (!invite) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Invalid or expired invitation.' });
+        }
+        user = await createUser(client, { email: invite.email, passwordHash, role: invite.role });
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw txErr;
+      } finally {
+        client.release();
+      }
 
       const inviteMeta = extractSessionMeta(req);
       await issueSession(res, user.id, false, inviteMeta.userAgent, inviteMeta.ipAddress);
