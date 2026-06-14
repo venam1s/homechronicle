@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
 import { parseIntInRange, parentBridgeId } from './utils.js';
+import { normalizeRetentionSettings } from './retention-router.js';
 import { detectOutliers } from './anomaly-detection.js';
 
 const STATS_RATE_LIMIT_WINDOW_MS = parseIntInRange(
@@ -335,15 +336,36 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
     }
   });
 
-  router.get('/stats/quiet-hours', statsReadLimiter, async (_req, res) => {
-    const settings = getRetentionSettings();
-    if (!settings.quietHoursEnabled) {
-      return res.json({ enabled: false });
-    }
-    const startHour = settings.quietHoursStart; // UTC hour
-    const endHour = settings.quietHoursEnd;     // UTC hour
-    const excluded = settings.quietHoursExcludedAccessories ?? [];
+  router.get('/stats/quiet-hours', statsReadLimiter, async (req, res) => {
     try {
+      // Resolve quiet-hours config: per-user blob if an authenticated session provides one
+      // with a 'quietHoursEnabled' key; otherwise fall back to the shared retention.json config.
+      // Requests with no req.hcSession (service API_TOKEN / AUTH_ENABLED=false) always use
+      // the shared config (QH-04). No cached() call — per-user result must not enter the
+      // shared module-level Map (QH-09).
+      let settings;
+      const userId = req.hcSession?.user_id;
+      if (userId) {
+        const prefResult = await pool.query(
+          'SELECT prefs FROM user_preferences WHERE user_id = $1',
+          [userId],
+        );
+        const blob = prefResult.rows[0]?.prefs ?? {};
+        if ('quietHoursEnabled' in blob) {
+          // Blob values pass through normalizeRetentionSettings so malformed input
+          // cannot 500 or inject into SQL parameters (QH-03).
+          settings = normalizeRetentionSettings(blob);
+        }
+      }
+      if (!settings) {
+        settings = getRetentionSettings();
+      }
+      if (!settings.quietHoursEnabled) {
+        return res.json({ enabled: false });
+      }
+      const startHour = settings.quietHoursStart; // UTC hour
+      const endHour = settings.quietHoursEnd;     // UTC hour
+      const excluded = settings.quietHoursExcludedAccessories ?? [];
       const hourCondition = startHour > endHour
         ? '(EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int >= $1 OR EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int < $2)'
         : 'EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int >= $1 AND EXTRACT(HOUR FROM timestamp AT TIME ZONE \'UTC\')::int < $2';
