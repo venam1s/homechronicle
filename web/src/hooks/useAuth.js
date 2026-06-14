@@ -13,10 +13,42 @@ export function useAuth() {
     retry: false,
   });
 
+  // Per-user localStorage preference keys (D12_KEYS + hc_pref_* toast keys).
+  // Cleared on logout so the next user on a shared browser does not see a flash
+  // of the previous user's theme, layout, or toast settings.
+  const USER_PREF_LS_KEYS = [
+    'hc_dashboard_layouts',
+    'hc_dashboard_hidden',
+    'hc_dashboard_global_days',
+    'hc_dashboard_room_days',
+    'hc_dashboard_trend_days',
+    'hc_dashboard_weekday_days',
+    'hc_dashboard_top_devices_days',
+    'hc_dashboard_sync_ranges',
+    'hc_muted',
+    'hc_theme_preference',
+    'hc_accent',
+    'hc_sidebar_collapsed',
+    // toast prefs (hc_pref_* prefix, App.jsx)
+    'hc_pref_toastsEnabled',
+    'hc_pref_liveEventToastsEnabled',
+    'hc_pref_toastPosition',
+    'hc_pref_toastDuration',
+    'hc_pref_toastMaxVisible',
+  ];
+
   const logoutMutation = useMutation({
     mutationFn: () => fetchJson(`${API_BASE}/auth/logout`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.clear();
+      // Clear CSRF token so it is not replayed after logout.
+      try { sessionStorage.removeItem('csrfToken'); } catch { /* private mode */ }
+      // Clear per-user preference keys so the next user does not inherit them.
+      try {
+        for (const key of USER_PREF_LS_KEYS) {
+          localStorage.removeItem(key);
+        }
+      } catch { /* private mode / blocked storage */ }
     },
   });
 
