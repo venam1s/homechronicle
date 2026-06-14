@@ -67,7 +67,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] **Phase 21: Email Infrastructure + Invites + Password Reset** — nodemailer SMTP, invite lifecycle, password reset, user management UI (completed 2026-06-12)
 - [x] **Phase 22: Email Alert Channel** — Email delivery channel on alert rules, schema migration, channel selector UI (UAT gap closed by 22-05: explicit Edit control on Active Rules rows) (completed 2026-06-13)
 - [x] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal (completed 2026-06-13)
-- [ ] **Phase 24: Per-User UI Preferences (Phase 1)** — Per-user JSONB preferences blob (migration 0007) + `me-router` (`GET/PUT /api/me/preferences`) + `usePreference` layer; dashboard layout/ranges, appearance, muted, toast + grouping become per-account (localStorage fallback when unauthenticated/`AUTH_ENABLED=false`)
+- [x] **Phase 24: Per-User UI Preferences (Phase 1)** — Per-user JSONB preferences blob (migration 0007) + `me-router` (`GET/PUT /api/me/preferences`) + `usePreference` layer; dashboard layout/ranges, appearance, muted, toast + grouping become per-account (localStorage fallback when unauthenticated/`AUTH_ENABLED=false`) (completed 2026-06-14)
 - [ ] **Phase 25: Per-User Quiet Hours (Phase 2)** — Quiet hours per-user; `/stats/quiet-hours` applies the requesting session user's config (shared household value as fallback)
 
 ## Phase Details
@@ -213,15 +213,15 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 **Spec:** `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md`
 **Requirements**: PREF-01, PREF-02, PREF-03, PREF-04, PREF-05, PREF-06, PREF-07, PREF-08, PREF-09, PREF-10, PREF-11
 **Depends on:** Phase 20 (auth/sessions/users table)
-**Plans:** 3/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 - [x] 24-01-PLAN.md — Wave 0: migration 0007 (BIGINT FK) + me-router skeleton + RED test stubs (listener + web)
 - [x] 24-02-PLAN.md — me-router GET/PUT /preferences implementation + /api/me mount + integration tests
 - [x] 24-03-PLAN.md — frontend preference layer (usePreference + useUserPreferences) + merging debounce + once-only seeding
-- [ ] 24-04-PLAN.md — consumers: useDashboardLayout (layout/hidden) + DashboardPage global range/sync
-- [ ] 24-05-PLAN.md — consumers: four per-panel *_days ranges + useMutedDevices
-- [ ] 24-06-PLAN.md — consumers: theme/accent/sidebar + toast/grouping (blob-when-authed, App.jsx owner) + seed shared values
+- [x] 24-04-PLAN.md — consumers: useDashboardLayout (layout/hidden) + DashboardPage global range/sync
+- [x] 24-05-PLAN.md — consumers: four per-panel *_days ranges + useMutedDevices
+- [x] 24-06-PLAN.md — consumers: theme/accent/sidebar + toast/grouping (blob-when-authed, App.jsx owner) + seed shared values
 
 ### Phase 25: Per-User Quiet Hours (Phase 2)
 
