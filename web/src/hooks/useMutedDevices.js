@@ -1,40 +1,31 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { usePreference } from './usePreference.js';
 
 const STORAGE_KEY = 'hc_muted';
 
-function loadMuted() {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]'));
-  } catch {
-    return new Set();
-  }
-}
-
 export function useMutedDevices() {
-  const [muted, setMuted] = useState(loadMuted);
+  const [mutedArr, setMutedArr] = usePreference('mutedDevices', [], { localStorageKey: STORAGE_KEY });
+
+  // Wrap the stored array in a Set so callers retain the existing has/add/delete API.
+  const muted = useMemo(() => new Set(mutedArr), [mutedArr]);
 
   const mute = useCallback((name) => {
-    setMuted((prev) => {
-      const next = new Set(prev);
-      next.add(name);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...next])); } catch { /* private browsing */ }
-      return next;
-    });
-  }, []);
+    const next = new Set(muted);
+    next.add(name);
+    setMutedArr([...next]);
+  }, [muted, setMutedArr]);
 
   const unmute = useCallback((name) => {
-    setMuted((prev) => {
-      const next = new Set(prev);
-      next.delete(name);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...next])); } catch { /* private browsing */ }
-      return next;
-    });
-  }, []);
+    const next = new Set(muted);
+    next.delete(name);
+    setMutedArr([...next]);
+  }, [muted, setMutedArr]);
 
   const unmuteAll = useCallback(() => {
-    setMuted(new Set());
-    try { localStorage.removeItem(STORAGE_KEY); } catch { /* private browsing */ }
-  }, []);
+    // Empty array is equivalent to today's removeItem — the preference layer
+    // writes [] to localStorage and (when authed) to the server blob.
+    setMutedArr([]);
+  }, [setMutedArr]);
 
   return { muted, mute, unmute, unmuteAll };
 }
