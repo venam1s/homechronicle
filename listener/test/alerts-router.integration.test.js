@@ -141,7 +141,7 @@ test('/api/alerts/rules supports create/list/patch/delete', async () => {
   assert.equal(deleted.jsonBody.success, true);
 });
 
-test('/api/alerts/rules GET list redacts targetUrl; POST response retains it', async () => {
+test('/api/alerts/rules POST and GET list both redact targetUrl (L-1)', async () => {
   const router = createAlertsRouter({ pool: createMockPool() });
   const post = getRouteHandler(router, 'POST', '/rules');
   const list = getRouteHandler(router, 'GET', '/rules');
@@ -156,10 +156,10 @@ test('/api/alerts/rules GET list redacts targetUrl; POST response retains it', a
     },
   });
   assert.equal(created.statusCode, 201);
-  // POST response echoes targetUrl back to the authenticated caller
-  assert.equal(created.jsonBody.targetUrl, 'https://secret.example.com/webhook/abc123');
+  // POST response must NOT echo the raw webhook URL (L-1)
+  assert.equal(created.jsonBody.targetUrl, undefined, 'POST response must redact targetUrl');
 
-  // GET list must NOT expose the raw URL
+  // GET list must also NOT expose the raw URL
   const listed = await invoke(list);
   assert.equal(listed.statusCode, 200);
   assert.equal(listed.jsonBody[0].targetUrl, undefined);

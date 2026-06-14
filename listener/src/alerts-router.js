@@ -305,7 +305,9 @@ export function createAlertsRouter({ pool }) {
           parsed.value.quietMinutes,
         ]
       );
-      res.status(201).json(toApiRule(result.rows[0]));
+      const created = toApiRule(result.rows[0]);
+      delete created.targetUrl; // redact webhook URL from write response (L-1)
+      res.status(201).json(created);
     } catch (err) {
       if (isChannelFieldViolation(err)) {
         return res.status(400).json({ error: CHANNEL_FIELD_ERROR });
@@ -356,7 +358,9 @@ export function createAlertsRouter({ pool }) {
         params
       );
       if (!result.rows.length) return res.status(404).json({ error: 'Rule not found' });
-      res.json(toApiRule(result.rows[0]));
+      const patched = toApiRule(result.rows[0]);
+      delete patched.targetUrl; // redact webhook URL from write response (L-1)
+      res.json(patched);
     } catch (err) {
       if (isChannelFieldViolation(err)) {
         return res.status(400).json({ error: CHANNEL_FIELD_ERROR });
@@ -410,7 +414,7 @@ export function createAlertsRouter({ pool }) {
           eventId: row.event_id,
           status: row.status,
           channel: row.channel ?? 'webhook',
-          targetUrl: row.target_url,
+          // targetUrl intentionally omitted: webhook URLs may contain secrets (L-1)
           recipient: row.recipient ?? null,
           responseCode: row.response_code,
           error: row.error,
