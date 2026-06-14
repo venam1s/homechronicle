@@ -213,10 +213,10 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 **Spec:** `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md`
 **Requirements**: PREF-01, PREF-02, PREF-03, PREF-04, PREF-05, PREF-06, PREF-07, PREF-08, PREF-09, PREF-10, PREF-11
 **Depends on:** Phase 20 (auth/sessions/users table)
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 
 Plans:
-- [ ] 24-01-PLAN.md — Wave 0: migration 0007 (BIGINT FK) + me-router skeleton + RED test stubs (listener + web)
+- [x] 24-01-PLAN.md — Wave 0: migration 0007 (BIGINT FK) + me-router skeleton + RED test stubs (listener + web)
 - [ ] 24-02-PLAN.md — me-router GET/PUT /preferences implementation + /api/me mount + integration tests
 - [ ] 24-03-PLAN.md — frontend preference layer (usePreference + useUserPreferences) + merging debounce + once-only seeding
 - [ ] 24-04-PLAN.md — consumers: useDashboardLayout (layout/hidden) + DashboardPage global range/sync
