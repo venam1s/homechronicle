@@ -381,6 +381,28 @@ test('POST /api/auth/login with missing fields returns 400', async () => {
   assert.equal(res.status, 400);
 });
 
+test('POST /api/auth/login with disabled account returns 401 Invalid credentials (M-3)', async () => {
+  const pool = createMockPool();
+  const passwordHash = await hashPassword('correct-pass-12ch');
+  pool.users.push({
+    id: 1,
+    email: 'disabled@test.com',
+    password_hash: passwordHash,
+    role: 'member',
+    disabled_at: new Date().toISOString(),
+  });
+
+  const app = buildApp({ pool });
+  const res = await supertest(app)
+    .post('/api/auth/login')
+    .send({ email: 'disabled@test.com', password: 'correct-pass-12ch' });
+
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, 'Invalid credentials');
+  // No session must be created for a disabled account
+  assert.equal(pool.sessions.length, 0, 'no session must be created for a disabled account');
+});
+
 test('POST /api/auth/login rememberMe=true sets 30-day maxAge; default is 7-day', async () => {
   const pool = createMockPool();
   const passwordHash = await hashPassword('pass1');

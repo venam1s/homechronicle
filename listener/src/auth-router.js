@@ -196,6 +196,11 @@ export function createAuthPublicRouter({
       if (!user || !passwordOk) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
+      // Disabled accounts: reject after full credential verification so timing
+      // cannot distinguish a bad password from a disabled account (M-3).
+      if (user.disabled_at) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
 
       // Anti-fixation (SEC-04/D-12): revoke any prior session before issuing a new one
       if (req.cookies?.hc_session) {
