@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePreference } from './hooks/usePreference.js';
+import { useUserPreferences } from './hooks/useUserPreferences.js';
+import { useAuth } from './hooks/useAuth.js';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from './lib/api.js';
 import { useMediaQuery } from './hooks/useMediaQuery.js';
@@ -57,13 +59,57 @@ export default function App() {
   const alertsEnabled = Boolean(alertsConfig?.enabled);
   const { configure: configureToasts } = useToast();
   const { update: availableUpdate, dismiss: dismissUpdate } = useUpdateCheck(__BUILD_VERSION__);
+  const { user } = useAuth();
+  const { prefs, seedIfEmpty } = useUserPreferences();
+
+  // PREF-10: per-user toast config (authed path reads from blob; anon path reads from retentionConfig below).
+  // Unique localStorage keys prevent cross-contamination between the 5 usePreference instances.
+  const [blobToastsEnabled] = usePreference('toastsEnabled', true, { localStorageKey: 'hc_pref_toastsEnabled' });
+  const [blobLiveEventToastsEnabled] = usePreference('liveEventToastsEnabled', false, { localStorageKey: 'hc_pref_liveEventToastsEnabled' });
+  const [blobToastPosition] = usePreference('toastPosition', 'bottom-right', { localStorageKey: 'hc_pref_toastPosition' });
+  const [blobToastDuration] = usePreference('toastDuration', 3, { localStorageKey: 'hc_pref_toastDuration' });
+  const [blobToastMaxVisible] = usePreference('toastMaxVisible', 3, { localStorageKey: 'hc_pref_toastMaxVisible' });
+
+  // Effective toast config: when authed, use blob; when anon, use retentionConfig.
+  const effectiveToastsEnabled = user ? blobToastsEnabled : (retentionConfig?.toastsEnabled ?? true);
+  const effectiveLiveEventToastsEnabled = user ? blobLiveEventToastsEnabled : (retentionConfig?.liveEventToastsEnabled ?? false);
+  const effectiveToastPosition = user ? blobToastPosition : (retentionConfig?.toastPosition ?? 'bottom-right');
+  const effectiveToastDuration = user ? blobToastDuration : (retentionConfig?.toastDuration ?? 3);
+  const effectiveToastMaxVisible = user ? blobToastMaxVisible : (retentionConfig?.toastMaxVisible ?? 3);
 
   const handleToastNav = useCallback((name) => { setTimelineFilters({ accessory: name }); setActivePage('timeline'); }, []);
-  useLiveEventToasts({ activeTab: activePage, retentionConfig, onNavigateToAccessory: handleToastNav });
+  // useLiveEventToasts reads from effective (blob-when-authed) config.
+  useLiveEventToasts({
+    activeTab: activePage,
+    retentionConfig: user
+      ? { ...retentionConfig, toastsEnabled: effectiveToastsEnabled, liveEventToastsEnabled: effectiveLiveEventToastsEnabled }
+      : retentionConfig,
+    onNavigateToAccessory: handleToastNav,
+  });
 
   useEffect(() => {
-    if (retentionConfig) configureToasts({ position: retentionConfig.toastPosition, duration: retentionConfig.toastDuration, maxVisible: retentionConfig.toastMaxVisible });
-  }, [retentionConfig?.toastPosition, retentionConfig?.toastDuration, retentionConfig?.toastMaxVisible, configureToasts]);
+    configureToasts({ position: effectiveToastPosition, duration: effectiveToastDuration, maxVisible: effectiveToastMaxVisible });
+  }, [effectiveToastPosition, effectiveToastDuration, effectiveToastMaxVisible, configureToasts]);
+
+  // PREF-11/D-13: once-only seeding — invoked when authenticated, retentionConfig loaded, AND prefs resolved.
+  // Including `prefs` in deps ensures the effect re-runs after prefs resolves from the server (PREF-11
+  // timing fix: retentionConfig may resolve first while prefs is still undefined; without prefs in deps,
+  // seedIfEmpty would bail and never retry when prefs becomes {} — losing grouping migration).
+  // seedIfEmpty assembles the full D-12 localStorage snapshot; caller passes only shared toast/grouping values.
+  useEffect(() => {
+    if (!user || !retentionConfig || prefs === undefined) return;
+    seedIfEmpty({
+      toastsEnabled: retentionConfig.toastsEnabled ?? true,
+      liveEventToastsEnabled: retentionConfig.liveEventToastsEnabled ?? false,
+      toastPosition: retentionConfig.toastPosition ?? 'bottom-right',
+      toastDuration: retentionConfig.toastDuration ?? 3,
+      toastMaxVisible: retentionConfig.toastMaxVisible ?? 3,
+      episodeWindowMinutes: retentionConfig.episodeWindowMinutes ?? 3,
+      sceneWindowSeconds: retentionConfig.sceneWindowSeconds ?? 5,
+      episodeMinEventCount: retentionConfig.episodeMinEventCount ?? 3,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, retentionConfig, prefs]);
 
   // Close drawer when viewport leaves mobile (prevents inconsistent state on resize)
   useEffect(() => {
