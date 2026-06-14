@@ -228,9 +228,10 @@ Plans:
 
 **Goal:** Quiet hours become per-user. The listener's `GET /stats/quiet-hours` endpoint applies the requesting session user's quiet-hours config (enabled/start/end/excluded), with the shared household value as fallback; move the quiet-hours controls in `SettingsTab` into the per-user preferences blob from Phase 24.
 **Spec:** `docs/superpowers/specs/2026-06-13-per-user-preferences-design.md` (Phase 2 section)
-**Requirements**: TBD (derive during plan-phase from spec)
+**Requirements**: QH-01, QH-02, QH-03, QH-04, QH-05, QH-06, QH-07, QH-08, QH-09, QH-10, QH-11
 **Depends on:** Phase 24
-**Plans:** 0 plans
+**Plans:** 2 plans (1 wave)
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 25 to break down)
+- [ ] 25-01-PLAN.md — Session-aware GET /stats/quiet-hours (per-user blob read, whole-config fallback, normalization, three-path tests)
+- [ ] 25-02-PLAN.md — SettingsTab quiet-hours controls via usePreference (presence-check prefill, grouped four-key write, component tests)
