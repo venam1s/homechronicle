@@ -1,7 +1,7 @@
 # Auth-off browser mode (AUTH_ENABLED=false → full no-login UI)
 
 **Date:** 2026-06-14
-**Status:** Approved — ready for implementation
+**Status:** Implemented (quick 260614-q0j; listener 670/670, web 354/354)
 
 ## Problem
 
