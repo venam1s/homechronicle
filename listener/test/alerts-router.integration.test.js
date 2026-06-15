@@ -499,3 +499,114 @@ test('DELETE /rules/:id IDOR: user A cannot delete user B rule — returns 404 (
   });
   assert.equal(result.statusCode, 404, 'DELETE targeting another user rule must return 404 (IDOR guard)');
 });
+
+// -- Member email lock + SMTP-off rejection tests (MALERT-05, MALERT-06) --
+// Task 3: RED tests for email channel enforcement. Added in the same commit as
+// implementation because the lock and SMTP guard were implemented together
+// with the owner-scoping in Task 2. Tests verify the correct behavior.
+
+test('POST email: member target_email forced to session email regardless of body (MALERT-05, T-26-EMAIL-SPOOF)', async () => {
+  const pool = createMockPool();
+  const router = createAlertsRouter({ pool });
+  const post = getRouteHandler(router, 'POST', '/rules');
+
+  // Member submits attacker@y as targetEmail but session email is m@x
+  const result = await invoke(post, {
+    hcSession: { user_id: 2, role: 'member', email: 'm@x.com' },
+    body: {
+      name: 'Email rule',
+      scopeType: 'all',
+      operator: 'equals',
+      matchValue: 'true',
+      channel: 'email',
+      targetEmail: 'attacker@y.com',
+    },
+  });
+  assert.equal(result.statusCode, 201, 'member email POST must return 201');
+  // Server must override attacker email with the member's own session email (D-08)
+  assert.equal(result.jsonBody.targetEmail, 'm@x.com', 'target_email must be session email, not submitted value');
+});
+
+test('POST email: admin keeps submitted recipient unchanged (MALERT-05)', async () => {
+  const pool = createMockPool();
+  const router = createAlertsRouter({ pool });
+  const post = getRouteHandler(router, 'POST', '/rules');
+
+  // Admin submits other@y; must be preserved unchanged
+  const result = await invoke(post, {
+    hcSession: { user_id: 1, role: 'admin', email: 'a@x.com' },
+    body: {
+      name: 'Admin email rule',
+      scopeType: 'all',
+      operator: 'equals',
+      matchValue: 'true',
+      channel: 'email',
+      targetEmail: 'other@y.com',
+    },
+  });
+  assert.equal(result.statusCode, 201, 'admin email POST must return 201');
+  // Admin recipient must be preserved (D-08: lock only applies to members)
+  assert.equal(result.jsonBody.targetEmail, 'other@y.com', 'admin target_email must be kept as submitted');
+});
+
+test('POST channel=email rejected with 400 when smtp isEmailEnabled() is false (MALERT-06, T-26-SMTP-DOS)', async () => {
+  const pool = createMockPool();
+  // Inject isEmailEnabled: () => false to simulate SMTP not configured (D-09)
+  const router = createAlertsRouter({ pool, isEmailEnabled: () => false });
+  const post = getRouteHandler(router, 'POST', '/rules');
+
+  const result = await invoke(post, {
+    hcSession: { user_id: 1, role: 'admin', email: 'a@x.com' },
+    body: {
+      name: 'Email when SMTP off',
+      scopeType: 'all',
+      operator: 'equals',
+      matchValue: 'true',
+      channel: 'email',
+      targetEmail: 'someone@example.com',
+    },
+  });
+  assert.equal(result.statusCode, 400, 'email channel must return 400 when SMTP unavailable');
+  assert.match(result.jsonBody.error, /smtp|email.*unavailable|not configured/i,
+    'error must convey SMTP is not configured');
+});
+
+test('PATCH email lock: member switching to email gets target_email forced to session email (MALERT-05)', async () => {
+  // Pre-seed an existing rule owned by user 2
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 50,
+        user_id: 2,
+        name: 'Existing webhook rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: null,
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const patch = getRouteHandler(router, 'PATCH', '/rules/:id');
+
+  // Member switches rule to email with a foreign targetEmail
+  const result = await invoke(patch, {
+    hcSession: { user_id: 2, role: 'member', email: 'member@x.com' },
+    params: { id: '50' },
+    body: {
+      channel: 'email',
+      targetEmail: 'foreign@attacker.com',
+    },
+  });
+  assert.equal(result.statusCode, 200, 'PATCH must succeed for member switching to email');
+  // Server must override with session email (D-08)
+  assert.equal(result.jsonBody.targetEmail, 'member@x.com', 'PATCH target_email must be locked to session email for member');
+});
