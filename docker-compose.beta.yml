@@ -157,7 +157,7 @@ services:
       - "traefik.http.routers.hc-beta.rule=Host(`${BETA_FQDN}`)"
       - "traefik.http.routers.hc-beta.entrypoints=websecure"
       - "traefik.http.routers.hc-beta.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.hc-beta.middlewares=secured@file"
+      - "traefik.http.routers.hc-beta.middlewares=secured-ng@file"
       - "traefik.http.services.hc-beta.loadbalancer.server.port=80"
     environment:
       LISTENER_HOST: ${LISTENER_HOST:-hc-beta-listener}
