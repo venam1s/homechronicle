@@ -237,7 +237,7 @@ function isChannelFieldViolation(err) {
 const CHANNEL_FIELD_ERROR =
   'Webhook rules require a target URL and email rules require a recipient email';
 
-export function createAlertsRouter({ pool }) {
+export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
   const router = express.Router();
   const alertsReadLimiter = rateLimit({
     windowMs: ALERTS_READ_RATE_LIMIT_WINDOW_MS,
@@ -258,18 +258,23 @@ export function createAlertsRouter({ pool }) {
     message: { error: 'Too many requests' },
   });
 
-  router.get('/rules', alertsReadLimiter, async (_req, res) => {
+  // GET /rules — returns only the calling session's own rules (D-07, MALERT-01)
+  router.get('/rules', alertsReadLimiter, async (req, res) => {
+    const uid = req.hcSession?.user_id;
+    if (!uid) return res.json([]);
     try {
       const result = await pool.query(
         `SELECT id, name, enabled, scope_type, scope_value, characteristic,
                 operator, match_value, target_url, target_email, channel,
                 quiet_minutes, created_at, updated_at
          FROM alert_rules
-         ORDER BY updated_at DESC, id DESC`
+         WHERE user_id = $1
+         ORDER BY updated_at DESC, id DESC`,
+        [uid]
       );
       res.json(result.rows.map((row) => {
         const rule = toApiRule(row);
-        delete rule.targetUrl; // webhook URL redaction preserved (D-08)
+        delete rule.targetUrl; // webhook URL redaction preserved (L-1)
         // targetEmail NOT deleted — returned in plaintext (D-08)
         return rule;
       }));
@@ -279,16 +284,32 @@ export function createAlertsRouter({ pool }) {
     }
   });
 
-  router.post('/rules', requireAdminSession, alertsWriteLimiter, async (req, res) => {
+  // POST /rules — any authenticated session; user_id sourced from session (D-07)
+  router.post('/rules', alertsWriteLimiter, async (req, res) => {
+    // Inline session guard (D-06): reject service-token-only callers (no req.hcSession)
+    if (!req.hcSession?.user_id) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const parsed = validateCreate(req.body);
     if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+    // SMTP guard (D-09): reject email channel when SMTP is not configured
+    if (parsed.value.channel === 'email' && !isEmailEnabled()) {
+      return res.status(400).json({ error: 'Email channel unavailable — SMTP is not configured' });
+    }
+
+    // Member email lock (D-08): force target_email to session email for members
+    if (req.hcSession.role === 'member' && parsed.value.channel === 'email') {
+      parsed.value.targetEmail = req.hcSession.email;
+    }
 
     try {
       const result = await pool.query(
         `INSERT INTO alert_rules
            (name, enabled, scope_type, scope_value, characteristic, operator, match_value,
-            channel, target_url, target_email, quiet_minutes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            channel, target_url, target_email, quiet_minutes, user_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          RETURNING id, name, enabled, scope_type, scope_value, characteristic,
                    operator, match_value, channel, target_url, target_email,
                    quiet_minutes, created_at, updated_at`,
@@ -304,6 +325,7 @@ export function createAlertsRouter({ pool }) {
           parsed.value.targetUrl,
           parsed.value.targetEmail,
           parsed.value.quietMinutes,
+          req.hcSession.user_id, // $12 — owner; never sourced from req.body (D-07)
         ]
       );
       const created = toApiRule(result.rows[0]);
@@ -318,7 +340,13 @@ export function createAlertsRouter({ pool }) {
     }
   });
 
-  router.patch('/rules/:id', requireAdminSession, alertsWriteLimiter, async (req, res) => {
+  // PATCH /rules/:id — IDOR-safe: WHERE id=$N AND user_id=$M (D-07, MALERT-04)
+  router.patch('/rules/:id', alertsWriteLimiter, async (req, res) => {
+    // Inline session guard (D-06): reject service-token-only callers (no req.hcSession)
+    if (!req.hcSession?.user_id) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const ruleId = Number.parseInt(String(req.params.id ?? ''), 10);
     if (!Number.isFinite(ruleId) || ruleId < 1) {
       return res.status(400).json({ error: 'Invalid rule id' });
@@ -326,6 +354,21 @@ export function createAlertsRouter({ pool }) {
 
     const parsed = validatePatch(req.body);
     if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+    // SMTP guard (D-09): reject email channel when SMTP is not configured
+    const effectiveChannel = parsed.value.channel;
+    if (effectiveChannel === 'email' && !isEmailEnabled()) {
+      return res.status(400).json({ error: 'Email channel unavailable — SMTP is not configured' });
+    }
+
+    // Member email lock (D-08): force target_email to session email for members.
+    // Lock fires when channel is being set to 'email' OR when targetEmail is in the
+    // patch body (even without a channel field). A member can never set any address
+    // but their own — patching targetEmail on an already-email rule without re-sending
+    // the channel field is the bypass vector that T-26-EMAIL-SPOOF covers.
+    if (req.hcSession.role === 'member' && (effectiveChannel === 'email' || 'targetEmail' in parsed.value)) {
+      parsed.value.targetEmail = req.hcSession.email;
+    }
 
     const fields = [];
     const params = [];
@@ -346,13 +389,17 @@ export function createAlertsRouter({ pool }) {
       params.push(value);
       fields.push(`${map[key]} = $${params.length}`);
     }
+    // IDOR-safe WHERE: require both id match AND ownership (D-07)
     params.push(ruleId);
+    const idParam = params.length;
+    params.push(req.hcSession.user_id);
+    const uidParam = params.length;
 
     try {
       const result = await pool.query(
         `UPDATE alert_rules
          SET ${fields.join(', ')}, updated_at = NOW()
-         WHERE id = $${params.length}
+         WHERE id = $${idParam} AND user_id = $${uidParam}
          RETURNING id, name, enabled, scope_type, scope_value, characteristic,
                    operator, match_value, channel, target_url, target_email,
                    quiet_minutes, created_at, updated_at`,
@@ -371,13 +418,22 @@ export function createAlertsRouter({ pool }) {
     }
   });
 
-  router.delete('/rules/:id', requireAdminSession, alertsWriteLimiter, async (req, res) => {
+  // DELETE /rules/:id — IDOR-safe: WHERE id=$1 AND user_id=$2 (D-07, MALERT-04)
+  router.delete('/rules/:id', alertsWriteLimiter, async (req, res) => {
+    // Inline session guard (D-06): reject service-token-only callers (no req.hcSession)
+    if (!req.hcSession?.user_id) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const ruleId = Number.parseInt(String(req.params.id ?? ''), 10);
     if (!Number.isFinite(ruleId) || ruleId < 1) {
       return res.status(400).json({ error: 'Invalid rule id' });
     }
     try {
-      const result = await pool.query('DELETE FROM alert_rules WHERE id = $1', [ruleId]);
+      const result = await pool.query(
+        'DELETE FROM alert_rules WHERE id = $1 AND user_id = $2',
+        [ruleId, req.hcSession.user_id]
+      );
       if (!result.rowCount) return res.status(404).json({ error: 'Rule not found' });
       res.json({ success: true });
     } catch (err) {
@@ -386,22 +442,31 @@ export function createAlertsRouter({ pool }) {
     }
   });
 
+  // GET /deliveries — scoped to deliveries whose rule is owned by the session user (D-05, D-07)
   router.get('/deliveries', alertsReadLimiter, async (req, res) => {
+    const uid = req.hcSession?.user_id;
     const page = parseIntInRange(req.query.page, 1, 1, 1_000_000);
     const limit = parseIntInRange(req.query.limit, 50, 1, 200);
     const offset = (page - 1) * limit;
 
     try {
-      const countResult = await pool.query('SELECT COUNT(*)::int AS total FROM alert_deliveries');
+      const countResult = await pool.query(
+        `SELECT COUNT(*)::int AS total
+         FROM alert_deliveries d
+         JOIN alert_rules r ON r.id = d.rule_id
+         WHERE r.user_id = $1`,
+        [uid]
+      );
       const total = countResult.rows[0]?.total ?? 0;
       const result = await pool.query(
         `SELECT d.id, d.rule_id, d.event_id, d.status, d.target_url, d.channel, d.recipient,
                 d.response_code, d.error, d.sent_at, r.name AS rule_name
          FROM alert_deliveries d
-         LEFT JOIN alert_rules r ON r.id = d.rule_id
+         JOIN alert_rules r ON r.id = d.rule_id
+         WHERE r.user_id = $1
          ORDER BY d.sent_at DESC, d.id DESC
-         LIMIT $1 OFFSET $2`,
-        [limit, offset]
+         LIMIT $2 OFFSET $3`,
+        [uid, limit, offset]
       );
       res.json({
         total,

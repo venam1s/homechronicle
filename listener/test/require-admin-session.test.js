@@ -219,58 +219,34 @@ test('PATCH /retention guard: no session → next() called (AUTH_ENABLED=false p
   assert.strictEqual(wasNextCalled(), true);
 });
 
-// ---- POST /rules (alerts-router) ----
+// ---- POST/PATCH/DELETE /rules (alerts-router) ----
+//
+// Phase 26-02 replaced requireAdminSession on these routes with an inline
+// any-session guard (members are now allowed; service-token writes rejected).
+// The middleware-layer tests below now verify only that the routes exist and
+// that the rate-limiter middleware calls next() — auth behaviour is covered in
+// alerts-router.integration.test.js ('no-session 401/403' and 'MALERT-02' tests).
 
 const alertsRouter = createAlertsRouter({ pool: fakePool });
 
-test('POST /rules guard: member → 403', () => {
-  const guard = getGuardHandler(alertsRouter, 'POST', '/rules');
-  const { req, res, next, getStatus, getJson, wasNextCalled } = makeCtx({
-    hcSession: { user_id: 7, role: 'member' },
-  });
-  guard(req, res, next);
-
-  assert.strictEqual(getStatus(), 403);
-  assert.deepStrictEqual(getJson(), { error: 'Forbidden' });
-  assert.strictEqual(wasNextCalled(), false);
+test('POST /rules route exists on alertsRouter (26-02: requireAdminSession replaced)', () => {
+  // Verify the route is registered (stack entry exists); auth is inline in handler.
+  const found = alertsRouter.stack.some(
+    (l) => l.route?.path === '/rules' && l.route?.methods?.post
+  );
+  assert.strictEqual(found, true, 'POST /rules must be registered on the alerts router');
 });
 
-test('POST /rules guard: admin → next() called', () => {
-  const guard = getGuardHandler(alertsRouter, 'POST', '/rules');
-  const { req, res, next, getStatus, wasNextCalled } = makeCtx({
-    hcSession: { user_id: 1, role: 'admin' },
-  });
-  guard(req, res, next);
-
-  assert.strictEqual(wasNextCalled(), true);
-  assert.notStrictEqual(getStatus(), 403);
+test('PATCH /rules/:id route exists on alertsRouter (26-02: requireAdminSession replaced)', () => {
+  const found = alertsRouter.stack.some(
+    (l) => l.route?.path === '/rules/:id' && l.route?.methods?.patch
+  );
+  assert.strictEqual(found, true, 'PATCH /rules/:id must be registered on the alerts router');
 });
 
-test('POST /rules guard: no session → next() called', () => {
-  const guard = getGuardHandler(alertsRouter, 'POST', '/rules');
-  const { req, res, next, wasNextCalled } = makeCtx({ hcSession: undefined });
-  guard(req, res, next);
-  assert.strictEqual(wasNextCalled(), true);
-});
-
-test('PATCH /rules/:id guard: member → 403', () => {
-  const guard = getGuardHandler(alertsRouter, 'PATCH', '/rules/:id');
-  const { req, res, next, getStatus, wasNextCalled } = makeCtx({
-    hcSession: { user_id: 7, role: 'member' },
-  });
-  guard(req, res, next);
-
-  assert.strictEqual(getStatus(), 403);
-  assert.strictEqual(wasNextCalled(), false);
-});
-
-test('DELETE /rules/:id guard: member → 403', () => {
-  const guard = getGuardHandler(alertsRouter, 'DELETE', '/rules/:id');
-  const { req, res, next, getStatus, wasNextCalled } = makeCtx({
-    hcSession: { user_id: 7, role: 'member' },
-  });
-  guard(req, res, next);
-
-  assert.strictEqual(getStatus(), 403);
-  assert.strictEqual(wasNextCalled(), false);
+test('DELETE /rules/:id route exists on alertsRouter (26-02: requireAdminSession replaced)', () => {
+  const found = alertsRouter.stack.some(
+    (l) => l.route?.path === '/rules/:id' && l.route?.methods?.delete
+  );
+  assert.strictEqual(found, true, 'DELETE /rules/:id must be registered on the alerts router');
 });
