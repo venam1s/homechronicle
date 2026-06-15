@@ -26,10 +26,11 @@ function getRouteHandler(router, method, path) {
   throw new Error(`Route not found: ${method} ${path}`);
 }
 
-async function invoke(handler, { query = {}, params = {}, body = {} } = {}) {
+async function invoke(handler, { query = {}, params = {}, body = {}, hcSession } = {}) {
   let statusCode = 200;
   let jsonBody = null;
   const req = { query, params, body };
+  if (hcSession !== undefined) req.hcSession = hcSession;
   const res = {
     status(code) {
       statusCode = code;
@@ -44,11 +45,16 @@ async function invoke(handler, { query = {}, params = {}, body = {} } = {}) {
   return { statusCode, jsonBody };
 }
 
+// Default hcSession for tests that don't assert session behaviour
+const ADMIN_SESSION = { user_id: 1, role: 'admin', email: 'admin@test.com' };
+
 /**
- * Create a mock pool that understands the new 11-param INSERT for alert_rules
- * (after 22-03 adds channel + target_email to the INSERT).
- * Falls back gracefully so the existing webhook SC-4 test still works against
- * the old 9-param INSERT until 22-03 lands.
+ * Create a mock pool that understands the 12-param INSERT for alert_rules
+ * (after 26-02 adds user_id as $12 to the INSERT).
+ *
+ * INSERT params: $1=name, $2=enabled, $3=scope_type, $4=scope_value,
+ *   $5=characteristic, $6=operator, $7=match_value, $8=channel,
+ *   $9=target_url, $10=target_email, $11=quiet_minutes, $12=user_id
  */
 function createMockPool() {
   const rules = [];
@@ -57,15 +63,13 @@ function createMockPool() {
   return {
     async query(sql, params = []) {
       if (sql.includes('FROM alert_rules') && sql.includes('ORDER BY updated_at DESC')) {
-        return { rows: [...rules].sort((a, b) => b.id - a.id) };
+        let rows = [...rules].sort((a, b) => b.id - a.id);
+        if (sql.includes('WHERE user_id = $1')) {
+          rows = rows.filter((r) => r.user_id === params[0]);
+        }
+        return { rows };
       }
       if (sql.startsWith('INSERT INTO alert_rules')) {
-        // After 22-03 the INSERT has 11 params:
-        //   $1=name, $2=enabled, $3=scope_type, $4=scope_value, $5=characteristic,
-        //   $6=operator, $7=match_value, $8=channel, $9=target_url, $10=target_email, $11=quiet_minutes
-        // Before 22-03 it has 9 params (no channel/target_email).
-        // Accept either shape so SC-4 webhook test passes pre-22-03.
-        const has11 = params.length >= 11;
         const row = {
           id: nextRuleId++,
           name: params[0],
@@ -75,10 +79,11 @@ function createMockPool() {
           characteristic: params[4],
           operator: params[5],
           match_value: params[6],
-          channel: has11 ? params[7] : 'webhook',
-          target_url: has11 ? params[8] : params[7],
-          target_email: has11 ? params[9] : null,
-          quiet_minutes: has11 ? params[10] : params[8],
+          channel: params[7] ?? 'webhook',
+          target_url: params[8],
+          target_email: params[9] ?? null,
+          quiet_minutes: params[10],
+          user_id: params[11] ?? null,
           created_at: '2026-02-26T10:00:00.000Z',
           updated_at: '2026-02-26T10:00:00.000Z',
         };
@@ -86,7 +91,8 @@ function createMockPool() {
         return { rows: [row] };
       }
       if (sql.startsWith('UPDATE alert_rules')) {
-        const id = params.at(-1);
+        const hasUserScope = sql.includes('AND user_id =');
+        const id = hasUserScope ? params.at(-2) : params.at(-1);
         const existing = rules.find((r) => r.id === id);
         if (!existing) return { rows: [] };
         existing.updated_at = '2026-02-26T11:00:00.000Z';
@@ -100,7 +106,7 @@ function createMockPool() {
         rules.push(...next);
         return { rowCount: before - next.length };
       }
-      if (sql.includes('COUNT(*)::int AS total FROM alert_deliveries')) {
+      if (sql.includes('COUNT(*)::int AS total') && sql.includes('alert_deliveries')) {
         return { rows: [{ total: 0 }] };
       }
       if (sql.includes('FROM alert_deliveries d')) {
@@ -118,6 +124,7 @@ test('SC-4 regression: POST with webhook channel creates rule correctly', async 
   const post = getRouteHandler(router, 'POST', '/rules');
 
   const result = await invoke(post, {
+    hcSession: ADMIN_SESSION,
     body: {
       name: 'Door opened',
       scopeType: 'characteristic',
@@ -140,6 +147,7 @@ test('POST with channel=email but no targetEmail returns 400 (Wave 0 - implement
   const post = getRouteHandler(router, 'POST', '/rules');
 
   const result = await invoke(post, {
+    hcSession: ADMIN_SESSION,
     body: {
       name: 'Email rule missing address',
       scopeType: 'all',
@@ -161,6 +169,7 @@ test('POST with channel=email and malformed targetEmail returns 400 (Wave 0 - im
   const post = getRouteHandler(router, 'POST', '/rules');
 
   const result = await invoke(post, {
+    hcSession: ADMIN_SESSION,
     body: {
       name: 'Email rule bad address',
       scopeType: 'all',
@@ -182,6 +191,7 @@ test('POST with channel=email and well-formed targetEmail succeeds (Wave 0 - imp
   const post = getRouteHandler(router, 'POST', '/rules');
 
   const result = await invoke(post, {
+    hcSession: ADMIN_SESSION,
     body: {
       name: 'Motion alert email',
       scopeType: 'all',
@@ -232,6 +242,7 @@ test('POST with channel=email inserts channel and target_email params (Wave 0 - 
   const post = getRouteHandler(router, 'POST', '/rules');
 
   await invoke(post, {
+    hcSession: ADMIN_SESSION,
     body: {
       name: 'Email rule',
       scopeType: 'all',
@@ -242,7 +253,7 @@ test('POST with channel=email inserts channel and target_email params (Wave 0 - 
     },
   });
 
-  // After 22-03: INSERT has 11 params; channel at index 7, target_email at index 9
+  // After 26-02: INSERT has 12 params (user_id=$12 added); channel at index 7, target_email at index 9
   assert.ok(insertedParams.length >= 10, 'INSERT must include channel and target_email params');
   assert.equal(insertedParams[7], 'email', 'channel param must be email');
   assert.equal(insertedParams[9], 'recipient@example.com', 'target_email param must be the email address');
@@ -280,7 +291,7 @@ test('GET /rules returns channel and targetEmail for email rule (Wave 0 - implem
   const router = createAlertsRouter({ pool });
   const list = getRouteHandler(router, 'GET', '/rules');
 
-  const result = await invoke(list);
+  const result = await invoke(list, { hcSession: ADMIN_SESSION });
   assert.equal(result.statusCode, 200, 'GET /rules must return 200');
   assert.equal(result.jsonBody.length, 1, 'must return one rule');
 
@@ -320,7 +331,7 @@ test('GET /rules does not expose targetUrl for webhook rules either (SC-4 + D-08
   const router = createAlertsRouter({ pool });
   const list = getRouteHandler(router, 'GET', '/rules');
 
-  const result = await invoke(list);
+  const result = await invoke(list, { hcSession: ADMIN_SESSION });
   assert.equal(result.statusCode, 200);
   const rule = result.jsonBody[0];
   assert.equal(rule.targetUrl, undefined, 'webhook targetUrl must be redacted from GET /rules');

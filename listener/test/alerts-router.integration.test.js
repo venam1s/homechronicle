@@ -158,7 +158,7 @@ function createMockPool({ initialRules = [], deliveries: initialDeliveries } = {
       }
 
       // -- GET /deliveries COUNT --
-      if (sql.includes('COUNT(*)::int AS total FROM alert_deliveries')) {
+      if (sql.includes('COUNT(*)::int AS total') && sql.includes('alert_deliveries')) {
         const hasUserScope = sql.includes('r.user_id');
         if (hasUserScope) {
           const uid = params[0];
