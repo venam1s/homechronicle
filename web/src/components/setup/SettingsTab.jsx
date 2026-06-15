@@ -126,7 +126,6 @@ export default function SettingsTab({ setup }) {
   const [toastMaxVisibleInput, setToastMaxVisibleInput] = useState(3);
   const [repairEnabledInput, setRepairEnabledInput] = useState(false);
   const [repairHourInput, setRepairHourInput] = useState(3);
-  const [alertsEnabledInput, setAlertsEnabledInput] = useState(false);
   const [alertsDefaultQuietInput, setAlertsDefaultQuietInput] = useState(0);
   const [alertsWebhookTimeoutInput, setAlertsWebhookTimeoutInput] = useState(5000);
 
@@ -270,10 +269,9 @@ export default function SettingsTab({ setup }) {
   }, [repairEnabledCurrent, repairHourCurrent]);
 
   useEffect(() => {
-    setAlertsEnabledInput(Boolean(alertsConfig?.enabled ?? false));
     setAlertsDefaultQuietInput(alertsConfig?.defaultQuietMinutes ?? 0);
     setAlertsWebhookTimeoutInput(alertsConfig?.webhookTimeoutMs ?? 5000);
-  }, [alertsConfig?.enabled, alertsConfig?.defaultQuietMinutes, alertsConfig?.webhookTimeoutMs]);
+  }, [alertsConfig?.defaultQuietMinutes, alertsConfig?.webhookTimeoutMs]);
 
   const parsedRetentionDays = Number.parseInt(retentionDaysInput, 10);
   const parsedStaleThresholdHours = Number.parseInt(staleThresholdHoursInput, 10);
@@ -599,73 +597,56 @@ export default function SettingsTab({ setup }) {
         <p className="text-xs text-hc-muted mb-3">
           Send webhook notifications when device events match your alert rules. Configure rules in the Alerts tab.
         </p>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm font-medium text-hc-fg">Webhook Alerts</p>
-          <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
-            <input
-              type="checkbox"
-              checked={alertsEnabledInput}
-              onChange={(e) => {
-                const v = e.target.checked;
-                setAlertsEnabledInput(v);
-                saveAlertsMutation.mutate({ enabled: v });
-              }}
-            />
-            <span>{alertsEnabledInput ? 'On' : 'Off'}</span>
-          </label>
-        </div>
-        {alertsEnabledInput && (
-          <div className="mt-3 space-y-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <p className="text-sm text-hc-fg">Default quiet period</p>
-                <p className="text-xs text-hc-muted mt-0.5">Applied to new rules. 0 = no quiet period.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="10080"
-                  step="1"
-                  value={alertsDefaultQuietInput}
-                  onChange={(e) => setAlertsDefaultQuietInput(Number(e.target.value))}
-                  onBlur={() => {
-                    const v = Number.parseInt(String(alertsDefaultQuietInput), 10);
-                    if (Number.isFinite(v) && v >= 0 && v <= 10080) {
-                      saveAlertsMutation.mutate({ defaultQuietMinutes: v });
-                    }
-                  }}
-                  className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
-                />
-                <span className="text-xs text-hc-muted">min</span>
-              </div>
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm text-hc-fg">Default quiet period</p>
+              <p className="text-xs text-hc-muted mt-0.5">Applied to new rules. 0 = no quiet period.</p>
             </div>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <p className="text-sm text-hc-fg">Webhook timeout</p>
-                <p className="text-xs text-hc-muted mt-0.5">Max wait time for webhook delivery.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="1000"
-                  max="30000"
-                  step="500"
-                  value={alertsWebhookTimeoutInput}
-                  onChange={(e) => setAlertsWebhookTimeoutInput(Number(e.target.value))}
-                  onBlur={() => {
-                    const v = Number.parseInt(String(alertsWebhookTimeoutInput), 10);
-                    if (Number.isFinite(v) && v >= 1000 && v <= 30000) {
-                      saveAlertsMutation.mutate({ webhookTimeoutMs: v });
-                    }
-                  }}
-                  className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
-                />
-                <span className="text-xs text-hc-muted">ms</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="10080"
+                step="1"
+                value={alertsDefaultQuietInput}
+                onChange={(e) => setAlertsDefaultQuietInput(Number(e.target.value))}
+                onBlur={() => {
+                  const v = Number.parseInt(String(alertsDefaultQuietInput), 10);
+                  if (Number.isFinite(v) && v >= 0 && v <= 10080) {
+                    saveAlertsMutation.mutate({ defaultQuietMinutes: v });
+                  }
+                }}
+                className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              />
+              <span className="text-xs text-hc-muted">min</span>
             </div>
           </div>
-        )}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm text-hc-fg">Webhook timeout</p>
+              <p className="text-xs text-hc-muted mt-0.5">Max wait time for webhook delivery.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1000"
+                max="30000"
+                step="500"
+                value={alertsWebhookTimeoutInput}
+                onChange={(e) => setAlertsWebhookTimeoutInput(Number(e.target.value))}
+                onBlur={() => {
+                  const v = Number.parseInt(String(alertsWebhookTimeoutInput), 10);
+                  if (Number.isFinite(v) && v >= 1000 && v <= 30000) {
+                    saveAlertsMutation.mutate({ webhookTimeoutMs: v });
+                  }
+                }}
+                className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              />
+              <span className="text-xs text-hc-muted">ms</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quiet hours */}

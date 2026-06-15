@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart2 },
   { id: 'devices',   label: 'Devices',   icon: Monitor },
   { id: 'timeline',  label: 'Timeline',  icon: LayoutList },
-  { id: 'alerts',    label: 'Alerts',    icon: Bell, featureFlag: 'alerts' },
+  { id: 'alerts',    label: 'Alerts',    icon: Bell },
   { id: 'settings',  label: 'Settings',  icon: Settings },
 ];
 
@@ -91,9 +91,8 @@ export default function Sidebar({
   buildVersion,
   availableUpdate,
   onDismissUpdate,
-  alertsEnabled = true,
 }) {
-  const visibleNavItems = NAV_ITEMS.filter((item) => item.featureFlag !== 'alerts' || alertsEnabled);
+  const visibleNavItems = NAV_ITEMS;
   const { preference, resolvedTheme, setPreference } = useTheme();
   const { accent, setAccent } = useAccent();
   const { user, logoutMutation } = useAuth();

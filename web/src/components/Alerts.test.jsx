@@ -27,12 +27,16 @@ vi.mock('../hooks/useAlerts.js', () => ({
   useAlertDeliveries: () => ({ data: { deliveries: [], pages: 1 }, isLoading: false }),
 }));
 
-vi.mock('../hooks/useAuth.js', () => ({
-  useAuth: () => ({
+const { mockUseAuth } = vi.hoisted(() => ({
+  mockUseAuth: vi.fn(() => ({
     user: { id: 1, email: 'admin@example.com', role: 'admin' },
     isLoading: false,
     isError: false,
-  }),
+  })),
+}));
+
+vi.mock('../hooks/useAuth.js', () => ({
+  useAuth: () => mockUseAuth(),
 }));
 
 vi.mock('../lib/api.js', () => ({
@@ -71,7 +75,7 @@ function lastPatchBody() {
 
 describe('Alerts edit flow with redacted targetUrl', () => {
   beforeEach(() => {
-    fetchJson.mockClear();
+    vi.clearAllMocks();
     fetchJson.mockImplementation(() => Promise.resolve({}));
   });
 
@@ -111,7 +115,7 @@ describe('Alerts edit flow with redacted targetUrl', () => {
 
 describe('Alerts edit affordance discoverability', () => {
   beforeEach(() => {
-    fetchJson.mockClear();
+    vi.clearAllMocks();
     fetchJson.mockImplementation(() => Promise.resolve({}));
   });
 
@@ -132,7 +136,7 @@ describe('Alerts edit affordance discoverability', () => {
 
 describe('Alerts channel picker', () => {
   beforeEach(() => {
-    fetchJson.mockClear();
+    vi.clearAllMocks();
     fetchJson.mockImplementation(() => Promise.resolve({}));
   });
 
@@ -202,6 +206,82 @@ describe('Alerts channel picker', () => {
       expect(
         screen.queryByText('Email delivery is inactive until SMTP is configured in Settings.')
       ).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe('Alerts SMTP-unconfigured Email channel disable (MALERT-06)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSmtpUnconfigured();
+  });
+
+  it('disables the Email radio when SMTP is unconfigured', async () => {
+    renderAlerts();
+    await waitFor(() => {
+      const emailRadio = screen.getByRole('radio', { name: /email/i });
+      expect(emailRadio).toBeDisabled();
+    });
+  });
+
+  it('shows "Email not configured — ask an admin to set up SMTP" message when SMTP unconfigured', async () => {
+    renderAlerts();
+    await waitFor(() => {
+      expect(
+        screen.getByText('Email not configured — ask an admin to set up SMTP')
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('does NOT disable the Email radio when SMTP is configured', async () => {
+    mockSmtpConfigured();
+    renderAlerts();
+    await waitFor(() => {
+      const emailRadio = screen.getByRole('radio', { name: /email/i });
+      expect(emailRadio).not.toBeDisabled();
+    });
+  });
+});
+
+describe('Alerts member recipient read-only lock (MALERT-05)', () => {
+  const memberUser = { user: { id: 2, email: 'member@example.com', role: 'member' }, isLoading: false, isError: false };
+  const adminUser = { user: { id: 1, email: 'admin@example.com', role: 'admin' }, isLoading: false, isError: false };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchJson.mockImplementation(() => Promise.resolve({}));
+    // Reset to default admin user after each test
+    mockUseAuth.mockImplementation(() => adminUser);
+  });
+
+  it('member recipient input is disabled and prefilled with account email', async () => {
+    mockUseAuth.mockImplementation(() => memberUser);
+    renderAlerts();
+    // fireEvent.click fires regardless of disabled state in jsdom
+    fireEvent.click(screen.getByRole('radio', { name: /email/i }));
+
+    await waitFor(() => {
+      const recipientInput = screen.getByLabelText('Recipient email address');
+      expect(recipientInput).toBeDisabled();
+      expect(recipientInput).toHaveAttribute('readonly');
+      expect(recipientInput.value).toBe('member@example.com');
+    });
+  });
+
+  it('admin recipient input is editable', async () => {
+    mockSmtpConfigured();
+    mockUseAuth.mockImplementation(() => adminUser);
+    renderAlerts();
+    // Wait for SMTP to resolve (radio not disabled)
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: /email/i })).not.toBeDisabled();
+    });
+    fireEvent.click(screen.getByRole('radio', { name: /email/i }));
+
+    await waitFor(() => {
+      const recipientInput = screen.getByLabelText('Recipient email address');
+      expect(recipientInput).not.toBeDisabled();
+      expect(recipientInput).not.toHaveAttribute('readonly');
     });
   });
 });

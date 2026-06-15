@@ -186,12 +186,13 @@ export default function Alerts() {
                     <Webhook size={14} className="text-hc-muted" />
                     Webhook
                   </label>
-                  <label className="inline-flex items-center gap-2 text-sm text-hc-fg cursor-pointer">
+                  <label className={clsx('inline-flex items-center gap-2 text-sm cursor-pointer', smtpUnconfigured ? 'text-hc-muted opacity-50' : 'text-hc-fg')}>
                     <input
                       type="radio"
                       name="channel"
                       value="email"
                       checked={form.channel === 'email'}
+                      disabled={smtpUnconfigured}
                       onChange={(e) => {
                         const newChannel = e.target.value;
                         setForm((prev) => ({
@@ -203,12 +204,15 @@ export default function Alerts() {
                         }));
                       }}
                       style={{ accentColor: 'rgb(var(--hc-accent-rgb))' }}
-                      className="cursor-pointer"
+                      className={clsx('cursor-pointer', smtpUnconfigured && 'cursor-not-allowed')}
                     />
                     <Mail size={14} className="text-hc-muted" />
                     Email
                   </label>
                 </div>
+                {smtpUnconfigured && (
+                  <p className="text-xs text-hc-muted mt-1">Email not configured — ask an admin to set up SMTP</p>
+                )}
               </fieldset>
               {form.channel === 'webhook' ? (
                 <input
@@ -224,11 +228,18 @@ export default function Alerts() {
                 <div className="space-y-1">
                   <input
                     type="email"
-                    value={form.targetEmail}
-                    onChange={(e) => setForm((prev) => ({ ...prev, targetEmail: e.target.value }))}
+                    value={user?.role === 'member' ? (user?.email ?? form.targetEmail) : form.targetEmail}
+                    onChange={(e) => {
+                      if (user?.role !== 'member') setForm((prev) => ({ ...prev, targetEmail: e.target.value }));
+                    }}
                     placeholder="recipient@example.com"
                     aria-label="Recipient email address"
-                    className="w-full border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
+                    readOnly={user?.role === 'member'}
+                    disabled={user?.role === 'member'}
+                    className={clsx(
+                      'w-full border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg',
+                      user?.role === 'member' && 'opacity-75 cursor-not-allowed',
+                    )}
                     required
                     autoComplete="email"
                   />
