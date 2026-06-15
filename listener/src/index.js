@@ -527,6 +527,7 @@ const PUBLIC_AUTH_PATHS = new Set([
   '/api/auth/config',
   '/api/auth/csrf-token',
   '/api/auth/user-count',
+  '/api/auth/invite-status',
   '/api/health',
 ]);
 

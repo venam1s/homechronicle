@@ -12,6 +12,7 @@ import {
   revokeSession,
   revokeSessionsForUser,
   validateSession,
+  getInviteByTokenHash,
   redeemInvite,
   createPasswordResetToken,
   redeemResetToken,
@@ -183,6 +184,45 @@ export function createAuthPublicRouter({
   // boolean indicating whether the auth system is active.
   router.get('/config', (_req, res) => {
     res.json({ authEnabled });
+  });
+
+  // -- GET /invite-status — public, read-only invite pre-validation --
+  // Called by AcceptInvitePage on mount to determine whether the invite token
+  // is still valid before showing the account-creation form. This is intentionally
+  // non-destructive: it reads the invite row without mutating it (getInviteByTokenHash).
+  // Returns ONLY { valid } or { valid, reason } — never email or role (privacy:
+  // tokens are 256-bit random so the endpoint cannot be used for enumeration).
+  router.get('/invite-status', async (req, res) => {
+    try {
+      const rawToken = String(req.query.token ?? '').trim();
+      if (!rawToken) {
+        return res.json({ valid: false, reason: 'invalid' });
+      }
+
+      const tokenHash = hashToken(rawToken);
+      const invite = await getInviteByTokenHash(pool, tokenHash);
+
+      if (!invite) {
+        return res.json({ valid: false, reason: 'invalid' });
+      }
+
+      if (invite.status === 'revoked') {
+        return res.json({ valid: false, reason: 'revoked' });
+      }
+
+      if (invite.used_at != null || invite.status === 'accepted') {
+        return res.json({ valid: false, reason: 'used' });
+      }
+
+      if (new Date(invite.expires_at) <= new Date() || invite.status === 'expired') {
+        return res.json({ valid: false, reason: 'expired' });
+      }
+
+      return res.json({ valid: true });
+    } catch (err) {
+      log.error('[api] /api/auth/invite-status error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   });
 
   // -- POST /login — AUTH-02, AUTH-06, SEC-01, SEC-04 --

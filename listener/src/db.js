@@ -618,6 +618,22 @@ export async function revokeInvite(pool, inviteId) {
 }
 
 /**
+ * Read-only invite lookup by token hash — does NOT mutate the invite.
+ * Used by GET /api/auth/invite-status to pre-validate the token on page load
+ * without consuming the single-use redemption slot.
+ * @param {pg.Pool} pool
+ * @param {string} tokenHash - SHA-256 hex of the raw invite token
+ * @returns {Promise<{status: string, expires_at: Date, used_at: Date|null}|null>}
+ */
+export async function getInviteByTokenHash(pool, tokenHash) {
+  const result = await pool.query(
+    `SELECT status, expires_at, used_at FROM invites WHERE token_hash = $1`,
+    [tokenHash],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
  * Atomically redeem a pending invite token (single-use, T-21-03-REPLAY).
  * The UPDATE wins only when status='pending', expires_at>NOW(), and used_at IS NULL.
  * A second call with the same token_hash returns null because used_at is already set.
