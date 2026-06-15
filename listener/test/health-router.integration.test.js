@@ -44,7 +44,6 @@ test('GET /health — healthy returns 200 with ok status', async () => {
     getSubscriberHealth: () => ({ total: 2, connected: 2, lastConnectedAt: null }),
     getMatterRuntime: () => null,
     loadPairings: () => ({ a1: {} }),
-    alertsEnabled: () => true,
   });
   const handler = getRouteHandler(router, 'GET', '/health');
   const { statusCode, jsonBody } = await invoke(handler);
@@ -53,7 +52,6 @@ test('GET /health — healthy returns 200 with ok status', async () => {
   assert.equal(jsonBody.status, 'ok');
   assert.equal(jsonBody.db, 'ok');
   assert.equal(jsonBody.paired, 1);
-  assert.equal(jsonBody.alertsEnabled, true);
   assert.equal(jsonBody.matter, null);
 });
 
@@ -71,7 +69,6 @@ test('GET /health — DB down returns 503 with unhealthy status', async () => {
     getSubscriberHealth: () => ({ total: 2, connected: 2, lastConnectedAt: null }),
     getMatterRuntime: () => null,
     loadPairings: () => ({}),
-    alertsEnabled: () => false,
   });
   const handler = getRouteHandler(router, 'GET', '/health');
   const { statusCode, jsonBody } = await invoke(handler);
@@ -101,7 +98,6 @@ test('GET /health — matter runtime present reports matter status', async () =>
       }),
     }),
     loadPairings: () => ({}),
-    alertsEnabled: () => true,
   });
   const handler = getRouteHandler(router, 'GET', '/health');
   const { statusCode, jsonBody } = await invoke(handler);
@@ -130,7 +126,6 @@ test('GET /health — recently disconnected subscriber is within grace period', 
     }),
     getMatterRuntime: () => null,
     loadPairings: () => ({}),
-    alertsEnabled: () => false,
   });
   const handler = getRouteHandler(router, 'GET', '/health');
   const { statusCode, jsonBody } = await invoke(handler);

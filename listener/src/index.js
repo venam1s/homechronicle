@@ -26,7 +26,7 @@ import { createRepairScheduler } from './repair-scheduler.js';
 import { performPairSetupAndPersist } from './repair-helpers.js';
 import { createRepairRouter } from './repair-router.js';
 import { createAlertsSettingsRouter } from './alerts-settings-router.js';
-import { setAlertsEnabledFn, setAlertEmailFrom } from './subscriber.js';
+import { setAlertEmailFrom } from './subscriber.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { cached } from './query-cache.js';
@@ -244,7 +244,6 @@ await smtpConfigStore.init();
 const smtpSecret = await readSmtpSecret();
 const smtpConfig = buildSmtpConfig(smtpConfigStore.getSnapshot(), smtpSecret);
 await initEmail(smtpConfig);
-setAlertsEnabledFn(() => alertsSettingsStore.getSnapshot().enabled);
 setAlertEmailFrom(smtpConfig.from ?? '');
 await initMatterController();
 matterRuntime = createMatterRuntime({
@@ -636,7 +635,7 @@ app.use('/api', createEventsRouter({
   pool,
   getRooms: loadRooms,
 }));
-app.use('/api/alerts', createAlertsRouter({ pool }));
+app.use('/api/alerts', createAlertsRouter({ pool, isEmailEnabled }));
 
 app.use('/api/setup', createAlertsSettingsRouter({
   getSettings: () => alertsSettingsStore.getSnapshot(),
@@ -717,7 +716,6 @@ app.use('/api', createHealthRouter({
   getSubscriberHealth,
   getMatterRuntime: () => matterRuntime,
   loadPairings,
-  alertsEnabled: () => alertsSettingsStore.getSnapshot().enabled,
 }));
 
 // ─── Global error handler — MUST remain the final app.use() in index.js ───
@@ -749,8 +747,5 @@ app.listen(PORT, API_BIND_ADDRESS, () => {
     log.info('[api] CORS restricted to localhost origins');
   } else {
     log.warn('[api] CORS denies all browser origins (CORS_ALLOW_LOCALHOST=false and no allow-list)');
-  }
-  if (!alertsSettingsStore.getSnapshot().enabled) {
-    log.info('[api] Alerts feature disabled (toggle in Settings to enable)');
   }
 });
