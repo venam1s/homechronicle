@@ -4,7 +4,6 @@ import { useAuth } from '../hooks/useAuth.js';
 import { useAuthConfig } from '../hooks/useAuthConfig.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import SettingsTab from '../components/setup/SettingsTab.jsx';
-import AdminAdvancedSection from '../components/setup/AdminAdvancedSection.jsx';
 import PageContainer from '../components/PageContainer.jsx';
 import UsersPanel from '../components/UsersPanel.jsx';
 import SMTPConfigSection from '../components/SMTPConfigSection.jsx';
@@ -92,8 +91,8 @@ export default function SettingsPage() {
         {/* Content area */}
         <div className="flex-1 min-w-0 space-y-4">
           {/* Admin section: Users + SMTP only; shown when auth is on and user is admin.
-              AdminAdvancedSection has been moved to Configuration so Advanced has a
-              single home visible to admins and the auth-off sole operator. */}
+              Advanced (Log level + Danger Zone) is an inner tab inside SettingsTab,
+              gated by showAdvanced — visible to admins and the auth-off sole operator. */}
           {activeSection === 'admin' && authEnabled && isAdmin && (
             <>
               <UsersPanel />
@@ -101,10 +100,7 @@ export default function SettingsPage() {
             </>
           )}
           {activeSection === 'configuration' && (
-            <>
-              <SettingsTab setup={setup} />
-              {showAdvanced && <AdminAdvancedSection setup={setup} />}
-            </>
+            <SettingsTab setup={setup} showAdvanced={showAdvanced} />
           )}
           {activeSection === 'account' && authEnabled && (
             <>

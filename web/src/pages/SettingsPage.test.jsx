@@ -28,12 +28,11 @@ vi.mock('../hooks/useAuthConfig.js', () => ({
 }));
 
 // Stub child sections so we only test nav/visibility logic, not their internals.
+// SettingsTab stub exposes showAdvanced via data attribute so tests can verify the prop.
 vi.mock('../components/setup/SettingsTab.jsx', () => ({
-  default: () => <div data-testid="settings-tab">SettingsTab</div>,
-}));
-
-vi.mock('../components/setup/AdminAdvancedSection.jsx', () => ({
-  default: () => <div data-testid="admin-advanced">AdminAdvancedSection</div>,
+  default: ({ showAdvanced }) => (
+    <div data-testid="settings-tab" data-show-advanced={showAdvanced ? 'true' : 'false'}>SettingsTab</div>
+  ),
 }));
 
 vi.mock('../components/UsersPanel.jsx', () => ({
@@ -88,9 +87,9 @@ describe('SettingsPage — auth-off mode (AUTH_ENABLED=false)', () => {
     expect(screen.getByTestId('settings-tab')).toBeInTheDocument();
   });
 
-  it('renders AdminAdvancedSection in Configuration (showAdvanced = !authEnabled)', () => {
+  it('passes showAdvanced=true to SettingsTab in Configuration (showAdvanced = !authEnabled)', () => {
     renderSettings();
-    expect(screen.getByTestId('admin-advanced')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-tab')).toHaveAttribute('data-show-advanced', 'true');
   });
 
   it('does NOT render UsersPanel or SMTPConfigSection in auth-off', () => {
@@ -120,9 +119,9 @@ describe('SettingsPage — auth-on, member (not admin)', () => {
     expect(screen.queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
   });
 
-  it('does NOT show AdminAdvancedSection in Configuration (member has no Advanced)', () => {
+  it('passes showAdvanced=false to SettingsTab in Configuration (member has no Advanced)', () => {
     renderSettings();
-    expect(screen.queryByTestId('admin-advanced')).not.toBeInTheDocument();
+    expect(screen.getByTestId('settings-tab')).toHaveAttribute('data-show-advanced', 'false');
   });
 
   it('shows SettingsTab in Configuration', () => {
@@ -152,25 +151,25 @@ describe('SettingsPage — auth-on, admin', () => {
     expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument();
   });
 
-  it('shows AdminAdvancedSection under Configuration (showAdvanced = isAdmin)', () => {
+  it('passes showAdvanced=true to SettingsTab under Configuration (showAdvanced = isAdmin)', () => {
     renderSettings();
     // Configuration is the default active section
-    expect(screen.getByTestId('admin-advanced')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-tab')).toHaveAttribute('data-show-advanced', 'true');
   });
 
-  it('shows SettingsTab alongside AdminAdvancedSection in Configuration', () => {
+  it('shows SettingsTab with showAdvanced=true in Configuration', () => {
     renderSettings();
     expect(screen.getByTestId('settings-tab')).toBeInTheDocument();
-    expect(screen.getByTestId('admin-advanced')).toBeInTheDocument();
+    expect(screen.getByTestId('settings-tab')).toHaveAttribute('data-show-advanced', 'true');
   });
 
-  it('shows UsersPanel and SMTPConfigSection (NOT AdminAdvancedSection) in Admin tab', () => {
+  it('shows UsersPanel and SMTPConfigSection (NOT SettingsTab) in Admin tab', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: 'Admin' }));
     expect(screen.getByTestId('users-panel')).toBeInTheDocument();
     expect(screen.getByTestId('smtp-section')).toBeInTheDocument();
-    // AdminAdvancedSection lives in Configuration only — not in Admin tab
-    expect(screen.queryByTestId('admin-advanced')).not.toBeInTheDocument();
+    // SettingsTab (and its Advanced content) lives in Configuration only — not in Admin tab
+    expect(screen.queryByTestId('settings-tab')).not.toBeInTheDocument();
   });
 
   it('shows Account content when Account nav is clicked', () => {

@@ -9,6 +9,7 @@ import { useToast } from '../Toast.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePreference } from '../../hooks/usePreference.js';
 import { useUserPreferences } from '../../hooks/useUserPreferences.js';
+import AdminAdvancedSection from './AdminAdvancedSection.jsx';
 
 const HOURS_OPTIONS = Array.from({ length: 24 }, (_, h) => {
   const period = h < 12 ? 'AM' : 'PM';
@@ -33,7 +34,7 @@ const TABS = [
   { id: 'about', label: 'About' },
 ];
 
-export default function SettingsTab({ setup }) {
+export default function SettingsTab({ setup, showAdvanced = false }) {
   const {
     retentionConfig,
     saveRetentionMutation,
@@ -337,22 +338,25 @@ export default function SettingsTab({ setup }) {
     }
   }
 
+  const visibleTabs = showAdvanced ? [...TABS, { id: 'advanced', label: 'Advanced' }] : TABS;
+  const activeTab = (tab === 'advanced' && !showAdvanced) ? 'device' : tab;
+
   return (
     <div className="space-y-4">
 
       {/* Tab bar */}
       <div role="tablist" className="flex items-center gap-4 border-b border-hc-panel-border">
-        {TABS.map(({ id, label }) => (
+        {visibleTabs.map(({ id, label }) => (
           <button
             key={id}
             role="tab"
-            aria-selected={tab === id}
+            aria-selected={activeTab === id}
             tabIndex={0}
             onClick={() => setTab(id)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTab(id); } }}
             className={clsx(
               'px-4 py-2 text-sm -mb-px border-b-2 transition-colors',
-              tab === id
+              activeTab === id
                 ? 'border-hc-accent-strong text-hc-fg-strong font-semibold'
                 : 'border-transparent text-hc-muted hover:text-hc-fg',
             )}
@@ -363,7 +367,7 @@ export default function SettingsTab({ setup }) {
       </div>
 
       {/* — About — */}
-      {tab === 'about' && (
+      {activeTab === 'about' && (
       <Card>
         <Card.Header title="About" />
         <Card.Body>
@@ -394,7 +398,7 @@ export default function SettingsTab({ setup }) {
       )}
 
       {/* — Device Management — */}
-      {tab === 'device' && (
+      {activeTab === 'device' && (
       <Card>
         <Card.Header title="Device Management" />
         <Card.Body>
@@ -486,7 +490,7 @@ export default function SettingsTab({ setup }) {
       )}
 
       {/* — Data Management — */}
-      {tab === 'data' && (
+      {activeTab === 'data' && (
       <div className="space-y-4">
       <Card>
         <Card.Header title="Data Management" />
@@ -865,7 +869,7 @@ export default function SettingsTab({ setup }) {
       )}
 
       {/* — Toast Notifications — */}
-      {tab === 'toast' && (
+      {activeTab === 'toast' && (
       <Card>
         <Card.Header title="Toast Notifications" />
         <Card.Body>
@@ -1000,6 +1004,11 @@ export default function SettingsTab({ setup }) {
 
         </Card.Body>
       </Card>
+      )}
+
+      {/* — Advanced — */}
+      {activeTab === 'advanced' && (
+        <AdminAdvancedSection setup={setup} />
       )}
 
       {/* Floating save button */}
