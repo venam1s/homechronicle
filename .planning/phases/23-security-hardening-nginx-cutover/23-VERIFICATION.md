@@ -1,16 +1,32 @@
 ---
-status: human_needed
+status: passed
 phase: 23-security-hardening-nginx-cutover
-verified_by: executing-agent (self-verification — see caveat)
+verified_by: executing-agent self-verification, then independent code-review + security gate + live UAT (resolved 2026-06-15)
 requirements: [SEC-05, SEC-06, SEC-07]
 date: 2026-06-13
-listener_tests: 607/607
-web_tests: 290/290
+resolved: 2026-06-15
+listener_tests: 714/714
+web_tests: 366/366
 ---
 
 # Phase 23: Security Hardening + Nginx Cutover — Verification
 
-## ⚠ Verification caveat (read first)
+## ✅ Resolution (2026-06-15)
+
+The self-verification caveat below has been **closed**. Since the original self-verified report:
+- Independent code review ran and its findings were fixed: **CR-01** (nginx token must be sourced
+  via `.envsh` so it reaches `envsubst` — commit `6bd14df`; hook is now
+  `web/docker-entrypoint.d/15-compute-api-token.envsh`), plus **WR-01/02/03** (commits `6ce6d62`,
+  `c2b4ee6`, `3e903f2`). See `23-REVIEW.md` / `23-REVIEWS.md`.
+- Security gate ran: `23-SECURITY.md` records **T-23-BYPASS closed**.
+- Live HUMAN-UAT (`23-HUMAN-UAT.md`): the **SEC-07 no-login→401 keystone** and the SEC-05 bulk
+  "log out other devices" both **passed live** (2026-06-15); standalone render verified by faithful
+  entrypoint+envsubst reproduction. Service-token curl + two-browser per-row revoke skipped (live-only).
+- Suites green at HEAD: listener 714/714, web 366/366.
+
+The original self-verification text is retained below for history.
+
+## ⚠ Verification caveat (historical — resolved above)
 
 This report is **self-verification by the agent that executed the phase**, not an independent review.
 The `gsd-verifier` and `gsd-code-review` subagents did not run this session (the subagent dispatch

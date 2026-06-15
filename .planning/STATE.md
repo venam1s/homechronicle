@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
-status: in_progress
-stopped_at: Phase 26 (Member Self-Serve Alerts) added — milestone reopened, needs planning
-last_updated: 2026-06-15T00:00:00.000Z
-last_activity: 2026-06-15
+status: Awaiting next milestone
+stopped_at: Phase 25 context gathered
+last_updated: "2026-06-15T16:13:30.217Z"
+last_activity: 2026-06-15 — Milestone v1.4 completed and archived
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 41
-  completed_plans: 42
-  percent: 86
+  completed_phases: 7
+  total_plans: 45
+  completed_plans: 46
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Phase 26 — Member Self-Serve Alerts (folded into v1.4 before release tag)
+**Current focus:** Milestone complete
 
 ## Current Position
 
-Phase: 26
-Plan: Not started
-Next: /gsd:plan-phase 26 (spec: docs/superpowers/specs/2026-06-15-member-self-serve-alerts-design.md)
-Status: Phase 26 added — needs planning
-Last activity: 2026-06-15
-Resume file: None
+Phase: Milestone v1.4 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-15 — Milestone v1.4 completed and archived
 
 ## Accumulated Context
 
@@ -57,6 +55,18 @@ None — Phase 21 complete. Proceed to `/gsd:discuss-phase 22` (Email Alert Chan
 ### Blockers/Concerns
 
 None.
+
+## Deferred Items
+
+Items acknowledged and deferred at v1.4 milestone close on 2026-06-15:
+
+| Category | Item | Status | Note |
+|----------|------|--------|------|
+| uat | 23-HUMAN-UAT | partial | SEC-07 no-login→401 + bulk session-revoke passed live; standalone render verified by reproduction; service-token curl + two-browser per-row revoke skipped (live-only, code-covered) |
+| uat | 26-HUMAN-UAT | partial | All 4 live checks skipped (member browser flow, SMTP-off UI, live 0008 DDL); code-covered by automated suite + grep evidence |
+| verification | 26-VERIFICATION | human_needed | 7/7 verified in code; live member-flow UAT deferred |
+
+Two headline live checks (SEC-07 keystone, real email delivery) passed live before close. Remaining items are low-risk and code-covered. Run `/gsd:verify-work 26` on the beta host to close the Phase 26 live checks when convenient. (Historical April quick-task slugs flagged by audit-open are pre-v1.4 metadata noise, not deferred work.)
 
 ### Quick Tasks Completed
 
@@ -93,3 +103,7 @@ Last session: 2026-06-14T13:36:12.604Z
 Stopped at: Phase 25 context gathered
 Resume file: None
 ---
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

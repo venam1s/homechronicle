@@ -197,13 +197,13 @@ Invite-only multi-user authentication replacing the single shared-token model, p
 
 ### Member Self-Serve Alerts (Phase 26)
 
-- [ ] **MALERT-01**: Alert rules are per-user owned; each user sees and manages only their own rules
-- [ ] **MALERT-02**: Any authenticated user (admin or member) can create, edit, and delete their own alert rules; no admin role required
-- [ ] **MALERT-03**: `alert_rules` gains a `user_id` FK → `users(id) ON DELETE CASCADE` (migration `0008`); existing rows are backfilled to the bootstrap admin; the change is additive and existing webhook rules continue to work
-- [ ] **MALERT-04**: Rule edit/delete is owner-scoped in SQL (IDOR-safe); accessing another user's rule returns 404
-- [ ] **MALERT-05**: A member's email-channel rule recipient is forced server-side to the member's own account email; admins may use arbitrary recipients
-- [ ] **MALERT-06**: The email channel is disabled in the UI (with an explanatory message) and rejected server-side when SMTP is unconfigured
-- [ ] **MALERT-07**: The household-wide alerts enable gate is removed; the Alerts section is always available to authenticated users; the admin-only enable toggle is removed from Settings
+- [x] **MALERT-01**: Alert rules are per-user owned; each user sees and manages only their own rules
+- [x] **MALERT-02**: Any authenticated user (admin or member) can create, edit, and delete their own alert rules; no admin role required
+- [x] **MALERT-03**: `alert_rules` gains a `user_id` FK → `users(id) ON DELETE CASCADE` (migration `0008`); existing rows are backfilled to the bootstrap admin; the change is additive and existing webhook rules continue to work
+- [x] **MALERT-04**: Rule edit/delete is owner-scoped in SQL (IDOR-safe); accessing another user's rule returns 404
+- [x] **MALERT-05**: A member's email-channel rule recipient is forced server-side to the member's own account email; admins may use arbitrary recipients
+- [x] **MALERT-06**: The email channel is disabled in the UI (with an explanatory message) and rejected server-side when SMTP is unconfigured
+- [x] **MALERT-07**: The household-wide alerts enable gate is removed; the Alerts section is always available to authenticated users; the admin-only enable toggle is removed from Settings
 
 ## v1.5 Requirements (Active) — Per-User UI Preferences
 
@@ -393,24 +393,24 @@ Deferred to future milestones.
 | PREF-09 | Phase 24 | Complete |
 | PREF-10 | Phase 24 | Complete |
 | PREF-11 | Phase 24 | Complete |
-| QH-01 | Phase 25 | Active |
-| QH-02 | Phase 25 | Active |
-| QH-03 | Phase 25 | Active |
-| QH-04 | Phase 25 | Active |
-| QH-05 | Phase 25 | Active |
-| QH-06 | Phase 25 | Active |
-| QH-07 | Phase 25 | Active |
-| QH-08 | Phase 25 | Active |
-| QH-09 | Phase 25 | Active |
-| QH-10 | Phase 25 | Active |
-| QH-11 | Phase 25 | Active |
-| MALERT-01 | Phase 26 | Active |
-| MALERT-02 | Phase 26 | Active |
-| MALERT-03 | Phase 26 | Active |
-| MALERT-04 | Phase 26 | Active |
-| MALERT-05 | Phase 26 | Active |
-| MALERT-06 | Phase 26 | Active |
-| MALERT-07 | Phase 26 | Active |
+| QH-01 | Phase 25 | Complete |
+| QH-02 | Phase 25 | Complete |
+| QH-03 | Phase 25 | Complete |
+| QH-04 | Phase 25 | Complete |
+| QH-05 | Phase 25 | Complete |
+| QH-06 | Phase 25 | Complete |
+| QH-07 | Phase 25 | Complete |
+| QH-08 | Phase 25 | Complete |
+| QH-09 | Phase 25 | Complete |
+| QH-10 | Phase 25 | Complete |
+| QH-11 | Phase 25 | Complete |
+| MALERT-01 | Phase 26 | Complete |
+| MALERT-02 | Phase 26 | Complete |
+| MALERT-03 | Phase 26 | Complete |
+| MALERT-04 | Phase 26 | Complete |
+| MALERT-05 | Phase 26 | Complete |
+| MALERT-06 | Phase 26 | Complete |
+| MALERT-07 | Phase 26 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 41 total (34 auth/email/alert/sec + 7 MALERT member self-serve alerts, Phase 26)
