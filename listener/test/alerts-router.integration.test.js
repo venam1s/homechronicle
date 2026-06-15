@@ -610,3 +610,46 @@ test('PATCH email lock: member switching to email gets target_email forced to se
   // Server must override with session email (D-08)
   assert.equal(result.jsonBody.targetEmail, 'member@x.com', 'PATCH target_email must be locked to session email for member');
 });
+
+test('PATCH email lock bypass: member patching targetEmail without channel on existing email rule is still locked (MALERT-05, T-26-EMAIL-SPOOF)', async () => {
+  // Pre-seed a member-owned rule that is ALREADY channel=email.
+  // The attack: member sends PATCH { targetEmail: 'attacker@evil.com' } with NO channel field.
+  // Without the fix, effectiveChannel is undefined so the lock never fires — attacker wins.
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 60,
+        user_id: 2,
+        name: 'Existing email rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'email',
+        target_url: null,
+        target_email: 'member@x.com',
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const patch = getRouteHandler(router, 'PATCH', '/rules/:id');
+
+  // Member sends ONLY targetEmail — no channel field in body
+  const result = await invoke(patch, {
+    hcSession: { user_id: 2, role: 'member', email: 'member@x.com' },
+    params: { id: '60' },
+    body: { targetEmail: 'attacker@evil.com' },  // no channel field
+  });
+  assert.equal(result.statusCode, 200, 'PATCH targetEmail-only must succeed');
+  // Lock must fire even without channel in body — target_email must stay as session email
+  assert.equal(
+    result.jsonBody.targetEmail,
+    'member@x.com',
+    'PATCH target_email must be locked to session email even when channel is not in body'
+  );
+});
