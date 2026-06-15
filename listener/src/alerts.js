@@ -1,5 +1,6 @@
 import { resolveAndValidateWebhookTarget } from './security.js';
 import { sendAlertEmail, isEmailEnabled } from './emails.js';
+import { log } from './logger.js';
 
 const ALERTS_WEBHOOK_TIMEOUT_MS = (() => {
   const parsed = Number.parseInt(process.env.ALERTS_WEBHOOK_TIMEOUT_MS ?? '5000', 10);

@@ -282,3 +282,38 @@ test('processAlertsForEvent suppresses rapid-fire events on email rule within qu
     global.fetch = originalFetch;
   }
 });
+
+// Regression (Phase 26 WR-02): the per-rule isolation catch in processAlertsForEvent
+// calls log.warn(); alerts.js must import `log` or the catch itself throws
+// ReferenceError, aborting delivery for every remaining rule. With the household
+// alerts gate removed (Phase 26), this delivery loop now runs for all installs, so a
+// missing import would crash production alert processing on the first failing rule.
+test('processAlertsForEvent isolates a failing rule and still delivers the rest (WR-02)', async () => {
+  const deliveries = [];
+  const pool = {
+    async query(sql, params = []) {
+      if (sql.includes('FROM alert_rules')) {
+        return { rows: [makeRule({ id: 1 }), makeRule({ id: 2 })] };
+      }
+      if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+      if (sql.startsWith('INSERT INTO alert_deliveries')) {
+        // First rule's delivery write fails — its catch must log.warn and continue.
+        if (params[0] === 1) throw new Error('simulated DB write failure for rule 1');
+        deliveries.push({ ruleId: params[0], status: params[2] });
+        return { rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, status: 200 });
+  try {
+    // Must NOT reject — before the fix, log.warn in the catch threw ReferenceError.
+    await assert.doesNotReject(() => processAlertsForEvent(pool, makeEvent()));
+    assert.equal(deliveries.length, 1, 'rule 2 must still be delivered after rule 1 fails');
+    assert.equal(deliveries[0].ruleId, 2, 'the surviving delivery must belong to rule 2');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

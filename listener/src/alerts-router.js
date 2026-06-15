@@ -299,8 +299,10 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
       return res.status(400).json({ error: 'Email channel unavailable — SMTP is not configured' });
     }
 
-    // Member email lock (D-08): force target_email to session email for members
-    if (req.hcSession.role === 'member' && parsed.value.channel === 'email') {
+    // Member email lock (D-08): force target_email to session email for every
+    // non-admin role (fail-closed — a future non-admin role must not be able to
+    // set an arbitrary recipient; today the role universe is {admin, member}).
+    if (req.hcSession.role !== 'admin' && parsed.value.channel === 'email') {
       parsed.value.targetEmail = req.hcSession.email;
     }
 
@@ -366,7 +368,7 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     // patch body (even without a channel field). A member can never set any address
     // but their own — patching targetEmail on an already-email rule without re-sending
     // the channel field is the bypass vector that T-26-EMAIL-SPOOF covers.
-    if (req.hcSession.role === 'member' && (effectiveChannel === 'email' || 'targetEmail' in parsed.value)) {
+    if (req.hcSession.role !== 'admin' && (effectiveChannel === 'email' || 'targetEmail' in parsed.value)) {
       parsed.value.targetEmail = req.hcSession.email;
     }
 
