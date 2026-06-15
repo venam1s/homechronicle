@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Multi-User Auth & Email
-status: milestone_complete
-stopped_at: Milestone complete (Phase 25 was final phase)
-last_updated: 2026-06-14T14:19:45.349Z
-last_activity: 2026-06-14
+status: in_progress
+stopped_at: Phase 26 (Member Self-Serve Alerts) added — milestone reopened, needs planning
+last_updated: 2026-06-15T00:00:00.000Z
+last_activity: 2026-06-15
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 6
   total_plans: 41
   completed_plans: 42
-  percent: 100
+  percent: 86
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Milestone complete
+**Current focus:** Phase 26 — Member Self-Serve Alerts (folded into v1.4 before release tag)
 
 ## Current Position
 
-Phase: 25
+Phase: 26
 Plan: Not started
-Next: /gsd:plan-phase 24 (spec: docs/superpowers/specs/2026-06-13-per-user-preferences-design.md)
-Status: Milestone complete
-Last activity: 2026-06-14
+Next: /gsd:plan-phase 26 (spec: docs/superpowers/specs/2026-06-15-member-self-serve-alerts-design.md)
+Status: Phase 26 added — needs planning
+Last activity: 2026-06-15
 Resume file: None
 
 ## Accumulated Context
@@ -38,6 +38,7 @@ Resume file: None
 
 - Phase 24 added: Per-User UI Preferences (Phase 1) — per-user prefs blob + me-router + usePreference layer (2026-06-13)
 - Phase 25 added: Per-User Quiet Hours (Phase 2) — per-user quiet-hours in /stats/quiet-hours (2026-06-13)
+- Phase 26 added: Member Self-Serve Alerts — per-user owned alert rules (migration 0008), drop admin-only gate + master toggle, members create email-to-self + validated webhook rules (2026-06-15); milestone v1.4 reopened to fold this in before the release tag
 
 ### Decisions
 

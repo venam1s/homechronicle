@@ -195,6 +195,16 @@ Invite-only multi-user authentication replacing the single shared-token model, p
 - [x] **SEC-06**: Expired sessions and used/expired tokens are swept periodically
 - [x] **SEC-07**: At cutover, nginx `X-API-Token` injection is removed; the session-or-service-token gate becomes the sole browser auth path
 
+### Member Self-Serve Alerts (Phase 26)
+
+- [ ] **MALERT-01**: Alert rules are per-user owned; each user sees and manages only their own rules
+- [ ] **MALERT-02**: Any authenticated user (admin or member) can create, edit, and delete their own alert rules; no admin role required
+- [ ] **MALERT-03**: `alert_rules` gains a `user_id` FK → `users(id) ON DELETE CASCADE` (migration `0008`); existing rows are backfilled to the bootstrap admin; the change is additive and existing webhook rules continue to work
+- [ ] **MALERT-04**: Rule edit/delete is owner-scoped in SQL (IDOR-safe); accessing another user's rule returns 404
+- [ ] **MALERT-05**: A member's email-channel rule recipient is forced server-side to the member's own account email; admins may use arbitrary recipients
+- [ ] **MALERT-06**: The email channel is disabled in the UI (with an explanatory message) and rejected server-side when SMTP is unconfigured
+- [ ] **MALERT-07**: The household-wide alerts enable gate is removed; the Alerts section is always available to authenticated users; the admin-only enable toggle is removed from Settings
+
 ## v1.5 Requirements (Active) — Per-User UI Preferences
 
 **Defined:** 2026-06-13
@@ -394,16 +404,24 @@ Deferred to future milestones.
 | QH-09 | Phase 25 | Active |
 | QH-10 | Phase 25 | Active |
 | QH-11 | Phase 25 | Active |
+| MALERT-01 | Phase 26 | Active |
+| MALERT-02 | Phase 26 | Active |
+| MALERT-03 | Phase 26 | Active |
+| MALERT-04 | Phase 26 | Active |
+| MALERT-05 | Phase 26 | Active |
+| MALERT-06 | Phase 26 | Active |
+| MALERT-07 | Phase 26 | Active |
 
 **Coverage:**
-- v1.4 requirements: 34 total
+- v1.4 requirements: 41 total (34 auth/email/alert/sec + 7 MALERT member self-serve alerts, Phase 26)
 - v1.5 requirements: 11 total (PREF-01..11)
 - v1.6 requirements: 11 total (QH-01..11)
-- Mapped to phases: 56
+- Mapped to phases: 63
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-02*
+*2026-06-15 — Member Self-Serve Alerts (MALERT-01..07 mapped to Phase 26) folded into v1.4*
 *2026-06-13 — v1.6 Per-User Quiet Hours defined (QH-01..11 mapped to Phase 25)*
 *Last updated: 2026-06-13 — v1.5 Per-User UI Preferences defined (PREF-01..11 mapped to Phase 24)**
 *2026-06-09 — v1.4 Multi-User Auth & Email roadmap defined (AUTH-01..08, USER-01..07, PWD-01..04, EMAIL-01..04, ALERT-01..04, SEC-01..07 mapped to Phases 20-23)*

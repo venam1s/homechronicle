@@ -6,7 +6,7 @@
 - ✅ **v1.1 Scheduled Repair** — Phases 8-9 (shipped 2026-04-08)
 - ✅ **v1.2 UI Redesign** — Phases 10-17 (shipped 2026-04-16)
 - ✅ **v1.3 Repair Reliability Fixes** — Phases 18-19 (shipped 2026-04-21)
-- 🔲 **v1.4 Multi-User Auth & Email** — Phases 20-23 (active)
+- 🔲 **v1.4 Multi-User Auth & Email** — Phases 20-26 (active)
 
 ## Phases
 
@@ -69,6 +69,7 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] **Phase 23: Security Hardening + Nginx Cutover** — Active-session revoke UI, token sweep, nginx X-API-Token injection removal (completed 2026-06-13)
 - [x] **Phase 24: Per-User UI Preferences (Phase 1)** — Per-user JSONB preferences blob (migration 0007) + `me-router` (`GET/PUT /api/me/preferences`) + `usePreference` layer; dashboard layout/ranges, appearance, muted, toast + grouping become per-account (localStorage fallback when unauthenticated/`AUTH_ENABLED=false`) (completed 2026-06-14)
 - [x] **Phase 25: Per-User Quiet Hours (Phase 2)** — Quiet hours per-user; `/stats/quiet-hours` applies the requesting session user's config (shared household value as fallback) (completed 2026-06-14)
+- [ ] **Phase 26: Member Self-Serve Alerts** — Per-user owned alert rules (migration 0008 `alert_rules.user_id`); drop admin-only gate + household master toggle; members create email-to-self + validated webhook rules; email channel disabled when SMTP unconfigured (folded into v1.4 before release tag)
 
 ## Phase Details
 
@@ -179,6 +180,24 @@ Plans:
 Plans:
 - [x] 25-01-PLAN.md — Session-aware GET /stats/quiet-hours (per-user blob read, whole-config fallback, normalization, three-path tests)
 - [x] 25-02-PLAN.md — SettingsTab quiet-hours controls via usePreference (presence-check prefill, grouped four-key write, component tests)
+
+### Phase 26: Member Self-Serve Alerts
+
+**Goal:** Members can create and manage their own alert rules (per-user owned), without an admin. Alert rules gain a `user_id` owner (migration 0008); all reads/writes are owner-scoped; the household-wide admin-only enable gate and master toggle are removed so the Alerts section is always available to authenticated users. Members may create email-to-self and validated webhook rules; the email channel is disabled (with a message) when SMTP is unconfigured.
+**Spec:** `docs/superpowers/specs/2026-06-15-member-self-serve-alerts-design.md`
+**Requirements**: MALERT-01, MALERT-02, MALERT-03, MALERT-04, MALERT-05, MALERT-06, MALERT-07
+**Depends on:** Phase 22 (email alert channel), Phase 20 (auth/users)
+**Success Criteria** (what must be TRUE):
+  1. A member can create, edit, and delete their own alert rules; each user sees only their own rules
+  2. `alert_rules.user_id` (migration 0008, FK→users ON DELETE CASCADE) is added additively; existing rows backfill to the bootstrap admin and existing webhook rules keep working
+  3. Rule edit/delete is owner-scoped in SQL (IDOR-safe): accessing another user's rule returns 404
+  4. A member's email-channel rule recipient is forced server-side to the member's own account email; admins may use arbitrary recipients
+  5. The email channel is disabled in the UI (with an explanatory message) and rejected server-side when SMTP is unconfigured
+  6. The household-wide enable gate is removed; the Alerts section is always available to authenticated users; the admin-only enable toggle is removed from Settings
+**Plans:** 0 plans (run /gsd:plan-phase 26 to break down)
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 26 to break down)
 
 ## Progress
 
