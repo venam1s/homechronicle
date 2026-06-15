@@ -17,16 +17,7 @@ import {
 } from './accessory-metadata.js';
 import { log } from './logger.js';
 
-let isAlertsEnabled = () => false;
 let alertEmailFrom = '';
-
-/**
- * Set the function used to check whether alerts are enabled at runtime.
- * Called from index.js after the alerts settings store is initialised.
- */
-export function setAlertsEnabledFn(fn) {
-  isAlertsEnabled = fn;
-}
 
 /**
  * Set the SMTP `from` address threaded into the email alert send branch.
@@ -115,7 +106,6 @@ function isConnectionError(err) {
 }
 
 async function processAlertsSafe(eventPayload, insertedRow) {
-  if (!isAlertsEnabled()) return;
   try {
     await processAlertsForEvent(pool, {
       ...eventPayload,
@@ -789,6 +779,7 @@ export function resetSubscriberStats(deviceId) {
 }
 
 export const __testHooks = {
+  processAlertsSafe,
   scheduleReconnect,
   isAuthError,
   isMaxPeersError,

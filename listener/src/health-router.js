@@ -8,7 +8,6 @@ export function createHealthRouter({
   getSubscriberHealth,
   getMatterRuntime,
   loadPairings,
-  alertsEnabled,
 }) {
   const router = express.Router();
 
@@ -51,7 +50,6 @@ export function createHealthRouter({
       db: dbOk ? 'ok' : 'unreachable',
       subscribers,
       paired: Object.keys(loadPairings()).length,
-      alertsEnabled: alertsEnabled(),
       matter: runtimeStatus ? {
         commissionConfigured: runtimeStatus.commissionConfigured,
         pollingConfigured: runtimeStatus.pollingConfigured,
