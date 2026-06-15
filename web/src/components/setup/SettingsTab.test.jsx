@@ -47,12 +47,12 @@ function makeSetup(overrides = {}) {
   };
 }
 
-function renderTab(setup) {
+function renderTab(setup, props = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <SettingsTab setup={setup} />
+        <SettingsTab setup={setup} {...props} />
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -189,5 +189,49 @@ describe('Tabbed Configuration', () => {
       await userEvent.click(screen.getByRole('tab', { name }));
       expect(screen.queryByText('Danger Zone')).not.toBeInTheDocument();
     }
+  });
+});
+
+describe('Advanced tab gating (showAdvanced prop)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows an "Advanced" tab button when showAdvanced is true', () => {
+    renderTab(makeSetup(), { showAdvanced: true });
+    expect(screen.getByRole('tab', { name: 'Advanced' })).toBeInTheDocument();
+  });
+
+  it('does NOT show an "Advanced" tab button when showAdvanced is false (default)', () => {
+    renderTab(makeSetup());
+    expect(screen.queryByRole('tab', { name: 'Advanced' })).not.toBeInTheDocument();
+  });
+
+  it('does NOT show an "Advanced" tab button when showAdvanced is explicitly false', () => {
+    renderTab(makeSetup(), { showAdvanced: false });
+    expect(screen.queryByRole('tab', { name: 'Advanced' })).not.toBeInTheDocument();
+  });
+
+  it('shows "Log level" content after clicking the Advanced tab (showAdvanced=true)', async () => {
+    renderTab(makeSetup(), { showAdvanced: true });
+    await userEvent.click(screen.getByRole('tab', { name: 'Advanced' }));
+    expect(screen.getByText('Log level')).toBeInTheDocument();
+  });
+
+  it('does NOT show "Log level" while Device Management tab is active (showAdvanced=true)', async () => {
+    renderTab(makeSetup(), { showAdvanced: true });
+    // Device Management is the default active tab
+    expect(screen.getByRole('tab', { name: 'Device Management' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByText('Log level')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show "Log level" when showAdvanced is false', () => {
+    renderTab(makeSetup(), { showAdvanced: false });
+    expect(screen.queryByText('Log level')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show "Log level" when showAdvanced is omitted', () => {
+    renderTab(makeSetup());
+    expect(screen.queryByText('Log level')).not.toBeInTheDocument();
   });
 });
