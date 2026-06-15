@@ -80,6 +80,8 @@ completed: 2026-06-15
 1. **Task 1 RED: Extend integration harness for hcSession + failing owner-scoping/IDOR/auth tests** - `aca9358` (test)
 2. **Task 2 GREEN: Owner-scope all five handlers + auth guard + IDOR** - `2726e25` (feat)
 3. **Task 3 GREEN: Member email lock + SMTP-off rejection tests** - `e9d549c` (feat)
+4. **Post-review RED: PATCH targetEmail-only bypass test** - `2ef9cba` (test)
+5. **Post-review GREEN: Lock member PATCH targetEmail when channel not in body** - `316e919` (fix)
 
 ## Files Created/Modified
 - `listener/src/alerts-router.js` — createAlertsRouter factory with isEmailEnabled dep; all 5 handlers owner-scoped; inline session guards; IDOR-safe WHERE clauses; member email lock; SMTP guard
@@ -132,10 +134,18 @@ completed: 2026-06-15
 - **Fix:** Task 3 was treated as a GREEN-only commit (confirmation tests). All required behaviors (D-08, D-09, MALERT-05, MALERT-06) are implemented and verified.
 - **Impact:** TDD sequence compressed for these features; correctness unaffected; all tests pass.
 
+**6. [Rule 1 - Bug + Security] PATCH member email lock bypassable when channel not in body**
+- **Found during:** Post-plan security review (advisor)
+- **Issue:** The PATCH handler member email lock fired only when `parsed.value.channel === 'email'`. A member could send `PATCH { targetEmail: 'attacker@evil.com' }` without a `channel` field on an already-email-channel rule — `effectiveChannel` would be `undefined`, the lock would not fire, and the attacker email would be stored. This directly defeats T-26-EMAIL-SPOOF / MALERT-05 / D-08.
+- **Fix:** Changed condition from `effectiveChannel === 'email'` to `effectiveChannel === 'email' || 'targetEmail' in parsed.value`. A member can never legitimately set any address but their own, so the lock fires on any `targetEmail` presence.
+- **Files modified:** `listener/src/alerts-router.js`, `listener/test/alerts-router.integration.test.js`
+- **RED commit:** 2ef9cba (test — confirmed bug before fix)
+- **GREEN commit:** 316e919 (fix — 711/711 tests passing)
+
 ---
 
-**Total deviations:** 5 (4 Rule 1 auto-fixes, 1 TDD sequence compression)
-**Impact on plan:** All auto-fixes necessary for test harness compatibility and full suite health. TDD compression is a documentation-only difference; the behaviors are implemented and tested. No scope creep.
+**Total deviations:** 6 (5 Rule 1 auto-fixes including 1 security bug, 1 TDD sequence compression)
+**Impact on plan:** All auto-fixes necessary. The post-review security fix is a critical correctness requirement (T-26-EMAIL-SPOOF mitigate disposition). No scope creep.
 
 ## Issues Encountered
 None beyond the auto-fixed issues above.
@@ -144,11 +154,11 @@ None beyond the auto-fixed issues above.
 None — all five handler behaviors are fully implemented; no placeholder values or TODO stubs introduced.
 
 ## Threat Flags
-No new threat surface introduced beyond the plan's documented scope:
+No new threat surface introduced beyond the plan's documented scope. All planned mitigations verified complete:
 - SSRF (T-26-SSRF): existing validateWebhookTargetUrl retained unchanged; broader authed audience but still validated
 - IDOR (T-26-IDOR): mitigated by WHERE id+user_id
 - Owner forgery (T-26-OWNER-FORGERY): mitigated (user_id sourced from session only)
-- Email spoofing (T-26-EMAIL-SPOOF): mitigated (member target_email forced to session email)
+- Email spoofing (T-26-EMAIL-SPOOF): **mitigated** — initial implementation had a PATCH bypass (channel not in body); fixed in `316e919` with `'targetEmail' in parsed.value` guard
 - SMTP DoS (T-26-SMTP-DOS): mitigated (channel=email rejected when isEmailEnabled() false)
 
 ## Next Phase Readiness
@@ -157,8 +167,8 @@ No new threat surface introduced beyond the plan's documented scope:
 
 ## Self-Check
 - [x] Files exist: `listener/src/alerts-router.js`, `listener/test/alerts-router.integration.test.js`
-- [x] Commits: aca9358, 2726e25, e9d549c confirmed in git log
-- [x] 710 listener tests passing (npm test exit 0)
+- [x] Commits: aca9358, 2726e25, e9d549c, 2ef9cba, 316e919 confirmed in git log
+- [x] 711 listener tests passing (npm test exit 0)
 
 ---
 *Phase: 26-member-self-serve-alerts*
