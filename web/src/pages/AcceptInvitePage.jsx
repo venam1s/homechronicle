@@ -1,10 +1,82 @@
 import { useState, useRef, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { fetchJson, API_BASE } from '../lib/api.js';
 import BrandLogo from '../components/BrandLogo.jsx';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter.jsx';
+
+// -- Reason-aware copy map --
+const INVITE_REASON_COPY = {
+  revoked: {
+    title: 'Invitation revoked',
+    body: 'This invitation has been revoked. Contact your administrator to request a new invitation.',
+  },
+  expired: {
+    title: 'Invitation expired',
+    body: 'This invitation has expired. Contact your administrator to request a new invitation.',
+  },
+  used: {
+    title: 'Invitation already used',
+    body: "This invitation has already been used. If this wasn't you, contact your administrator.",
+  },
+  invalid: {
+    title: 'Invitation not valid',
+    body: 'This invitation link is invalid. Contact your administrator to request a new invitation.',
+  },
+};
+
+function getReasonCopy(reason) {
+  return INVITE_REASON_COPY[reason] ?? INVITE_REASON_COPY.invalid;
+}
+
+// -- Shared card shell (theme-correct in light + dark via --hc-* tokens) --
+function InviteCardShell({ children }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-hc-bg px-4">
+      <div className="bg-hc-panel border border-hc-panel-border rounded-xl shadow-sm w-full max-w-sm p-6 space-y-6">
+        <div className="flex justify-center">
+          <BrandLogo className="h-10" />
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// -- Invalid/revoked/expired/used card --
+function InvalidInviteCard({ reason }) {
+  const { title, body } = getReasonCopy(reason);
+  return (
+    <InviteCardShell>
+      <div>
+        <h1 className="text-hc-page-title font-semibold text-hc-fg-strong text-center">
+          {title}
+        </h1>
+        <p className="text-hc-body text-hc-muted text-center mt-2">
+          {body}
+        </p>
+      </div>
+
+      <div className="text-center">
+        <span className="text-hc-caption text-hc-muted">
+          Request a new invite
+        </span>
+      </div>
+    </InviteCardShell>
+  );
+}
+
+// -- Spinner card (shown while validating the token) --
+function LoadingCard() {
+  return (
+    <InviteCardShell>
+      <div className="flex justify-center py-4">
+        <Loader2 size={24} className="animate-spin text-hc-muted" />
+      </div>
+    </InviteCardShell>
+  );
+}
 
 export default function AcceptInvitePage() {
   const [searchParams] = useSearchParams();
@@ -21,12 +93,28 @@ export default function AcceptInvitePage() {
   const queryClient = useQueryClient();
   const passwordRef = useRef(null);
 
-  // Focus password field on mount (UI-SPEC: email is not shown, focus password directly)
+  // Pre-validate the invite token on mount (non-destructive read).
+  // enabled:!!token skips the query when there is no token; in that case
+  // isLoading stays false and valid stays undefined — we fall through to
+  // the invalid card via the !token branch below.
+  const {
+    data: inviteStatus,
+    isLoading: inviteLoading,
+    isError: inviteError,
+  } = useQuery({
+    queryKey: ['auth', 'invite-status', token],
+    queryFn: () => fetchJson(`${API_BASE}/auth/invite-status?token=${encodeURIComponent(token)}`),
+    enabled: !!token,
+    retry: false,
+    staleTime: Infinity,
+  });
+
+  // Focus password field once the form becomes visible
   useEffect(() => {
-    if (token && passwordRef.current) {
+    if (token && inviteStatus?.valid && passwordRef.current) {
       passwordRef.current.focus();
     }
-  }, [token]);
+  }, [token, inviteStatus?.valid]);
 
   const acceptMutation = useMutation({
     mutationFn: ({ token, password }) =>
@@ -65,35 +153,24 @@ export default function AcceptInvitePage() {
     acceptMutation.mutate({ token, password });
   }
 
-  // No token in URL — show expired/invalid full-card state (no form)
+  // No token in URL — show invalid card without querying the server
   if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-hc-bg px-4">
-        <div className="bg-hc-panel border border-hc-panel-border rounded-xl shadow-sm w-full max-w-sm p-6 space-y-6">
-          <div className="flex justify-center">
-            <BrandLogo className="h-10" />
-          </div>
-
-          <div>
-            <h1 className="text-hc-page-title font-semibold text-hc-fg-strong text-center">
-              This invite link has expired
-            </h1>
-            <p className="text-hc-body text-hc-muted text-center mt-2">
-              This invite link has expired or is no longer valid. Contact your admin to request a new one.
-            </p>
-          </div>
-
-          <div className="text-center">
-            <span className="text-hc-caption text-hc-muted">
-              Request a new invite
-            </span>
-          </div>
-        </div>
-      </div>
-    );
+    return <InvalidInviteCard reason="invalid" />;
   }
 
-  // Token present — show invitation acceptance form
+  // Token present but query still in flight — show spinner (do NOT flash the form)
+  if (inviteLoading) {
+    return <LoadingCard />;
+  }
+
+  // Query errored (DB failure / network error) or server returned valid:false —
+  // fail toward showing the invalid card so a broken token never presents the form.
+  if (inviteError || !inviteStatus?.valid) {
+    const reason = inviteStatus?.reason ?? 'invalid';
+    return <InvalidInviteCard reason={reason} />;
+  }
+
+  // valid === true — show the account-creation form (unchanged behavior)
   return (
     <div className="min-h-screen flex items-center justify-center bg-hc-bg px-4">
       <div className="bg-hc-panel border border-hc-panel-border rounded-xl shadow-sm w-full max-w-sm p-6 space-y-6">
