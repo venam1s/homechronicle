@@ -10,6 +10,21 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.3.0',
+    title: 'Multi-user accounts, email, and per-user preferences',
+    items: [
+      'Optional sign-in: HomeChronicle can now require login (set AUTH_ENABLED). Passwords use argon2id and sessions are server-side with optional "remember me". Leave it off and nothing changes — there is no login screen.',
+      'Invite-only household accounts: the first run claims an admin; admins can invite members by email, set admin/member roles, and disable accounts.',
+      'Email (SMTP): configure email from Settings to send invitations and password resets, with accept-invite and reset-password pages and a password-strength meter.',
+      'Email alerts: alert rules can now notify by email as well as webhook, and members can create and manage their own alert rules.',
+      'Your preferences now follow you: theme, skin, dashboard layout and panel sizes, date ranges, toast settings, and muted devices are saved to your account and sync across devices and browsers.',
+      'Per-user quiet hours, plus an Active Sessions view where you can see and sign out your own sessions.',
+      'New mobile and tablet navigation: a floating nav replaces the old drawer and top bar on smaller screens.',
+      'Settings reorganized into a cleaner tabbed layout, with Advanced controls and device/data deletion restricted to admins.',
+      'Security hardening: CSRF protection, owner-only session revocation, redacted webhook URLs, stronger password requirements, and updated base images.',
+    ],
+  },
+  {
     version: 'v0.2.0',
     title: 'Customizable dashboard — drag, resize, hide, plus 12 new optional panels',
     items: [

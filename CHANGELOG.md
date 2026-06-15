@@ -2,6 +2,31 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.3.0] — 2026-06-15
+
+### Added
+- **Optional multi-user accounts with login** — HomeChronicle can now require sign-in (`AUTH_ENABLED`); when off, the app behaves exactly as before with no login. Passwords are hashed with argon2id; sessions are database-backed with optional "remember me".
+- **Invite-only user management** — first run claims an admin; admins invite household members by email, assign admin/member roles, and disable accounts. The invite link doubles as email verification.
+- **Email support (SMTP)** — configure SMTP from Settings to send invitations and password resets; includes accept-invite and reset-password pages and a password-strength meter.
+- **Email alert channel** — alert rules can deliver to an email address in addition to webhooks. Members can create and own their own rules (email-to-self or webhook), with the same quiet-period suppression and delivery history.
+- **Per-user interface preferences** — theme, skin, dashboard layout and panel sizes, per-panel date ranges, toast settings, sidebar state, and muted devices are now saved per user on the server and follow you across devices and browsers.
+- **Per-user quiet hours** — quiet-hours settings and the Quiet Hours score are now per signed-in user.
+- **Active sessions management** — view your sessions (device/IP, last seen) and revoke your own from Settings.
+- **New mobile & tablet navigation** — a floating navigation control replaces the old slide-in drawer and top bar on screens below 1024px.
+
+### Changed
+- **Settings reorganized** — a tabbed Configuration area for everyday settings, with Advanced controls and the Danger Zone (device/data deletion) restricted to admins, and consistent titled-card section headers throughout.
+
+### Security
+- HttpOnly session cookies with CSRF protection on all mutating requests; login is rejected for disabled accounts and rate-limited per client behind a trusted proxy (`TRUST_PROXY`).
+- Sessions record the user agent and IP at login (capped), can only be revoked by their owner, and are swept on expiry during retention.
+- When login is enabled, nginx conditionally injects the API token so the session cookie is the sole browser credential; with login disabled, the previous behavior is preserved.
+- Webhook `target_url` is redacted from alert rule and delivery responses; minimum password length raised to 12; assorted hardening across the listener and Docker images.
+
+### Internal
+- New database migrations 0003–0008 (sessions, invites & password reset, email alert channel, session metadata, per-user preferences, alert-rule ownership) — run automatically at startup and backward compatible with existing volumes.
+- Test coverage expanded to 714 listener tests and 373 web tests.
+
 ## [0.2.0] — 2026-06-07
 
 ### Added

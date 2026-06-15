@@ -85,7 +85,7 @@ describe('App smoke', () => {
     });
   });
 
-  it('renders mobile top bar when useMediaQuery returns mobile', () => {
+  it('renders the floating nav (not the sidebar) on mobile and navigates', () => {
     // Override for this test only
     mockUseMediaQuery.mockImplementation((query) => {
       if (query === '(max-width: 767px)') return true;
@@ -94,9 +94,17 @@ describe('App smoke', () => {
 
     renderApp();
 
-    expect(screen.getByLabelText('Open navigation')).toBeInTheDocument();
-    expect(screen.getByLabelText('Open navigation').closest('div')).toHaveTextContent('Dashboard');
+    // Sidebar is replaced by the floating FAB below 1024px
     expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
+    const fab = screen.getByRole('button', { name: 'Open navigation menu' });
+    expect(fab).toBeInTheDocument();
+
+    // Collapsed by default — page links hidden until the FAB is tapped
+    expect(screen.queryByText('Timeline')).not.toBeInTheDocument();
+
+    fireEvent.click(fab);
+    fireEvent.click(screen.getByText('Timeline'));
+    expect(screen.getByText('Timeline Page')).toBeInTheDocument();
 
     // Reset mock
     mockUseMediaQuery.mockImplementation(() => false);

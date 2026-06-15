@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePreference } from './hooks/usePreference.js';
 import { useUserPreferences } from './hooks/useUserPreferences.js';
 import { useAuth } from './hooks/useAuth.js';
@@ -9,7 +9,7 @@ import { useUpdateCheck } from './hooks/useUpdateCheck.js';
 import { useLiveEventToasts } from './hooks/useLiveEventToasts.js';
 import { useToast } from './components/Toast.jsx';
 import Sidebar from './components/Sidebar.jsx';
-import { Menu } from 'lucide-react';
+import FloatingNav from './components/FloatingNav.jsx';
 import clsx from 'clsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import ChangelogModal from './components/ChangelogModal.jsx';
@@ -22,14 +22,6 @@ import SettingsPage from './pages/SettingsPage.jsx';
 
 const CHANGELOG_KEY = 'hc_last_seen_version';
 const SIDEBAR_KEY = 'hc_sidebar_collapsed';
-
-const PAGE_TITLES = {
-  dashboard: 'Dashboard',
-  devices: 'Devices',
-  timeline: 'Timeline',
-  alerts: 'Alerts',
-  settings: 'Settings',
-};
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
@@ -46,13 +38,15 @@ export default function App() {
 
   const isMobile = useMediaQuery('(max-width: 767px)');
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Floating nav replaces the sidebar below 1024px (mobile + tablet).
+  const isFloatingNav = isMobile || isTablet;
+  const mainRef = useRef(null);
 
   // Derived -- never mutate collapsed based on breakpoint; preserve user preference
-  const effectiveCollapsed = isMobile ? false : (isTablet ? true : collapsed);
+  const effectiveCollapsed = isFloatingNav ? false : collapsed;
 
-  // Grid column -- 3 zones
-  const gridCols = isMobile ? '1fr' : (effectiveCollapsed ? '56px 1fr' : '240px 1fr');
+  // Grid column -- single column when the floating nav is active, otherwise sidebar + content
+  const gridCols = isFloatingNav ? '1fr' : (effectiveCollapsed ? '56px 1fr' : '240px 1fr');
 
   const { data: retentionConfig } = useQuery({ queryKey: ['setup', 'retention'], queryFn: () => fetchJson('/api/setup/retention'), staleTime: 30_000 });
   const { configure: configureToasts } = useToast();
@@ -109,11 +103,6 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, retentionConfig, prefs]);
 
-  // Close drawer when viewport leaves mobile (prevents inconsistent state on resize)
-  useEffect(() => {
-    if (!isMobile) setDrawerOpen(false);
-  }, [isMobile]);
-
   const handleSelectAccessory = useCallback((id) => {
     if (!id) return;
     window.history.pushState({ hcView: 'accessory-detail', accessoryId: id }, '', `${window.location.pathname}${window.location.search}${window.location.hash}`);
@@ -147,62 +136,13 @@ export default function App() {
 
   return (
     <>
-      {/* Fixed mobile top bar -- outside grid flow, z-30 per UI-SPEC */}
-      {isMobile && (
-        <div
-          className="fixed top-0 left-0 right-0 z-30 flex items-center gap-3 px-3 bg-hc-panel border-b border-hc-panel-border"
-          style={{ height: '48px', paddingTop: 'env(safe-area-inset-top)' }}
-        >
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open navigation"
-            className="flex items-center justify-center w-12 h-12 -ml-2 text-hc-fg"
-          >
-            <Menu size={20} />
-          </button>
-          <span className="font-semibold text-hc-fg-strong" style={{ fontSize: 'var(--hc-text-section)' }}>
-            {PAGE_TITLES[activePage] ?? ''}
-          </span>
-        </div>
-      )}
-
-      {/* Always-mounted sheet drawer (when mobile) -- stays mounted for close animation */}
-      {isMobile && (
-        <>
-          <div
-            className={clsx(
-              'fixed inset-0 bg-black/50 transition-opacity duration-250',
-              drawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none',
-            )}
-            style={{ zIndex: 39 }}
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Close navigation"
-          />
-          <div className={clsx('hc-drawer', drawerOpen && 'hc-drawer--open')} aria-modal="true">
-            <Sidebar
-              collapsed={false}
-              onToggle={undefined}
-              inDrawer={true}
-              activePage={activePage}
-              onNavigate={(page) => { setDrawerOpen(false); navigate(page); }}
-              hasNewVersion={hasNewVersion}
-              onOpenChangelog={openChangelog}
-              buildVersion={__BUILD_VERSION__}
-              availableUpdate={availableUpdate}
-              onDismissUpdate={dismissUpdate}
-            />
-          </div>
-        </>
-      )}
-
       {/* Main grid layout */}
       <div className="app-layout" style={{ gridTemplateColumns: gridCols }}>
-        {!isMobile && (
+        {!isFloatingNav && (
           <Sidebar
             collapsed={effectiveCollapsed}
-            onToggle={isTablet ? undefined : () => setCollapsed(c => !c)}
-            inDrawer={isTablet}
+            onToggle={() => setCollapsed(c => !c)}
+            inDrawer={false}
             activePage={activePage}
             onNavigate={navigate}
             hasNewVersion={hasNewVersion}
@@ -212,7 +152,7 @@ export default function App() {
             onDismissUpdate={dismissUpdate}
           />
         )}
-        <main className={clsx('overflow-y-auto', isMobile && 'pt-12')}>
+        <main ref={mainRef} className="overflow-y-auto">
           {selectedAccessoryId ? (
             <ErrorBoundary key={selectedAccessoryId}><AccessoryDetail accessoryId={selectedAccessoryId} onBack={handleAccessoryBack} /></ErrorBoundary>
           ) : (
@@ -226,6 +166,9 @@ export default function App() {
           )}
         </main>
       </div>
+      {isFloatingNav && (
+        <FloatingNav activePage={activePage} onNavigate={navigate} scrollRef={mainRef} />
+      )}
       {showChangelog && <ChangelogModal onClose={closeChangelog} />}
     </>
   );
