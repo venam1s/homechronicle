@@ -203,4 +203,11 @@ describe('Sidebar', () => {
     render(<Sidebar {...defaultProps} collapsed={false} />);
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
   });
+
+  it('Test 20 (MALERT-07): Alerts nav item is always visible without any alertsEnabled prop', () => {
+    // No alertsEnabled prop passed — Alerts must render unconditionally (gate removed).
+    const propsWithoutAlertsEnabled = { ...defaultProps };
+    render(<Sidebar {...propsWithoutAlertsEnabled} />);
+    expect(screen.getByRole('button', { name: 'Alerts' })).toBeInTheDocument();
+  });
 });
