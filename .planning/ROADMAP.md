@@ -152,62 +152,6 @@ See `milestones/v1.3-ROADMAP.md` for full details.
 - [x] 23-05-PLAN.md — SEC-05 frontend: useSessions/useRevokeSession + ActiveSessionsPanel under Settings → Account
 **UI hint**: yes
 
-## Progress
-
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 1-7 | v1.0 | 14/14 | Complete | 2026-04-06 |
-| 8-9 | v1.1 | 3/3 | Complete | 2026-04-08 |
-| 10-17 | v1.2 | 25/25 | Complete | 2026-04-16 |
-| 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
-| 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
-| 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
-| 21 | v1.4 | 10/10 | Complete    | 2026-06-12 |
-| 22 | v1.4 | 5/5 | Complete    | 2026-06-13 |
-| 23 | v1.4 | 5/5 | Complete    | 2026-06-13 |
-| 24 | v1.5 | 6/6 | Complete    | 2026-06-14 |
-
-## Candidates / Backlog
-
-> Parked ideas not yet committed to a milestone. Promote via `/gsd:review-backlog` or `/gsd:new-milestone` when ready.
-
-### Opt-in Update Check & Anonymous Telemetry (candidate, suggested v1.4)
-
-**Problem:** Docker pull counts conflate CI rebuilds, curious tire-kickers, and running instances. No visibility into who is actually running HomeChronicle, on what version, or on what platform.
-
-**Proposal:** Daily update-check ping from the listener to a small versions endpoint. Drives an in-UI "update available" badge and gives the maintainer DAU + version distribution + platform split.
-
-**Payload (sketch):**
-```json
-{
-  "instanceId": "uuid-v4 stored once in /app/data/instance.json",
-  "version": "0.1.10",
-  "platform": "linux/arm64",
-  "uptime_hours": 168,
-  "accessory_count_bucket": "10-49"
-}
-```
-
-**Privacy posture (non-negotiable for this audience):**
-- Default **OFF**. Opt-in via Manage → Privacy with first-boot modal showing the full payload preview.
-- All counts bucketed (never raw values).
-- No IP logging server-side; aggregate counters only.
-- Full payload documented in README and surfaced in `/api/setup` response so power users can verify.
-
-**Server side:** Cloudflare Worker + D1 (or KV counters). ~$0/mo at expected scale. Dashboard: SQL views for `daily_active_instances`, `version_distribution`, `platform_split`.
-
-**Cheap signals to enable first** (no code, this week):
-- GitLab → Analytics → Repository (unique visitors, clones).
-- GitHub mirror → Insights → Traffic (rolling 14-day).
-- GitLab Container Registry → per-tag pull counts (compare `:latest` vs versioned tags).
-- Turn on GitHub Discussions; pin a "Show your setup" thread; link from web UI footer.
-
-**Open questions before promoting to a milestone:**
-- Domain/host for the versions endpoint (`versions.homechronicle.dev`?).
-- Worker vs. self-hosted endpoint (avoids Cloudflare dependency).
-- Bucket boundaries for `accessory_count_bucket` and any future fields.
-- Should the in-UI badge use the same endpoint or a separate `/latest.json` GitHub Pages file (cheaper, no infra)?
-
 ### Phase 24: Per-User UI Preferences (Phase 1)
 
 **Goal:** Personal UI preferences follow the logged-in account across devices (server-backed), while infrastructure settings stay household-shared. Add a per-user JSONB preferences blob in Postgres (migration `0007_user_preferences`: `user_id` PK FK → `users(id)` ON DELETE CASCADE), a session-scoped `me-router` with `GET/PUT /api/me/preferences` (size-capped, object-validated), and a frontend `usePreference` layer (server-when-authenticated, localStorage-when-not; `AUTH_ENABLED=false` stays pure localStorage). Refactor consumers: `useDashboardLayout`, dashboard ranges (`DashboardPage` + `RoomChart`/`TopDevices`/`TrendChart`/`WeekdayHeatmap` `*_days` keys + sync toggle), `useTheme`/`useSkin`/`useAccent`/sidebar-collapsed, `useMutedDevices`, and the toast + episode/scene grouping controls in `SettingsTab` (these move off shared `retention.json` reads to the per-user blob). Seed the blob once on first authenticated load from existing localStorage + the user's current shared toast/grouping values. No listener/stats computation changes.
@@ -235,3 +179,24 @@ Plans:
 Plans:
 - [x] 25-01-PLAN.md — Session-aware GET /stats/quiet-hours (per-user blob read, whole-config fallback, normalization, three-path tests)
 - [x] 25-02-PLAN.md — SettingsTab quiet-hours controls via usePreference (presence-check prefill, grouped four-key write, component tests)
+
+## Progress
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1-7 | v1.0 | 14/14 | Complete | 2026-04-06 |
+| 8-9 | v1.1 | 3/3 | Complete | 2026-04-08 |
+| 10-17 | v1.2 | 25/25 | Complete | 2026-04-16 |
+| 18 | v1.3 | 1/1 | Complete | 2026-04-20 |
+| 19 | v1.3 | 1/1 | Complete | 2026-04-21 |
+| 20 | v1.4 | 13/13 | Complete   | 2026-06-11 |
+| 21 | v1.4 | 10/10 | Complete    | 2026-06-12 |
+| 22 | v1.4 | 5/5 | Complete    | 2026-06-13 |
+| 23 | v1.4 | 5/5 | Complete    | 2026-06-13 |
+| 24 | v1.5 | 6/6 | Complete    | 2026-06-14 |
+
+## Candidates / Backlog
+
+> Parked ideas not yet committed to a milestone. Promote via `/gsd:review-backlog` or `/gsd:new-milestone` when ready.
+
+_No active candidates._
