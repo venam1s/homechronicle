@@ -797,6 +797,21 @@
           <h3>Docker Ready</h3>
           <p>Single <code>docker run</code> deploys everything. Or use Docker Compose for fine-grained control. No build steps required.</p>
         </div>
+        <div class="feature-card">
+          <div class="feature-icon fi-amber">&#x1F465;</div>
+          <h3>Multi-User Accounts</h3>
+          <p>Optional login with invite-only members, admin and member roles, and DB-backed sessions you can review and revoke per device.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon fi-rose">&#x2709;&#xFE0F;</div>
+          <h3>Email &amp; SMTP</h3>
+          <p>SMTP-powered user invitations, password resets, and email alert delivery. Configure via environment variables or the Settings UI.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon fi-purple">&#x1F4CA;</div>
+          <h3>Customizable Dashboard</h3>
+          <p>Drag, resize, and hide analytics panels. Choose from 12 default and 12 optional panels; layout is saved per account.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -857,38 +872,100 @@
       <div class="section-label">Dashboard</div>
       <div class="section-title">Activity analytics at a glance</div>
       <div class="section-desc">
-        KPI cards, trend lines, hourly distributions, room breakdowns, device rankings, and heatmaps &mdash;
+        Trend lines, hourly distributions, room breakdowns, quiet-hours activity, and a fully customizable layout &mdash;
         everything you need to understand your smart home's behavior.
       </div>
 
       <div class="detail-grid">
         <div class="detail-card wide">
-          <img src="screenshots/dashboard-daily-activity.png" alt="KPI cards and daily activity trend">
+          <img src="screenshots/dashboard-daily-activity.png" alt="Daily activity trend line chart">
           <div class="detail-caption">
-            <h3>KPI Cards &amp; Daily Trend</h3>
-            <p>Today's count, weekly total, top device, and busiest room. Trend line with 7/30/90-day ranges.</p>
+            <h3>Daily Activity</h3>
+            <p>Event-count trend line across the last 7, 30, or 90 days. Spot long-term patterns and busy periods at a glance.</p>
           </div>
         </div>
         <div class="detail-card">
-          <img src="screenshots/dashboard-most-active-devices.png" alt="Most active devices ranking">
+          <img src="screenshots/dashboard-most-active-devices.png" alt="Events by room ranking">
           <div class="detail-caption">
-            <h3>Most Active Devices</h3>
-            <p>Ranked list of your busiest accessories over the last 7 days with room labels and event counts.</p>
+            <h3>Events by Room</h3>
+            <p>Per-room event counts ranked highest first, covering 7, 30, or 90 days. Instantly see which areas of your home are busiest.</p>
           </div>
         </div>
         <div class="detail-card">
-          <img src="screenshots/dashboard-weekly-monthly-heatmaps.png" alt="Weekday and monthly activity heatmaps">
+          <img src="screenshots/dashboard-weekly-monthly-heatmaps.png" alt="Events by hour of day">
           <div class="detail-caption">
-            <h3>Weekday &amp; Monthly Heatmaps</h3>
-            <p>Spot patterns in your home's activity. See which hours and days are busiest over 30, 90, or 365 days.</p>
+            <h3>Events by Hour</h3>
+            <p>Hourly event distribution across the full day over the last 30 days (local time). Find your home's natural activity rhythm.</p>
           </div>
         </div>
         <div class="detail-card">
-          <img src="screenshots/dashboard-stale-devices.png" alt="Stale device alerts">
+          <img src="screenshots/dashboard-stale-devices.png" alt="Quiet hours activity">
           <div class="detail-caption">
-            <h3>Stale Device Alerts</h3>
-            <p>Devices that have gone silent are flagged with missed heartbeat counts so you can investigate.</p>
+            <h3>Quiet Hours Activity</h3>
+            <p>Accessories that fired events inside your configured quiet-hours window are surfaced here so unexpected activity doesn't go unnoticed.</p>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ Multi-User Accounts ════════ -->
+  <section class="wide-screenshots alt-bg">
+    <div class="container">
+      <div class="section-label">Accounts</div>
+      <div class="section-title">Multi-user accounts with invite-only access</div>
+      <div class="section-desc">
+        Login is optional and enabled with a single flag. When on, the first visit prompts for a one-time admin setup;
+        all subsequent members join by invite only. Admins and members share event data but have different configuration rights.
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-card">
+          <img src="screenshots/login-page.png" alt="Sign in page with email and password fields">
+          <div class="detail-caption">
+            <h3>Sign In</h3>
+            <p>Auth is opt-in via <code>AUTH_ENABLED</code>. The sign-in screen appears only when login is on; disable it to restore the single-operator mode.</p>
+          </div>
+        </div>
+        <div class="detail-card">
+          <img src="screenshots/settings-users.png" alt="User management panel showing member list with invite and role controls">
+          <div class="detail-caption">
+            <h3>User Management</h3>
+            <p>Admins can invite members by email, promote or demote roles, and disable accounts. No public registration — every account comes from an invite.</p>
+          </div>
+        </div>
+        <div class="detail-card">
+          <img src="screenshots/settings-account-sessions.png" alt="Active sessions list with device info and revoke buttons">
+          <div class="detail-caption">
+            <h3>Active Sessions</h3>
+            <p>Each user can see their own login sessions — device user agent and IP captured at login — and revoke any individually.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ Email (SMTP) ════════ -->
+  <section class="feature-section">
+    <div class="container">
+      <div class="feature-row">
+        <div class="feature-text">
+          <div class="section-label">Email</div>
+          <h2>SMTP for invitations, resets &amp; alerts</h2>
+          <p>
+            Email is optional. When an SMTP server is configured, it powers three features:
+            user invitations (the invite link doubles as email verification), password reset links,
+            and the email delivery channel for alert rules.
+          </p>
+          <ul class="feature-list">
+            <li>Configure via environment variables or the Settings UI — no restart needed for UI changes</li>
+            <li>Supports port 587 STARTTLS and port 465 implicit TLS</li>
+            <li>SMTP password stored in a 0600-permission secrets file, never exposed by any API response</li>
+            <li>Send test email button verifies delivery to the admin's account address</li>
+          </ul>
+        </div>
+        <div class="feature-media">
+          <img src="screenshots/settings-email-smtp.png" alt="Email SMTP settings panel" class="screenshot">
         </div>
       </div>
     </div>
