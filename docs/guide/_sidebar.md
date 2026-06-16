@@ -7,7 +7,9 @@
   - [Environment Variables](environment-variables.md)
   - [Networking](networking.md)
   - [Security](security.md)
+  - [Email (SMTP)](email.md)
 - **Usage**
+  - [Accounts & Users](accounts.md)
   - [Device Setup](devices.md)
   - [Settings](settings.md)
   - [Appearance](appearance.md)
