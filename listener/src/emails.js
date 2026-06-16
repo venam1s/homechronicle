@@ -53,6 +53,10 @@ function escapeHtml(str) {
  * @returns {string} — complete HTML email document
  */
 function renderEmailLayout({ heading, bodyHtml, ctaLabel, ctaUrl, footerNote }) {
+  // heading is always plain text (bodyHtml is the markup slot). Escape it so
+  // untrusted sources — e.g. an alert subject built from device/room names —
+  // cannot inject markup into <title> or the heading line.
+  const safeHeading = escapeHtml(heading);
   const showCta = ctaUrl && ctaLabel;
   const ctaBlock = showCta
     ? `
@@ -78,7 +82,7 @@ function renderEmailLayout({ heading, bodyHtml, ctaLabel, ctaUrl, footerNote }) 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${heading}</title>
+  <title>${safeHeading}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f3f4f6;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -103,7 +107,7 @@ function renderEmailLayout({ heading, bodyHtml, ctaLabel, ctaUrl, footerNote }) 
             <td style="padding: 32px 32px 8px 32px;">
               <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;
                         font-size: 20px; font-weight: bold; color: #111827;">
-                ${heading}
+                ${safeHeading}
               </p>
             </td>
           </tr>
