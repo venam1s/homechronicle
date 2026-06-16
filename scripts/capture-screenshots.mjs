@@ -68,6 +68,15 @@ const MOBILE_SCALE = 2;
 
 const SKINS = ['ocean', 'graphite', 'sunrise', 'red', 'yellow', 'purple', 'slate', 'pink'];
 
+// Per-skin accent override. accent is a PER-USER SERVER preference (GET /api/me/preferences
+// → UserPreferencesProvider seeds 'accent' → useAccent → applyAccent → [data-accent] CSS).
+// Setting only localStorage hc_accent is INSUFFICIENT: once the server blob is non-empty the
+// reconciliation effect overrides localStorage with the server value, so every skin rendered
+// the admin's saved accent. The fix (skin-capture path only): the route handler rewrites the
+// GET response so prefs.accent = currentAccent on every fetch, and short-circuits the PUT so
+// the capture never mutates the admin's real prefs. null = no override (normal runs).
+let currentAccent = null;
+
 // PII scrub: longest/most-specific substrings first so catch-alls don't pre-empt
 // them. Account emails MUST precede the bare username/domain catch-alls
 // (e.g. smithmarcw@icloud.com → you@example.com BEFORE smithmarcw → you, else
@@ -129,6 +138,40 @@ async function authenticate(context) {
 async function installPiiScrub(page, capture) {
   await page.route('**/api/**', async (route) => {
     try {
+      const url = route.request().url();
+      const method = route.request().method();
+
+      // ── Per-user preferences override (skin-capture path) ──
+      // currentAccent is read at REQUEST time (not install time) so per-skin updates apply.
+      if (/\/api\/me\/preferences(\?|$)/.test(url)) {
+        if (method === 'PUT') {
+          // Echo the sent body as { prefs: <sent> } WITHOUT forwarding to the server, so the
+          // capture never persists anything to the admin's real prefs (no route.fetch()).
+          let sent = {};
+          try { sent = JSON.parse(route.request().postData() || '{}').prefs ?? {}; } catch { /* keep {} */ }
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: scrub(JSON.stringify({ prefs: sent })),
+          });
+          return;
+        }
+        // GET: fetch the real response, ensure { prefs: {...} }, inject accent, keep PII scrub.
+        const resp = await route.fetch();
+        let json;
+        try { json = JSON.parse(await resp.text()); } catch { json = {}; }
+        if (!json || typeof json !== 'object' || typeof json.prefs !== 'object' || json.prefs == null) {
+          json = { prefs: {} };
+        }
+        if (currentAccent) json.prefs.accent = currentAccent;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: scrub(JSON.stringify(json)),
+        });
+        return;
+      }
+
       const resp = await route.fetch();
       const ct = resp.headers()['content-type'] || '';
       // Only rewrite text-ish bodies (JSON). Pass others through untouched.
@@ -230,6 +273,49 @@ async function shot(name, fn) {
   }
 }
 
+/**
+ * Capture the 8-skin gallery for one theme mode. Accent is driven via the per-skin
+ * /api/me/preferences GET override (currentAccent), NOT localStorage — see installPiiScrub.
+ * localStorage hc_accent/hc_ui_skin are still set as belt-and-suspenders for first paint.
+ */
+async function captureSkins(browser, mode) {
+  console.log(`\n── Skin gallery (${mode}) ──`);
+  const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: mode });
+  await authenticate(ctx);
+  const page = await ctx.newPage();
+  await installPiiScrub(page);
+  // Seed an initial skin so the first load already has localStorage set.
+  await applyThemeInit(page, { theme: mode, skin: SKINS[0] });
+  currentAccent = SKINS[0];
+  await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+
+  for (let i = 0; i < SKINS.length; i++) {
+    const skin = SKINS[i];
+    if (i > 0) await page.waitForTimeout(2000);
+    // Drive accent via the server-pref GET override (the real fix).
+    currentAccent = skin;
+    await page.evaluate(({ s, m }) => {
+      localStorage.setItem('hc_accent', s);
+      localStorage.setItem('hc_ui_skin', s);
+      localStorage.setItem('hc_theme_preference', m);
+    }, { s: skin, m: mode });
+    await page.reload({ waitUntil: 'networkidle' });
+    await waitForCharts(page);
+    const failed = await page.locator('text=/Failed to load/').count();
+    if (failed > 0) {
+      console.log(`    ⚠ API error for ${skin}-${mode}, retrying after 5s...`);
+      await page.waitForTimeout(5000);
+      await page.reload({ waitUntil: 'networkidle' });
+      await waitForCharts(page);
+    }
+    await shot(`skin-${skin}-${mode}.png`, async () => {
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `skin-${skin}-${mode}.png`), fullPage: true });
+    });
+  }
+  currentAccent = null;
+  await ctx.close();
+}
+
 async function main() {
   fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
   console.log(`Target: ${BASE_URL}  (cookie host: ${COOKIE_DOMAIN})`);
@@ -257,6 +343,17 @@ async function main() {
     }
     console.log('✓ Authenticated — Dashboard loaded.\n');
     await ctx.close();
+  }
+
+  // SKINS_ONLY: re-capture ONLY the 16 skin-*-{light,dark}.png shots (the other shots are
+  // already correct). Keeps the auth-check above as a fail-fast; skips login/desktop/pwa.
+  if (process.env.SKINS_ONLY) {
+    console.log('SKINS_ONLY=1 — capturing skin gallery only.');
+    await captureSkins(browser, 'light');
+    await captureSkins(browser, 'dark');
+    await browser.close();
+    console.log('\n✅ Skin-only screenshot run complete.');
+    return;
   }
 
   // ───────────────────────── LOGIN PAGE (no cookie) ─────────────────────────
@@ -455,39 +552,8 @@ async function main() {
   }
 
   // ───────────────────────── SKIN GALLERY ─────────────────────────
-  for (const mode of ['light', 'dark']) {
-    console.log(`\n── Skin gallery (${mode}) ──`);
-    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: mode });
-    await authenticate(ctx);
-    const page = await ctx.newPage();
-    await installPiiScrub(page);
-    // Seed an initial skin so the first load already has localStorage set.
-    await applyThemeInit(page, { theme: mode, skin: SKINS[0] });
-    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
-
-    for (let i = 0; i < SKINS.length; i++) {
-      const skin = SKINS[i];
-      if (i > 0) await page.waitForTimeout(2000);
-      await page.evaluate(({ s, m }) => {
-        localStorage.setItem('hc_accent', s);
-        localStorage.setItem('hc_ui_skin', s);
-        localStorage.setItem('hc_theme_preference', m);
-      }, { s: skin, m: mode });
-      await page.reload({ waitUntil: 'networkidle' });
-      await waitForCharts(page);
-      const failed = await page.locator('text=/Failed to load/').count();
-      if (failed > 0) {
-        console.log(`    ⚠ API error for ${skin}-${mode}, retrying after 5s...`);
-        await page.waitForTimeout(5000);
-        await page.reload({ waitUntil: 'networkidle' });
-        await waitForCharts(page);
-      }
-      await shot(`skin-${skin}-${mode}.png`, async () => {
-        await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `skin-${skin}-${mode}.png`), fullPage: true });
-      });
-    }
-    await ctx.close();
-  }
+  await captureSkins(browser, 'light');
+  await captureSkins(browser, 'dark');
 
   await browser.close();
 
