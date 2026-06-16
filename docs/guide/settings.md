@@ -53,6 +53,8 @@ Number of hours without events before an accessory is marked as "stale" on the d
 
 ### Alerts & Quiet Hours {#alerts}
 
+![Alerts page showing alert rules list with channel, condition, and quiet-period columns](../screenshots/alerts-page.png)
+
 #### Alert Rules
 
 Alert rules notify you when specific device events occur. Requires `ALERTS_ENABLED=true`. Two delivery channels are available: **webhook** (HTTP POST to any URL) and **email** (requires SMTP — see [Email (SMTP)](email.md)).
@@ -107,6 +109,8 @@ How long each toast stays visible before auto-dismissing: 2, 3, 5, or 7 seconds.
 Maximum number of toasts that can stack on screen at once: 1, 2, 3, or 5.
 
 ### Advanced (admin-only)
+
+![Advanced settings panel showing log level selector and Danger Zone section](../screenshots/settings-advanced.png)
 
 #### Log Level
 

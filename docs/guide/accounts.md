@@ -2,6 +2,8 @@
 
 Login is **optional**. By default `AUTH_ENABLED=true` activates the multi-user session system. Set `AUTH_ENABLED=false` to disable it entirely — the app reverts to the single-operator mode gated only by `API_TOKEN` (the v1.3 behavior). No user or session data is created in that case.
 
+![Sign in page with email and password fields](../screenshots/login-page.png)
+
 ## First-Run Admin Claim
 
 When auth is on and no admin account exists, the first visit to the app presents a one-time setup screen to create the admin account (`POST /claim-admin`). This step is race-safe and can only succeed once. All subsequent accounts are invite-only — there is no public registration.
@@ -18,6 +20,8 @@ When auth is on and no admin account exists, the first visit to the app presents
 See [Security](security.md) for the session auth model and CSRF protection details, and [Environment Variables](environment-variables.md) for all auth/session variables.
 
 ## User Management
+
+![User management panel with member list, invite controls, and role settings](../screenshots/settings-users.png)
 
 Only admins can manage users. From **Settings > Admin > Users**:
 
@@ -48,6 +52,8 @@ Password reset is email-based: a signed-in user can request a reset from **Setti
 For alert rule behavior and the email recipient constraint see [Settings](settings.md#alerts).
 
 ## Active Sessions
+
+![Active sessions list showing device user agents, IP addresses, and revoke buttons](../screenshots/settings-account-sessions.png)
 
 Each user can view their own active sessions — including the browser/device user agent and IP address captured at login — under **Settings > Account > Active Sessions**. Sessions can be revoked individually. Revoke is owner-only; admins cannot revoke other users' sessions.
 

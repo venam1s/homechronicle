@@ -10,6 +10,7 @@
   - [Email (SMTP)](email.md)
 - **Usage**
   - [Accounts & Users](accounts.md)
+  - [Dashboard & Analytics](dashboard.md)
   - [Device Setup](devices.md)
   - [Settings](settings.md)
   - [Appearance](appearance.md)

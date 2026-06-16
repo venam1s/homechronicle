@@ -7,6 +7,7 @@ homechronicle is a self-hosted event log for Apple HomeKit and Matter devices. I
 - **Records every event** — lights turning on, motion detected, temperature changes, door locks, and more
 - **Searchable timeline** — filter by room, accessory, characteristic, or date range
 - **Activity analytics** — daily trends, hourly distributions, heatmaps, device rankings
+- **Customizable dashboard** — drag, resize, and hide analytics panels; layout saved per account ([details](dashboard.md))
 - **Device management** — discover, pair, and monitor accessories from the web UI
 - **Multi-user accounts** — optional login with invite-only members, admin/member roles, and DB-backed sessions ([details](accounts.md))
 - **Email** — SMTP for user invitations, password resets, and email alert delivery ([details](email.md))
@@ -54,6 +55,7 @@ Open `http://localhost:3000` in your browser. See [Standalone Docker](standalone
 
 ### Usage
 - [Accounts & Users](accounts.md) — login, invite members, roles, sessions, per-user preferences
+- [Dashboard & Analytics](dashboard.md) — customizable panels, default and optional panel reference
 - [Device Setup](devices.md) — discover, pair, and manage HomeKit & Matter accessories
 - [Appearance](appearance.md) — dark mode, color themes
 - [Mobile Install (PWA)](mobile-install.md) — add to your home screen
