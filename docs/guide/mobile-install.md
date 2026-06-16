@@ -18,6 +18,10 @@ homechronicle can be added to your home screen so it behaves like a native app.
 4. Optionally rename it, then tap **Add**
 5. Launch from your home screen
 
+## Floating navigation
+
+On screens narrower than 1024 px (phones and tablets), the sidebar collapses and a floating nav button appears in the corner of the screen. Tap it to open the page menu and navigate between tabs. The sidebar is restored automatically on wider displays.
+
 ## Notes
 
 - The app must be served over your local network or HTTPS (not from a file path)
