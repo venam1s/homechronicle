@@ -16,6 +16,8 @@ Email is **optional**. If `SMTP_HOST` or `SMTP_PASS` is not set, email features 
 
 ## Configuration
 
+![Email SMTP settings panel with server hostname, port, username, From address, and Send test email button](../screenshots/settings-email-smtp.png)
+
 SMTP can be configured two ways:
 
 1. **Environment variables** — set in `.env` (or Docker environment). Takes effect on next container restart.
