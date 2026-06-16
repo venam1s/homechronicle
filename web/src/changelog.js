@@ -10,6 +10,13 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.3.1',
+    title: 'Settings: Advanced controls now have their own tab',
+    items: [
+      'The Advanced controls (log level and the Danger Zone) now appear on their own "Advanced" tab in Settings → Configuration, instead of showing beneath every category.',
+    ],
+  },
+  {
     version: 'v0.3.0',
     title: 'Multi-user accounts, email, and per-user preferences',
     items: [

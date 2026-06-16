@@ -2,6 +2,11 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.3.1] — 2026-06-15
+
+### Fixed
+- **Settings:** the **Advanced** controls (log level and the Danger Zone) now live on their own *Advanced* tab under Configuration, instead of appearing beneath every Settings category. (Admin-only visibility is unchanged.)
+
 ## [0.3.0] — 2026-06-15
 
 ### Added
