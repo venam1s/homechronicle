@@ -191,7 +191,14 @@ export async function sendInvite(to, inviteUrl, { from } = {}) {
     to,
     subject: 'You have been invited to HomeChronicle',
     text: `You have been invited to HomeChronicle. Accept your invitation within 72 hours:\n\n${inviteUrl}\n`,
-    html: `<p>You have been invited to HomeChronicle.</p><p>Accept your invitation within 72 hours:</p><p><a href="${inviteUrl}">${inviteUrl}</a></p>`,
+    html: renderEmailLayout({
+      heading: 'You have been invited to HomeChronicle',
+      bodyHtml: `<p style="margin: 0 0 12px 0;">You have been invited to join HomeChronicle. Accept your invitation within 72 hours:</p>
+<p style="margin: 0; word-break: break-all;"><a href="${inviteUrl}" style="color: #1d4ed8;">${inviteUrl}</a></p>`,
+      ctaLabel: 'Accept invitation',
+      ctaUrl: inviteUrl,
+      footerNote: 'This invitation expires in 72 hours.',
+    }),
   });
 }
 
@@ -209,7 +216,14 @@ export async function sendPasswordReset(to, resetUrl, { from } = {}) {
     to,
     subject: 'Reset your HomeChronicle password',
     text: `Reset your HomeChronicle password within 1 hour:\n\n${resetUrl}\n`,
-    html: `<p>Reset your HomeChronicle password within 1 hour:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+    html: renderEmailLayout({
+      heading: 'Reset your HomeChronicle password',
+      bodyHtml: `<p style="margin: 0 0 12px 0;">Click the button below to reset your password. This link expires in 1 hour:</p>
+<p style="margin: 0; word-break: break-all;"><a href="${resetUrl}" style="color: #1d4ed8;">${resetUrl}</a></p>`,
+      ctaLabel: 'Reset password',
+      ctaUrl: resetUrl,
+      footerNote: 'This link expires in 1 hour. If you did not request a password reset, you can ignore this email.',
+    }),
   });
 }
 
@@ -225,7 +239,17 @@ export async function sendPasswordReset(to, resetUrl, { from } = {}) {
  */
 export async function sendAlertEmail(to, subject, body, { from } = {}) {
   if (!transporter) throw new Error('Email not configured');
-  await transporter.sendMail({ from, to, subject, text: body });
+  await transporter.sendMail({
+    from,
+    to,
+    subject,
+    text: body,
+    html: renderEmailLayout({
+      heading: subject,
+      bodyHtml: escapeHtml(body),
+      footerNote: 'HomeChronicle alert',
+    }),
+  });
 }
 
 /**

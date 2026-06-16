@@ -131,6 +131,29 @@ test('sendInvite: calls sendMail with correct to, subject, and body containing t
   await resetTransport();
 });
 
+test('sendInvite: html output contains branded wordmark and invite URL (branding regression)', async () => {
+  const mockTransport = makeMockTransport();
+  await initEmail({
+    host: 'smtp.example.com',
+    port: 587,
+    user: 'user@example.com',
+    smtpPass: 'secret',
+    from: 'noreply@example.com',
+    secure: false,
+    _testTransport: mockTransport,
+  });
+
+  const inviteUrl = 'https://hc.example.com/accept-invite?token=BRAND123';
+  await sendInvite('recipient@example.com', inviteUrl, { from: 'noreply@hc.example.com' });
+
+  assert.equal(mockTransport.calls.sendMail.length, 1, 'sendMail should be called once');
+  const call = mockTransport.calls.sendMail[0];
+  assert.ok(call.html, 'html field must be present');
+  assert.ok(call.html.includes('chronicle'), 'html must contain branded wordmark "chronicle"');
+  assert.ok(call.html.includes(inviteUrl), 'html must contain the invite URL');
+  await resetTransport();
+});
+
 // -- EMAIL-04: sendPasswordReset --
 
 test('sendPasswordReset: throws "Email not configured" when email disabled', async () => {
