@@ -10,7 +10,7 @@ The **Admin** section is visible only to admin-role users.
 
 Invite members, change roles (admin/member), and disable accounts. The invite link doubles as email verification. A last-admin guard prevents demoting or disabling the only admin. Requires [Email (SMTP)](email.md) to be configured. See [Accounts & Users](accounts.md).
 
-### Configuration (Admin)
+### Email (SMTP)
 
 SMTP settings for outbound email: server hostname, port, username/password, From address, and a **Send test email** button. Environment variable values (`SMTP_HOST`, etc.) override UI-saved settings — see [Email (SMTP)](email.md).
 

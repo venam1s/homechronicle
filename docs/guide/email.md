@@ -19,7 +19,7 @@ Email is **optional**. If `SMTP_HOST` or `SMTP_PASS` is not set, email features 
 SMTP can be configured two ways:
 
 1. **Environment variables** — set in `.env` (or Docker environment). Takes effect on next container restart.
-2. **Settings UI** — go to **Settings > Admin > Configuration** (admin-only). Changes apply immediately without a restart.
+2. **Settings UI** — go to **Settings > Admin > Email (SMTP)** (admin-only). Changes apply immediately without a restart.
 
 Environment variable values override any settings saved through the UI.
 
@@ -44,4 +44,4 @@ Most modern email providers use port 587 STARTTLS. Use port 465 only if your pro
 
 ## Testing the Connection
 
-After configuring SMTP (via env or UI), use the **Send test email** button in **Settings > Admin > Configuration** to verify delivery. The test sends a message to the admin's account email.
+After configuring SMTP (via env or UI), use the **Send test email** button in **Settings > Admin > Email (SMTP)** to verify delivery. The test sends a message to the admin's account email.
