@@ -19,6 +19,120 @@ import { log } from './logger.js';
 // Module-level singleton — null means email is disabled
 let transporter = null;
 
+// -- Internal helpers --
+
+/**
+ * Escape untrusted plain text for safe embedding in HTML.
+ * Escapes the five HTML-significant characters (& first), then converts
+ * newlines to <br> so multi-line plain-text bodies preserve line breaks.
+ *
+ * @param {string} str — untrusted input
+ * @returns {string} — HTML-safe string
+ */
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\n/g, '<br>');
+}
+
+/**
+ * Render a complete, email-client-safe branded HTML email.
+ * Table-based layout, all CSS inline, no <style> blocks, no external assets.
+ * The "homechronicle" wordmark uses styled-text spans (no inline SVG).
+ *
+ * @param {{ heading: string, bodyHtml: string, ctaLabel?: string, ctaUrl?: string, footerNote?: string }} opts
+ *   heading   — heading line rendered above bodyHtml (trusted caller markup)
+ *   bodyHtml  — pre-trusted or pre-escaped HTML content (injected as-is)
+ *   ctaLabel  — CTA button label; omit to suppress the button (e.g. alert emails)
+ *   ctaUrl    — CTA button href; omit to suppress the button
+ *   footerNote — optional short note below the generic footer line
+ * @returns {string} — complete HTML email document
+ */
+function renderEmailLayout({ heading, bodyHtml, ctaLabel, ctaUrl, footerNote }) {
+  const showCta = ctaUrl && ctaLabel;
+  const ctaBlock = showCta
+    ? `
+      <tr>
+        <td style="padding: 24px 32px 8px 32px; text-align: center;">
+          <a href="${ctaUrl}"
+             style="display: inline-block; background-color: #1d4ed8; color: #ffffff;
+                    font-family: Arial, Helvetica, sans-serif; font-size: 15px;
+                    font-weight: bold; text-decoration: none; padding: 12px 28px;
+                    border-radius: 6px; letter-spacing: 0.01em;">
+            ${ctaLabel}
+          </a>
+        </td>
+      </tr>`
+    : '';
+
+  const footerExtra = footerNote
+    ? `<br><span style="color: #6b7280;">${footerNote}</span>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${heading}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background-color: #f3f4f6; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <!-- Card -->
+        <table width="600" cellpadding="0" cellspacing="0" border="0"
+               style="background-color: #ffffff; border-radius: 8px;
+                      border: 1px solid #e5e7eb; overflow: hidden;">
+          <!-- Header brand bar -->
+          <tr>
+            <td style="background-color: #dbeafe; padding: 20px 32px;">
+              <span style="font-family: Arial, Helvetica, sans-serif; font-size: 22px;
+                           font-weight: bold; color: #111827; letter-spacing: -0.01em;">home</span><span
+                    style="font-family: Arial, Helvetica, sans-serif; font-size: 22px;
+                           font-weight: bold; color: #1d4ed8; letter-spacing: -0.01em;">chronicle</span>
+            </td>
+          </tr>
+          <!-- Heading -->
+          <tr>
+            <td style="padding: 32px 32px 8px 32px;">
+              <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;
+                        font-size: 20px; font-weight: bold; color: #111827;">
+                ${heading}
+              </p>
+            </td>
+          </tr>
+          <!-- Body content -->
+          <tr>
+            <td style="padding: 16px 32px 8px 32px; font-family: Arial, Helvetica, sans-serif;
+                       font-size: 15px; color: #374151; line-height: 1.6;">
+              ${bodyHtml}
+            </td>
+          </tr>
+          ${ctaBlock}
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 32px 32px 32px; border-top: 1px solid #e5e7eb;
+                       margin-top: 24px;">
+              <p style="margin: 0; font-family: Arial, Helvetica, sans-serif;
+                        font-size: 12px; color: #6b7280; text-align: center;">
+                HomeChronicle${footerExtra}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 /**
  * Initialize the nodemailer SMTP transport from config + secret.
  * Called once at startup from index.js (EMAIL-01).
