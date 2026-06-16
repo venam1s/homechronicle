@@ -64,6 +64,34 @@ Keep `API_PORT` and `LISTENER_PORT` aligned (default `3001`) or `/api` requests 
 | `NOTES_FILE` | `/app/data/notes.json` | Device notes JSON storage path |
 | `STORE_REFRESH_INTERVAL_MS` | `30000` | JSON store refresh interval |
 
+## Multi-User Auth & Sessions
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTH_ENABLED` | `true` | Set `false` to disable the session/user system and revert to the legacy API_TOKEN-only gate. See [Accounts & Users](accounts.md). |
+| `SESSION_COOKIE_SECURE` | `false` | Set `true` on HTTPS deployments so the `hc_session` cookie is only sent over encrypted connections. **Warning:** setting this to `true` on plain HTTP (including behind a reverse proxy terminating TLS at a different host) will cause a login loop. Leave `false` for home LAN HTTP. |
+| `SESSION_MAX_AGE_DEFAULT` | `604800000` | Session lifetime in milliseconds when "remember me" is not checked (default 7 days). |
+| `SESSION_MAX_AGE_REMEMBER` | `2592000000` | Session lifetime in milliseconds when "remember me" is checked (default 30 days). |
+| `TRUST_PROXY` | — (unset) | Express trust-proxy hop count. **Set to `1` behind nginx or Traefik** so the auth rate limiter keys on the real client IP instead of bucketing every user together — otherwise 10 failed login attempts from anyone locks the whole household out for the rate-limit window. Accepts a hop count (e.g. `1`), `true`/`false`, or a subnet. |
+| `ARGON2_MEMORY_COST` | `65536` | argon2id memory cost in KiB (64 MiB). |
+| `ARGON2_TIME_COST` | `3` | argon2id iteration count. |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | `900000` | Auth rate limit window (15 min). Applies to login and claim-admin endpoints. |
+| `AUTH_RATE_LIMIT_MAX` | `10` | Max auth attempts per window per client IP. |
+
+## Email (SMTP)
+
+All SMTP variables are optional. If `SMTP_HOST` or `SMTP_PASS` is not set, email features are disabled and the listener boots normally. See [Email (SMTP)](email.md).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SMTP_HOST` | — | SMTP server hostname. |
+| `SMTP_PORT` | `587` | SMTP port. Use `587` for STARTTLS (default) or `465` for implicit TLS. |
+| `SMTP_USER` | — | SMTP account username. |
+| `SMTP_PASS` | — | SMTP password or app-password. Stored in `smtp-secret.json` (0600); never returned by any API. Overrides the UI-saved secret. |
+| `SMTP_FROM` | — | From header for outbound emails (e.g. `HomeChronicle <noreply@yourdomain>`). |
+| `SMTP_SECURE` | `false` | Set `true` only when using port 465 (implicit TLS). |
+| `APP_BASE_URL` | — | Public base URL of this instance. Required to build invite and password-reset links. Must include scheme and host, no trailing slash (e.g. `https://home.example.net`). |
+
 ## Rate Limits
 
 | Variable | Default | Description |
