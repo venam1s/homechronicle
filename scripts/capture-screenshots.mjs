@@ -1,391 +1,513 @@
 #!/usr/bin/env node
 /**
- * Capture updated screenshots from the beta instance for homechronicle.net
- * Usage: node scripts/capture-screenshots.mjs [baseUrl]
+ * Capture updated screenshots from the PROD instance for homechronicle.net.
+ *
+ * Targets the current (v0.3.x) authenticated UI:
+ *   - Sidebar nav (Dashboard / Devices / Timeline / Alerts / Settings)
+ *   - Per-user skin (localStorage hc_accent, legacy hc_ui_skin) + theme (hc_theme_preference)
+ *   - Settings sections (Admin / Configuration / Account) with inner tabs
+ *
+ * Auth: an admin session cookie token is read from /tmp/hc_shot_cookie.txt and
+ * attached as the `hc_session` cookie on every Playwright context BEFORE navigation.
+ *
+ * PII scrub: a route interceptor rewrites real device/place names out of every
+ * /api/** JSON response body before the page renders. Zero prod mutation.
+ *
+ * Usage: node scripts/capture-screenshots.mjs [baseUrl]   (defaults to prod)
  */
 import { chromium } from 'playwright';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Resolve a usable Chromium executable. The bundled Playwright build number may
+ * not match the locally installed browser (e.g. headless_shell-1217 expected but
+ * only chromium-1208 present). Fall back to the full Chrome-for-Testing binary
+ * that ships under chromium-<n>, newest first.
+ */
+function resolveChromiumPath() {
+  if (process.env.PLAYWRIGHT_CHROMIUM_PATH) return process.env.PLAYWRIGHT_CHROMIUM_PATH;
+  const cache = path.join(os.homedir(), 'Library/Caches/ms-playwright');
+  let dirs = [];
+  try {
+    dirs = fs.readdirSync(cache)
+      .filter((d) => /^chromium-\d+$/.test(d))
+      .sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]));
+  } catch { return undefined; }
+  for (const d of dirs) {
+    const candidates = [
+      path.join(cache, d, 'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'),
+      path.join(cache, d, 'chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'),
+      path.join(cache, d, 'chrome-linux/chrome'),
+    ];
+    for (const c of candidates) if (fs.existsSync(c)) return c;
+  }
+  return undefined;
+}
 const SCREENSHOTS_DIR = path.resolve(__dirname, '../docs/screenshots');
-const BASE_URL = process.argv[2] || 'http://172.16.1.15:3100';
+const BASE_URL = (process.argv[2] || 'https://hc.venamis.net').replace(/\/$/, '');
+
+// Cookie host derived from the base URL (prod = hc.venamis.net).
+const COOKIE_DOMAIN = new URL(BASE_URL).hostname;
+const COOKIE_SECURE = new URL(BASE_URL).protocol === 'https:';
 
 // Desktop viewport matching existing screenshots (~2160px wide at 2x = 1080 logical).
-// Height 1220 keeps the fixed clips in this script (e.g. dashboard-daily-activity,
-// dashboard-most-active-devices, dashboard-weekly-monthly-heatmaps) valid.
 const DESKTOP = { width: 1080, height: 1220 };
 const DEVICE_SCALE = 2;
 
-// Standard 3:2 clip for feature-row screenshots (timeline, accessories, manage-*,
-// dashboard-dark). Keeps captures small so they fit under the 520px CSS cap on
-// .feature-media .screenshot in docs/index.html without aggressive cropping.
+// Standard 3:2 clip for feature-row screenshots.
 const FEATURE_CLIP = { x: 0, y: 0, width: 1080, height: 720 };
 
 // Mobile viewport for PWA screenshots (~603 logical at 2x = 1206px)
 const MOBILE = { width: 393, height: 852 };
-const MOBILE_SCALE = 2; // changed to match ~1206px close enough
+const MOBILE_SCALE = 2;
+
+const SKINS = ['ocean', 'graphite', 'sunrise', 'red', 'yellow', 'purple', 'slate', 'pink'];
+
+// PII scrub: longest/most-specific substrings first so catch-alls don't pre-empt
+// them. Account emails MUST precede the bare username/domain catch-alls
+// (e.g. smithmarcw@icloud.com → you@example.com BEFORE smithmarcw → you, else
+// the residual yields you@icloud.com). Device-name rules retained from prior run.
+const PII_REPLACEMENTS = [
+  // Account emails / domains (longest → shortest)
+  ['havuq@venamis.net', 'admin@example.com'],
+  ['smithmarcw@icloud.com', 'you@example.com'],
+  ['no-reply@venamis.net', 'no-reply@example.com'],
+  ['venamis.net', 'example.com'],
+  ['havuq', 'admin'],
+  ['smithmarcw', 'you'],
+  // Device / place names
+  ['Hubitat Smith Hub', 'Smart Home Hub'],
+  ['Smith Hub', 'Home Hub'],
+  ['Carl T20', 'Robot Vacuum'],
+  ['ZVille OWM', 'Weather Station'],
+  ['ZVille', 'Home'],
+];
+
+// Read the admin session token.
+let SESSION_TOKEN;
+try {
+  SESSION_TOKEN = fs.readFileSync('/tmp/hc_shot_cookie.txt', 'utf8').trim();
+} catch (err) {
+  console.error('FATAL: could not read /tmp/hc_shot_cookie.txt —', err.message);
+  process.exit(1);
+}
+if (!SESSION_TOKEN) {
+  console.error('FATAL: /tmp/hc_shot_cookie.txt is empty');
+  process.exit(1);
+}
+
+function scrub(text) {
+  let out = text;
+  for (const [from, to] of PII_REPLACEMENTS) out = out.split(from).join(to);
+  return out;
+}
+
+const PII_NEEDLES = ['Smith', 'Carl', 'ZVille', 'havuq', 'smithmarcw', 'venamis'];
+
+/** Attach the session cookie to a context. */
+async function authenticate(context) {
+  await context.addCookies([{
+    name: 'hc_session',
+    value: SESSION_TOKEN,
+    domain: COOKIE_DOMAIN,
+    path: '/',
+    httpOnly: true,
+    secure: COOKIE_SECURE,
+    sameSite: 'Lax',
+  }]);
+}
+
+/**
+ * Install the PII-scrubbing route interceptor on a page. Rewrites every /api/**
+ * JSON response body. Optionally captures cleaned bodies for verification.
+ */
+async function installPiiScrub(page, capture) {
+  await page.route('**/api/**', async (route) => {
+    try {
+      const resp = await route.fetch();
+      const ct = resp.headers()['content-type'] || '';
+      // Only rewrite text-ish bodies (JSON). Pass others through untouched.
+      if (!/json|text|javascript/i.test(ct)) {
+        await route.fulfill({ response: resp });
+        return;
+      }
+      const original = await resp.text();
+      const body = scrub(original);
+      if (capture) {
+        const url = route.request().url();
+        if (capture.events == null && /\/api\/events(\?|$)/.test(url)) capture.events = body;
+        if (capture.accessories == null && /\/api\/accessories(\?|$)/.test(url)) capture.accessories = body;
+        if (capture.me == null && /\/api\/auth\/me(\?|$)/.test(url)) capture.me = body;
+        // Match the users list GET (/api/users) but NOT /api/users/invites etc.
+        if (capture.users == null && /\/api\/users(\/?(\?|$))/.test(url)) capture.users = body;
+        if (capture.smtp == null && /\/api\/setup\/smtp(\?|$)/.test(url)) capture.smtp = body;
+      }
+      await route.fulfill({ response: resp, body });
+    } catch {
+      // Network hiccup — let the request continue unmodified rather than abort.
+      try { await route.continue(); } catch { /* already handled */ }
+    }
+  });
+}
+
+/** Set theme + skin in localStorage before the app boots. */
+async function applyThemeInit(page, { theme, skin }) {
+  await page.addInitScript(({ t, s }) => {
+    localStorage.setItem('hc_theme_preference', t);
+    localStorage.setItem('hc_accent', s);      // current key
+    localStorage.setItem('hc_ui_skin', s);     // legacy fallback
+  }, { t: theme, s: skin });
+}
+
+/** Wait for Recharts data to actually draw (not just the SVG container). */
+async function waitForCharts(page) {
+  try {
+    await page.waitForSelector('.recharts-bar-rectangle, .recharts-area-area', { timeout: 20000 });
+    await page.waitForTimeout(500);
+  } catch {
+    console.log('    ⚠ chart data elements not detected after 20s, capturing anyway');
+  }
+}
+
+/**
+ * Element-crop a dashboard panel by its heading text. The customizable grid
+ * (react-grid-layout v2) wraps every panel — bare (KPI/Quiet Hours, which carry
+ * their own h3 title) and non-bare (chart panels, whose title lives in the
+ * `.hc-drag-handle` header span) alike — in a `.react-grid-item` div. We locate
+ * the heading, climb to that enclosing grid item, scroll it into view, and
+ * screenshot the element so the crop tracks the live layout instead of guessing
+ * fixed coords (which came out blank when panels moved/reordered).
+ *
+ * Returns true if captured, false if the heading wasn't found (caller skips —
+ * never writes a blank image).
+ */
+async function cropPanelByHeading(page, headingText, outFile) {
+  const heading = page.getByText(headingText, { exact: false }).first();
+  if (!(await heading.count())) {
+    console.log(`    ⚠ panel heading "${headingText}" not found — skipping ${path.basename(outFile)}`);
+    return false;
+  }
+  await heading.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  const gridItem = heading.locator('xpath=ancestor::div[contains(@class,"react-grid-item")][1]');
+  const target = (await gridItem.count()) ? gridItem.first() : heading;
+  const box = await target.boundingBox();
+  if (!box || box.width < 40 || box.height < 40) {
+    console.log(`    ⚠ panel "${headingText}" element has no usable box — skipping ${path.basename(outFile)}`);
+    return false;
+  }
+  await target.screenshot({ path: outFile });
+  return true;
+}
+
+/** Click a sidebar nav button by visible label. Returns true on success. */
+async function navTo(page, label) {
+  const btn = page.locator('aside[aria-label="Main navigation"] button', { hasText: label }).first();
+  await btn.click({ timeout: 8000 });
+  await page.waitForTimeout(1800);
+  return true;
+}
+
+/** Confirm we landed on the authenticated app (not the login page). */
+async function assertAuthenticated(page) {
+  const onLogin = await page.locator('input[type="password"]').count();
+  const hasSidebar = await page.locator('aside[aria-label="Main navigation"]').count();
+  return hasSidebar > 0 && onLogin === 0;
+}
+
+/** Wrap a single capture so one failure doesn't abort the run. */
+async function shot(name, fn) {
+  try {
+    await fn();
+    console.log(`  ✓ ${name}`);
+  } catch (err) {
+    console.log(`  ⚠ ${name} — ${err.message}`);
+  }
+}
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+  console.log(`Target: ${BASE_URL}  (cookie host: ${COOKIE_DOMAIN})`);
 
-  // ── LIGHT MODE full-page screenshots ──
-  console.log('── Light mode screenshots ──');
+  const executablePath = resolveChromiumPath();
+  if (executablePath) console.log(`Using Chromium: ${executablePath}`);
+  const browser = await chromium.launch({ headless: true, executablePath });
+  const verifyCapture = { events: null, accessories: null, me: null, users: null, smtp: null };
 
-  const lightCtx = await browser.newContext({
-    viewport: DESKTOP,
-    deviceScaleFactor: DEVICE_SCALE,
-    colorScheme: 'light',
-  });
-  const lightPage = await lightCtx.newPage();
-
-  // Set light theme + ocean skin before navigating
-  await lightPage.addInitScript(() => {
-    localStorage.setItem('hc_theme_preference', 'light');
-    localStorage.setItem('hc_ui_skin', 'ocean');
-  });
-
-  // Dashboard (light)
-  await lightPage.goto(BASE_URL, { waitUntil: 'networkidle' });
-  await lightPage.waitForTimeout(1500); // let charts render
-  await lightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'dashboard-lite-page.png'),
-    fullPage: true,
-  });
-  console.log('  ✓ dashboard-lite-page.png');
-
-  // Dashboard cropped: daily activity (KPI cards + chart)
-  const dailyActivity = await lightPage.locator('.grid, [class*="stats-cards"], [class*="kpi"]').first();
-  // Take a clip of the top portion instead
-  await lightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'dashboard-daily-activity.png'),
-    clip: { x: 0, y: 0, width: 1080, height: 380 },
-  });
-  console.log('  ✓ dashboard-daily-activity.png');
-
-  // Dashboard cropped: most active devices (left column, lower section)
-  // Find the "Most Active Devices" heading
-  const mostActive = lightPage.getByText('Most Active Devices').first();
-  if (await mostActive.isVisible()) {
-    const box = await mostActive.boundingBox();
-    if (box) {
-      await lightPage.screenshot({
-        path: path.join(SCREENSHOTS_DIR, 'dashboard-most-active-devices.png'),
-        clip: { x: box.x - 10, y: box.y - 15, width: 494, height: 586 },
-      });
-      console.log('  ✓ dashboard-most-active-devices.png');
-    }
-  }
-
-  // Dashboard cropped: weekday + monthly heatmaps
-  const weekdayHeatmap = lightPage.getByText('Weekday Heatmap').first();
-  if (await weekdayHeatmap.isVisible()) {
-    const box = await weekdayHeatmap.boundingBox();
-    if (box) {
-      await lightPage.screenshot({
-        path: path.join(SCREENSHOTS_DIR, 'dashboard-weekly-monthly-heatmaps.png'),
-        clip: { x: box.x - 10, y: box.y - 15, width: 495, height: 585 },
-      });
-      console.log('  ✓ dashboard-weekly-monthly-heatmaps.png');
-    }
-  }
-
-  // Dashboard cropped: stale devices
-  const staleDevices = lightPage.getByText('Stale Devices').first();
-  if (await staleDevices.isVisible()) {
-    // Find the parent card/section containing "Stale Devices"
-    const staleSection = staleDevices.locator('xpath=ancestor::div[contains(@class,"rounded") or contains(@class,"card") or contains(@class,"bg-")]').last();
-    if (await staleSection.isVisible().catch(() => false)) {
-      await staleSection.screenshot({
-        path: path.join(SCREENSHOTS_DIR, 'dashboard-stale-devices.png'),
-      });
-    } else {
-      // Fallback: take clip relative to the heading with safe bounds
-      const box = await staleDevices.boundingBox();
-      const pageHeight = await lightPage.evaluate(() => document.body.scrollHeight);
-      if (box) {
-        const clipHeight = Math.min(414, pageHeight - box.y + 15);
-        await lightPage.screenshot({
-          path: path.join(SCREENSHOTS_DIR, 'dashboard-stale-devices.png'),
-          clip: { x: Math.max(0, box.x - 10), y: Math.max(0, box.y - 15), width: 497, height: clipHeight },
-        });
-      }
-    }
-    console.log('  ✓ dashboard-stale-devices.png');
-  }
-
-  // Timeline (light) — clipped to FEATURE_CLIP so feature-row placement stays compact
-  await lightPage.click('text=Timeline');
-  await lightPage.waitForTimeout(1500);
-  await lightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'timeline-lite-page.png'),
-    clip: FEATURE_CLIP,
-  });
-  console.log('  ✓ timeline-lite-page.png');
-
-  // Timeline with search & heatmap expanded
-  const searchToggle = lightPage.getByText('Search & filters').first();
-  if (await searchToggle.isVisible()) {
-    await searchToggle.click();
-    await lightPage.waitForTimeout(300);
-  }
-  const heatmapToggle = lightPage.getByText('Activity heatmap').first();
-  if (await heatmapToggle.isVisible()) {
-    await heatmapToggle.click();
-    await lightPage.waitForTimeout(1000);
-  }
-  await lightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'timeline-search-heatmap.png'),
-    clip: FEATURE_CLIP,
-  });
-  console.log('  ✓ timeline-search-heatmap.png');
-
-  // Accessories (light) — clipped
-  await lightPage.click('text=Accessories');
-  await lightPage.waitForTimeout(1500);
-  await lightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'accessories-lite-page.png'),
-    clip: FEATURE_CLIP,
-  });
-  console.log('  ✓ accessories-lite-page.png');
-
-  // Accessories device detail — click an event count badge to open detail view
-  const eventBadge = lightPage.locator('text=/\\d+ events?/').first();
-  if (await eventBadge.isVisible()) {
-    await eventBadge.click();
-    await lightPage.waitForTimeout(2000);
-    // Check if we're in the detail view (has a Back button)
-    const backBtn = lightPage.getByRole('button', { name: /back/i }).or(lightPage.locator('button:has-text("Back")')).first();
-    if (await backBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // Viewport-only screenshot (not fullPage) — the detail page is very long
-      await lightPage.screenshot({
-        path: path.join(SCREENSHOTS_DIR, 'accessories-device-details.png'),
-        fullPage: false,
-      });
-      console.log('  ✓ accessories-device-details.png');
-      await backBtn.click();
-      await lightPage.waitForTimeout(500);
-    } else {
-      console.log('  ⚠ accessories-device-details.png — detail view not detected after click');
-    }
-  } else {
-    console.log('  ⚠ accessories-device-details.png — no event badge found');
-  }
-
-  // Manage (light) — default tab is "Manage Accessories" (id: devices)
-  await lightPage.click('text=Manage');
-  await lightPage.waitForTimeout(1500);
-
-  // Manage > Manage Accessories (My Devices) — this is the default tab
-  await lightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'manage-my-devices.png'),
-    clip: FEATURE_CLIP,
-  });
-  console.log('  ✓ manage-my-devices.png');
-
-  // Manage > Add Accessories tab
-  const addAccessoriesTab = lightPage.locator('nav button', { hasText: 'Add Accessories' });
-  if (await addAccessoriesTab.isVisible()) {
-    await addAccessoriesTab.click();
-    await lightPage.waitForTimeout(1000);
-    await lightPage.screenshot({
-      path: path.join(SCREENSHOTS_DIR, 'manage-lite-page.png'),
-      clip: FEATURE_CLIP,
-    });
-    console.log('  ✓ manage-lite-page.png');
-  }
-
-  // Manage > Settings tab
-  const settingsTab = lightPage.locator('nav button', { hasText: 'Settings' });
-  if (await settingsTab.isVisible()) {
-    await settingsTab.click();
-    await lightPage.waitForTimeout(1000);
-    await lightPage.screenshot({
-      path: path.join(SCREENSHOTS_DIR, 'manage-settings.png'),
-      clip: FEATURE_CLIP,
-    });
-    console.log('  ✓ manage-settings.png');
-  }
-
-  // Theme color picker — open the FAB skin picker and capture the whole FAB area
-  const skinPickerBtn = lightPage.locator('button[title="Color themes"]');
-  if (await skinPickerBtn.isVisible()) {
-    await skinPickerBtn.click();
-    await lightPage.waitForTimeout(600);
-    // The swatches float to the left of the FAB — capture the full .hc-fab container
-    // but we need a bigger area since the swatches extend left with absolute positioning
-    const fabEl = lightPage.locator('.hc-fab');
-    const fabBox = await fabEl.boundingBox();
-    if (fabBox) {
-      // Expand clip leftward to include the swatch tray (swatches are ~300px wide to the left)
-      const clipX = Math.max(0, fabBox.x - 320);
-      const clipWidth = fabBox.width + 320 + 20;
-      await lightPage.screenshot({
-        path: path.join(SCREENSHOTS_DIR, 'themes-color-picker.png'),
-        clip: { x: clipX, y: fabBox.y, width: clipWidth, height: fabBox.height },
-      });
-      console.log('  ✓ themes-color-picker.png');
-    }
-  } else {
-    console.log('  ⚠ themes-color-picker.png — picker button not found, skipping');
-  }
-
-  await lightCtx.close();
-
-  // ── DARK MODE full-page screenshot ──
-  console.log('\n── Dark mode screenshots ──');
-
-  const darkCtx = await browser.newContext({
-    viewport: DESKTOP,
-    deviceScaleFactor: DEVICE_SCALE,
-    colorScheme: 'dark',
-  });
-  const darkPage = await darkCtx.newPage();
-  await darkPage.addInitScript(() => {
-    localStorage.setItem('hc_theme_preference', 'dark');
-    localStorage.setItem('hc_ui_skin', 'ocean');
-  });
-
-  await darkPage.goto(BASE_URL, { waitUntil: 'networkidle' });
-  await darkPage.waitForTimeout(1500);
-  await darkPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'dashboard-dark-page.png'),
-    clip: FEATURE_CLIP,
-  });
-  console.log('  ✓ dashboard-dark-page.png');
-  await darkCtx.close();
-
-  // ── PWA (mobile) screenshots ──
-  console.log('\n── PWA (mobile) screenshots ──');
-
-  // PWA light
-  const pwaLightCtx = await browser.newContext({
-    viewport: MOBILE,
-    deviceScaleFactor: MOBILE_SCALE,
-    colorScheme: 'light',
-    isMobile: true,
-  });
-  const pwaLightPage = await pwaLightCtx.newPage();
-  await pwaLightPage.addInitScript(() => {
-    localStorage.setItem('hc_theme_preference', 'light');
-    localStorage.setItem('hc_ui_skin', 'ocean');
-  });
-  await pwaLightPage.goto(BASE_URL, { waitUntil: 'networkidle' });
-  await pwaLightPage.waitForTimeout(1500);
-  await pwaLightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'pwa-lite.jpeg'),
-    fullPage: false,
-    type: 'jpeg',
-    quality: 90,
-  });
-  console.log('  ✓ pwa-lite.jpeg');
-
-  // Mobile Timeline (light) — labels hidden on mobile, click by button index
-  const pwaLightTabs = pwaLightPage.locator('.hc-tab-btn');
-  await pwaLightTabs.nth(1).click();
-  await pwaLightPage.waitForTimeout(1500);
-  await pwaLightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'mobile-timeline.png'),
-    fullPage: false,
-  });
-  console.log('  ✓ mobile-timeline.png');
-
-  // Mobile Accessories (light)
-  await pwaLightTabs.nth(2).click();
-  await pwaLightPage.waitForTimeout(1500);
-  await pwaLightPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'mobile-accessories.png'),
-    fullPage: false,
-  });
-  console.log('  ✓ mobile-accessories.png');
-
-  await pwaLightCtx.close();
-
-  // PWA dark
-  const pwaDarkCtx = await browser.newContext({
-    viewport: MOBILE,
-    deviceScaleFactor: MOBILE_SCALE,
-    colorScheme: 'dark',
-    isMobile: true,
-  });
-  const pwaDarkPage = await pwaDarkCtx.newPage();
-  await pwaDarkPage.addInitScript(() => {
-    localStorage.setItem('hc_theme_preference', 'dark');
-    localStorage.setItem('hc_ui_skin', 'ocean');
-  });
-  await pwaDarkPage.goto(BASE_URL, { waitUntil: 'networkidle' });
-  await pwaDarkPage.waitForTimeout(1500);
-  await pwaDarkPage.screenshot({
-    path: path.join(SCREENSHOTS_DIR, 'pwa-dark.jpeg'),
-    fullPage: false,
-    type: 'jpeg',
-    quality: 90,
-  });
-  console.log('  ✓ pwa-dark.jpeg');
-  await pwaDarkCtx.close();
-
-  // ── SKIN GALLERY screenshots (all skins × light + dark) ──
-  const SKINS = ['ocean', 'graphite', 'sunrise', 'red', 'yellow', 'purple', 'slate', 'pink'];
-
-  // Wait for Recharts data elements (bars and area paths) to actually render,
-  // not just the SVG container (.recharts-surface appears before data draws)
-  async function waitForCharts(page) {
-    try {
-      await page.waitForSelector('.recharts-bar-rectangle, .recharts-area-area', { timeout: 20000 });
-      await page.waitForTimeout(500); // let animations settle
-    } catch {
-      console.log('    ⚠ chart data elements not detected after 20s, capturing anyway');
-    }
-  }
-
-  // Capture skin screenshots reusing a single page per mode to avoid
-  // overwhelming the API with too many fresh connections
-  async function captureSkins(mode) {
-    console.log(`\n── Skin gallery screenshots (${mode}) ──`);
-    const ctx = await browser.newContext({
-      viewport: DESKTOP,
-      deviceScaleFactor: DEVICE_SCALE,
-      colorScheme: mode,
-    });
+  // ───────────────────────── AUTH CHECK ─────────────────────────
+  {
+    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: 'light' });
+    await authenticate(ctx);
     const page = await ctx.newPage();
+    await installPiiScrub(page, verifyCapture);
+    await applyThemeInit(page, { theme: 'light', skin: 'ocean' });
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    const ok = await assertAuthenticated(page);
+    if (!ok) {
+      console.error('\nFATAL: session cookie did NOT authenticate — landed on login page (token likely expired). Aborting.');
+      await ctx.close();
+      await browser.close();
+      process.exit(2);
+    }
+    console.log('✓ Authenticated — Dashboard loaded.\n');
+    await ctx.close();
+  }
 
-    // Initial load to get localStorage access
-    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  // ───────────────────────── LOGIN PAGE (no cookie) ─────────────────────────
+  console.log('── Login page (unauthenticated) ──');
+  await shot('login-page.png', async () => {
+    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: 'light' });
+    const page = await ctx.newPage();
+    await installPiiScrub(page);
+    await applyThemeInit(page, { theme: 'light', skin: 'ocean' });
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    await page.waitForSelector('input[type="password"]', { timeout: 8000 });
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'login-page.png'), clip: FEATURE_CLIP });
+    await ctx.close();
+  });
 
-    for (let i = 0; i < SKINS.length; i++) {
-      const skin = SKINS[i];
-      // Cooldown between captures to avoid overwhelming the API
-      if (i > 0) await page.waitForTimeout(2000);
-      // Set skin + theme in localStorage, then reload
-      await page.evaluate(({ s, m }) => {
-        localStorage.setItem('hc_ui_skin', s);
-        localStorage.setItem('hc_theme_preference', m);
-      }, { s: skin, m: mode });
-      await page.reload({ waitUntil: 'networkidle' });
-      await waitForCharts(page);
-      // Verify charts actually loaded (no "Failed to load" visible)
-      const hasFailed = await page.locator('text=/Failed to load/').count();
-      if (hasFailed > 0) {
-        console.log(`    ⚠ API errors detected for ${skin}-${mode}, retrying after 5s...`);
-        await page.waitForTimeout(5000);
-        await page.reload({ waitUntil: 'networkidle' });
-        await waitForCharts(page);
-      }
+  // ───────────────────────── DESKTOP LIGHT ─────────────────────────
+  console.log('\n── Light mode (desktop) ──');
+  {
+    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: 'light' });
+    await authenticate(ctx);
+    const page = await ctx.newPage();
+    await installPiiScrub(page, verifyCapture);
+    await applyThemeInit(page, { theme: 'light', skin: 'ocean' });
+
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await waitForCharts(page);
+    await page.waitForTimeout(800);
+
+    // Dashboard (light, full page)
+    await shot('dashboard-lite-page.png', async () => {
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'dashboard-lite-page.png'), fullPage: true });
+    });
+
+    // ── Dashboard feature crops (element-based; keep legacy filenames) ──
+    // The admin's saved layout shows: KPI row, Quiet Hours Activity, Daily
+    // Activity, Events by Hour, Events by Room. The original filenames reference
+    // panels not in this layout, so we map each to the closest present panel.
+    //   dashboard-daily-activity.png        -> "Daily Activity" line chart
+    //   dashboard-most-active-devices.png   -> "Events by Room" (closest "most active")
+    //   dashboard-weekly-monthly-heatmaps.png -> "Events by Hour" bar chart
+    //   dashboard-stale-devices.png         -> "Quiet Hours Activity" (device-health-ish)
+    await shot('dashboard-daily-activity.png', async () => {
+      await cropPanelByHeading(page, 'Daily Activity', path.join(SCREENSHOTS_DIR, 'dashboard-daily-activity.png'));
+    });
+    await shot('dashboard-most-active-devices.png', async () => {
+      await cropPanelByHeading(page, 'Events by Room', path.join(SCREENSHOTS_DIR, 'dashboard-most-active-devices.png'));
+    });
+    await shot('dashboard-weekly-monthly-heatmaps.png', async () => {
+      await cropPanelByHeading(page, 'Events by Hour', path.join(SCREENSHOTS_DIR, 'dashboard-weekly-monthly-heatmaps.png'));
+    });
+    await shot('dashboard-stale-devices.png', async () => {
+      await cropPanelByHeading(page, 'Quiet Hours Activity', path.join(SCREENSHOTS_DIR, 'dashboard-stale-devices.png'));
+    });
+
+    // Timeline (light)
+    await shot('timeline-lite-page.png', async () => {
+      await navTo(page, 'Timeline');
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'timeline-lite-page.png'), clip: FEATURE_CLIP });
+    });
+
+    // Timeline with Search & filters + Activity heatmap expanded
+    await shot('timeline-search-heatmap.png', async () => {
+      const search = page.getByText('Search & filters', { exact: false }).first();
+      if (await search.count()) { await search.click().catch(() => {}); await page.waitForTimeout(400); }
+      const heat = page.getByText('Activity heatmap', { exact: false }).first();
+      if (await heat.count()) { await heat.click().catch(() => {}); await page.waitForTimeout(900); }
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'timeline-search-heatmap.png'), clip: FEATURE_CLIP });
+    });
+
+    // Devices page (light) — keeps legacy filename accessories-lite-page.png
+    await shot('accessories-lite-page.png', async () => {
+      await navTo(page, 'Devices');
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'accessories-lite-page.png'), clip: FEATURE_CLIP });
+    });
+
+    // Alerts page (light)
+    await shot('alerts-page.png', async () => {
+      await navTo(page, 'Alerts');
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'alerts-page.png'), clip: FEATURE_CLIP });
+    });
+
+    // ── Settings shots ──
+    await navTo(page, 'Settings');
+    await page.waitForTimeout(800);
+
+    const settingsRail = (label) =>
+      page.locator('nav [role="button"]', { hasText: label }).first()
+        .or(page.getByRole('button', { name: label, exact: true })).first();
+
+    // Settings > Admin > Users
+    await shot('settings-users.png', async () => {
+      const admin = page.getByText('Admin', { exact: true }).first();
+      await admin.click({ timeout: 6000 });
+      await page.waitForTimeout(1200);
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'settings-users.png'), clip: FEATURE_CLIP });
+    });
+
+    // Settings > Admin > Email (SMTP) card — scroll to it then clip its card
+    await shot('settings-email-smtp.png', async () => {
+      const smtp = page.getByText(/SMTP|Email/i).first();
+      await smtp.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(500);
+      const box = await smtp.boundingBox();
+      if (!box) throw new Error('SMTP heading not visible');
       await page.screenshot({
-        path: path.join(SCREENSHOTS_DIR, `skin-${skin}-${mode}.png`),
-        fullPage: true,
+        path: path.join(SCREENSHOTS_DIR, 'settings-email-smtp.png'),
+        clip: { x: 0, y: Math.max(0, box.y - 24), width: 1080, height: 700 },
       });
-      console.log(`  ✓ skin-${skin}-${mode}.png`);
+    });
+
+    // Settings > Configuration > Advanced
+    await shot('settings-advanced.png', async () => {
+      const config = page.getByText('Configuration', { exact: true }).first();
+      await config.click({ timeout: 6000 });
+      await page.waitForTimeout(800);
+      const advTab = page.locator('button[role="tab"]', { hasText: 'Advanced' }).first();
+      await advTab.click({ timeout: 6000 });
+      await page.waitForTimeout(900);
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'settings-advanced.png'), clip: FEATURE_CLIP });
+    });
+
+    // Settings > Account (Change password + Active Sessions)
+    await shot('settings-account-sessions.png', async () => {
+      const account = page.getByText('Account', { exact: true }).first();
+      await account.click({ timeout: 6000 });
+      await page.waitForTimeout(1000);
+      await page.getByText('Active Sessions', { exact: false }).first().scrollIntoViewIfNeeded().catch(() => {});
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'settings-account-sessions.png'), clip: FEATURE_CLIP });
+    });
+
+    await ctx.close();
+  }
+
+  // ───────────────────────── DESKTOP DARK ─────────────────────────
+  console.log('\n── Dark mode (desktop) ──');
+  await shot('dashboard-dark-page.png', async () => {
+    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: 'dark' });
+    await authenticate(ctx);
+    const page = await ctx.newPage();
+    await installPiiScrub(page);
+    await applyThemeInit(page, { theme: 'dark', skin: 'ocean' });
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await waitForCharts(page);
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'dashboard-dark-page.png'), clip: FEATURE_CLIP });
+    await ctx.close();
+  });
+
+  // ───────────────────────── PWA / MOBILE ─────────────────────────
+  console.log('\n── PWA / mobile ──');
+  for (const mode of ['light', 'dark']) {
+    const ctx = await browser.newContext({
+      viewport: MOBILE, deviceScaleFactor: MOBILE_SCALE, colorScheme: mode, isMobile: true,
+    });
+    await authenticate(ctx);
+    const page = await ctx.newPage();
+    await installPiiScrub(page);
+    await applyThemeInit(page, { theme: mode, skin: 'ocean' });
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await waitForCharts(page);
+    await page.waitForTimeout(800);
+
+    const pwaName = mode === 'light' ? 'pwa-lite.jpeg' : 'pwa-dark.jpeg';
+    await shot(pwaName, async () => {
+      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, pwaName), type: 'jpeg', quality: 90 });
+    });
+
+    if (mode === 'light') {
+      // Open the FloatingNav FAB and navigate (labels hidden on mobile sidebar).
+      const openMobileNav = async () => {
+        const fab = page.getByRole('button', { name: 'Open navigation menu' }).first();
+        if (await fab.count()) { await fab.click().catch(() => {}); await page.waitForTimeout(500); }
+      };
+
+      await shot('mobile-timeline.png', async () => {
+        await openMobileNav();
+        await page.getByRole('button', { name: 'Timeline' }).first().click({ timeout: 6000 });
+        await page.waitForTimeout(1600);
+        await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'mobile-timeline.png') });
+      });
+
+      await shot('mobile-accessories.png', async () => {
+        await openMobileNav();
+        await page.getByRole('button', { name: 'Devices' }).first().click({ timeout: 6000 });
+        await page.waitForTimeout(1600);
+        await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'mobile-accessories.png') });
+      });
     }
 
     await ctx.close();
   }
 
-  await captureSkins('light');
-  await captureSkins('dark');
+  // ───────────────────────── SKIN GALLERY ─────────────────────────
+  for (const mode of ['light', 'dark']) {
+    console.log(`\n── Skin gallery (${mode}) ──`);
+    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: mode });
+    await authenticate(ctx);
+    const page = await ctx.newPage();
+    await installPiiScrub(page);
+    // Seed an initial skin so the first load already has localStorage set.
+    await applyThemeInit(page, { theme: mode, skin: SKINS[0] });
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+
+    for (let i = 0; i < SKINS.length; i++) {
+      const skin = SKINS[i];
+      if (i > 0) await page.waitForTimeout(2000);
+      await page.evaluate(({ s, m }) => {
+        localStorage.setItem('hc_accent', s);
+        localStorage.setItem('hc_ui_skin', s);
+        localStorage.setItem('hc_theme_preference', m);
+      }, { s: skin, m: mode });
+      await page.reload({ waitUntil: 'networkidle' });
+      await waitForCharts(page);
+      const failed = await page.locator('text=/Failed to load/').count();
+      if (failed > 0) {
+        console.log(`    ⚠ API error for ${skin}-${mode}, retrying after 5s...`);
+        await page.waitForTimeout(5000);
+        await page.reload({ waitUntil: 'networkidle' });
+        await waitForCharts(page);
+      }
+      await shot(`skin-${skin}-${mode}.png`, async () => {
+        await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `skin-${skin}-${mode}.png`), fullPage: true });
+      });
+    }
+    await ctx.close();
+  }
 
   await browser.close();
-  console.log('\n✅ All screenshots captured!');
+
+  // ───────────────────────── PII VERIFICATION ─────────────────────────
+  console.log('\n── PII scrub verification ──');
+  // me/users/smtp are dumped IN FULL (task requirement); events/accessories are
+  // large, so a 600-char snippet is enough to prove the device scrub still works.
+  const FULL_DUMP = new Set(['me', 'users', 'smtp']);
+  for (const key of ['events', 'accessories', 'me', 'users', 'smtp']) {
+    const body = verifyCapture[key];
+    const label = key === 'me' ? 'auth/me' : key === 'smtp' ? 'setup/smtp' : key;
+    if (!body) { console.log(`  ⚠ no /api/${label} body captured to verify`); continue; }
+    const dirty = PII_NEEDLES.filter((n) => body.includes(n));
+    const shown = FULL_DUMP.has(key) ? body : body.slice(0, 600).replace(/\s+/g, ' ');
+    console.log(`\n  /api/${label} (scrubbed${FULL_DUMP.has(key) ? ', full body' : ', first 600 chars'}):\n    ${shown}`);
+    if (dirty.length) console.log(`  ⚠⚠ PII STILL PRESENT in /api/${label}: ${dirty.join(', ')}`);
+    else console.log(`  ✓ /api/${label} clean — no ${PII_NEEDLES.join('/')}`);
+  }
+
+  console.log('\n✅ Screenshot run complete.');
 }
 
 main().catch((err) => {
