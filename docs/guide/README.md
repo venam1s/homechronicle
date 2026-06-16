@@ -8,7 +8,9 @@ homechronicle is a self-hosted event log for Apple HomeKit and Matter devices. I
 - **Searchable timeline** — filter by room, accessory, characteristic, or date range
 - **Activity analytics** — daily trends, hourly distributions, heatmaps, device rankings
 - **Device management** — discover, pair, and monitor accessories from the web UI
-- **Webhook alerts** — get notified when specific events occur (enable with `ALERTS_ENABLED=true`)
+- **Multi-user accounts** — optional login with invite-only members, admin/member roles, and DB-backed sessions ([details](accounts.md))
+- **Email** — SMTP for user invitations, password resets, and email alert delivery ([details](email.md))
+- **Webhook & email alerts** — get notified when specific events occur (enable with `ALERTS_ENABLED=true`)
 - **Scheduled repair** — daily automated repair cycle for stale HomeKit pairings ([details](devices.md#scheduled-repair))
 - **Firmware tracking** — detects and logs firmware version changes on reconnect ([details](devices.md#firmware-tracking))
 - **Quiet hours** — flag unexpected activity during a defined time window
@@ -47,9 +49,11 @@ Open `http://localhost:3000` in your browser. See [Standalone Docker](standalone
 ### Configuration
 - [Environment Variables](environment-variables.md) — complete variable reference
 - [Networking](networking.md) — host vs bridge mode, web-to-listener routing, VLANs
-- [Security](security.md) — API tokens, CORS, webhook validation, retention & quiet hours
+- [Security](security.md) — API tokens, CORS, session auth, webhook validation, retention & quiet hours
+- [Email (SMTP)](email.md) — SMTP setup for invites, password resets, and email alerts
 
 ### Usage
+- [Accounts & Users](accounts.md) — login, invite members, roles, sessions, per-user preferences
 - [Device Setup](devices.md) — discover, pair, and manage HomeKit & Matter accessories
 - [Appearance](appearance.md) — dark mode, color themes
 - [Mobile Install (PWA)](mobile-install.md) — add to your home screen

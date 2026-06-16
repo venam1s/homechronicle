@@ -35,6 +35,24 @@ Authorization: Bearer <your-token>
 
 The web container automatically injects the token when proxying requests to the listener.
 
+## Session Authentication
+
+When `AUTH_ENABLED=true` (the default), browser access is protected by DB-backed sessions stored in an HttpOnly cookie (`hc_session`). The `API_TOKEN` header still works as a service or automation credential — the two mechanisms coexist.
+
+| Topic | Detail |
+|-------|--------|
+| **Password hashing** | argon2id with configurable memory and iteration cost |
+| **CSRF protection** | Mutating requests from browser sessions require a valid CSRF token |
+| **Auth rate limiting** | Login and bootstrap endpoints are rate-limited per real client IP. Set `TRUST_PROXY=1` behind nginx or Traefik so the limiter keys on the actual client — without it every household user shares one bucket and 10 failed attempts lock everyone out. |
+| **Session cookie** | HttpOnly; set `SESSION_COOKIE_SECURE=true` on HTTPS deployments |
+| **Session metadata** | User agent and IP address are captured at login |
+| **Active Sessions** | Each user can view and revoke their own sessions from Settings > Account |
+| **Remember me** | Extends session to `SESSION_MAX_AGE_REMEMBER` (default 30 days) |
+
+Set `AUTH_ENABLED=false` to fully disable the session system and revert to the `API_TOKEN`-only gate (v1.3 behavior).
+
+See [Accounts & Users](accounts.md) for user management, roles, and invite setup. See [Environment Variables](environment-variables.md) for all `AUTH_*`, `SESSION_*`, `TRUST_PROXY`, and `ARGON2_*` variables.
+
 ## CORS
 
 By default, only localhost origins are allowed. To allow other origins:
