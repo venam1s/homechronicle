@@ -35,8 +35,16 @@ export default function LoginPage() {
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       navigate('/');
     },
-    onError: () => {
-      addToast('Incorrect email or password.', 'error');
+    onError: (err) => {
+      // Only a real 401 means bad credentials. Any other failure (5xx gateway
+      // error, network failure, no status) is a backend/connectivity problem —
+      // show a distinct message so an outage isn't mistaken for a wrong password.
+      // Keep the 401 copy non-enumerating (no user-found vs wrong-password hint).
+      if (err?.status === 401) {
+        addToast('Incorrect email or password.', 'error');
+      } else {
+        addToast('HomeChronicle is temporarily unavailable. Please try again in a moment.', 'error');
+      }
     },
   });
 
