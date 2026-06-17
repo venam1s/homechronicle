@@ -15,6 +15,13 @@ server {
     index index.html;
     server_tokens off;
 
+    # Re-resolve the listener upstream per request so a recreated listener
+    # container (new IP) self-heals instead of 502-ing this long-lived web
+    # container. NGINX_RESOLVER is injected at container start via envsubst
+    # (Docker embedded DNS 127.0.0.11 by default). Harmless/unused in
+    # host-network mode where LISTENER_HOST is an IP literal (never queried).
+    resolver ${NGINX_RESOLVER} valid=10s ipv6=off;
+
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "no-referrer" always;
@@ -69,7 +76,8 @@ server {
 
     # Matter commissioning endpoints need extended timeout (2+ minutes).
     location ~ ^/api/setup/(pair|matter/pair) {
-        proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
+        set ${DOLLAR}hc_listener ${LISTENER_HOST};
+        proxy_pass http://${DOLLAR}hc_listener:${LISTENER_PORT};
         proxy_set_header X-API-Token "${NGINX_API_TOKEN}";
         proxy_set_header Host ${DOLLAR}host;
         proxy_set_header X-Real-IP ${DOLLAR}remote_addr;
@@ -84,7 +92,8 @@ server {
     # preserved for Phase 23 cutover — T-21-07-CUTOVER).
     location ~ ^/api/auth/ {
         access_log /var/log/nginx/access.log combined_no_query;
-        proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
+        set ${DOLLAR}hc_listener ${LISTENER_HOST};
+        proxy_pass http://${DOLLAR}hc_listener:${LISTENER_PORT};
         proxy_set_header X-API-Token "${NGINX_API_TOKEN}";
         proxy_set_header Host ${DOLLAR}host;
         proxy_set_header X-Real-IP ${DOLLAR}remote_addr;
@@ -95,7 +104,8 @@ server {
 
     # All other API routes use a shorter timeout.
     location /api/ {
-        proxy_pass http://${LISTENER_HOST}:${LISTENER_PORT};
+        set ${DOLLAR}hc_listener ${LISTENER_HOST};
+        proxy_pass http://${DOLLAR}hc_listener:${LISTENER_PORT};
         proxy_set_header X-API-Token "${NGINX_API_TOKEN}";
         proxy_set_header Host ${DOLLAR}host;
         proxy_set_header X-Real-IP ${DOLLAR}remote_addr;

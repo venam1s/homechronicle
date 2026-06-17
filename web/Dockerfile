@@ -37,6 +37,11 @@ ENV LISTENER_HOST=127.0.0.1
 ENV LISTENER_PORT=3001
 ENV API_TOKEN=
 ENV DOLLAR=$
+# DNS server nginx uses to re-resolve the listener upstream per request (so a
+# recreated listener's new IP is picked up without restarting web). Default is
+# Docker's embedded DNS; override in host/custom networks. Must be defined so
+# the stock 20-envsubst renders it (undefined → literal ${NGINX_RESOLVER} → boot fail).
+ENV NGINX_RESOLVER=127.0.0.11
 # Fail-safe default matching listener index.js (auth on → real token suppressed, T-23-BYPASS)
 ENV AUTH_ENABLED=true
 

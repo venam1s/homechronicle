@@ -36,6 +36,9 @@ fi
 # AUTH_ENABLED -> NGINX_API_TOKEN compute logic the container entrypoints use.
 render() {
   auth_raw=$1
+  # Optional 2nd arg overrides LISTENER_HOST so we can render both bridge
+  # (hostname → resolver used) and host (IP literal → resolver unused) modes.
+  listener_host=${2:-listener}
   auth=$(printf '%s' "$auth_raw" | tr '[:upper:]' '[:lower:]')
   case "$auth" in
     0 | false | no | off) NGINX_API_TOKEN="$SENTINEL" ;; # auth OFF -> inject real token (v1.3 revert)
@@ -44,11 +47,14 @@ render() {
   # API_TOKEN forced empty so the pre-rename ${API_TOKEN} placeholder renders
   # deterministically and never receives the sentinel.
   export DOLLAR='$'
-  export LISTENER_HOST='listener'
+  export LISTENER_HOST="$listener_host"
   export LISTENER_PORT='3001'
   export API_TOKEN=''
   export NGINX_API_TOKEN
-  envsubst '${DOLLAR} ${LISTENER_HOST} ${LISTENER_PORT} ${API_TOKEN} ${NGINX_API_TOKEN}' < "$TEMPLATE"
+  # NGINX_RESOLVER must be in the allow-list AND exported, or the rendered config
+  # keeps a literal ${NGINX_RESOLVER} and nginx fails to boot.
+  export NGINX_RESOLVER="${NGINX_RESOLVER:-127.0.0.11}"
+  envsubst '${DOLLAR} ${LISTENER_HOST} ${LISTENER_PORT} ${API_TOKEN} ${NGINX_API_TOKEN} ${NGINX_RESOLVER}' < "$TEMPLATE"
 }
 
 fail=0
@@ -67,6 +73,70 @@ if [ "$count_off" -eq 3 ]; then
 else
   echo "FAIL: AUTH_ENABLED=false -> token value count = $count_off (expected 3)"
   fail=1
+fi
+
+# -- FIX 1 (260617-f5d): per-request re-resolution + directive preservation --
+rendered=$(render true)
+
+# resolver directive rendered at server scope (NGINX_RESOLVER substituted)
+if printf '%s\n' "$rendered" | grep -q 'resolver 127.0.0.11 valid=10s'; then
+  echo "PASS: resolver directive rendered"
+else
+  echo "FAIL: resolver directive missing or unrendered"
+  fail=1
+fi
+
+# variable proxy_pass forces per-request DNS resolution in all three /api blocks
+set_count=$(printf '%s\n' "$rendered" | grep -c 'set \$hc_listener' || true)
+pp_count=$(printf '%s\n' "$rendered" | grep -c 'proxy_pass http://\$hc_listener:' || true)
+if [ "$set_count" -eq 3 ] && [ "$pp_count" -eq 3 ]; then
+  echo "PASS: variable proxy_pass + set \$hc_listener present x3"
+else
+  echo "FAIL: expected set \$hc_listener x3 (got $set_count) / proxy_pass http://\$hc_listener: x3 (got $pp_count)"
+  fail=1
+fi
+
+# Boot-fail guard: no literal \${...} placeholder may survive the render
+if printf '%s\n' "$rendered" | grep -q '${'; then
+  echo "FAIL: literal \${...} placeholder left in rendered config:"
+  printf '%s\n' "$rendered" | grep '${'
+  fail=1
+else
+  echo "PASS: no literal \${...} placeholders remain"
+fi
+
+# Preservation gates: existing directives must survive unchanged
+xapi=$(printf '%s\n' "$rendered" | grep -c 'proxy_set_header X-API-Token' || true)
+t300=$(printf '%s\n' "$rendered" | grep -c 'proxy_read_timeout 300s' || true)
+t30=$(printf '%s\n' "$rendered" | grep -c 'proxy_read_timeout 30s' || true)
+# Count the access_log USAGE only (the log_format definition also mentions the name)
+clog=$(printf '%s\n' "$rendered" | grep -c 'access_log /var/log/nginx/access.log combined_no_query' || true)
+if [ "$xapi" -eq 3 ] && [ "$t300" -eq 1 ] && [ "$t30" -eq 2 ] && [ "$clog" -eq 1 ]; then
+  echo "PASS: preserved directives (X-API-Token x3, 300s x1, 30s x2, combined_no_query x1)"
+else
+  echo "FAIL: preservation gate (X-API-Token=$xapi/3, 300s=$t300/1, 30s=$t30/2, combined_no_query=$clog/1)"
+  fail=1
+fi
+
+# Optional: nginx -t on BOTH bridge (hostname) and host (IP literal) renders.
+# nginx -t validates syntax only and never contacts DNS, so it passes even when
+# 127.0.0.11 is unreachable in host mode.
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  tmpdir=$(mktemp -d)
+  render true listener  > "$tmpdir/bridge.conf"
+  render true 127.0.0.1 > "$tmpdir/host.conf"
+  for mode in bridge host; do
+    if docker run --rm -v "$tmpdir/$mode.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine nginx -t >/dev/null 2>&1; then
+      echo "PASS: nginx -t OK ($mode mode)"
+    else
+      echo "FAIL: nginx -t failed ($mode mode)"
+      docker run --rm -v "$tmpdir/$mode.conf:/etc/nginx/conf.d/default.conf:ro" nginx:alpine nginx -t 2>&1 | sed 's/^/  /'
+      fail=1
+    fi
+  done
+  rm -rf "$tmpdir"
+else
+  echo "SKIP: docker unavailable — nginx -t syntax check skipped (render assertions still enforced)"
 fi
 
 if [ "$fail" -ne 0 ]; then

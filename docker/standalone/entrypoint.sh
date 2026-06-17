@@ -46,6 +46,11 @@ export API_TOKEN
 export LISTENER_HOST=127.0.0.1
 export LISTENER_PORT="$API_PORT"
 export DOLLAR='$'
+# Standalone is host-local (LISTENER_HOST=127.0.0.1, an IP literal) so the
+# resolver is never queried at runtime — but the template still renders it, and
+# this bare envsubst would emit `resolver  valid=10s ...` (empty → nginx -t fail)
+# if the var were unset. Default it so the rendered config is always valid.
+export NGINX_RESOLVER="${NGINX_RESOLVER:-127.0.0.11}"
 
 # SEC-07 cutover: compute NGINX_API_TOKEN from AUTH_ENABLED before envsubst.
 # Fail-safe default true → empty token (session-only browser auth, T-23-BYPASS);
