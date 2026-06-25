@@ -90,6 +90,7 @@ services:
         aliases:
           - hc-beta-listener
       empire-network:
+        ipv4_address: 172.16.1.195
     ports:
       - "127.0.0.1:${API_PORT:-3002}:${API_PORT:-3002}"
     environment:
