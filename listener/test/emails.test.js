@@ -24,6 +24,7 @@ import {
   sendPasswordReset,
   sendAlertEmail,
   isEmailEnabled,
+  buildTransportOptions,
 } from '../src/emails.js';
 import nodemailer from 'nodemailer';
 
@@ -481,4 +482,59 @@ test('initEmail: secure/port derivation from nodemailer.createTransport (no _tes
     nodemailer.createTransport = orig;
   }
   await resetTransport();
+});
+
+// -- buildTransportOptions (M-10 requireTLS + I-1 disableFileAccess/disableUrlAccess) --
+
+test('buildTransportOptions: port 587, secure false -> requireTLS true, disableFileAccess/disableUrlAccess true', () => {
+  const opts = buildTransportOptions({
+    host: 'smtp.example.com',
+    port: 587,
+    secure: false,
+    user: 'user@example.com',
+    smtpPass: 'secret',
+  });
+  assert.equal(opts.requireTLS, true, 'requireTLS defaults to true on a non-secure (STARTTLS) connection');
+  assert.equal(opts.disableFileAccess, true, 'disableFileAccess is always true');
+  assert.equal(opts.disableUrlAccess, true, 'disableUrlAccess is always true');
+});
+
+test('buildTransportOptions: secure true (port 465) -> requireTLS false', () => {
+  const opts = buildTransportOptions({
+    host: 'smtp.example.com',
+    port: 465,
+    secure: true,
+    user: 'user@example.com',
+    smtpPass: 'secret',
+  });
+  assert.equal(opts.requireTLS, false, 'requireTLS is meaningless on an implicit-TLS (secure) connection');
+});
+
+test('buildTransportOptions: explicit config.requireTLS === false is honoured as an opt-out', () => {
+  const opts = buildTransportOptions({
+    host: 'smtp.example.com',
+    port: 587,
+    secure: false,
+    user: 'user@example.com',
+    smtpPass: 'secret',
+    requireTLS: false,
+  });
+  assert.equal(opts.requireTLS, false, 'explicit requireTLS: false overrides the default');
+});
+
+test('buildTransportOptions: host, port, auth, and timeouts pass through unchanged', () => {
+  const opts = buildTransportOptions({
+    host: 'smtp.example.com',
+    port: 587,
+    secure: false,
+    user: 'user@example.com',
+    smtpPass: 'secret',
+  });
+  assert.equal(opts.host, 'smtp.example.com');
+  assert.equal(opts.port, 587);
+  assert.equal(opts.auth.user, 'user@example.com');
+  assert.equal(opts.auth.pass, 'secret');
+  assert.equal(opts.connectionTimeout, 10_000);
+  assert.equal(opts.socketTimeout, 15_000);
+  assert.equal(opts.greetingTimeout, 10_000);
 });

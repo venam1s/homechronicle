@@ -138,11 +138,50 @@ function renderEmailLayout({ heading, bodyHtml, ctaLabel, ctaUrl, footerNote }) 
 }
 
 /**
+ * Build the nodemailer transport options for the given SMTP config.
+ * Pure function — no I/O, safe to unit test without a real transport.
+ *
+ * `requireTLS` forces a STARTTLS upgrade before AUTH is attempted on a plaintext
+ * connection (M-10): without it, a relay that doesn't advertise STARTTLS — or an
+ * on-path attacker stripping it from EHLO — gets the SMTP password in cleartext.
+ * On `secure: true` (implicit TLS, e.g. port 465) the connection is already
+ * encrypted from the first byte, so `requireTLS` is meaningless there and is
+ * forced to false. Everywhere else it defaults to true; `config.requireTLS === false`
+ * is an explicit opt-out for a legacy relay that cannot do TLS.
+ *
+ * `disableFileAccess`/`disableUrlAccess` (I-1) are always on — this app never
+ * passes `raw`/`attachments`/`path`/`href` to sendMail, so this is defence in
+ * depth against a future regression, not a fix for a reachable issue today.
+ *
+ * @param {{ host: string, port: number, secure: boolean, user?: string, smtpPass?: string, requireTLS?: boolean }} config
+ * @returns {object} — options object suitable for nodemailer.createTransport()
+ */
+export function buildTransportOptions(config) {
+  const { host, port, secure } = config;
+  const requireTLS = !secure && (config.requireTLS ?? true);
+  return {
+    host,
+    port,
+    secure,
+    requireTLS,
+    auth: {
+      user: config.user,
+      pass: config.smtpPass,
+    },
+    disableFileAccess: true,
+    disableUrlAccess: true,
+    connectionTimeout: 10_000,
+    socketTimeout: 15_000,
+    greetingTimeout: 10_000,
+  };
+}
+
+/**
  * Initialize the nodemailer SMTP transport from config + secret.
  * Called once at startup from index.js (EMAIL-01).
  * Non-fatal: if SMTP is not configured or verify() fails, transporter stays null.
  *
- * @param {{ host?: string, port?: number, user?: string, smtpPass?: string, from?: string, secure?: boolean, _testTransport?: object }} config
+ * @param {{ host?: string, port?: number, user?: string, smtpPass?: string, from?: string, secure?: boolean, requireTLS?: boolean, _testTransport?: object }} config
  *   _testTransport: optional mock transport injected in tests (avoids real network calls)
  */
 export async function initEmail(config) {
@@ -158,18 +197,7 @@ export async function initEmail(config) {
   const secure = typeof config.secure === 'boolean' ? config.secure : port === 465;
 
   // Allow test injection via _testTransport; never use in production
-  const transport = config._testTransport ?? nodemailer.createTransport({
-    host: config.host,
-    port,
-    secure,
-    auth: {
-      user: config.user,
-      pass: config.smtpPass,
-    },
-    connectionTimeout: 10_000,
-    socketTimeout: 15_000,
-    greetingTimeout: 10_000,
-  });
+  const transport = config._testTransport ?? nodemailer.createTransport(buildTransportOptions({ ...config, port, secure }));
 
   try {
     await transport.verify();
