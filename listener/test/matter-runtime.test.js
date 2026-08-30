@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { createMatterRuntime } from '../src/matter-runtime.js';
+import { createMatterRuntime, nextPollDelayMs } from '../src/matter-runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(__dirname, '../src/matter-runtime.js'), 'utf8');
@@ -151,17 +151,33 @@ test('pruneCache removes entries for inactive sessions first', () => {
 
 // --- Consecutive error tracking ---
 
-test('consecutive errors disable polling after threshold', () => {
+// M-4: polling is never permanently disabled after the consecutive-error
+// threshold — it backs off with capped exponential backoff instead. This
+// test is a deliberate rewrite of the prior "disable polling" assertion,
+// which asserted on `session.pollingEnabled = false` — a string M-4 removes.
+test('consecutive errors trigger capped backoff instead of disabling polling', () => {
   assert.ok(
     source.includes('MAX_CONSECUTIVE_ERRORS'),
     'Should define MAX_CONSECUTIVE_ERRORS',
   );
   const match = source.match(/MAX_CONSECUTIVE_ERRORS\s*=\s*(\d+)/);
   assert.ok(match);
-  assert.equal(Number(match[1]), 10, 'Should disable after 10 consecutive errors');
+  assert.equal(Number(match[1]), 10, 'Threshold should still be 10 consecutive errors');
   assert.ok(
-    source.includes('session.pollingEnabled = false'),
-    'Should set pollingEnabled to false',
+    !source.includes('session.pollingEnabled = false'),
+    'Should NOT permanently disable polling (M-4)',
+  );
+  assert.ok(
+    source.includes('export function nextPollDelayMs'),
+    'Should export nextPollDelayMs',
+  );
+  assert.ok(
+    source.includes('MAX_POLL_BACKOFF_MS'),
+    'Should define MAX_POLL_BACKOFF_MS',
+  );
+  assert.ok(
+    source.includes('schedulePoll') && source.includes('nextPollDelayMs('),
+    'schedulePoll should compute its delay via nextPollDelayMs(',
   );
 });
 
@@ -170,6 +186,37 @@ test('consecutive errors reset on successful poll', () => {
     source.includes('session.consecutiveErrors = 0'),
     'Should reset consecutiveErrors on success',
   );
+});
+
+// --- nextPollDelayMs behavioural tests (M-4) ---
+
+test('nextPollDelayMs returns the base interval below the error threshold', () => {
+  assert.equal(nextPollDelayMs(0, 5000), 5000);
+  assert.equal(nextPollDelayMs(9, 5000), 5000);
+});
+
+test('nextPollDelayMs doubles per error at and above the threshold', () => {
+  assert.equal(nextPollDelayMs(10, 5000), 10000); // 5000 * 2^1
+  assert.equal(nextPollDelayMs(11, 5000), 20000); // 5000 * 2^2
+  assert.equal(nextPollDelayMs(12, 5000), 40000); // 5000 * 2^3
+});
+
+test('nextPollDelayMs never exceeds MAX_POLL_BACKOFF_MS (cap is exactly 600000, reached not exceeded)', () => {
+  const cap = nextPollDelayMs(30, 5000);
+  assert.equal(cap, 600000, '10 minutes should be reached exactly, not exceeded');
+  const wayBeyond = nextPollDelayMs(100, 5000);
+  assert.equal(wayBeyond, 600000, 'Should still be capped at 600000 far beyond the threshold');
+});
+
+test('nextPollDelayMs falls back to 30000 for a non-finite or sub-1000ms base', () => {
+  assert.equal(nextPollDelayMs(0, NaN), 30000);
+  assert.equal(nextPollDelayMs(0, 500), 30000);
+  assert.equal(nextPollDelayMs(0, -1), 30000);
+});
+
+test('nextPollDelayMs respects a custom maxMs cap', () => {
+  const result = nextPollDelayMs(20, 5000, 60000);
+  assert.equal(result, 60000);
 });
 
 // --- Value deduplication logic ---

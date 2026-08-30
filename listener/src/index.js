@@ -10,7 +10,7 @@ import express from 'express';
 import cors from 'cors';
 import { HttpClient } from 'hap-controller'; // injected into setup-router and accessories-router for testability
 import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep, runSessionRetentionSweep, runInviteTokenSweep, runPasswordResetTokenSweep, validateSession } from './db.js';
-import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets } from './subscriber.js';
+import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets, stopAllSubscribers } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter } from './events-router.js';
 import { isLoopbackHostname, extractBearerToken, parseIntInRange } from './utils.js';
@@ -48,6 +48,7 @@ import { readSmtpSecret, writeSmtpSecret, buildSmtpConfig, envOverriddenFields, 
 import { createSmtpRouter } from './smtp-router.js';
 import { createUsersRouter } from './users-router.js';
 import { createMeRouter } from './me-router.js';
+import { createGracefulShutdown } from './shutdown.js';
 
 // ─── Process-level error handlers — registered before any async operations ───
 // D-01: Log rejection but do NOT exit — exiting kills HAP subscriptions
@@ -76,6 +77,9 @@ const REPAIR_FILE = process.env.REPAIR_FILE
 const ALERTS_SETTINGS_FILE = process.env.ALERTS_SETTINGS_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/alerts-settings.json' : './data/alerts-settings.json');
 const REPAIR_HOUR_DEFAULT = parseIntInRange(process.env.REPAIR_HOUR, 3, 0, 23);
+// H-3: same pairSetup timeout budget subscriber.js uses for auto re-pair,
+// threaded into the scheduled repair cycle's pairSetup path.
+const HAP_PAIR_TIMEOUT_MS = parseIntInRange(process.env.HAP_PAIR_TIMEOUT_MS, 60_000, 1_000, 300_000);
 
 const PORT = Number(process.env.API_PORT ?? 3001);
 const RESCAN_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -355,7 +359,7 @@ const repairScheduler = createRepairScheduler({
   performPairSetupAndPersist: (deviceId, pin, address, port) =>
     performPairSetupAndPersist(
       { deviceId, pin, address, port },
-      { HttpClient, loadPairings, savePairings },
+      { HttpClient, loadPairings, savePairings, timeoutMs: HAP_PAIR_TIMEOUT_MS },
     ),
 });
 repairScheduler.start();
@@ -733,7 +737,7 @@ app.use(function globalExpressErrorHandler(err, req, res, _next) {
 
 const API_BIND_ADDRESS = (process.env.API_BIND_ADDRESS ?? '').trim() || '0.0.0.0';
 
-app.listen(PORT, API_BIND_ADDRESS, () => {
+const server = app.listen(PORT, API_BIND_ADDRESS, () => {
   log.info(`[api] Listening on ${API_BIND_ADDRESS}:${PORT}`);
   if (API_TOKEN) {
     log.info('[api] Write auth enabled for POST/PATCH/DELETE routes');
@@ -749,3 +753,23 @@ app.listen(PORT, API_BIND_ADDRESS, () => {
     log.warn('[api] CORS denies all browser origins (CORS_ALLOW_LOCALHOST=false and no allow-list)');
   }
 });
+
+// M-6: graceful SIGTERM/SIGINT shutdown. Docker's default grace period is
+// ~10s between SIGTERM and SIGKILL — this must complete well inside that.
+const { shutdown: gracefulShutdown } = createGracefulShutdown({
+  steps: [
+    {
+      name: 'http server',
+      run: async () => {
+        server.closeAllConnections?.();
+        await new Promise((resolve) => server.close(resolve));
+      },
+    },
+    { name: 'repair scheduler', run: () => repairScheduler.stop() },
+    { name: 'HAP subscribers', run: () => stopAllSubscribers() },
+    { name: 'matter runtime', run: () => matterRuntime?.stopAll() },
+    { name: 'postgres pool', run: async () => { await pool.end(); } },
+  ],
+});
+process.once('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
+process.once('SIGINT', () => { void gracefulShutdown('SIGINT'); });

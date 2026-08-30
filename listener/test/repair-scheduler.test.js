@@ -17,8 +17,8 @@ function makeMocks(overrides = {}) {
   let settingsState = { ...defaultSettings, ...overrides.settings };
 
   const mocks = {
-    getSettings: () => ({ ...settingsState }),
-    saveSettings: async (s) => { settingsState = { ...s }; saveSettingsCalls.push(s); },
+    getSettings: overrides.getSettings ?? (() => ({ ...settingsState })),
+    saveSettings: overrides.saveSettings ?? (async (s) => { settingsState = { ...s }; saveSettingsCalls.push(s); }),
     getRepairTargets: overrides.getRepairTargets ?? (() => []),
     discoverDevice: overrides.discoverDevice ?? (async () => null),
     savePairing: async (id, p) => { savePairingCalls.push({ id, p }); },
@@ -547,4 +547,106 @@ test('runRepairCycle() with needsRepair and pairSetup failure leaves needsRepair
   assert.equal(lastSaved.lastRunResult.failed, 1, 'failed === 1');
   assert.equal(lastSaved.lastRunResult.repaired, 0, 'repaired === 0');
   assert.equal(lastSaved.lastRunResult.skipped, 0, 'skipped === 0');
+});
+
+// -- M-5: scheduler self-heals from a rejected cycle / disabled settings --
+
+test('scheduleNext survives a rejected runRepairCycle (saveSettings rejects) and still reschedules while enabled', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+  mock.timers.enable({ apis: ['setTimeout'] });
+  // setImmediate is NOT mocked, so it reliably flushes pending microtasks
+  // (the async continuations after each tick()) without needing a real timer.
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+  let targetsCallCount = 0;
+  const m = makeMocks({
+    getRepairTargets: () => { targetsCallCount++; return []; },
+    saveSettings: async () => { throw new Error('ENOSPC: disk full'); },
+  });
+
+  try {
+    const scheduler = createRepairScheduler(m);
+    scheduler.start();
+
+    // msUntilHour() always returns <= 24h — ticking 25h guarantees the
+    // currently-armed timer fires exactly once.
+    mock.timers.tick(25 * 60 * 60 * 1000);
+    await flush();
+    await flush();
+    assert.equal(targetsCallCount, 1, 'first scheduled cycle should have run');
+
+    // The first cycle's saveSettings rejected — the chain must still have
+    // rescheduled a second cycle ~24h later.
+    mock.timers.tick(25 * 60 * 60 * 1000);
+    await flush();
+    await flush();
+    assert.equal(targetsCallCount, 2, 'chain should survive a rejected cycle and reschedule');
+
+    scheduler.stop();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('scheduleNext does not reschedule once settings.enabled becomes false', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+  let enabled = true;
+  let targetsCallCount = 0;
+  const m = makeMocks({
+    getSettings: () => ({ enabled, hour: 3 }),
+    getRepairTargets: () => {
+      targetsCallCount++;
+      // Flip AFTER this cycle so the post-cycle reschedule decision
+      // (which reads getSettings() fresh) sees enabled: false and does not
+      // arm a further timer.
+      enabled = false;
+      return [];
+    },
+  });
+
+  try {
+    const scheduler = createRepairScheduler(m);
+    scheduler.start();
+
+    mock.timers.tick(25 * 60 * 60 * 1000);
+    await flush();
+    await flush();
+    assert.equal(targetsCallCount, 1, 'first cycle should have run');
+
+    // No timer should have been armed — ticking further must not invoke
+    // getRepairTargets again.
+    mock.timers.tick(25 * 60 * 60 * 1000);
+    await flush();
+    await flush();
+    assert.equal(targetsCallCount, 1, 'no further cycle should run once disabled');
+
+    scheduler.stop();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('runRepairCycle() with a throwing getRepairTargets clears running so the next call is not skipped', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+
+  let callCount = 0;
+  const m = makeMocks({
+    getRepairTargets: () => {
+      callCount++;
+      if (callCount === 1) throw new Error('DB unavailable');
+      return [];
+    },
+  });
+
+  const scheduler = createRepairScheduler(m);
+  await assert.rejects(() => scheduler.runRepairCycle(), /DB unavailable/);
+
+  // The 'running' guard must have been cleared on the throw path — a second
+  // call must actually execute getRepairTargets again, not be short-circuited
+  // by the 'already in progress' guard.
+  await scheduler.runRepairCycle();
+  assert.equal(callCount, 2, 'second call should actually run getRepairTargets, not be skipped by the running guard');
 });

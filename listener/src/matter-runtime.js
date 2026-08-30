@@ -6,6 +6,27 @@ const POLL_INTERVAL_MS = Number.parseInt(process.env.MATTER_POLL_INTERVAL_MS ?? 
 const SUBSCRIBE_ENABLED = !/^(0|false|no|off)$/i.test(process.env.MATTER_SUBSCRIBE_ENABLED ?? 'false');
 const SUBSCRIBE_RESTART_DELAY_MS = Number.parseInt(process.env.MATTER_SUBSCRIBE_RESTART_DELAY_MS ?? '2000', 10);
 const DISCOVER_TIMEOUT_MS = Number.parseInt(process.env.MATTER_SCAN_TIMEOUT_MS ?? '15000', 10);
+const MAX_CONSECUTIVE_ERRORS = 10;
+const MAX_POLL_BACKOFF_MS = 10 * 60_000;
+
+/**
+ * M-4: Matter polling must never be permanently disabled — a rebooted or
+ * sleepy node has to recover without a listener restart. Below the
+ * consecutive-error threshold, poll at the normal base interval. At and
+ * above the threshold, stretch the interval with capped exponential backoff
+ * (max ~10 min) so a persistently unreachable node is polled far less
+ * often, but polling never stops.
+ *
+ * @param {number} consecutiveErrors - session.consecutiveErrors
+ * @param {number} baseMs - the configured poll interval (POLL_INTERVAL_MS)
+ * @param {number} [maxMs=MAX_POLL_BACKOFF_MS] - backoff cap
+ * @returns {number} delay in milliseconds before the next poll
+ */
+export function nextPollDelayMs(consecutiveErrors, baseMs, maxMs = MAX_POLL_BACKOFF_MS) {
+  const base = Number.isFinite(baseMs) && baseMs >= 1000 ? baseMs : 30_000;
+  if (consecutiveErrors < MAX_CONSECUTIVE_ERRORS) return base;
+  return Math.min(base * 2 ** (consecutiveErrors - MAX_CONSECUTIVE_ERRORS + 1), maxMs);
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -82,16 +103,20 @@ export function createMatterRuntime({
     });
   }
 
-  const MAX_CONSECUTIVE_ERRORS = 10;
-
   function setSessionError(session, nodeId, err, mode = 'poll') {
     session.lastError = err?.message ?? String(err);
     session.lastErrorAt = nowIso();
     session.consecutiveErrors = (session.consecutiveErrors ?? 0) + 1;
     log.warn(`[matter] ${mode} failed for ${nodeId}: ${session.lastError}`);
     if (session.consecutiveErrors >= MAX_CONSECUTIVE_ERRORS && !session.stopped) {
-      log.warn(`[matter] Stopping polling for ${nodeId} after ${session.consecutiveErrors} consecutive errors`);
-      session.pollingEnabled = false;
+      // M-4: polling is NEVER permanently disabled — stretch the interval
+      // with capped exponential backoff instead. A rebooted or sleepy node
+      // recovers without a listener restart.
+      const nextDelay = nextPollDelayMs(session.consecutiveErrors, POLL_INTERVAL_MS);
+      log.warn(
+        `[matter] ${nodeId}: ${session.consecutiveErrors} consecutive errors, ` +
+        `polling continues with backoff (next attempt in ${Math.round(nextDelay / 1000)}s)`
+      );
     }
   }
 
@@ -182,7 +207,8 @@ export function createMatterRuntime({
 
   function schedulePoll(session) {
     if (session.stopped) return;
-    const delayMs = Number.isFinite(POLL_INTERVAL_MS) && POLL_INTERVAL_MS >= 1000 ? POLL_INTERVAL_MS : 30_000;
+    const baseDelayMs = Number.isFinite(POLL_INTERVAL_MS) && POLL_INTERVAL_MS >= 1000 ? POLL_INTERVAL_MS : 30_000;
+    const delayMs = nextPollDelayMs(session.consecutiveErrors ?? 0, baseDelayMs);
     session.timer = setTimeout(() => {
       void runPollCycle(session);
     }, delayMs);
@@ -307,11 +333,19 @@ export function createMatterRuntime({
     return matterController.discover(DISCOVER_TIMEOUT_MS);
   }
 
+  /**
+   * Stop every active Matter node session (M-6: graceful shutdown).
+   */
+  function stopAll() {
+    for (const nodeId of [...sessions.keys()]) stopNode(nodeId);
+  }
+
   return {
     commission,
     scan,
     syncPairings,
     stopNode,
+    stopAll,
     getStatus,
   };
 }

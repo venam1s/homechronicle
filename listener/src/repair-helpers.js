@@ -10,6 +10,8 @@
  *   - Does NOT restart the subscriber (caller decides post-repair lifecycle).
  */
 
+import { withTimeout } from './utils.js';
+
 /**
  * Perform a full HAP pairSetup() handshake using the stored PIN, then persist
  * the fresh longTermData (and updated address/port/pin/pairedAt) into pairings.
@@ -19,18 +21,26 @@
  * this module has no hap-controller import of its own.
  *
  * @param {{ deviceId: string, pin: string, address: string, port: number }} device
- * @param {{ HttpClient: Function, loadPairings: Function, savePairings: Function }} deps
+ * @param {{ HttpClient: Function, loadPairings: Function, savePairings: Function, timeoutMs?: number }} deps
+ * @param {number} [deps.timeoutMs=60000] - H-3: bounds the pairSetup handshake so a
+ *   device that accepts TCP but never answers can no longer strand the nightly
+ *   repair scheduler forever. On expiry the client is closed.
  * @returns {Promise<{ longTermData: object, pairing: object }>}
- * @throws On pairSetup rejection or savePairings rejection — caller handles.
+ * @throws On pairSetup rejection, timeout, or savePairings rejection — caller handles.
  */
 export async function performPairSetupAndPersist(
   { deviceId, pin, address, port },
-  { HttpClient, loadPairings, savePairings }
+  { HttpClient, loadPairings, savePairings, timeoutMs = 60_000 }
 ) {
   const client = new HttpClient(deviceId, address, port);
   let longTermData;
   try {
-    await client.pairSetup(pin);
+    await withTimeout(
+      client.pairSetup(pin),
+      timeoutMs,
+      () => { try { client.close?.(); } catch (e) { /* ignore */ } },
+      'pairSetup'
+    );
     longTermData = client.getLongTermData();
   } finally {
     try { client.close?.(); } catch (_e) { /* ignore */ }
