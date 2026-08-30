@@ -119,8 +119,13 @@ async function request(app, method, path, body) {
 }
 
 // -- Session fixtures --
-const adminSession = { user_id: 1, role: 'admin', email: 'admin@example.com' };
-const memberSession = { user_id: 2, role: 'member', email: 'member@example.com' };
+// user_id is a STRING here because node-postgres returns int8/BIGINT columns
+// (users.id is BIGSERIAL) as strings, and no pg.types.setTypeParser(20, ...)
+// is installed anywhere in this codebase. A numeric fixture does not model
+// what req.hcSession.user_id actually looks like in production (M-2, audit
+// 2026-08-30) and would hide a `===` comparison bug against a Number target.
+const adminSession = { user_id: '1', role: 'admin', email: 'admin@example.com' };
+const memberSession = { user_id: '2', role: 'member', email: 'member@example.com' };
 
 // =============================================================================
 // TASK 1 TESTS: list users, list/create/revoke/resend invites
@@ -457,7 +462,7 @@ test('PATCH /api/users/:id disable returns 400 when disabling self (D-06)', asyn
 
 test('PATCH /api/users/:id disable returns 400 when disabling last active admin', async () => {
   const { app } = buildApp({
-    session: { user_id: 1, role: 'admin', email: 'admin@example.com' },
+    session: { user_id: '1', role: 'admin', email: 'admin@example.com' },
     poolBehavior: [
       { match: 'pg_advisory_xact_lock', rows: [] },
       // target IS an admin → last-admin guard applies
@@ -474,7 +479,7 @@ test('PATCH /api/users/:id disable returns 400 when disabling last active admin'
 test('PATCH /api/users/:id disable returns 200 for a member even when only one admin exists', async () => {
   // Regression: the last-admin guard must NOT block disabling a non-admin.
   const { app } = buildApp({
-    session: { user_id: 1, role: 'admin', email: 'admin@example.com' },
+    session: { user_id: '1', role: 'admin', email: 'admin@example.com' },
     poolBehavior: [
       { match: 'pg_advisory_xact_lock', rows: [] },
       // target is a MEMBER → guard must be skipped regardless of admin count

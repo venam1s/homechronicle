@@ -105,14 +105,21 @@ if (CORS_ALLOW_LOCALHOST && IS_PRODUCTION) {
 }
 const DISCOVERY_SCAN_ENABLED = !/^(0|false|no|off)$/i.test(process.env.DISCOVERY_SCAN_ENABLED ?? 'true');
 
-// TRUST_PROXY (T-20-BRUTE): controls Express `trust proxy`. UNSET by default, so
-// req.ip is the direct socket address and the spoof-safe rateLimitKeyGenerator
-// (security.js) ignores X-Forwarded-For — correct for direct exposure and dev.
-// Behind a trusted reverse proxy (the documented nginx topology, which sets
-// X-Forwarded-For), set TRUST_PROXY to the hop count (e.g. 1) so the auth limiter
-// keys per real client IP instead of collapsing every client into one bucket and
-// letting 10 failed logins from anyone lock out the whole household. Accepts a hop
-// count, true/false, or any Express trust-proxy value ('loopback', a subnet, etc.).
+// TRUST_PROXY (T-20-BRUTE, M-12): controls Express `trust proxy`. This is the
+// NUMBER OF PROXIES between the client and the listener that append to
+// X-Forwarded-For. UNSET by default, so req.ip is the direct socket address —
+// correct for direct exposure and dev. `1` = the bundled nginx alone (the
+// stock compose topology). `2` = a TLS terminator (Traefik, Caddy, Cloudflare
+// Tunnel, another nginx) in front of the bundled nginx — nginx always appends
+// its own hop, so the terminator makes it two. rateLimitKeyGenerator
+// (security.js) returns req.ip unconditionally; Express resolves req.ip from
+// this hop count, walking the forwarded chain from the right and skipping n
+// trusted hops (H-4) — the generator never reads X-Forwarded-For itself.
+// Getting this too LOW keys every limiter on the proxy's own address,
+// collapsing the whole household into one bucket (10 failed logins from
+// anyone locks everyone out); too HIGH walks past the real client into
+// attacker-controlled header territory. Accepts a hop count, true/false, or
+// any Express trust-proxy value ('loopback', a subnet, etc.).
 const TRUST_PROXY = (() => {
   const raw = (process.env.TRUST_PROXY ?? '').trim();
   if (!raw) return undefined; // unset → do not configure trust proxy
@@ -463,7 +470,7 @@ app.disable('x-powered-by');
 // per real client IP behind a reverse proxy (T-20-BRUTE). No-op when unset.
 if (TRUST_PROXY !== undefined) {
   app.set('trust proxy', TRUST_PROXY);
-  log.info(`[api] trust proxy enabled (TRUST_PROXY=${process.env.TRUST_PROXY?.trim()}) — auth rate limits key per X-Forwarded-For client`);
+  log.info(`[api] trust proxy enabled (TRUST_PROXY=${process.env.TRUST_PROXY?.trim()}) — auth rate limits key per resolved client IP (req.ip)`);
 }
 app.use(cors({
   origin(origin, callback) {

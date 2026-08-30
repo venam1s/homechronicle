@@ -112,15 +112,16 @@ export function requireAdminSession(req, res, next) {
   return next();
 }
 
+// Express already applies the `trust proxy` hop count (index.js TRUST_PROXY)
+// when it computes req.ip, walking the X-Forwarded-For chain from the RIGHT
+// and skipping n trusted hops. Reading the header directly here instead takes
+// the LEFTMOST entry, which is client-supplied — nginx only ever APPENDS via
+// $proxy_add_x_forwarded_for, so the leftmost entry is whatever the client
+// sent. A single `X-Forwarded-For: <random>` header per request then buys a
+// fresh rate-limit bucket, defeating every limiter in the codebase (H-4,
+// audit 2026-08-30). Delegating entirely to req.ip keeps this generator a
+// one-line function with no header-parsing logic to get wrong again.
 export function rateLimitKeyGenerator(req) {
-  // Only trust X-Forwarded-For when Express trust proxy is configured,
-  // otherwise an attacker can spoof the header to bypass rate limits.
-  if (req?.app?.get('trust proxy')) {
-    const forwardedFor = req?.headers?.['x-forwarded-for'];
-    if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
-      return forwardedFor.split(',')[0].trim();
-    }
-  }
   return req?.ip ?? req?.socket?.remoteAddress ?? 'unknown';
 }
 

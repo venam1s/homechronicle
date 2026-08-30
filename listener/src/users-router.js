@@ -247,10 +247,16 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
       const action = String(req.body?.action ?? '').trim();
 
       // Self guard — acting admin cannot disable/remove self (D-06)
+      // String-normalised: req.hcSession.user_id is whatever node-postgres
+      // returned for the int8/BIGINT users.id column, which is a STRING (no
+      // pg.types.setTypeParser(20, ...) is installed), while targetId is a
+      // Number — a bare === here is always false and the guard never fires
+      // (M-2, audit 2026-08-30). Precedent: auth-router.js String(s.id) ===
+      // String(currentId).
       if (action === 'disable' || action === 'setRole') {
         // For disable: self-modification blocked entirely
         // For setRole: self-demotion allowed only when another admin exists (handled below)
-        if (action === 'disable' && req.hcSession.user_id === targetId) {
+        if (action === 'disable' && String(req.hcSession.user_id) === String(targetId)) {
           return res.status(400).json({ error: 'You cannot disable your own account.' });
         }
       }
@@ -357,8 +363,9 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
       if (!requireAdmin(req, res)) return;
       const targetId = Number(req.params.id);
 
-      // Self guard — acting admin cannot remove self (D-06)
-      if (req.hcSession.user_id === targetId) {
+      // Self guard — acting admin cannot remove self (D-06). String-normalised
+      // for the same BIGINT-string-vs-Number reason as the PATCH site above (M-2).
+      if (String(req.hcSession.user_id) === String(targetId)) {
         return res.status(400).json({ error: 'You cannot remove your own account.' });
       }
 
