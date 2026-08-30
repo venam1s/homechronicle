@@ -11,10 +11,14 @@
 const CHANGELOG = [
   {
     version: 'v0.3.3',
-    title: 'Fixed 502 errors on the default setup and a standalone image boot loop',
+    title: 'Fixes for the default Docker setup, listener resilience, and preferences',
     items: [
-      'Fixed 502 errors on every API request with the default Docker Compose setup, caused by the web container being unable to reach the listener at host.docker.internal. The address is now resolved once when the container starts.',
-      'Fixed the all-in-one standalone image restarting in a loop on startup due to missing database migration files, and added a missing dependency patch.',
+      'Fixed 502 errors on every API request with the default Docker Compose setup (the web container could not reach the listener at host.docker.internal since 0.3.2).',
+      'Fixed the all-in-one standalone image restarting in a loop on startup.',
+      'Listener resilience: a corrupted HomeKit frame can no longer freeze the listener at 100% CPU; HomeKit requests time out instead of hanging a device forever; Matter polling backs off and retries instead of giving up; scheduled repair keeps running after an error; clean shutdown on docker stop.',
+      'Per-user preferences can no longer be wiped by a race on first load, Timeline grouping and Quiet Hours "Exclude" now work for signed-in users, and sidebar collapse persists.',
+      'Alerts: rules of disabled users no longer fire, admins can view and delete any rule, rule counts and webhook fan-out are capped, and rules can be managed again when login is disabled.',
+      'Security: rate limiting can no longer be bypassed with a forged X-Forwarded-For header, password changes are rate-limited, SMTP requires STARTTLS by default, and all dependency advisories are resolved.',
     ],
   },
   {

@@ -2,11 +2,34 @@
 
 All notable changes to homechronicle are documented in this file.
 
-## [Unreleased]
+## [0.3.3] — 2026-08-30
 
 ### Fixed
 - **502 errors on every API request with the default Docker Compose setup** — since 0.3.2, the web container could no longer reach the listener at `host.docker.internal`, so every `/api/*` request returned a 502. The address is now resolved once when the container starts, so the proxy works again. Setups that use a Compose service name for the listener were unaffected and continue to recover automatically after a listener restart.
 - **All-in-one standalone image failing to start** — the container restarted in a loop because required database migration files were missing from the image. They are now included, along with a dependency patch that was also missing.
+- **Listener could freeze at 100% CPU on a corrupted HomeKit frame** — a single undecryptable encrypted frame from an accessory made the HomeKit client loop forever on the main thread, stalling the whole listener. The connection is now dropped and re-established instead (same class of bug as the mDNS fix in 0.1.11).
+- **A HomeKit device that stopped answering could stay dead until restart** — HomeKit requests had no timeout, so an accessory that accepted the connection but never replied left its subscription (or the nightly repair job) stuck forever. All HomeKit round-trips are now bounded (`HAP_REQUEST_TIMEOUT_MS`, default 30 s; `HAP_PAIR_TIMEOUT_MS`, default 60 s) and recover through the normal reconnect path.
+- **Matter devices were silently dropped after ~50 s of unreachability** — polling stopped permanently after 10 consecutive errors. Polling now backs off (up to 10 min) and keeps retrying.
+- **Scheduled repair stopped running after a single failed cycle** — one error (for example a failed settings write) ended all future scheduled repairs until restart. The scheduler now always re-arms.
+- **Clean shutdown on `docker stop` / redeploy** — the listener now handles SIGTERM/SIGINT: it closes HomeKit and Matter sessions, stops the scheduler, and drains the database pool instead of being killed mid-write. Leftover `*.tmp-*` files from earlier abrupt stops are swept from the data directory at startup.
+- **Per-user preferences could be wiped by a race on first load** — a preference saved before the initial preferences fetch finished could overwrite the whole server-side blob. Saves now wait for the fetch, and the server merges keys instead of replacing the blob.
+- **Timeline grouping and Quiet Hours "Exclude" did nothing for signed-in users** — both wrote to a different store than the one being read. Per-user grouping preferences are now honoured on the Timeline, and the dashboard's Quiet Hours exclude button writes the per-user setting (with an error toast if it fails).
+- **Sidebar collapse state now persists**, logout now clears every per-user preference key, and the app no longer polls `/api/auth/me` when login is disabled.
+- **Alert rules of a disabled user kept firing** — rules whose owner has been disabled are now skipped, and admins can list (`?scope=all`) and delete any user's rules.
+- **Alert rules were unmanageable when login is disabled** (service-token mode); rule create/edit/delete works again there, and editing a webhook rule that still carried a stale email field no longer fails.
+- **SMTP settings reported success even when the connection test failed**; the response now says whether email is actually enabled, and port/host are validated.
+- **Password reset** now invalidates any other outstanding reset links for the account once one is used.
+
+### Security
+- **Rate limiting could be bypassed with a forged `X-Forwarded-For` header** when running behind the bundled nginx (the default). Limits are now keyed on the proxy-derived client address. `TRUST_PROXY` docs now explain it is the number of proxies in front of the listener (`1` for nginx alone, `2` behind Traefik/Caddy/NPM).
+- **Password changes are now rate-limited**, and the admin self-disable/self-remove guards work again (they compared IDs of different types).
+- **Alert webhook fan-out is now bounded** — per-user (`ALERTS_MAX_RULES_PER_USER`, default 25) and total (`ALERTS_MAX_RULES_TOTAL`, default 100) rule caps, a concurrency pool and in-flight ceiling for deliveries, back-off for targets that keep failing, and 200-character caps on rule text fields.
+- **SMTP now requires STARTTLS** on non-TLS ports (`SMTP_REQUIRE_TLS`, default `true`) instead of silently falling back to plaintext, and nodemailer's file/URL access is disabled. Invitation and admin-claim emails are validated; email links are attribute-escaped and `APP_BASE_URL` is validated at startup.
+- **Dependencies:** `npm audit` is clean in both packages (nodemailer 9, react-router-dom 7.18, and transitive fixes). A dead `fast-xml-parser` override was removed.
+
+### Internal
+- CI now runs the test suite on release tags and blocks image builds and the release on it.
+- Beta sync scripts share one exclusion list for account-related tables (now including preferences and alert rules), restore in a single transaction, and the beta listener no longer mounts production's data directory.
 
 ## [0.3.2] — 2026-08-30
 

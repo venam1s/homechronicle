@@ -94,6 +94,8 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 | `RUN_CYCLE_OFF_DELAY_MS` | `900000` | listener | Delay synthetic OFF for run-cycle switches. |
 | `RECONNECT_BASE_MS` | `5000` | listener | Initial reconnect delay for HomeKit subscribers. |
 | `RECONNECT_MAX_MS` | `60000` | listener | Max reconnect delay for HomeKit subscribers. |
+| `HAP_REQUEST_TIMEOUT_MS` | `30000` | listener | Upper bound for a single HomeKit request (`getAccessories`, `subscribeCharacteristics`, `getCharacteristics`). On expiry the connection is closed and the normal reconnect path takes over instead of the device hanging forever. |
+| `HAP_PAIR_TIMEOUT_MS` | `60000` | listener | Upper bound for a HomeKit pair-setup (SRP) handshake during auto/scheduled repair. Longer than the request timeout because slow accessories legitimately take a while. |
 
 ## Matter
 
