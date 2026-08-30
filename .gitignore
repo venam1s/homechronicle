@@ -60,3 +60,6 @@ hipocampus.config.json
 # Generated artifacts (rebuildable; not version-controlled)
 graphify-out/
 .playwright-mcp/
+
+# Lanes task-board config (local tooling)
+.lanes/
