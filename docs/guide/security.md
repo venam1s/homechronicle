@@ -43,7 +43,7 @@ When `AUTH_ENABLED=true` (the default), browser access is protected by DB-backed
 |-------|--------|
 | **Password hashing** | argon2id with configurable memory and iteration cost |
 | **CSRF protection** | Mutating requests from browser sessions require a valid CSRF token |
-| **Auth rate limiting** | Login and bootstrap endpoints are rate-limited per real client IP. Set `TRUST_PROXY=1` behind nginx or Traefik so the limiter keys on the actual client — without it every household user shares one bucket and 10 failed attempts lock everyone out. |
+| **Auth rate limiting** | Login, bootstrap, and password-change endpoints are each rate-limited per real client IP. `TRUST_PROXY` is a hop count: `1` for the bundled nginx alone, `2` when a TLS terminator (Traefik, Caddy, Cloudflare Tunnel) sits in front of it — nginx always appends its own hop, so the terminator makes it two. Get the count wrong and every household user shares one bucket, so 10 failed attempts lock everyone out. |
 | **Session cookie** | HttpOnly; set `SESSION_COOKIE_SECURE=true` on HTTPS deployments |
 | **Session metadata** | User agent and IP address are captured at login |
 | **Active Sessions** | Each user can view and revoke their own sessions from Settings > Account |

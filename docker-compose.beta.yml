@@ -106,7 +106,10 @@ services:
       # login looped (POST /login 200 then GET /me 401). Opt back in via
       # SESSION_COOKIE_SECURE=true in .env.beta once the proxy chain is verified.
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
-      # Two proxies in front (Traefik -> web/nginx) — key auth rate limits per real client IP.
+      # TRUST_PROXY is a hop count: the number of proxies between the client and
+      # the listener that append to X-Forwarded-For. Two real hops sit in front
+      # here (Traefik -> the bundled nginx) — nginx always appends its own hop
+      # on top of the TLS terminator's, so the count is 2, not 1.
       TRUST_PROXY: ${TRUST_PROXY:-2}
       # Public base URL used to build invite + password-reset email links.
       APP_BASE_URL: ${APP_BASE_URL:-https://${BETA_FQDN}}

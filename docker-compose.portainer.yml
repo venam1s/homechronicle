@@ -32,7 +32,10 @@ services:
       API_TOKEN: ${API_TOKEN:-}
       TZ: ${TZ:-UTC}
       ALERTS_ENABLED: ${ALERTS_ENABLED:-false}
-      # Trust the single nginx reverse proxy so rate-limit keys use the real client IP, not nginx's
+      # TRUST_PROXY is a hop count: the number of proxies between the client and
+      # the listener that append to X-Forwarded-For. 1 is correct for this
+      # file's single bundled nginx. If a TLS terminator (Traefik, Caddy,
+      # Cloudflare Tunnel) sits in front of it, set TRUST_PROXY=2 in .env.
       TRUST_PROXY: ${TRUST_PROXY:-1}
     volumes:
       - ${LISTENER_DATA_SOURCE:-listener-data}:/app/data
