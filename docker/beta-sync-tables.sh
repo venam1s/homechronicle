@@ -83,9 +83,12 @@ beta_sync_strip_user_fks() {
 }
 
 # SQL to append to the restore stream (same --single-transaction) after the dump.
+# Everything MUST be schema-qualified: pg_dump starts its stream with
+# `SET search_path = ''`, so an unqualified `alert_rules` fails with
+# 'relation "alert_rules" does not exist' (seen 2026-08-30 16:09Z).
 beta_sync_post_restore_sql() {
   printf '%s\n' \
-    'UPDATE alert_rules SET user_id = NULL WHERE user_id IS NOT NULL;' \
-    'ALTER TABLE alert_rules DROP CONSTRAINT IF EXISTS alert_rules_user_id_fkey;' \
-    'ALTER TABLE alert_rules ADD CONSTRAINT alert_rules_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;'
+    'UPDATE public.alert_rules SET user_id = NULL WHERE user_id IS NOT NULL;' \
+    'ALTER TABLE public.alert_rules DROP CONSTRAINT IF EXISTS alert_rules_user_id_fkey;' \
+    'ALTER TABLE public.alert_rules ADD CONSTRAINT alert_rules_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;'
 }
