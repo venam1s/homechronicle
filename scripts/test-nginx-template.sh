@@ -184,9 +184,15 @@ else
   echo "PASS: no literal \${...} placeholders remain in the host-mode render"
 fi
 
-# 5. The rendered port is honoured (already exercised above via the literal ':3001;'
-#    grep pattern in checks 3/4 — a port regression would fail those).
-echo "PASS: rendered port :3001 verified via auth-OFF and host-mode proxy_pass checks above"
+# 5. The rendered port is honoured in the auth-ON render too (checks 3/4 cover
+#    auth-OFF and host-mode; the original FIX 1 check greps without the port).
+on_pp_count=$(printf '%s\n' "$rendered" | grep -c 'proxy_pass http://\$hc_listener:3001;' || true)
+if [ "$on_pp_count" -eq 3 ]; then
+  echo "PASS: auth-ON render proxy_pass carries LISTENER_PORT :3001 x3"
+else
+  echo "FAIL: auth-ON render proxy_pass :3001 count = $on_pp_count (expected 3)"
+  fail=1
+fi
 
 # 6. Composition guards: NGINX_RESOLVER must be DEFINED on every render path or
 #    nginx fails to boot (the boot-fail landmine from 260617-f5d).
