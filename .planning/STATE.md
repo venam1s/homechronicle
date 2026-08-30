@@ -112,3 +112,4 @@ Resume file: None
 ## Operator Next Steps
 
 - Start the next milestone with /gsd-new-milestone
+| 260830-fst | gitignore `.lanes/` (Lanes task-board config) and remove the 4 `.lanes/*.json` files that `git add -A` swept into the v0.3.2 release commit from tracking (kept on disk) | 2026-08-30 | 99ccf16 | — (/gsd:fast, inline) |
