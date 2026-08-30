@@ -241,6 +241,74 @@ test('PUT /smtp: isEmailEnabled false after save -> { ok: true, emailEnabled: fa
   assert.ok(res.body.warning && res.body.warning.length > 0, 'a non-empty warning must be present');
 });
 
+// -- L-5: port/host range validation, rejected before any store write --
+
+test('PUT /smtp: port 0 → 400, store.write NOT called (L-5)', async () => {
+  const store = makeStore({ host: 'smtp.example.com', port: 587 });
+  let writeCalled = false;
+  const origWrite = store.write.bind(store);
+  store.write = async (next) => { writeCalled = true; return origWrite(next); };
+
+  const app = makeApp({
+    smtpConfigStore: store,
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', port: 0 });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /port must be an integer between 1 and 65535/);
+  assert.equal(writeCalled, false, 'store.write must not be called for a rejected request');
+});
+
+test('PUT /smtp: port 99999 → 400 (L-5)', async () => {
+  const app = makeApp({
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', port: 99999 });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /port must be an integer between 1 and 65535/);
+});
+
+test('PUT /smtp: port "abc" → 400 (L-5)', async () => {
+  const app = makeApp({
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', port: 'abc' });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /port must be an integer between 1 and 65535/);
+});
+
+test('PUT /smtp: host "" → 400, store.write NOT called (L-5)', async () => {
+  const store = makeStore({ host: 'smtp.example.com', port: 587 });
+  let writeCalled = false;
+  const origWrite = store.write.bind(store);
+  store.write = async (next) => { writeCalled = true; return origWrite(next); };
+
+  const app = makeApp({
+    smtpConfigStore: store,
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: '', port: 587 });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /host is required/);
+  assert.equal(writeCalled, false, 'store.write must not be called for a rejected request');
+});
+
+test('PUT /smtp: valid port 587 still returns 200 (L-5 regression guard)', async () => {
+  const app = makeApp({
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', port: 587 });
+  assert.equal(res.status, 200);
+});
+
+test('PUT /smtp: valid port 465 still returns 200 (L-5 regression guard)', async () => {
+  const app = makeApp({
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', port: 465, secure: true });
+  assert.equal(res.status, 200);
+});
+
 test('PUT /smtp: non-admin session → 403 (T-21-04-ADMINONLY)', async () => {
   const app = makeApp({
     session: { role: 'member', email: 'user@example.com', user_id: 2 },

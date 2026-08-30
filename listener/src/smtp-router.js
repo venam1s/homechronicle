@@ -101,6 +101,20 @@ export function createSmtpRouter({
     try {
       const body = req.body ?? {};
 
+      // L-5: range/format-check port and host BEFORE any store write. Deliberately
+      // NOT using parseIntInRange here — it clamps out-of-range values, which would
+      // silently turn an admin's typo into a plausible-looking port instead of
+      // rejecting it.
+      if (body.port !== undefined) {
+        const portNum = Number(body.port);
+        if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+          return res.status(400).json({ error: 'port must be an integer between 1 and 65535' });
+        }
+      }
+      if (typeof body.host === 'string' && body.host.trim() === '') {
+        return res.status(400).json({ error: 'host is required' });
+      }
+
       // Persist non-secret fields to the config store
       const snapshot = smtpConfigStore.getSnapshot();
       const nextConfig = {
