@@ -271,6 +271,108 @@ describe('cross-instance debounce (CR-01 regression)', () => {
   });
 });
 
+describe('flush gating (M-7)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('never-resolving GET: setPrefsBlob + 3000ms produces ZERO PUT calls, partial stays buffered', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockImplementation((url, opts) => (
+      opts?.method === 'PUT' ? Promise.resolve({ prefs: {} }) : new Promise(() => {})
+    ));
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+
+    vi.useFakeTimers();
+    act(() => { result.current.setPrefsBlob({ theme: 'dark' }); });
+    await act(async () => { vi.advanceTimersByTime(3000); });
+    vi.useRealTimers();
+
+    const putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(0);
+  });
+
+  it('slow GET: fetched keys + pending key both land in exactly ONE PUT once the GET resolves', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+
+    let resolveGet;
+    const gate = new Promise((r) => { resolveGet = r; });
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === 'PUT') {
+        const sent = JSON.parse(opts.body).prefs;
+        return Promise.resolve({ prefs: sent });
+      }
+      return gate;
+    });
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+
+    vi.useFakeTimers();
+    act(() => { result.current.setPrefsBlob({ theme: 'dark' }); });
+    await act(async () => { vi.advanceTimersByTime(1500); });
+
+    let putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(0);
+
+    resolveGet({ prefs: { a: 1, b: 2 } });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => { vi.advanceTimersByTime(600); });
+    vi.useRealTimers();
+
+    putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(1);
+    const body = JSON.parse(putCalls[0][1].body);
+    expect(body.prefs).toEqual({ a: 1, b: 2, theme: 'dark' });
+  });
+
+  it('the pre-existing coalescing behaviour is unaffected once the query is success', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockResolvedValue({ prefs: {} });
+
+    vi.useFakeTimers();
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+
+    await act(async () => { vi.advanceTimersByTime(0); });
+    fetchJson.mockClear();
+
+    act(() => {
+      result.current.setPrefsBlob({ theme: 'dark' });
+      result.current.setPrefsBlob({ accent: 'purple' });
+    });
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    vi.useRealTimers();
+
+    const putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(1);
+    const body = JSON.parse(putCalls[0][1].body);
+    expect(body.prefs).toMatchObject({ theme: 'dark', accent: 'purple' });
+  });
+
+  it('budget exhaustion: never-resolving GET abandons the flush without hanging the caller promise', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockImplementation((url, opts) => (
+      opts?.method === 'PUT' ? Promise.resolve({ prefs: {} }) : new Promise(() => {})
+    ));
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+
+    vi.useFakeTimers();
+    let p;
+    act(() => { p = result.current.setPrefsBlob({ theme: 'dark' }); });
+    await act(async () => { vi.advanceTimersByTime(11_000); });
+    vi.useRealTimers();
+
+    const putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(0);
+    await expect(p).resolves.toBeUndefined();
+  });
+});
+
 describe('seedIfEmpty (PREF-11/D-14)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

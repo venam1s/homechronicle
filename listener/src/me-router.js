@@ -54,17 +54,34 @@ export function createMeRouter({ pool }) {
     }
 
     try {
-      // D-05: whole-blob replace (last-writer-wins). RETURNING prefs gives us the stored value.
-      // T-24-SQLI: parameterized $1/$2::jsonb — no string interpolation.
+      // D-05: shallow MERGE (last-writer-wins per key; keys are never removed), not a
+      // whole-blob replace. Why: a client whose ['me','preferences'] GET has not resolved
+      // (e.g. `retry:false` racing a transient 502) could otherwise build its PUT body from
+      // an incomplete cache and truncate another device's keys server-side (M-7). Every known
+      // client writer (SettingsTab's grouped writes, usePreference's single-key write,
+      // UserPreferencesProvider's seedIfEmpty) sends an ADDITIVE partial, so key removal is
+      // deliberately unsupported. `jsonb ||` is a SHALLOW merge — an object/array-valued key
+      // (e.g. dashboardLayouts, quietHoursExcludedAccessories) is replaced wholesale by the
+      // incoming value, which is the desired semantics for those keys.
+      //
+      // Because merged blobs can only grow, the pre-DB byte cap above is no longer sufficient
+      // on its own (T-dfe-02): the WHERE octet_length(...) guard re-checks the cap AFTER the
+      // merge and rejects an over-cap result by updating zero rows, which RETURNING then
+      // surfaces as an empty row set below.
+      // T-24-SQLI: parameterized $1/$2::jsonb/$3 — no string interpolation.
       const { rows } = await pool.query(
         `INSERT INTO user_preferences (user_id, prefs, updated_at)
          VALUES ($1, $2::jsonb, now())
          ON CONFLICT (user_id) DO UPDATE
-           SET prefs = EXCLUDED.prefs,
+           SET prefs = user_preferences.prefs || EXCLUDED.prefs,
                updated_at = now()
+           WHERE octet_length((user_preferences.prefs || EXCLUDED.prefs)::text) <= $3
          RETURNING prefs`,
-        [userId, serialized],
+        [userId, serialized, MAX_PREFS_BYTES],
       );
+      if (!rows.length) {
+        return res.status(400).json({ error: 'prefs payload too large' });
+      }
       return res.json({ prefs: rows[0].prefs });
     } catch (err) {
       log.error('[api] PUT /api/me/preferences error:', err.message ?? err);
