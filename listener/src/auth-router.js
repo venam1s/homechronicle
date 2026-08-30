@@ -496,6 +496,21 @@ export function createAuthPublicRouter({
 export function createAuthProtectedRouter({ pool, SESSION_COOKIE_SECURE = false }) {
   const router = express.Router();
 
+  // A dedicated instance, deliberately SEPARATE from authLimiter (closed over
+  // by createAuthPublicRouter and out of scope here): the password-change
+  // budget must not share state with the login budget, so a burst of failed
+  // logins cannot lock a legitimate user out of changing their password, and
+  // vice-versa (auth L-3, audit 2026-08-30).
+  const passwordChangeLimiter = rateLimit({
+    windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
+    max: AUTH_RATE_LIMIT_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: false,
+    keyGenerator: rateLimitKeyGenerator,
+    message: { error: 'Too many requests' },
+  });
+
   // -- GET /me — AUTH-03: return authenticated user --
   router.get('/me', async (req, res) => {
     try {
@@ -540,7 +555,12 @@ export function createAuthProtectedRouter({ pool, SESSION_COOKIE_SECURE = false 
   // -- PATCH /password — PWD-01: change own password --
   // Requires valid session (auth gate). Verifies current password before accepting a
   // new one, then revokes ALL sessions to force re-authentication on every device.
-  router.patch('/password', async (req, res) => {
+  // Rate-limited (auth L-3, audit 2026-08-30): without a limiter, a stolen
+  // session gets an unlimited current-password oracle (bounded only by
+  // argon2id, ~1k guesses/min), and a successful guess makes the theft
+  // permanent by letting the attacker set a new password the real owner
+  // doesn't know.
+  router.patch('/password', passwordChangeLimiter, async (req, res) => {
     try {
       if (!req.hcSession) {
         return res.status(401).json({ error: 'Unauthorized' });
