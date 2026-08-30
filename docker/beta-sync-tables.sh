@@ -42,7 +42,7 @@
 # longer inherit and re-fire webhooks aimed at prod's real (e.g. paging/
 # notification) targets, since it never receives prod's alert_rules rows.
 
-BETA_SYNC_EXCLUDED_TABLES="users sessions invites password_reset_tokens user_preferences alert_rules alert_deliveries"
+BETA_SYNC_EXCLUDED_TABLES="users sessions invites password_reset_tokens user_preferences"
 
 # beta_sync_exclude_flags — prints the concatenated
 # `--exclude-table=public.<table>` flags for BETA_SYNC_EXCLUDED_TABLES on
@@ -62,4 +62,30 @@ beta_sync_exclude_flags() {
     _flags="$_flags --exclude-table=public.${_t} --exclude-table=public.${_t}_id_seq"
   done
   printf '%s' "$_flags"
+}
+
+# alert_rules / alert_deliveries are deliberately NOT excluded: they are real data
+# beta should show, and excluding alert_deliveries leaves beta's copy holding an
+# FK onto event_logs so `--clean` cannot drop event_logs_pkey (seen 2026-08-30).
+# The only problem they carry is alert_rules.user_id -> users(id) (migration 0008):
+# users is excluded, so prod owner ids would not exist in beta and the dump's
+# post-data `ADD CONSTRAINT alert_rules_user_id_fkey` would fail validation.
+# Strip that one FK from the dump stream, then null the owners and re-add the
+# constraint inside the same restore transaction.
+
+# Filter for the pg_dump stream: drop any `ALTER TABLE ONLY public.<t>` +
+# `ADD CONSTRAINT ... REFERENCES public.users(` pair (pg_dump emits FKs on two
+# lines) and, defensively, any single-line form. POSIX/BusyBox sed compatible.
+beta_sync_strip_user_fks() {
+  sed -E \
+    -e '/^ALTER TABLE ONLY public\.[a-z_]+$/{N;/REFERENCES public\.users\(/d;}' \
+    -e '/ADD CONSTRAINT .*REFERENCES public\.users\(/d'
+}
+
+# SQL to append to the restore stream (same --single-transaction) after the dump.
+beta_sync_post_restore_sql() {
+  printf '%s\n' \
+    'UPDATE alert_rules SET user_id = NULL WHERE user_id IS NOT NULL;' \
+    'ALTER TABLE alert_rules DROP CONSTRAINT IF EXISTS alert_rules_user_id_fkey;' \
+    'ALTER TABLE alert_rules ADD CONSTRAINT alert_rules_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;'
 }

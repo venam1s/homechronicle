@@ -129,8 +129,12 @@ DUMP_EXCLUDE="$(beta_sync_exclude_flags)"
 BETA_MIGRATIONS_SQL="$(PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -tAqc \
   "SELECT string_agg(format('INSERT INTO pgmigrations (name, run_on) SELECT %L, %L WHERE NOT EXISTS (SELECT 1 FROM pgmigrations WHERE name = %L);', name, run_on, name), E'\n') FROM pgmigrations" 2>/dev/null || true)"
 
-log "dumping prod and restoring into beta (--clean --if-exists, single-transaction; excluding auth + FK-bearing tables from shared list)"
-PGPASSWORD="$PROD_DB_PASSWORD" pg_dump -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" -U "$PROD_DB_USER" -d "$PROD_DB_NAME" --clean --if-exists --no-owner $DUMP_EXCLUDE \
+log "dumping prod and restoring into beta (--clean --if-exists, single-transaction; excluding: ${BETA_SYNC_EXCLUDED_TABLES}; alert_rules.user_id FK stripped + owners nulled)"
+# Subshell: dump (with the users FK stripped) followed by the post-restore SQL, all
+# in ONE psql --single-transaction so a failure anywhere leaves beta untouched.
+( PGPASSWORD="$PROD_DB_PASSWORD" pg_dump -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" -U "$PROD_DB_USER" -d "$PROD_DB_NAME" --clean --if-exists --no-owner $DUMP_EXCLUDE \
+    | beta_sync_strip_user_fks
+  beta_sync_post_restore_sql ) \
   | PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -v ON_ERROR_STOP=1 --single-transaction -q
 rc=$?
 if [ "$rc" -ne 0 ]; then
