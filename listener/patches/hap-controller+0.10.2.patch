@@ -1,0 +1,25 @@
+diff --git a/node_modules/hap-controller/lib/transport/ip/http-connection.js b/node_modules/hap-controller/lib/transport/ip/http-connection.js
+index f40685b..8bfbe43 100644
+--- a/node_modules/hap-controller/lib/transport/ip/http-connection.js
++++ b/node_modules/hap-controller/lib/transport/ip/http-connection.js
+@@ -287,7 +287,19 @@ class HttpConnection extends events_1.EventEmitter {
+                         parser.execute(decryptedData);
+                     }
+                     catch (e) {
+-                        // pass
++                        // A MAC failure means the a2c counter has desynced from the
++                        // accessory's c2a counter — every subsequent frame on this
++                        // session will fail the same way, so the session is
++                        // unrecoverable. Advancing past the bad frame alone would
++                        // just spin through the rest of `message` re-failing; instead
++                        // we terminate the loop, detach this parser, and tear the
++                        // socket down so the existing 'close' handler emits
++                        // 'disconnect', which subscriber.js already uses to
++                        // reconnect and resubscribe from scratch.
++                        message = message.slice(18 + frameLength, message.length);
++                        this.socket.removeListener('data', bodyParser);
++                        this.socket?.destroy?.();
++                        return reject(new Error(`Received undecryptable HAP frame (MAC verification failed): ${e.message ?? e}`));
+                     }
+                 }
+             };
