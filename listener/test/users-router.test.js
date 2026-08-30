@@ -332,6 +332,13 @@ test('POST /api/users/invite returns 400 for missing email', async () => {
   assert.equal(res.status, 400);
 });
 
+test('POST /api/users/invite returns 400 for a malformed email address (L-1)', async () => {
+  const { app } = buildApp({ session: adminSession, poolBehavior: [] });
+  const res = await request(app, 'POST', '/api/users/invite', { email: 'not-an-email', role: 'member' });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /valid email address/i);
+});
+
 test('POST /api/users/invite stores token hash not raw token (D-10 security)', async () => {
   const { app, pool } = buildApp({
     session: adminSession,

@@ -548,6 +548,19 @@ test('POST /api/auth/claim-admin with missing fields returns 400', async () => {
   assert.equal(res.status, 400);
 });
 
+test('POST /api/auth/claim-admin rejects a malformed email address (L-1)', async () => {
+  const pool = createMockPool();
+  const app = buildApp({ pool });
+
+  const res = await supertest(app)
+    .post('/api/auth/claim-admin')
+    .send({ email: 'not-an-email', password: 'a-strong-passphrase-1' });
+
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /valid email address/i);
+  assert.equal(pool.users.length, 0, 'no user row may be created for a malformed email');
+});
+
 test('POST /api/auth/claim-admin rejects a password shorter than 12 chars (WR-01)', async () => {
   const pool = createMockPool();
   const app = buildApp({ pool });

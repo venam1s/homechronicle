@@ -275,3 +275,44 @@ test('COMMON_PASSWORDS blocklist has between 1 and 199 entries', async () => {
   assert.equal(homechronicleResult.ok, false, 'homechronicle must be blocked by blocklist');
   assert.match(homechronicleResult.error, /too common/i);
 });
+
+// -- validateEmailAddress (L-1) --
+
+import { validateEmailAddress } from '../src/security.js';
+
+test('validateEmailAddress accepts a valid address and normalizes it (trim + lowercase)', () => {
+  const result = validateEmailAddress('  User@Example.COM  ');
+  assert.equal(result.error, undefined);
+  assert.equal(result.value, 'user@example.com');
+});
+
+test('validateEmailAddress rejects an empty value', () => {
+  const result = validateEmailAddress('');
+  assert.equal(result.value, undefined);
+  assert.match(result.error, /required/i);
+});
+
+test('validateEmailAddress rejects an address over 254 chars (length check before regex)', () => {
+  const longLocal = 'a'.repeat(255);
+  const result = validateEmailAddress(`${longLocal}@example.com`);
+  assert.equal(result.value, undefined);
+  assert.match(result.error, /too long/i);
+});
+
+test('validateEmailAddress rejects a string with no @ sign', () => {
+  const result = validateEmailAddress('no-at-sign');
+  assert.equal(result.value, undefined);
+  assert.match(result.error, /valid email address/i);
+});
+
+test('validateEmailAddress rejects an address with no dot in the domain', () => {
+  const result = validateEmailAddress('a@b');
+  assert.equal(result.value, undefined);
+  assert.match(result.error, /valid email address/i);
+});
+
+test('validateEmailAddress rejects an address with internal whitespace', () => {
+  const result = validateEmailAddress('a b@c.d');
+  assert.equal(result.value, undefined);
+  assert.match(result.error, /valid email address/i);
+});
