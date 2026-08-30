@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { scrypt, randomBytes as cryptoRandomBytes } from 'node:crypto';
 import { promisify } from 'node:util';
+import express from 'express';
+import supertest from 'supertest';
 import {
   resolveAndValidateWebhookTarget,
   secureTokenEquals,
@@ -13,9 +15,15 @@ import {
   rateLimitKeyGenerator,
 } from '../src/security.js';
 
-// T-20-BRUTE: the auth rate limiter must key per real client IP behind a proxy,
-// but only when Express `trust proxy` is configured — otherwise X-Forwarded-For is
-// attacker-spoofable. These tests pin both halves of that contract.
+// H-4 / T-20-BRUTE: the auth rate limiter must key per real client IP, never on
+// a raw X-Forwarded-For read. Express's own `req.ip` already applies the
+// `trust proxy` hop count (index.js TRUST_PROXY), walking the forwarded chain
+// from the RIGHT and skipping n trusted hops. nginx only ever APPENDS to
+// X-Forwarded-For via $proxy_add_x_forwarded_for, so the LEFTMOST entry is
+// whatever the client supplied — reading it directly hands an attacker the
+// rate-limit bucket key. rateLimitKeyGenerator must therefore be a thin
+// wrapper over req.ip/req.socket.remoteAddress and must never read
+// x-forwarded-for itself; TRUST_PROXY is the only knob (set in index.js).
 function fakeReq({ trustProxy, xff, ip } = {}) {
   return {
     app: { get: (key) => (key === 'trust proxy' ? trustProxy : undefined) },
@@ -32,14 +40,62 @@ test('rateLimitKeyGenerator ignores X-Forwarded-For when trust proxy is unset (a
   assert.equal(rateLimitKeyGenerator(req), '10.0.0.1');
 });
 
-test('rateLimitKeyGenerator keys on the first X-Forwarded-For client when trust proxy is set', () => {
+test('rateLimitKeyGenerator uses req.ip (not a spoofed leftmost X-Forwarded-For entry) when trust proxy is set (H-4 anti-spoof)', () => {
+  // nginx APPENDS via $proxy_add_x_forwarded_for, so the leftmost XFF entry is
+  // whatever the client sent — it must never become the rate-limit key. The
+  // key must be the trust-proxy-resolved req.ip instead.
   const req = fakeReq({ trustProxy: 1, xff: '203.0.113.9, 10.0.0.1', ip: '10.0.0.1' });
-  assert.equal(rateLimitKeyGenerator(req), '203.0.113.9');
+  assert.equal(rateLimitKeyGenerator(req), '10.0.0.1');
+  assert.notEqual(rateLimitKeyGenerator(req), '203.0.113.9');
 });
 
 test('rateLimitKeyGenerator falls back to req.ip when trust proxy is set but no X-Forwarded-For present', () => {
   const req = fakeReq({ trustProxy: 1, xff: undefined, ip: '198.51.100.7' });
   assert.equal(rateLimitKeyGenerator(req), '198.51.100.7');
+});
+
+// K = XFF entry count must be >= N+1 (N = trust proxy hop count) for the
+// leftmost (client-spoofable) entry to be excludable at all: proxy-addr builds
+// addrs = [socketRemote, ...reverse(xff)] and trusts the first N of them
+// (i < N), returning the first UNtrusted address. With K <= N every address in
+// the header is trusted and the leftmost entry leaks straight through — that
+// is not a bug in rateLimitKeyGenerator, it is what "hop count" means. K=N+1
+// is also the real production shape: attacker sends one spoofed entry, then
+// each of the N real reverse-proxy hops appends its own perceived remote via
+// $proxy_add_x_forwarded_for, so a genuine request always carries at least
+// N+1 entries once it reaches the listener.
+test('rateLimitKeyGenerator (Express-level, trust proxy 1) resolves to the real appended hop, never the spoofed leftmost X-Forwarded-For entry', async () => {
+  const app = express();
+  app.set('trust proxy', 1);
+  app.get('/k', (req, res) => res.json({ key: rateLimitKeyGenerator(req) }));
+
+  // Attacker-spoofed leftmost entry + the one real hop (nginx) appending its
+  // own perceived remote — the production shape for TRUST_PROXY=1.
+  const res = await supertest(app)
+    .get('/k')
+    .set('X-Forwarded-For', '203.0.113.9, 10.0.0.1');
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.key, '10.0.0.1');
+  assert.notEqual(res.body.key, '203.0.113.9');
+});
+
+test('rateLimitKeyGenerator (Express-level, trust proxy 2) walks the hop count from the right, resolving to the real client and never either proxy-adjacent or spoofed entry', async () => {
+  const app = express();
+  app.set('trust proxy', 2);
+  app.get('/k', (req, res) => res.json({ key: rateLimitKeyGenerator(req) }));
+
+  // Attacker-spoofed leftmost entry + two real hops (Traefik, nginx) each
+  // appending their own perceived remote — the production shape for beta's
+  // TRUST_PROXY=2 (TLS terminator in front of the bundled nginx).
+  const res = await supertest(app)
+    .get('/k')
+    .set('X-Forwarded-For', '203.0.113.9, 198.51.100.4, 10.0.0.1');
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.key, '198.51.100.4');
+  assert.notEqual(res.body.key, '203.0.113.9');
+  assert.notEqual(res.body.key, '10.0.0.1');
 });
 
 test('secureTokenEquals uses exact token match semantics', () => {
