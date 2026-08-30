@@ -63,22 +63,51 @@ const ALERTS_WRITE_RATE_LIMIT_MAX = parseIntInRange(
   100_000
 );
 
+// API-L-4: name / scopeValue / matchValue / characteristic flow into the
+// outbound webhook payload and email subject; cap all four so a household
+// member cannot stuff an oversized string into either channel.
+const MAX_TEXT_LEN = 200;
+
+// M-3: per-user and household ceilings on the number of alert rules, so a
+// single member cannot turn the listener into an unbounded outbound POST
+// relay or a delivery-row firehose simply by creating enough rules.
+const ALERTS_MAX_RULES_PER_USER = parseIntInRange(
+  process.env.ALERTS_MAX_RULES_PER_USER,
+  25,
+  1,
+  10_000
+);
+const ALERTS_MAX_RULES_TOTAL = parseIntInRange(
+  process.env.ALERTS_MAX_RULES_TOTAL,
+  100,
+  1,
+  100_000
+);
+
+function textCapError(field) {
+  return { error: `${field} must be ${MAX_TEXT_LEN} characters or fewer` };
+}
+
 function validateCreate(body = {}) {
   const name = String(body.name ?? '').trim();
   if (!name) return { error: 'name is required' };
+  if (name.length > MAX_TEXT_LEN) return textCapError('name');
 
   const scopeType = parseScopeType(body.scopeType);
   if (!scopeType) return { error: 'scopeType must be one of: all, room, accessory, characteristic' };
 
   const scopeValue = String(body.scopeValue ?? '').trim();
   if (scopeType !== 'all' && !scopeValue) return { error: 'scopeValue is required for this scopeType' };
+  if (scopeValue.length > MAX_TEXT_LEN) return textCapError('scopeValue');
 
   const characteristic = String(body.characteristic ?? '').trim() || null;
+  if (characteristic && characteristic.length > MAX_TEXT_LEN) return textCapError('characteristic');
   const operator = parseOperator(body.operator);
   if (!operator) return { error: 'operator must be one of: equals, not_equals, contains' };
 
   const matchValue = String(body.matchValue ?? '').trim();
   if (!matchValue) return { error: 'matchValue is required' };
+  if (matchValue.length > MAX_TEXT_LEN) return textCapError('matchValue');
 
   const channel = String(body.channel ?? 'webhook').trim().toLowerCase();
   if (channel !== 'webhook' && channel !== 'email') {
@@ -126,6 +155,7 @@ function validatePatch(body = {}) {
   if ('name' in body) {
     const name = String(body.name ?? '').trim();
     if (!name) return { error: 'name cannot be empty' };
+    if (name.length > MAX_TEXT_LEN) return textCapError('name');
     updates.name = name;
   }
   if ('enabled' in body) {
@@ -137,10 +167,14 @@ function validatePatch(body = {}) {
     updates.scopeType = scopeType;
   }
   if ('scopeValue' in body) {
-    updates.scopeValue = String(body.scopeValue ?? '').trim();
+    const scopeValue = String(body.scopeValue ?? '').trim();
+    if (scopeValue.length > MAX_TEXT_LEN) return textCapError('scopeValue');
+    updates.scopeValue = scopeValue;
   }
   if ('characteristic' in body) {
-    updates.characteristic = String(body.characteristic ?? '').trim() || null;
+    const characteristic = String(body.characteristic ?? '').trim() || null;
+    if (characteristic && characteristic.length > MAX_TEXT_LEN) return textCapError('characteristic');
+    updates.characteristic = characteristic;
   }
   if ('operator' in body) {
     const operator = parseOperator(body.operator);
@@ -150,6 +184,7 @@ function validatePatch(body = {}) {
   if ('matchValue' in body) {
     const matchValue = String(body.matchValue ?? '').trim();
     if (!matchValue) return { error: 'matchValue cannot be empty' };
+    if (matchValue.length > MAX_TEXT_LEN) return textCapError('matchValue');
     updates.matchValue = matchValue;
   }
   if ('targetUrl' in body) {
@@ -345,6 +380,25 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     }
 
     try {
+      // M-3: per-user and household rule caps, checked in the same round trip
+      // to keep POST /rules a single extra query. Caps apply to admins too.
+      const capCheck = await pool.query(
+        `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE user_id = $1)::int AS mine
+         FROM alert_rules`,
+        [req.hcSession.user_id]
+      );
+      const { total, mine } = capCheck.rows[0];
+      if (mine >= ALERTS_MAX_RULES_PER_USER) {
+        return res.status(400).json({
+          error: `Rule limit reached (max ${ALERTS_MAX_RULES_PER_USER} rules per user)`,
+        });
+      }
+      if (total >= ALERTS_MAX_RULES_TOTAL) {
+        return res.status(400).json({
+          error: `Household rule limit reached (max ${ALERTS_MAX_RULES_TOTAL} rules)`,
+        });
+      }
+
       const result = await pool.query(
         `INSERT INTO alert_rules
            (name, enabled, scope_type, scope_value, characteristic, operator, match_value,

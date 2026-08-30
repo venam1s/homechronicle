@@ -249,13 +249,16 @@ test('processAlertsForEvent suppresses rapid-fire events on email rule within qu
   const pool = {
     async query(sql, params = []) {
       if (sql.includes('FROM alert_rules')) {
+        // Distinct rule id (2) so this test's suppressed-row dedupe state
+        // (module-global lastSuppressedRowAt, added in Task 2) does not
+        // collide with the id=1 suppression test earlier in this file.
         return {
-          rows: [makeRule({ channel: 'email', target_email: 'alert@example.com', target_url: null, quiet_minutes: 10 })],
+          rows: [makeRule({ id: 2, channel: 'email', target_email: 'alert@example.com', target_url: null, quiet_minutes: 10 })],
         };
       }
       if (sql.includes('DISTINCT ON (rule_id)')) {
         // Return a prior sent delivery within the quiet period
-        return { rows: [{ rule_id: 1, sent_at: new Date().toISOString() }] };
+        return { rows: [{ rule_id: 2, sent_at: new Date().toISOString(), status: 'sent' }] };
       }
       if (sql.startsWith('INSERT INTO alert_deliveries')) {
         deliveries.push({
@@ -278,6 +281,153 @@ test('processAlertsForEvent suppresses rapid-fire events on email rule within qu
     assert.equal(deliveries.length, 1, 'one suppressed delivery row expected');
     assert.equal(deliveries[0].status, 'suppressed', 'delivery status must be suppressed');
     assert.equal(deliveries[0].channel, 'email', 'suppressed delivery channel must be email');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+// -- M-3: bounded fan-out, in-flight ceiling, failure-aware suppression, dedupe --
+
+test('processAlertsForEvent bounds concurrent sends to ALERTS_FANOUT_CONCURRENCY and attempts all matching rules (M-3)', async () => {
+  const rules = Array.from({ length: 12 }, (_, i) =>
+    makeRule({ id: i + 1, scope_type: 'all', target_url: `https://203.0.113.10/hook-${i + 1}` })
+  );
+  const deliveries = [];
+  const pool = {
+    async query(sql, params = []) {
+      if (sql.includes('FROM alert_rules')) return { rows: rules };
+      if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+      if (sql.startsWith('INSERT INTO alert_deliveries')) {
+        deliveries.push({ ruleId: params[0], status: params[2] });
+        return { rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+
+  let current = 0;
+  let peak = 0;
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    current += 1;
+    peak = Math.max(peak, current);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    current -= 1;
+    return { ok: true, status: 200 };
+  };
+  try {
+    await processAlertsForEvent(pool, makeEvent());
+    assert.equal(deliveries.length, 12, 'all 12 matching rules must be attempted');
+    assert.ok(peak <= 4, `peak observed concurrency ${peak} must not exceed ALERTS_FANOUT_CONCURRENCY (4)`);
+    assert.ok(peak > 1, 'fan-out must run rules concurrently, not strictly sequentially');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('processAlertsForEvent drops rules beyond the module-global in-flight ceiling and writes no delivery row (M-3)', async () => {
+  const originalEnv = process.env.ALERTS_MAX_INFLIGHT;
+  process.env.ALERTS_MAX_INFLIGHT = '1';
+  try {
+    // Cache-busted dynamic import so this test observes a fresh module
+    // instance with its own inFlight counter, isolated from the statically
+    // imported alerts.js used by every other test in this file (ESM caches
+    // one instance per resolved specifier; ALERTS_MAX_INFLIGHT is read once
+    // at module load).
+    const { processAlertsForEvent: processWithCeiling } = await import(
+      `../src/alerts.js?ceiling-test=${Date.now()}-${Math.random()}`
+    );
+    const rules = Array.from({ length: 3 }, (_, i) =>
+      makeRule({ id: i + 1, scope_type: 'all', target_url: `https://203.0.113.10/hook-ceiling-${i + 1}` })
+    );
+    const deliveries = [];
+    const pool = {
+      async query(sql, params = []) {
+        if (sql.includes('FROM alert_rules')) return { rows: rules };
+        if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+        if (sql.startsWith('INSERT INTO alert_deliveries')) {
+          deliveries.push({ ruleId: params[0], status: params[2] });
+          return { rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+    const originalFetch = global.fetch;
+    global.fetch = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      return { ok: true, status: 200 };
+    };
+    try {
+      await processWithCeiling(pool, makeEvent());
+      assert.ok(
+        deliveries.length < rules.length,
+        `at least one of ${rules.length} rules must be dropped by ALERTS_MAX_INFLIGHT=1`
+      );
+      assert.ok(deliveries.length >= 1, 'the rule under the ceiling must still be delivered');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  } finally {
+    if (originalEnv === undefined) delete process.env.ALERTS_MAX_INFLIGHT;
+    else process.env.ALERTS_MAX_INFLIGHT = originalEnv;
+  }
+});
+
+test('processAlertsForEvent suppresses a rule whose last attempt failed even when quiet_minutes is 0 (M-3 failure backoff)', async () => {
+  const deliveries = [];
+  const pool = {
+    async query(sql, params = []) {
+      if (sql.includes('FROM alert_rules')) return { rows: [makeRule({ id: 201, quiet_minutes: 0 })] };
+      if (sql.includes('DISTINCT ON (rule_id)')) {
+        return { rows: [{ rule_id: 201, sent_at: new Date().toISOString(), status: 'failed' }] };
+      }
+      if (sql.startsWith('INSERT INTO alert_deliveries')) {
+        deliveries.push({ status: params[2], error: params[7] });
+        return { rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+
+  const originalFetch = global.fetch;
+  let fetchCalls = 0;
+  global.fetch = async () => {
+    fetchCalls += 1;
+    return { ok: true, status: 200 };
+  };
+  try {
+    await processAlertsForEvent(pool, makeEvent());
+    assert.equal(fetchCalls, 0, 'a rule backed off after a recent failure must not be retried on the very next event');
+    assert.equal(deliveries.length, 1);
+    assert.equal(deliveries[0].status, 'suppressed');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('processAlertsForEvent writes at most one suppressed delivery row per rule per window (M-3 dedupe)', async () => {
+  const deliveries = [];
+  const pool = {
+    async query(sql, params = []) {
+      if (sql.includes('FROM alert_rules')) return { rows: [makeRule({ id: 202, quiet_minutes: 10 })] };
+      if (sql.includes('DISTINCT ON (rule_id)')) {
+        return { rows: [{ rule_id: 202, sent_at: new Date().toISOString(), status: 'sent' }] };
+      }
+      if (sql.startsWith('INSERT INTO alert_deliveries')) {
+        deliveries.push({ status: params[2] });
+        return { rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, status: 200 });
+  try {
+    await processAlertsForEvent(pool, makeEvent());
+    await processAlertsForEvent(pool, makeEvent());
+    assert.equal(deliveries.length, 1, 'a second suppressed fire inside the same window must write no additional row');
+    assert.equal(deliveries[0].status, 'suppressed');
   } finally {
     global.fetch = originalFetch;
   }

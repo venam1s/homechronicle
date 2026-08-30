@@ -86,6 +86,11 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 | `ALERTS_ENABLED` | `false` | listener | Enable alert rule processing. |
 | `ALERTS_WEBHOOK_TIMEOUT_MS` | `5000` | listener | Timeout for alert webhook delivery. |
 | `ALERTS_ALLOW_PRIVATE_TARGETS` | `true` | listener | Allow webhook targets on RFC1918/private ranges. Set to `false` to block private IPs. Loopback/link-local targets are always blocked. |
+| `ALERTS_MAX_RULES_PER_USER` | `25` | listener | Max alert rules a single user may own. `POST /api/alerts/rules` returns 400 once reached. |
+| `ALERTS_MAX_RULES_TOTAL` | `100` | listener | Max alert rules across the whole household. `POST /api/alerts/rules` returns 400 once reached, even for a user under their own cap. |
+| `ALERTS_FANOUT_CONCURRENCY` | `4` | listener | Max concurrent outbound sends (webhook/email) per matching-event fan-out. |
+| `ALERTS_MAX_INFLIGHT` | `50` | listener | Module-global ceiling on concurrent in-flight sends across all events; rules beyond it are dropped with a log warning and no delivery row. |
+| `ALERTS_FAILURE_BACKOFF_MS` | `60000` | listener | Minimum backoff after a rule's last delivery attempt failed, applied even when `quiet_minutes` is 0, so a broken target is not retried on every matching event. |
 | `RUN_CYCLE_OFF_DELAY_MS` | `900000` | listener | Delay synthetic OFF for run-cycle switches. |
 | `RECONNECT_BASE_MS` | `5000` | listener | Initial reconnect delay for HomeKit subscribers. |
 | `RECONNECT_MAX_MS` | `60000` | listener | Max reconnect delay for HomeKit subscribers. |

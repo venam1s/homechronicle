@@ -93,6 +93,13 @@ function createMockPool({ initialRules = [], deliveries: initialDeliveries } = {
         return { rows };
       }
 
+      // -- POST /rules pre-insert cap check (M-3) --
+      if (sql.includes('COUNT(*)::int AS total') && sql.includes('FROM alert_rules')) {
+        const owner = params[0];
+        const mine = rules.filter((r) => r.user_id === owner).length;
+        return { rows: [{ total: rules.length, mine }] };
+      }
+
       // -- POST /rules (INSERT) --
       if (sql.startsWith('INSERT INTO alert_rules')) {
         // 12-param INSERT: $1=name, $2=enabled, $3=scope_type, $4=scope_value,
