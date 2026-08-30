@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildSmtpConfig } from '../src/smtp-config.js';
+import { buildSmtpConfig, validateAppBaseUrl } from '../src/smtp-config.js';
 
 // -- Helper: save/restore SMTP_REQUIRE_TLS around each test so ordering cannot leak --
 
@@ -64,4 +64,33 @@ test('buildSmtpConfig: SMTP_REQUIRE_TLS="true" -> requireTLS true', () => {
     const config = buildSmtpConfig({ host: 'smtp.example.com', port: 587 }, 'secret');
     assert.equal(config.requireTLS, true);
   });
+});
+
+// -- validateAppBaseUrl (L-4) --
+
+test('validateAppBaseUrl: empty string is ok', () => {
+  assert.equal(validateAppBaseUrl('').ok, true);
+});
+
+test('validateAppBaseUrl: accepts https://hc.example.com', () => {
+  assert.equal(validateAppBaseUrl('https://hc.example.com').ok, true);
+});
+
+test('validateAppBaseUrl: accepts http://10.0.0.5:3000', () => {
+  assert.equal(validateAppBaseUrl('http://10.0.0.5:3000').ok, true);
+});
+
+test('validateAppBaseUrl: rejects javascript:alert(1)', () => {
+  const result = validateAppBaseUrl('javascript:alert(1)');
+  assert.equal(result.ok, false);
+});
+
+test('validateAppBaseUrl: rejects ftp://x.example.com', () => {
+  const result = validateAppBaseUrl('ftp://x.example.com');
+  assert.equal(result.ok, false);
+});
+
+test('validateAppBaseUrl: rejects "not a url"', () => {
+  const result = validateAppBaseUrl('not a url');
+  assert.equal(result.ok, false);
 });

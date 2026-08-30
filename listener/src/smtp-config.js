@@ -131,3 +131,29 @@ export function envOverriddenFields(_snapshot) {
 export function getAppBaseUrl() {
   return (process.env.APP_BASE_URL ?? '').trim();
 }
+
+/**
+ * Validate that a base URL is either empty (the missing-value warning already
+ * exists elsewhere) or a well-formed http(s) URL (L-4). Pure function, no
+ * logging inside — callers decide how to surface the result.
+ *
+ * @param {string} rawUrl
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+export function validateAppBaseUrl(rawUrl) {
+  const value = String(rawUrl ?? '').trim();
+  if (!value) return { ok: true };
+
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return { ok: false, error: 'APP_BASE_URL must be a valid URL' };
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { ok: false, error: 'APP_BASE_URL must use http or https' };
+  }
+
+  return { ok: true };
+}

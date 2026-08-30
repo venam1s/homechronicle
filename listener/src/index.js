@@ -44,7 +44,7 @@ import {
 import { getHomeKitPairings, createStoreHelpers } from './setup-helpers.js';
 import { createDiscoveryHelpers } from './discovery-helpers.js';
 import { initEmail, sendInvite, sendPasswordReset, isEmailEnabled } from './emails.js';
-import { readSmtpSecret, writeSmtpSecret, buildSmtpConfig, envOverriddenFields, getAppBaseUrl, SMTP_CONFIG_FILE } from './smtp-config.js';
+import { readSmtpSecret, writeSmtpSecret, buildSmtpConfig, envOverriddenFields, getAppBaseUrl, validateAppBaseUrl, SMTP_CONFIG_FILE } from './smtp-config.js';
 import { createSmtpRouter } from './smtp-router.js';
 import { createUsersRouter } from './users-router.js';
 import { createMeRouter } from './me-router.js';
@@ -147,6 +147,12 @@ const SESSION_MAX_AGE_REMEMBER = parseIntInRange(
 const APP_BASE_URL = getAppBaseUrl();
 if (!APP_BASE_URL) {
   log.warn('[api] APP_BASE_URL is not set — invite and password-reset email links will be unusable until APP_BASE_URL is configured');
+} else {
+  const appBaseUrlCheck = validateAppBaseUrl(APP_BASE_URL);
+  if (!appBaseUrlCheck.ok) {
+    // Warn only — never exit. An existing deployment with an odd base URL must keep booting (L-4).
+    log.warn(`[api] APP_BASE_URL is not a valid http(s) URL — invite and password-reset links will be broken: ${appBaseUrlCheck.error}`);
+  }
 }
 
 if (IS_PRODUCTION && !AUTH_ENABLED && !API_TOKEN) {

@@ -40,6 +40,27 @@ function escapeHtml(str) {
 }
 
 /**
+ * Escape untrusted text for safe embedding inside an HTML attribute value
+ * (e.g. href="...") (L-4). Escapes the same five HTML-significant characters
+ * as escapeHtml, but deliberately WITHOUT its \n -> <br> transform, which is
+ * wrong inside an attribute. Current URL slots (invite/reset tokens, the
+ * admin-configured APP_BASE_URL) are hex-token-only or operator-controlled,
+ * so this is defence in depth against a future regression, not a fix for a
+ * reachable issue today.
+ *
+ * @param {string} str — untrusted input
+ * @returns {string} — attribute-safe string
+ */
+function escapeAttr(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Render a complete, email-client-safe branded HTML email.
  * Table-based layout, all CSS inline, no <style> blocks, no external assets.
  * The "homechronicle" wordmark uses styled-text spans (no inline SVG).
@@ -62,7 +83,7 @@ function renderEmailLayout({ heading, bodyHtml, ctaLabel, ctaUrl, footerNote }) 
     ? `
       <tr>
         <td style="padding: 24px 32px 8px 32px; text-align: center;">
-          <a href="${ctaUrl}"
+          <a href="${escapeAttr(ctaUrl)}"
              style="display: inline-block; background-color: #1d4ed8; color: #ffffff;
                     font-family: Arial, Helvetica, sans-serif; font-size: 15px;
                     font-weight: bold; text-decoration: none; padding: 12px 28px;
@@ -226,7 +247,7 @@ export async function sendInvite(to, inviteUrl, { from } = {}) {
     html: renderEmailLayout({
       heading: 'You have been invited to HomeChronicle',
       bodyHtml: `<p style="margin: 0 0 12px 0;">You have been invited to join HomeChronicle. Accept your invitation within 72 hours:</p>
-<p style="margin: 0; word-break: break-all;"><a href="${inviteUrl}" style="color: #1d4ed8;">${inviteUrl}</a></p>`,
+<p style="margin: 0; word-break: break-all;"><a href="${escapeAttr(inviteUrl)}" style="color: #1d4ed8;">${escapeAttr(inviteUrl)}</a></p>`,
       ctaLabel: 'Accept invitation',
       ctaUrl: inviteUrl,
       footerNote: 'This invitation expires in 72 hours.',
@@ -251,7 +272,7 @@ export async function sendPasswordReset(to, resetUrl, { from } = {}) {
     html: renderEmailLayout({
       heading: 'Reset your HomeChronicle password',
       bodyHtml: `<p style="margin: 0 0 12px 0;">Click the button below to reset your password. This link expires in 1 hour:</p>
-<p style="margin: 0; word-break: break-all;"><a href="${resetUrl}" style="color: #1d4ed8;">${resetUrl}</a></p>`,
+<p style="margin: 0; word-break: break-all;"><a href="${escapeAttr(resetUrl)}" style="color: #1d4ed8;">${escapeAttr(resetUrl)}</a></p>`,
       ctaLabel: 'Reset password',
       ctaUrl: resetUrl,
       footerNote: 'This link expires in 1 hour. If you did not request a password reset, you can ignore this email.',

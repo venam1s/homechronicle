@@ -538,3 +538,20 @@ test('buildTransportOptions: host, port, auth, and timeouts pass through unchang
   assert.equal(opts.socketTimeout, 15_000);
   assert.equal(opts.greetingTimeout, 10_000);
 });
+
+// -- URL attribute escaping (L-4) --
+
+test('sendInvite: html attribute-escapes a URL containing " and < (L-4)', async () => {
+  const mockTransport = await enableEmail();
+  // Not a realistic token, but proves the escaping path independent of URL validity.
+  const dangerousUrl = 'https://hc.example.com/accept-invite?token=abc"<script>';
+
+  await sendInvite('recipient@example.com', dangerousUrl, { from: 'noreply@hc.example.com' });
+
+  const call = mockTransport.calls.sendMail[0];
+  assert.ok(call.html.includes('&quot;'), 'html must contain the escaped double-quote');
+  assert.ok(call.html.includes('&lt;'), 'html must contain the escaped less-than');
+  assert.ok(!call.html.includes('token=abc"<script>'), 'html must not contain the raw unescaped URL');
+  assert.ok(call.text.includes(dangerousUrl), 'text body stays raw/unescaped');
+  await resetTransport();
+});
