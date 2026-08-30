@@ -5,6 +5,9 @@ import { ChevronLeft, ChevronRight, VolumeX, X, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useEvents, useAnomalies } from '../hooks/useEvents.js';
 import { useMutedDevices } from '../hooks/useMutedDevices.js';
+import { useAuth } from '../hooks/useAuth.js';
+import { useUserPreferences } from '../hooks/useUserPreferences.js';
+import { usePreference } from '../hooks/usePreference.js';
 import { API_BASE, withApiAuthHeaders, fetchJson } from '../lib/api.js';
 import { groupIntoScenes, groupScenesIntoEpisodes } from '../lib/episodes.js';
 import { formatGap } from '../lib/icons.js';
@@ -56,9 +59,45 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
     queryFn: () => fetchJson('/api/setup/retention'),
     staleTime: 30_000,
   });
-  const episodeWindowMs = (retentionConfig?.episodeWindowMinutes ?? 3) * 60_000;
-  const sceneWindowMs = (retentionConfig?.sceneWindowSeconds ?? 5) * 1000;
-  const episodeMinEventCount = retentionConfig?.episodeMinEventCount ?? 3;
+
+  // M-8: read grouping values from the per-user blob when present, retention otherwise.
+  // Keys/defaults/localStorage keys mirror SettingsTab.jsx:61-63 exactly so the same blob
+  // key is read here that SettingsTab writes. Timeline never writes these — read-only.
+  const { user } = useAuth();
+  const { prefs } = useUserPreferences();
+  const [blobEpisodeWindowMinutes] = usePreference('episodeWindowMinutes', 3, {
+    localStorageKey: 'hc_pref_episodeWindowMinutes',
+  });
+  const [blobSceneWindowSeconds] = usePreference('sceneWindowSeconds', 5, {
+    localStorageKey: 'hc_pref_sceneWindowSeconds',
+  });
+  const [blobEpisodeMinEventCount] = usePreference('episodeMinEventCount', 3, {
+    localStorageKey: 'hc_pref_episodeMinEventCount',
+  });
+
+  // Per-key presence predicate (mirrors SettingsTab's blobHasQh convention, D-25-03) rather
+  // than a blanket `user ? blob : retention` — App.jsx:93-102 seeds these three keys from
+  // retention on first login, so an authed user with no grouping key in the blob is a narrow
+  // upgrade cohort that the retention fallback below still covers. The retention fallback is
+  // read directly from retentionConfig (not passed as usePreference's defaultValue) so it
+  // stays REACTIVE — a defaultValue is only read once by the useState initializer and would
+  // freeze anon users at whatever retentionConfig happened to be on first render.
+  function hasBlobKey(k) {
+    return !!user && prefs != null && typeof prefs === 'object' && k in prefs;
+  }
+
+  const episodeWindowMinutes = hasBlobKey('episodeWindowMinutes')
+    ? blobEpisodeWindowMinutes
+    : (retentionConfig?.episodeWindowMinutes ?? 3);
+  const sceneWindowSeconds = hasBlobKey('sceneWindowSeconds')
+    ? blobSceneWindowSeconds
+    : (retentionConfig?.sceneWindowSeconds ?? 5);
+  const episodeMinEventCount = hasBlobKey('episodeMinEventCount')
+    ? blobEpisodeMinEventCount
+    : (retentionConfig?.episodeMinEventCount ?? 3);
+
+  const episodeWindowMs = episodeWindowMinutes * 60_000;
+  const sceneWindowMs = sceneWindowSeconds * 1000;
   const filtersKey = JSON.stringify(filters);
 
   const anomalyMap = useMemo(() => {

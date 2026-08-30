@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { Moon, CheckCircle2, X, EyeOff } from 'lucide-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useQuietHours } from '../hooks/useEvents.js';
+import { useAuth } from '../hooks/useAuth.js';
+import { useUserPreferences } from '../hooks/useUserPreferences.js';
+import { useToast } from './Toast.jsx';
 import { fetchJson } from '../lib/api.js';
 
 const DISMISS_KEY = 'hc:quiet-hours-dismissed';
@@ -26,9 +29,36 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
   const { data, isLoading, isError } = useQuietHours();
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === '1');
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { prefs, setPrefsBlob } = useUserPreferences();
+  const { addToast } = useToast();
+
+  // M-9: since Phase 25, stats-router resolves quiet hours from user_preferences whenever
+  // the blob carries quietHoursEnabled — mirrors SettingsTab.jsx:81's blobHasQh predicate so
+  // the presence check stays coherent between the two write sites.
+  const blobHasQh = !!user && prefs != null && 'quietHoursEnabled' in prefs;
 
   const excludeMutation = useMutation({
     mutationFn: async (accessoryId) => {
+      if (blobHasQh) {
+        // Blob branch: the server reads quiet hours from user_preferences for this user, so
+        // the retention PATCH below would mutate the wrong store (and 403 for non-admins).
+        const current = Array.isArray(prefs.quietHoursExcludedAccessories)
+          ? prefs.quietHoursExcludedAccessories
+          : [];
+        if (current.includes(accessoryId)) return null;
+        // All four QH keys every time (QH-08) — keeps the presence predicate coherent.
+        await setPrefsBlob({
+          quietHoursEnabled: prefs.quietHoursEnabled,
+          quietHoursStart: prefs.quietHoursStart ?? 23,
+          quietHoursEnd: prefs.quietHoursEnd ?? 6,
+          quietHoursExcludedAccessories: [...current, accessoryId],
+        });
+        // Marker: null means "no retention cache to write" — onSuccess distinguishes branches.
+        return null;
+      }
+
+      // Retention branch (today's code, verbatim) — admin-only PATCH.
       const retention = queryClient.getQueryData(['setup', 'retention']) ?? {};
       const current = Array.isArray(retention.quietHoursExcludedAccessories)
         ? retention.quietHoursExcludedAccessories
@@ -42,7 +72,16 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
     },
     onSuccess: (next) => {
       if (next) queryClient.setQueryData(['setup', 'retention'], next);
+      // Invalidate in both branches so the excluded row disappears either way (mirrors
+      // SettingsTab.jsx:757-766).
       queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
+    },
+    // setPrefsBlob's promise always resolves (never rejects), so the blob branch will not
+    // normally reach onError — that is expected. This toast exists for the retention
+    // branch's 403/500 and for genuine network failures; do not "fix" this by making
+    // setPrefsBlob reject, which would reintroduce unhandled rejections elsewhere.
+    onError: (err) => {
+      addToast(`Could not exclude accessory: ${err?.message ?? 'request failed'}`, 'error');
     },
   });
 

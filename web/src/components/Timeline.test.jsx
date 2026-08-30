@@ -45,6 +45,27 @@ vi.mock('../hooks/useMutedDevices.js', () => ({
   })(),
 }));
 
+// M-8 fix pulled in useAuth/useUserPreferences/usePreference for the per-user grouping
+// read. This file has no QueryClientProvider, so useAuth's internal useQueryClient() call
+// would throw without these mocks. Anon defaults keep this test's retention-only assertion
+// (episodeWindowMinutes: 3, from the react-query mock below) unchanged.
+vi.mock('../hooks/useAuth.js', () => ({
+  useAuth: () => ({ user: null }),
+}));
+
+vi.mock('../hooks/useUserPreferences.js', () => ({
+  useUserPreferences: () => ({
+    prefs: {},
+    isLoading: false,
+    setPrefsBlob: () => Promise.resolve(),
+    seedIfEmpty: () => {},
+  }),
+}));
+
+vi.mock('../hooks/usePreference.js', () => ({
+  usePreference: (key, defaultValue) => [defaultValue, vi.fn()],
+}));
+
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual('@tanstack/react-query');
   return {
