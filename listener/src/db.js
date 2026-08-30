@@ -694,3 +694,24 @@ export async function redeemResetToken(pool, tokenHash) {
   );
   return result.rows[0] ?? null;
 }
+
+/**
+ * Invalidate every other outstanding (unused, unexpired) password reset token
+ * for a user (L-2). Called after a successful reset so a stale sibling link —
+ * e.g. from an earlier forgot-password request the user didn't use — cannot
+ * still be redeemed. The just-redeemed token already has used_at set by
+ * redeemResetToken(), so this only affects OTHER rows for the same user.
+ * @param {pg.Pool} pool
+ * @param {bigint|number} userId
+ * @returns {Promise<number>} number of tokens invalidated
+ */
+export async function invalidateResetTokensForUser(pool, userId) {
+  const result = await pool.query(
+    `UPDATE password_reset_tokens
+     SET used_at = NOW()
+     WHERE user_id = $1
+       AND used_at IS NULL`,
+    [userId],
+  );
+  return result.rowCount;
+}

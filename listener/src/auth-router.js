@@ -16,6 +16,7 @@ import {
   redeemInvite,
   createPasswordResetToken,
   redeemResetToken,
+  invalidateResetTokensForUser,
   listSessionsForUser,
   revokeSessionById,
 } from './db.js';
@@ -462,6 +463,10 @@ export function createAuthPublicRouter({
         'UPDATE users SET password_hash = $1 WHERE id = $2',
         [passwordHash, tokenRow.user_id],
       );
+
+      // Invalidate any other outstanding reset links for this user (L-2) — the
+      // just-redeemed token is already used_at-marked by redeemResetToken().
+      await invalidateResetTokensForUser(pool, tokenRow.user_id);
 
       // Revoke all active sessions to force re-login on every device (PWD-01)
       await revokeSessionsForUser(pool, tokenRow.user_id);
