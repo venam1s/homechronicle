@@ -16,6 +16,16 @@ import {
   getAccessoryIdentity,
 } from './accessory-metadata.js';
 import { log } from './logger.js';
+import { withTimeout, parseIntInRange } from './utils.js';
+
+// H-3: bound every HAP round-trip so an accessory that accepts TCP but never
+// answers can no longer strand a session (or the nightly repair scheduler)
+// forever. Pair-setup gets its own longer budget on purpose — an SRP
+// handshake against a slow accessory legitimately takes tens of seconds
+// (nginx allows 300s for commissioning), and a 30s cap would break working
+// re-pairs.
+const HAP_REQUEST_TIMEOUT_MS = parseIntInRange(process.env.HAP_REQUEST_TIMEOUT_MS, 30_000, 1_000, 300_000);
+const HAP_PAIR_TIMEOUT_MS = parseIntInRange(process.env.HAP_PAIR_TIMEOUT_MS, 60_000, 1_000, 300_000);
 
 let alertEmailFrom = '';
 
@@ -244,7 +254,12 @@ function connectAccessory(session, pairing) {
   const client = new HttpClient(deviceId, address, port, longTermData);
   session.client = client;
 
-  client.getAccessories().then(async (accessories) => {
+  withTimeout(
+    client.getAccessories(),
+    HAP_REQUEST_TIMEOUT_MS,
+    () => { try { client.close?.(); } catch (e) { /* ignore */ } },
+    'getAccessories'
+  ).then(async (accessories) => {
     // Snapshot old firmware versions before cacheAccessoryMetadata() clears the cache
     const oldFirmwareByAccessoryId = new Map();
     for (const acc of accessories?.accessories ?? []) {
@@ -410,7 +425,12 @@ function connectAccessory(session, pairing) {
       stats.disconnects += 1;
       log.warn(`[subscriber] ${accessoryName}: disconnected, resubscribing…`);
       try {
-        await client.subscribeCharacteristics(formerSubscribes);
+        await withTimeout(
+          client.subscribeCharacteristics(formerSubscribes),
+          HAP_REQUEST_TIMEOUT_MS,
+          () => { try { client.close?.(); } catch (e) { /* ignore */ } },
+          'subscribeCharacteristics (resubscribe)'
+        );
         stats.resubscribeSuccesses += 1;
         stats.lastSubscribedAt = new Date().toISOString();
         stats.lastHealthyAt = stats.lastSubscribedAt;
@@ -465,7 +485,12 @@ function connectAccessory(session, pairing) {
     client.on('event-disconnect', disconnectHandler);
 
     try {
-      await client.subscribeCharacteristics(watchedKeys);
+      await withTimeout(
+        client.subscribeCharacteristics(watchedKeys),
+        HAP_REQUEST_TIMEOUT_MS,
+        () => { try { client.close?.(); } catch (e) { /* ignore */ } },
+        'subscribeCharacteristics'
+      );
       session.retryDelayMs = reconnectBaseMs;
       stats.lastSubscribedAt = new Date().toISOString();
       stats.lastHealthyAt = stats.lastSubscribedAt;
@@ -485,7 +510,16 @@ function connectAccessory(session, pairing) {
     // DB — they aren't real activity and would flood the timeline with
     // hundreds of simultaneous old_value=null entries on every restart.
     try {
-      const result = await client.getCharacteristics(watchedKeys);
+      // Deliberately no close-on-expiry here: by this point the client owns
+      // the live event subscription just established above, and closing it
+      // on a slow seed read would kill that subscription. A failed/slow seed
+      // is cosmetic (see the debug-level catch below).
+      const result = await withTimeout(
+        client.getCharacteristics(watchedKeys),
+        HAP_REQUEST_TIMEOUT_MS,
+        null,
+        'getCharacteristics (seed)'
+      );
       const values = result?.characteristics ?? [];
       for (const ch of values) {
         const meta = iidMeta.get(`${ch.aid}.${ch.iid}`);
@@ -632,7 +666,12 @@ async function attemptAutoRepair(session, pairing) {
     const repairClient = httpClientFactory(session.deviceId, discovered.address, discovered.port);
     let longTermData;
     try {
-      await repairClient.pairSetup(pairing.pin);
+      await withTimeout(
+        repairClient.pairSetup(pairing.pin),
+        HAP_PAIR_TIMEOUT_MS,
+        () => { try { repairClient.close?.(); } catch (e) { /* ignore */ } },
+        'pairSetup'
+      );
       longTermData = repairClient.getLongTermData();
     } finally {
       try { repairClient.close?.(); } catch (e) { /* ignore */ }

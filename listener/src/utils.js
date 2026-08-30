@@ -1,3 +1,40 @@
+/**
+ * Race a promise against a timeout, guaranteeing the caller's await settles
+ * even if the underlying operation never does (H-3: an accessory that
+ * accepts a TCP connection but never answers a HAP request currently strands
+ * the awaiting session — and the nightly repair scheduler — forever).
+ *
+ * @param {Promise} promise - the operation to bound
+ * @param {number} ms - timeout in milliseconds; non-finite or <= 0 disables
+ *   the timeout entirely (the original promise is returned unbounded)
+ * @param {function(): void} [onTimeout] - optional cleanup invoked exactly
+ *   once when the deadline wins (e.g. closing a stranded client). Errors
+ *   thrown by onTimeout are swallowed — a failing cleanup must not mask the
+ *   timeout rejection.
+ * @param {string} [label='operation'] - name used in the timeout error message
+ * @returns {Promise} resolves/rejects with the original promise's outcome,
+ *   or rejects with an Error (code 'ETIMEDOUT') if the deadline wins first
+ */
+export function withTimeout(promise, ms, onTimeout, label = 'operation') {
+  if (!Number.isFinite(ms) || ms <= 0) return Promise.resolve(promise);
+
+  let timer;
+  const timeoutPromise = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => {
+      try {
+        onTimeout?.();
+      } catch (e) {
+        // A failing cleanup must not mask the timeout rejection.
+      }
+      const err = new Error(`${label} timed out after ${ms}ms`);
+      err.code = 'ETIMEDOUT';
+      reject(err);
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
+
 export function parseIntInRange(value, fallback, min, max) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
   if (!Number.isFinite(parsed)) return fallback;

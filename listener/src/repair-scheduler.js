@@ -63,9 +63,27 @@ export function createRepairScheduler({
     log.info(`[repair] Next scheduled repair in ${Math.round(delayMs / 60_000)} min (at ${hour}:00 local)`);
     scheduledTimeout = setTimeout(async () => {
       scheduledTimeout = null;
-      await runRepairCycle();
-      const { hour: currentHour } = getSettings();
-      scheduleNext(currentHour);
+      try {
+        await runRepairCycle();
+      } catch (err) {
+        // M-5: a rejected cycle (e.g. a disk-full repairStore.write) must not
+        // kill the timer chain — log and fall through to the reschedule.
+        log.error('[repair] Scheduled repair cycle failed:', err.message ?? err.stack ?? err);
+      } finally {
+        try {
+          const { enabled, hour: currentHour } = getSettings();
+          if (enabled) {
+            scheduleNext(currentHour);
+          } else {
+            log.info('[repair] Scheduled repair disabled, not rescheduling');
+          }
+        } catch (err) {
+          // A throwing getSettings() must not also kill the chain — fall
+          // back to the hour this invocation was scheduled with.
+          log.error('[repair] Failed to read settings for reschedule, falling back to previous hour:', err.message ?? err.stack ?? err);
+          scheduleNext(hour);
+        }
+      }
     }, delayMs);
   }
 
@@ -89,14 +107,20 @@ export function createRepairScheduler({
     }
     running = true;
 
-    const targets = getRepairTargets();
-    log.info(`[repair] Starting scheduled repair pass -- ${targets.length} device(s) targeted`);
+    // M-5: declared before the try (and defaulted to []) so getRepairTargets()
+    // can move INSIDE the try below — a throw there still reaches the finally
+    // that resets `running`, and the finally's `targets.length` reference
+    // stays valid even if the throw happened before targets was assigned.
+    let targets = [];
 
     let repaired = 0;
     let skipped = 0;
     let failed = 0;
 
     try {
+      targets = getRepairTargets();
+      log.info(`[repair] Starting scheduled repair pass -- ${targets.length} device(s) targeted`);
+
       if (targets.length === 0) {
         return;
       }

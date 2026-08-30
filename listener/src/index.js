@@ -76,6 +76,9 @@ const REPAIR_FILE = process.env.REPAIR_FILE
 const ALERTS_SETTINGS_FILE = process.env.ALERTS_SETTINGS_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/alerts-settings.json' : './data/alerts-settings.json');
 const REPAIR_HOUR_DEFAULT = parseIntInRange(process.env.REPAIR_HOUR, 3, 0, 23);
+// H-3: same pairSetup timeout budget subscriber.js uses for auto re-pair,
+// threaded into the scheduled repair cycle's pairSetup path.
+const HAP_PAIR_TIMEOUT_MS = parseIntInRange(process.env.HAP_PAIR_TIMEOUT_MS, 60_000, 1_000, 300_000);
 
 const PORT = Number(process.env.API_PORT ?? 3001);
 const RESCAN_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -355,7 +358,7 @@ const repairScheduler = createRepairScheduler({
   performPairSetupAndPersist: (deviceId, pin, address, port) =>
     performPairSetupAndPersist(
       { deviceId, pin, address, port },
-      { HttpClient, loadPairings, savePairings },
+      { HttpClient, loadPairings, savePairings, timeoutMs: HAP_PAIR_TIMEOUT_MS },
     ),
 });
 repairScheduler.start();
