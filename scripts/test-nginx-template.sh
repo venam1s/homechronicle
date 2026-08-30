@@ -241,6 +241,148 @@ else
   fail=1
 fi
 
+# -- /etc/hosts pre-resolution of LISTENER_HOST (H-1, 260830-1pj) --
+#
+# The point of this section is to SOURCE the real hook (not re-implement its
+# compute in-process) — a previous version of this script re-implemented the
+# entrypoint's compute logic, which is exactly why H-1 escaped detection.
+HOOK="$SCRIPT_DIR/../web/docker-entrypoint.d/15-compute-api-token.envsh"
+
+# Runs the real hook in a subshell so it cannot clobber this script's own
+# LISTENER_HOST / NGINX_API_TOKEN. Prints the resulting LISTENER_HOST on stdout.
+# The hook's own log line is redirected to /dev/null so it can't pollute the
+# captured value.
+resolve_listener_host() {
+  name=$1
+  hosts_file=$2
+  (
+    LISTENER_HOST="$name"
+    HC_HOSTS_FILE="$hosts_file"
+    export LISTENER_HOST HC_HOSTS_FILE
+    . "$HOOK" >/dev/null
+    printf '%s' "$LISTENER_HOST"
+  )
+}
+
+hosts_dir=$(mktemp -d)
+hosts_fixture="$hosts_dir/hosts"
+# Decoys are ordered BEFORE the real answer so a broken IPv6 guard, a broken
+# comment-strip, or a broken whole-field match would all produce a WRONG
+# result rather than accidentally passing:
+#   - the commented line mentions host.docker.internal but must never match
+#     (comment-strip correctness) — its "IP" 203.0.113.1 is a deliberately
+#     different, stale address so a false match is distinguishable from case 1
+#   - the IPv6 line also mentions host.docker.internal, on a line whose field 1
+#     contains a colon (must be excluded, not treated as an IPv4 answer)
+#   - the not-host.docker.internal-suffix line proves whole-field equality
+#     (a substring match would wrongly fire here for "host.docker.internal")
+#   - the real answer, 192.0.2.7, comes LAST
+#   - the localhost line's field 1 (127.0.0.1) is reused by case 3 below to
+#     double as a "field 1 is not a name" check
+cat > "$hosts_fixture" <<HOSTS
+# 203.0.113.1  host.docker.internal   (stale, commented)
+::1  ip6-localhost host.docker.internal
+198.51.100.9  not-host.docker.internal-suffix
+192.0.2.7  host.docker.internal
+127.0.0.1  localhost
+HOSTS
+
+# 1. Hosts-only name resolves to its IPv4, and that IP flows through render().
+resolved=$(resolve_listener_host host.docker.internal "$hosts_fixture")
+if [ "$resolved" = "192.0.2.7" ]; then
+  echo "PASS: hosts-only name host.docker.internal resolved to 192.0.2.7"
+else
+  echo "FAIL: hosts-only name host.docker.internal resolved to '$resolved' (expected 192.0.2.7)"
+  fail=1
+fi
+resolved_render=$(render true "$resolved")
+resolved_set_count=$(printf '%s\n' "$resolved_render" | grep -c 'set \$hc_listener 192.0.2.7;' || true)
+if [ "$resolved_set_count" -eq 3 ] && ! printf '%s\n' "$resolved_render" | grep -q '${'; then
+  echo "PASS: resolved IP renders set \$hc_listener 192.0.2.7; x3, no literal \${...} left"
+else
+  echo "FAIL: resolved-IP render did not carry set \$hc_listener 192.0.2.7; x3 cleanly (got $resolved_set_count)"
+  fail=1
+fi
+
+# 2. Compose alias (absent from the fixture) is left unchanged — the guard that
+#    per-request re-resolution (260617-f5d) survives this fix.
+alias_resolved=$(resolve_listener_host listener "$hosts_fixture")
+if [ "$alias_resolved" = "listener" ]; then
+  echo "PASS: compose alias 'listener' left unchanged (not in hosts fixture)"
+else
+  echo "FAIL: compose alias 'listener' resolved to '$alias_resolved' (expected unchanged)"
+  fail=1
+fi
+alias_render=$(render true "$alias_resolved")
+alias_set_count=$(printf '%s\n' "$alias_render" | grep -c 'set \$hc_listener listener;' || true)
+if [ "$alias_set_count" -eq 3 ]; then
+  echo "PASS: compose alias render carries set \$hc_listener listener; x3"
+else
+  echo "FAIL: compose alias render did not carry set \$hc_listener listener; x3 (got $alias_set_count)"
+  fail=1
+fi
+
+# 3. IPv4 literal is left unchanged, even though 127.0.0.1 also appears as
+#    field 1 of the fixture's localhost line (proves "field 1 is not a name").
+ip_resolved=$(resolve_listener_host 127.0.0.1 "$hosts_fixture")
+if [ "$ip_resolved" = "127.0.0.1" ]; then
+  echo "PASS: IPv4 literal 127.0.0.1 left unchanged"
+else
+  echo "FAIL: IPv4 literal 127.0.0.1 resolved to '$ip_resolved' (expected unchanged)"
+  fail=1
+fi
+
+# 4. Boot-fail guard: sourcing the hook under set -e for a name NOT in the
+#    fixture must exit 0 and leave the value unchanged. A non-zero status here
+#    means the container would fail to boot (CR-01 class regression).
+set_e_output=$( (
+  set -e
+  LISTENER_HOST=not-in-fixture
+  HC_HOSTS_FILE="$hosts_fixture"
+  export LISTENER_HOST HC_HOSTS_FILE
+  . "$HOOK" >/dev/null
+  status=$?
+  printf 'status=%s value=%s' "$status" "$LISTENER_HOST"
+) )
+set_e_status=$?
+if [ "$set_e_status" -eq 0 ] && [ "$set_e_output" = "status=0 value=not-in-fixture" ]; then
+  echo "PASS: hook survives set -e on the not-found path (exit 0, value unchanged)"
+else
+  echo "FAIL: hook did not survive set -e cleanly (subshell status=$set_e_status, output='$set_e_output')"
+  fail=1
+fi
+
+# 5. Substring/comment safety: a superstring name resolves via whole-field
+#    match (not substring), and a name appearing ONLY inside a comment must
+#    not resolve to the commented (stale) IP — proven by case 1 returning the
+#    real 192.0.2.7 answer, never the commented 203.0.113.1.
+suffix_resolved=$(resolve_listener_host not-host.docker.internal-suffix "$hosts_fixture")
+if [ "$suffix_resolved" = "198.51.100.9" ]; then
+  echo "PASS: whole-field match resolves not-host.docker.internal-suffix to 198.51.100.9"
+else
+  echo "FAIL: not-host.docker.internal-suffix resolved to '$suffix_resolved' (expected 198.51.100.9)"
+  fail=1
+fi
+if [ "$resolved" = "192.0.2.7" ]; then
+  echo "PASS: commented stale IP (203.0.113.1) never surfaces — comment-stripping confirmed"
+else
+  echo "FAIL: comment-stripping regression — expected 192.0.2.7, got '$resolved'"
+  fail=1
+fi
+
+rm -rf "$hosts_dir"
+
+# 6. Composition guard, in the style of section 6 above: standalone's
+#    entrypoint still pins an IPv4 literal, so the new hosts-resolution logic
+#    is a documented no-op there and docker/standalone/entrypoint.sh needs no
+#    change for H-1.
+if grep -q '^export LISTENER_HOST=127.0.0.1' "$ENTRYPOINT"; then
+  echo "PASS: docker/standalone/entrypoint.sh still pins export LISTENER_HOST=127.0.0.1 (IPv4 literal, no-op for H-1)"
+else
+  echo "FAIL: docker/standalone/entrypoint.sh no longer pins export LISTENER_HOST=127.0.0.1"
+  fail=1
+fi
+
 # Optional: nginx -t on BOTH bridge (hostname) and host (IP literal) renders.
 # nginx -t validates syntax only and never contacts DNS, so it passes even when
 # 127.0.0.11 is unreachable in host mode.
