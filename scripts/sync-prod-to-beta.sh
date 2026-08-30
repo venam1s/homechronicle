@@ -13,6 +13,10 @@
 #   - Beta listener is stopped during sync, restarted at the end
 #   - Prod is read-only (pg_dump only)
 #   - Beta DB is replaced via --clean --if-exists; a beta dump is taken first
+#   - Auth and FK-bearing tables (users, sessions, invites,
+#     password_reset_tokens, user_preferences, alert_rules, alert_deliveries —
+#     see docker/beta-sync-tables.sh) are excluded from the dump, and the
+#     restore runs --single-transaction so it is atomic (all-or-nothing)
 #   - Existing beta pairings.json / matter-storage/ are moved to .bak.<ts>
 #     (NOT deleted) before sync — beta will boot pairing-free
 
@@ -74,6 +78,17 @@ require_container() {
     || die "container not running: $name"
 }
 
+# -- Shared prod->beta exclusion list (single source of truth, M-13/M-14) ----
+# This runs unattended from cron (via deploy-beta.sh / sync-beta-auto.sh), so
+# a missing list is fatal here — silently dumping prod's auth tables into beta
+# is the exact failure this plan fixes, and there is no interactive operator
+# to notice a degraded skip like the in-container path allows.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BETA_SYNC_TABLES_FILE="${BETA_SYNC_TABLES_FILE:-${SCRIPT_DIR}/../docker/beta-sync-tables.sh}"
+[[ -r "$BETA_SYNC_TABLES_FILE" ]] || die "shared exclusion list not found/readable: $BETA_SYNC_TABLES_FILE"
+# shellcheck source=../docker/beta-sync-tables.sh
+source "$BETA_SYNC_TABLES_FILE"
+
 # -- Pre-flight ----------------------------------------------------------------
 
 log "prod stack: ${PROD_STACK}  (pg=${PROD_PG})"
@@ -109,9 +124,10 @@ run "docker stop '${BETA_LISTENER}'"
 
 # -- Step 3: pg_dump prod -> beta ---------------------------------------------
 
-log "step 3: dumping prod -> restoring into beta (streaming, no temp file)"
-run "docker exec '${PROD_PG}' sh -c 'pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --clean --if-exists --no-owner' \
-  | docker exec -i '${BETA_PG}' sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -v ON_ERROR_STOP=1 -q' \
+DUMP_EXCLUDE="$(beta_sync_exclude_flags)"
+log "step 3: dumping prod -> restoring into beta (streaming, no temp file, single-transaction; excluding: ${BETA_SYNC_EXCLUDED_TABLES})"
+run "docker exec '${PROD_PG}' sh -c 'pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --clean --if-exists --no-owner${DUMP_EXCLUDE}' \
+  | docker exec -i '${BETA_PG}' sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -v ON_ERROR_STOP=1 --single-transaction -q' \
   >/dev/null"
 
 # -- Step 4: copy display config (NOT pairings) -------------------------------

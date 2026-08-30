@@ -67,6 +67,17 @@ fail_or_skip() {
   exit 0
 }
 
+# -- Shared prod->beta exclusion list (single source of truth, M-13/M-14) ----
+# docker-compose.beta.yml bind-mounts docker/beta-sync-tables.sh read-only at
+# BETA_SYNC_TABLES_FILE. A missing/unreadable mount goes through the
+# SYNC_REQUIRED policy like any other misconfiguration — the safe default is
+# to skip the sync (exit 0) rather than dump prod's auth tables unfiltered.
+BETA_SYNC_TABLES_FILE="${BETA_SYNC_TABLES_FILE:-/usr/local/bin/beta-sync-tables.sh}"
+if [ ! -r "$BETA_SYNC_TABLES_FILE" ]; then
+  fail_or_skip "shared exclusion list not mounted at ${BETA_SYNC_TABLES_FILE} — refusing to dump prod without it"
+fi
+. "$BETA_SYNC_TABLES_FILE"
+
 # -- Validate required env ----------------------------------------------------
 # Missing creds go through the SYNC_REQUIRED policy (default: skip the sync and
 # let the deploy succeed) rather than hard-failing — an unconfigured optional
@@ -101,23 +112,24 @@ fi
 log "prod postgres reachable"
 
 # -- Dump prod (READ-ONLY) → restore beta -------------------------------------
-# The Phase 20/21 auth tables must NEVER be overwritten from prod (prod predates
-# them and has no users) — exclude them so the dump never touches beta's accounts.
+# The Phase 20/21 auth tables, plus every table that FKs into them, must NEVER
+# be overwritten from prod (prod predates them and has no matching users) —
+# exclude them so the dump never touches beta's accounts or mis-attaches
+# ownership. The exclusion list comes from the shared
+# docker/beta-sync-tables.sh file sourced above (single source of truth for
+# both this in-container path and scripts/sync-prod-to-beta.sh on the host).
 # pgmigrations is NOT excluded: excluding it leaves a dangling DROP SEQUENCE
 # pgmigrations_id_seq that fails because the kept table still depends on it. Instead
 # pgmigrations is synced whole (prod's history replaces beta's), then beta's own
 # extra migration rows (e.g. 0003/0004) are re-applied by name below so the listener
 # never replays them on restart.
-DUMP_EXCLUDE=""
-for t in users sessions invites password_reset_tokens; do
-  DUMP_EXCLUDE="$DUMP_EXCLUDE --exclude-table=public.${t}"
-done
+DUMP_EXCLUDE="$(beta_sync_exclude_flags)"
 
 # Capture beta's migration rows BEFORE the refresh as name-keyed, idempotent inserts.
 BETA_MIGRATIONS_SQL="$(PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -tAqc \
   "SELECT string_agg(format('INSERT INTO pgmigrations (name, run_on) SELECT %L, %L WHERE NOT EXISTS (SELECT 1 FROM pgmigrations WHERE name = %L);', name, run_on, name), E'\n') FROM pgmigrations" 2>/dev/null || true)"
 
-log "dumping prod and restoring into beta (--clean --if-exists, single-transaction; excluding auth tables)"
+log "dumping prod and restoring into beta (--clean --if-exists, single-transaction; excluding auth + FK-bearing tables from shared list)"
 PGPASSWORD="$PROD_DB_PASSWORD" pg_dump -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" -U "$PROD_DB_USER" -d "$PROD_DB_NAME" --clean --if-exists --no-owner $DUMP_EXCLUDE \
   | PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -v ON_ERROR_STOP=1 --single-transaction -q
 rc=$?

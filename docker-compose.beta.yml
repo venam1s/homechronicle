@@ -71,6 +71,7 @@ services:
       TZ: ${TZ:-America/Indianapolis}
     volumes:
       - ./docker/beta-db-sync.sh:/usr/local/bin/beta-db-sync.sh:ro
+      - ./docker/beta-sync-tables.sh:/usr/local/bin/beta-sync-tables.sh:ro
       - /mnt/Primary/apps/hc-beta/listener-data-beta:/app/data
       - /mnt/Primary/apps/homechronicle/listener_data:/prod:ro
     entrypoint: ["/usr/local/bin/beta-db-sync.sh"]
@@ -111,8 +112,10 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-https://${BETA_FQDN}}
       TZ: ${TZ:-America/Indianapolis}
     volumes:
+      # Prod's listener_data (pairings.json / matter-storage) is intentionally
+      # NOT mounted here (M-15) — only db-sync reads it, and read-only. The
+      # beta listener has no reason to see prod's HomeKit/Matter pairing keys.
       - /mnt/Primary/apps/hc-beta/listener-data-beta:/app/data
-      - /mnt/Primary/apps/homechronicle/listener_data:/prod
       - ${HOST_DBUS_SOCKET:-/run/dbus/system_bus_socket}:/run/dbus/system_bus_socket:ro
     deploy:
       resources:
