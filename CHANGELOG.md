@@ -2,6 +2,12 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **502 errors on every API request with the default Docker Compose setup** — since 0.3.2, the web container could no longer reach the listener at `host.docker.internal`, so every `/api/*` request returned a 502. The address is now resolved once when the container starts, so the proxy works again. Setups that use a Compose service name for the listener were unaffected and continue to recover automatically after a listener restart.
+- **All-in-one standalone image failing to start** — the container restarted in a loop because required database migration files were missing from the image. They are now included, along with a dependency patch that was also missing.
+
 ## [0.3.2] — 2026-08-30
 
 ### Fixed

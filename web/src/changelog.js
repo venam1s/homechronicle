@@ -10,6 +10,14 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.3.3',
+    title: 'Fixed 502 errors on the default setup and a standalone image boot loop',
+    items: [
+      'Fixed 502 errors on every API request with the default Docker Compose setup, caused by the web container being unable to reach the listener at host.docker.internal. The address is now resolved once when the container starts.',
+      'Fixed the all-in-one standalone image restarting in a loop on startup due to missing database migration files, and added a missing dependency patch.',
+    ],
+  },
+  {
     version: 'v0.3.2',
     title: 'Self-healing API proxy, clearer login errors, branded emails',
     items: [

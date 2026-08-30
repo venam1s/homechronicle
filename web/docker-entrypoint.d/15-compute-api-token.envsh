@@ -1,5 +1,8 @@
 #!/bin/sh
-# 15-compute-api-token.envsh — SEC-07 nginx X-API-Token cutover (Phase 23).
+# 15-compute-api-token.envsh — SEC-07 nginx X-API-Token cutover (Phase 23), plus
+# H-1 (260830-1pj) /etc/hosts pre-resolution of LISTENER_HOST. This file now does
+# TWO jobs: (1) compute NGINX_API_TOKEN, (2) pre-resolve an /etc/hosts-only
+# LISTENER_HOST to its IPv4 before envsubst renders nginx.conf.template.
 #
 # MUST be a *.envsh file (not *.sh): the stock nginx /docker-entrypoint.sh SOURCES
 # *.envsh hooks (`. "$f"`) but EXECUTES *.sh hooks in a child process. As a *.sh
@@ -8,6 +11,9 @@
 # literal `${NGINX_API_TOKEN}` in the rendered config, aborting nginx with an
 # `unknown "NGINX_API_TOKEN" variable` emerg so the container fails to start (CR-01).
 # Sourcing as *.envsh persists the export into the entrypoint shell that runs envsubst.
+# The same reasoning applies to the LISTENER_HOST resolution below: it MUST be
+# exported from this sourced file, not a separate *.sh, or 20-envsubst-on-templates.sh
+# never sees the resolved value.
 #
 # Because this is SOURCED into the entrypoint's own shell, do NOT `set -eu` here — it
 # would leak into subsequent hooks (including 20-envsubst) and could abort startup on a
@@ -33,3 +39,84 @@ case "$auth" in
     ;;
 esac
 export NGINX_API_TOKEN
+
+# ── H-1 (260830-1pj): pre-resolve an /etc/hosts-only LISTENER_HOST ─────────────
+#
+# Since v0.3.2, nginx.conf.template renders a variable proxy_pass with a `resolver`
+# directive so /api/* re-resolves LISTENER_HOST on every request (260617-f5d
+# self-healing fix). BUT nginx's `resolver` directive NEVER reads /etc/hosts — it
+# only queries the configured DNS server (Docker's embedded DNS at 127.0.0.11 by
+# default). The stock compose default LISTENER_HOST=host.docker.internal exists
+# ONLY as an /etc/hosts line (via `extra_hosts: host-gateway`); Docker's embedded
+# DNS returns NXDOMAIN for it. Result: every documented preset 502s on /api/*.
+#
+# Fix: at container start, if LISTENER_HOST is a NAME that resolves via /etc/hosts
+# (and only via /etc/hosts — not via DNS), rewrite it to that IPv4 address before
+# envsubst renders the template. `extra_hosts`/`host-gateway` entries are static
+# for the container's lifetime, so resolving once at startup loses nothing.
+#
+# Compose SERVICE ALIASES (e.g. `listener`, `hc-beta-listener`) are NOT present in
+# /etc/hosts — they resolve only via Docker's embedded DNS — so they fall straight
+# through unresolved and keep the per-request re-resolution behaviour added by
+# 260617-f5d (self-heals after the listener container is recreated, since a new
+# container gets a new IP that DNS reflects immediately but /etc/hosts would not).
+#
+# HC_HOSTS_FILE overrides the hosts file path read below. This exists SOLELY so
+# scripts/test-nginx-template.sh can source this hook against a fixture file on
+# macOS (which has no BusyBox /etc/hosts semantics to test against directly). It
+# grants no privilege: an operator who can set container env vars can already set
+# LISTENER_HOST directly to any value they like.
+#
+# DO NOT use `getent hosts` here. `getent hosts` walks the FULL resolver order
+# (hosts file THEN DNS), so it would also succeed for a compose alias (which DOES
+# resolve via DNS) and pin that alias's IP at startup — destroying the self-healing
+# property above. Parsing /etc/hosts directly, and ONLY /etc/hosts, is what makes
+# the compose-alias case correctly fall through to per-request DNS resolution. Do
+# not "simplify" this back to getent.
+#
+# Boot-safety (highest-severity regression risk in this file): this hook is
+# sourced inside the stock entrypoint's `while read` loop under the entrypoint's
+# `set -e`. If ANY statement on the sourced path returns non-zero, that loop dies,
+# 20-envsubst-on-templates.sh never runs, the literal ${NGINX_RESOLVER} survives
+# into the rendered config, and nginx aborts with an "unknown variable" emerg — the
+# container will not boot (the exact CR-01 signature). Every fallible command below
+# is guarded by `if ...; then ... fi`; command substitutions are captured as
+# `$(... || true)` so a non-zero exit from a substituted command cannot abort this
+# sourced script under -e; the file ends on a guaranteed-zero-exit `:`.
+#
+# POSIX sh only (BusyBox ash in nginx:alpine): no [[ ]], no =~, no arrays, no
+# `local`, no `function`, no <<<, no $'...', no `echo -e`.
+
+_hc_host="${LISTENER_HOST:-}"
+if [ -n "$_hc_host" ]; then
+  case "$_hc_host" in
+    *:*)
+      # IPv6 literal — leave untouched.
+      ;;
+    [0-9]*.[0-9]*.[0-9]*.[0-9]*)
+      # Already looks like an IPv4 literal — leave untouched.
+      ;;
+    *)
+      _hc_hosts_file="${HC_HOSTS_FILE:-/etc/hosts}"
+      if [ -r "$_hc_hosts_file" ]; then
+        _hc_resolved=$(awk -v name="$_hc_host" '
+          {
+            sub(/#.*/, "")
+            if ($1 == "" || $1 ~ /:/) next
+            for (i = 2; i <= NF; i++) {
+              if ($i == name) { print $1; exit }
+            }
+          }
+        ' "$_hc_hosts_file" 2>/dev/null || true)
+        if [ -n "$_hc_resolved" ]; then
+          LISTENER_HOST="$_hc_resolved"
+          export LISTENER_HOST
+          echo "15-compute-api-token: LISTENER_HOST '$_hc_host' found only in $_hc_hosts_file (nginx's resolver directive never reads it) — pre-resolved to $_hc_resolved for this container's lifetime"
+        else
+          echo "15-compute-api-token: LISTENER_HOST '$_hc_host' not found in $_hc_hosts_file — leaving as-is for per-request DNS re-resolution (compose service alias)"
+        fi
+      fi
+      ;;
+  esac
+fi
+:

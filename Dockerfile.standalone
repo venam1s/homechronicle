@@ -16,6 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 COPY listener/package.json .
 COPY listener/package-lock.json .
+# Mirrors listener/Dockerfile:15 — must precede npm ci so postinstall:
+# patch-package (a production dependency, so it runs under --omit=dev) finds
+# the dnssd cycle-guard patch instead of silently applying nothing (H-5).
+COPY listener/patches/ ./patches/
 RUN npm ci --omit=dev
 
 # ── Stage 2: build web UI ───────────────────────────────────────────────────
@@ -72,6 +76,10 @@ WORKDIR /app/listener
 COPY --from=listener-build --chown=node:node /build/node_modules ./node_modules
 COPY --chown=node:node listener/package.json .
 COPY --chown=node:node listener/src/ ./src/
+# Mirrors listener/Dockerfile:34 — without this, db.js's ../migrations lookup
+# (relative to src/) resolves to nothing and the unconditional top-level
+# `await migrateDb()` in index.js throws at boot, crash-looping supervisord (H-5).
+COPY --chown=node:node listener/migrations/ ./migrations/
 RUN mkdir -p /app/listener/data && chown node:node /app/listener/data
 
 # ── Web UI ──────────────────────────────────────────────────────────────────
