@@ -71,6 +71,17 @@ function createMockPool({ initialRules = [], deliveries: initialDeliveries } = {
 
   return {
     async query(sql, params = []) {
+      // -- GET /rules?scope=all (admin all-rules view, M-1) --
+      if (sql.includes('FROM alert_rules') && sql.includes('LEFT JOIN users')) {
+        const rows = [...rules].sort((a, b) => b.id - a.id).map((r) => ({
+          ...r,
+          owner_user_id: r.user_id ?? null,
+          owner_email: r.owner_email ?? null,
+          owner_disabled: r.owner_disabled ?? false,
+        }));
+        return { rows };
+      }
+
       // -- GET /rules --
       if (sql.includes('FROM alert_rules') && sql.includes('ORDER BY updated_at DESC')) {
         const hasUserScope = sql.includes('WHERE user_id = $1');
@@ -80,6 +91,13 @@ function createMockPool({ initialRules = [], deliveries: initialDeliveries } = {
           rows = rows.filter((r) => r.user_id === uid);
         }
         return { rows };
+      }
+
+      // -- POST /rules pre-insert cap check (M-3) --
+      if (sql.includes('COUNT(*)::int AS total') && sql.includes('FROM alert_rules')) {
+        const owner = params[0];
+        const mine = rules.filter((r) => r.user_id === owner).length;
+        return { rows: [{ total: rules.length, mine }] };
       }
 
       // -- POST /rules (INSERT) --
@@ -410,12 +428,20 @@ test('POST /rules session scope: member (non-admin) can create own rule (MALERT-
   assert.equal(result.jsonBody.name, 'Member rule');
 });
 
-test('POST /rules no-session: service-token-only caller is rejected 401/403 (MALERT-02, T-26-NOSESS)', async () => {
+// AUTH-L-2 (quick-260830-1qj): this assertion is intentionally the OPPOSITE
+// of the pre-existing MALERT-02/T-26-NOSESS behavior it replaces. A
+// sessionless caller (AUTH_ENABLED=false, or a service-token-only caller
+// under AUTH_ENABLED=true) is now treated as a legacy-admin-grade caller —
+// consistent with every other admin-gated router (setup, matter, archive,
+// retention, repair) via requireAdminSession, which already passes
+// sessionless callers. This is NOT a regression: see the isLegacyAdmin
+// rationale comment in alerts-router.js.
+test('POST /rules no-session: legacy/service-token-only caller is treated as admin-grade — 201, user_id NULL (AUTH-L-2)', async () => {
   const pool = createMockPool();
   const router = createAlertsRouter({ pool });
   const post = getRouteHandler(router, 'POST', '/rules');
 
-  // No hcSession set — simulates API_TOKEN-only caller
+  // No hcSession set — simulates API_TOKEN-only caller (or AUTH_ENABLED=false)
   const result = await invoke(post, {
     body: {
       name: 'Service-token rule',
@@ -425,10 +451,84 @@ test('POST /rules no-session: service-token-only caller is rejected 401/403 (MAL
       targetUrl: 'https://example.test/hook',
     },
   });
-  assert.ok(
-    result.statusCode === 401 || result.statusCode === 403,
-    `POST /rules without session must return 401 or 403, got ${result.statusCode}`
-  );
+  assert.equal(result.statusCode, 201, 'a legacy/sessionless caller must be able to create a rule (AUTH-L-2)');
+  assert.equal(result.jsonBody.name, 'Service-token rule');
+});
+
+test('legacy no-session: full CRUD works end-to-end — list all, create with user_id NULL, patch/delete any, deliveries populated (AUTH-L-2)', async () => {
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 90,
+        user_id: 5,
+        name: 'Existing member rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook-90',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const list = getRouteHandler(router, 'GET', '/rules');
+  const post = getRouteHandler(router, 'POST', '/rules');
+  const patch = getRouteHandler(router, 'PATCH', '/rules/:id');
+  const del = getRouteHandler(router, 'DELETE', '/rules/:id');
+  const deliveries = getRouteHandler(router, 'GET', '/deliveries');
+
+  // GET /rules with no session → every rule, not []
+  const listed = await invoke(list, {});
+  assert.equal(listed.statusCode, 200);
+  assert.equal(listed.jsonBody.length, 1, 'legacy caller must see every rule, not an empty list');
+
+  // POST /rules with no session → 201, user_id NULL
+  const created = await invoke(post, {
+    body: {
+      name: 'Legacy-created rule',
+      scopeType: 'all',
+      operator: 'equals',
+      matchValue: 'true',
+      targetUrl: 'https://example.test/hook-legacy',
+    },
+  });
+  assert.equal(created.statusCode, 201);
+
+  // PATCH /rules/:id with no session → updates ANY rule (no owner predicate)
+  const patched = await invoke(patch, {
+    params: { id: '90' },
+    body: { enabled: false },
+  });
+  assert.equal(patched.statusCode, 200, 'legacy caller must be able to patch a member-owned rule');
+  assert.equal(patched.jsonBody.enabled, false);
+
+  // PATCH /rules/:id with no session, unknown id → 404
+  const patchMissing = await invoke(patch, {
+    params: { id: '99999' },
+    body: { enabled: false },
+  });
+  assert.equal(patchMissing.statusCode, 404);
+
+  // GET /deliveries with no session → returns deliveries for all rules
+  const deliveriesResult = await invoke(deliveries, {});
+  assert.equal(deliveriesResult.statusCode, 200);
+  assert.equal(deliveriesResult.jsonBody.total, 1, 'legacy caller must see deliveries for every rule');
+
+  // DELETE /rules/:id with no session → deletes ANY rule
+  const deleted = await invoke(del, { params: { id: '90' } });
+  assert.equal(deleted.statusCode, 200, 'legacy caller must be able to delete a member-owned rule');
+  assert.equal(deleted.jsonBody.success, true);
+
+  // DELETE /rules/:id with no session, unknown id → 404
+  const deleteMissing = await invoke(del, { params: { id: '99999' } });
+  assert.equal(deleteMissing.statusCode, 404);
 });
 
 test('PATCH /rules/:id IDOR: user A cannot patch user B rule — returns 404 (MALERT-04, T-26-IDOR)', async () => {
@@ -492,12 +592,127 @@ test('DELETE /rules/:id IDOR: user A cannot delete user B rule — returns 404 (
   const router = createAlertsRouter({ pool });
   const del = getRouteHandler(router, 'DELETE', '/rules/:id');
 
-  // User A (user_id=1) attempts to DELETE B's rule (id=30)
+  // User A (user_id=1, member role) attempts to DELETE B's rule (id=30).
+  // Role is deliberately 'member', not 'admin': M-1 intentionally grants
+  // admins a cross-owner DELETE override (see the dedicated admin-delete
+  // test above), so the IDOR guard is now scoped to non-admin callers.
   const result = await invoke(del, {
-    hcSession: { user_id: 1, role: 'admin', email: 'a@test.com' },
+    hcSession: { user_id: 1, role: 'member', email: 'a@test.com' },
     params: { id: '30' },
   });
   assert.equal(result.statusCode, 404, 'DELETE targeting another user rule must return 404 (IDOR guard)');
+});
+
+// -- M-1: admin all-rules view and admin delete override --
+
+test('GET /rules?scope=all as admin returns rules from every owner, including legacy NULL-owner rows', async () => {
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 70,
+        user_id: 1,
+        owner_email: 'a@test.com',
+        owner_disabled: false,
+        name: 'A-rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook-a',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+      {
+        id: 71,
+        user_id: 2,
+        owner_email: 'b@test.com',
+        owner_disabled: true,
+        name: 'B-rule (disabled owner)',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook-b',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+      {
+        id: 72,
+        user_id: null,
+        owner_email: null,
+        owner_disabled: false,
+        name: 'Legacy rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook-legacy',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const list = getRouteHandler(router, 'GET', '/rules');
+
+  const result = await invoke(list, { hcSession: ADMIN_SESSION, query: { scope: 'all' } });
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.jsonBody.length, 3, 'scope=all must return every rule, including legacy and disabled-owner rows');
+  const bRule = result.jsonBody.find((r) => r.name === 'B-rule (disabled owner)');
+  assert.equal(bRule.ownerDisabled, true, 'disabled owner must be flagged');
+  assert.equal(bRule.ownerEmail, 'b@test.com');
+  const legacyRule = result.jsonBody.find((r) => r.name === 'Legacy rule');
+  assert.equal(legacyRule.ownerUserId, null, 'legacy rule has no owner');
+  assert.equal(legacyRule.ownerEmail, null, 'legacy rule has no owner email');
+});
+
+test('DELETE /rules/:id as admin removes another user\'s rule (M-1)', async () => {
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 80,
+        user_id: 2,
+        name: 'Member-owned rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const del = getRouteHandler(router, 'DELETE', '/rules/:id');
+
+  // Admin (user_id=1) deletes a rule owned by member (user_id=2).
+  const result = await invoke(del, {
+    hcSession: { user_id: 1, role: 'admin', email: 'a@test.com' },
+    params: { id: '80' },
+  });
+  assert.equal(result.statusCode, 200, 'admin must be able to delete another user\'s rule');
+  assert.equal(result.jsonBody.success, true);
 });
 
 // -- Member email lock + SMTP-off rejection tests (MALERT-05, MALERT-06) --
@@ -652,4 +867,84 @@ test('PATCH email lock bypass: member patching targetEmail without channel on ex
     'member@x.com',
     'PATCH target_email must be locked to session email even when channel is not in body'
   );
+});
+
+// -- AUTH-L-4: member PATCH lock ordering — switching to webhook must not 400 --
+
+test('PATCH lock ordering: member switching an email rule to webhook with a stray targetEmail succeeds, target_email cleared (AUTH-L-4)', async () => {
+  // Pre-seed a member-owned rule that is currently channel=email.
+  // Before the AUTH-L-4 fix: validatePatch ran validateTargetEmail() on the
+  // stray targetEmail BEFORE the channel-switch clearing logic, so a
+  // malformed or simply-present targetEmail could 400 a request that should
+  // succeed with target_email nulled out. After the fix: channel is resolved
+  // first, and any targetEmail supplied alongside channel:'webhook' is
+  // dropped without validation.
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 65,
+        user_id: 2,
+        name: 'Existing email rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'email',
+        target_url: null,
+        target_email: 'member@x.com',
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const patch = getRouteHandler(router, 'PATCH', '/rules/:id');
+
+  const result = await invoke(patch, {
+    hcSession: { user_id: 2, role: 'member', email: 'member@x.com' },
+    params: { id: '65' },
+    body: { channel: 'webhook', targetEmail: 'x@y.z', targetUrl: 'https://example.test/hook-65' },
+  });
+  assert.equal(result.statusCode, 200, 'switching to webhook with a stray targetEmail must succeed, not 400');
+  assert.equal(result.jsonBody.channel, 'webhook');
+  assert.equal(result.jsonBody.targetEmail, null, 'target_email must be cleared, not forced to the session email');
+});
+
+// Regression: the no-channel-field and channel:'email' spoof vectors from
+// T-26-EMAIL-SPOOF must remain locked after the AUTH-L-4 fix.
+test('PATCH lock ordering regression: channel:email with a foreign targetEmail is still forced to session email (AUTH-L-4 + T-26-EMAIL-SPOOF)', async () => {
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 66,
+        user_id: 2,
+        name: 'Existing webhook rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook-66',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const patch = getRouteHandler(router, 'PATCH', '/rules/:id');
+
+  const result = await invoke(patch, {
+    hcSession: { user_id: 2, role: 'member', email: 'member@x.com' },
+    params: { id: '66' },
+    body: { channel: 'email', targetEmail: 'attacker@evil.com' },
+  });
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.jsonBody.targetEmail, 'member@x.com', 'switching to email must still lock to session email');
 });

@@ -63,22 +63,51 @@ const ALERTS_WRITE_RATE_LIMIT_MAX = parseIntInRange(
   100_000
 );
 
+// API-L-4: name / scopeValue / matchValue / characteristic flow into the
+// outbound webhook payload and email subject; cap all four so a household
+// member cannot stuff an oversized string into either channel.
+const MAX_TEXT_LEN = 200;
+
+// M-3: per-user and household ceilings on the number of alert rules, so a
+// single member cannot turn the listener into an unbounded outbound POST
+// relay or a delivery-row firehose simply by creating enough rules.
+const ALERTS_MAX_RULES_PER_USER = parseIntInRange(
+  process.env.ALERTS_MAX_RULES_PER_USER,
+  25,
+  1,
+  10_000
+);
+const ALERTS_MAX_RULES_TOTAL = parseIntInRange(
+  process.env.ALERTS_MAX_RULES_TOTAL,
+  100,
+  1,
+  100_000
+);
+
+function textCapError(field) {
+  return { error: `${field} must be ${MAX_TEXT_LEN} characters or fewer` };
+}
+
 function validateCreate(body = {}) {
   const name = String(body.name ?? '').trim();
   if (!name) return { error: 'name is required' };
+  if (name.length > MAX_TEXT_LEN) return textCapError('name');
 
   const scopeType = parseScopeType(body.scopeType);
   if (!scopeType) return { error: 'scopeType must be one of: all, room, accessory, characteristic' };
 
   const scopeValue = String(body.scopeValue ?? '').trim();
   if (scopeType !== 'all' && !scopeValue) return { error: 'scopeValue is required for this scopeType' };
+  if (scopeValue.length > MAX_TEXT_LEN) return textCapError('scopeValue');
 
   const characteristic = String(body.characteristic ?? '').trim() || null;
+  if (characteristic && characteristic.length > MAX_TEXT_LEN) return textCapError('characteristic');
   const operator = parseOperator(body.operator);
   if (!operator) return { error: 'operator must be one of: equals, not_equals, contains' };
 
   const matchValue = String(body.matchValue ?? '').trim();
   if (!matchValue) return { error: 'matchValue is required' };
+  if (matchValue.length > MAX_TEXT_LEN) return textCapError('matchValue');
 
   const channel = String(body.channel ?? 'webhook').trim().toLowerCase();
   if (channel !== 'webhook' && channel !== 'email') {
@@ -126,6 +155,7 @@ function validatePatch(body = {}) {
   if ('name' in body) {
     const name = String(body.name ?? '').trim();
     if (!name) return { error: 'name cannot be empty' };
+    if (name.length > MAX_TEXT_LEN) return textCapError('name');
     updates.name = name;
   }
   if ('enabled' in body) {
@@ -137,10 +167,14 @@ function validatePatch(body = {}) {
     updates.scopeType = scopeType;
   }
   if ('scopeValue' in body) {
-    updates.scopeValue = String(body.scopeValue ?? '').trim();
+    const scopeValue = String(body.scopeValue ?? '').trim();
+    if (scopeValue.length > MAX_TEXT_LEN) return textCapError('scopeValue');
+    updates.scopeValue = scopeValue;
   }
   if ('characteristic' in body) {
-    updates.characteristic = String(body.characteristic ?? '').trim() || null;
+    const characteristic = String(body.characteristic ?? '').trim() || null;
+    if (characteristic && characteristic.length > MAX_TEXT_LEN) return textCapError('characteristic');
+    updates.characteristic = characteristic;
   }
   if ('operator' in body) {
     const operator = parseOperator(body.operator);
@@ -150,6 +184,7 @@ function validatePatch(body = {}) {
   if ('matchValue' in body) {
     const matchValue = String(body.matchValue ?? '').trim();
     if (!matchValue) return { error: 'matchValue cannot be empty' };
+    if (matchValue.length > MAX_TEXT_LEN) return textCapError('matchValue');
     updates.matchValue = matchValue;
   }
   if ('targetUrl' in body) {
@@ -159,6 +194,11 @@ function validatePatch(body = {}) {
     if (!target.ok) return { error: target.error };
     updates.targetUrl = target.normalizedUrl;
   }
+  // AUTH-L-4: resolve channel BEFORE targetEmail so the webhook branch below
+  // can see it. Order matters: previously targetEmail was validated before
+  // the channel-switch clearing at the bottom of this function ran, so a
+  // stray or malformed targetEmail 400'd a request that was about to null
+  // the field out anyway (e.g. {channel:'webhook', targetEmail:'x@y.z'}).
   if ('channel' in body) {
     const channel = String(body.channel ?? '').trim().toLowerCase();
     if (channel !== 'webhook' && channel !== 'email') {
@@ -167,9 +207,15 @@ function validatePatch(body = {}) {
     updates.channel = channel;
   }
   if ('targetEmail' in body) {
-    const emailResult = validateTargetEmail(body.targetEmail);
-    if (emailResult.error) return { error: emailResult.error };
-    updates.targetEmail = emailResult.value;
+    if (updates.channel === 'webhook') {
+      // Switching to webhook clears target_email unconditionally — do not
+      // validate a value that is about to be discarded (AUTH-L-4).
+      updates.targetEmail = null;
+    } else {
+      const emailResult = validateTargetEmail(body.targetEmail);
+      if (emailResult.error) return { error: emailResult.error };
+      updates.targetEmail = emailResult.value;
+    }
   }
   if ('quietMinutes' in body) {
     const quietMinutes = parseQuietMinutes(body.quietMinutes, 0);
@@ -239,6 +285,20 @@ const CHANNEL_FIELD_ERROR =
 
 export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
   const router = express.Router();
+
+  // AUTH-L-2: a caller with no req.hcSession is either an AUTH_ENABLED=false
+  // legacy token-only deployment, or a service-token-only caller under
+  // AUTH_ENABLED=true. requireAdminSession (security.js:108-113) already
+  // treats a sessionless caller as admin-grade on every other admin-gated
+  // router (setup, matter, archive, retention, repair); with AUTH_ENABLED=true
+  // nginx injects no X-API-Token (SEC-07 gating in
+  // web/docker-entrypoint.d/15-compute-api-token.envsh), so a sessionless
+  // token caller is by construction the deployment owner. This deliberately
+  // supersedes Phase 26's D-06 "reject service-token-only callers with 401"
+  // for the alerts router specifically — see quick-260830-1qj SUMMARY for
+  // the full rationale.
+  const isLegacyAdmin = (req) => !req.hcSession?.user_id;
+
   const alertsReadLimiter = rateLimit({
     windowMs: ALERTS_READ_RATE_LIMIT_WINDOW_MS,
     max: ALERTS_READ_RATE_LIMIT_MAX,
@@ -258,8 +318,47 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     message: { error: 'Too many requests' },
   });
 
-  // GET /rules — returns only the calling session's own rules (D-07, MALERT-01)
+  // GET /rules — returns only the calling session's own rules (D-07, MALERT-01),
+  // or every rule in the household when ?scope=all is requested by an admin (M-1).
   router.get('/rules', alertsReadLimiter, async (req, res) => {
+    const scopeAll = String(req.query.scope ?? '').toLowerCase() === 'all';
+    const legacy = isLegacyAdmin(req);
+    if (scopeAll || legacy) {
+      // Inline admin guard (mirrors requireAdminSession semantics from
+      // security.js:108-113) rather than route middleware: the unit tests
+      // invoke the last route handler directly, so middleware would be
+      // invisible to them, and mounting it as middleware would also gate the
+      // owner-scoped branch below.
+      if (req.hcSession && req.hcSession.role !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      try {
+        const result = await pool.query(
+          `SELECT r.id AS id, r.name AS name, r.enabled AS enabled, r.scope_type AS scope_type,
+                  r.scope_value AS scope_value, r.characteristic AS characteristic,
+                  r.operator AS operator, r.match_value AS match_value, r.target_url AS target_url,
+                  r.target_email AS target_email, r.channel AS channel, r.quiet_minutes AS quiet_minutes,
+                  r.created_at AS created_at, r.updated_at AS updated_at,
+                  r.user_id AS owner_user_id, u.email AS owner_email,
+                  (u.disabled_at IS NOT NULL) AS owner_disabled
+           FROM alert_rules r
+           LEFT JOIN users u ON u.id = r.user_id
+           ORDER BY r.updated_at DESC, r.id DESC`
+        );
+        return res.json(result.rows.map((row) => {
+          const rule = toApiRule(row);
+          delete rule.targetUrl; // webhook URL redaction preserved (L-1)
+          rule.ownerUserId = row.owner_user_id ?? null;
+          rule.ownerEmail = row.owner_email ?? null;
+          rule.ownerDisabled = Boolean(row.owner_disabled);
+          return rule;
+        }));
+      } catch (err) {
+        log.error('[api] /api/alerts/rules?scope=all error:', err.message ?? err.stack ?? err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
     const uid = req.hcSession?.user_id;
     if (!uid) return res.json([]);
     try {
@@ -284,12 +383,11 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     }
   });
 
-  // POST /rules — any authenticated session; user_id sourced from session (D-07)
+  // POST /rules — any authenticated session, or a legacy/service-token caller
+  // (AUTH-L-2); user_id sourced from session (D-07), NULL for legacy callers
   router.post('/rules', alertsWriteLimiter, async (req, res) => {
-    // Inline session guard (D-06): reject service-token-only callers (no req.hcSession)
-    if (!req.hcSession?.user_id) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
+    const legacy = isLegacyAdmin(req);
+    const ownerId = legacy ? null : req.hcSession.user_id;
 
     const parsed = validateCreate(req.body);
     if (parsed.error) return res.status(400).json({ error: parsed.error });
@@ -302,11 +400,34 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     // Member email lock (D-08): force target_email to session email for every
     // non-admin role (fail-closed — a future non-admin role must not be able to
     // set an arbitrary recipient; today the role universe is {admin, member}).
-    if (req.hcSession.role !== 'admin' && parsed.value.channel === 'email') {
+    // Guarded on req.hcSession so a legacy/sessionless caller is never treated
+    // as a member here (AUTH-L-2).
+    if (req.hcSession && req.hcSession.role !== 'admin' && parsed.value.channel === 'email') {
       parsed.value.targetEmail = req.hcSession.email;
     }
 
     try {
+      // M-3: per-user and household rule caps, checked in the same round trip
+      // to keep POST /rules a single extra query. Caps apply to admins too.
+      // IS NOT DISTINCT FROM (not =) so the per-user cap also applies to the
+      // legacy NULL-owner bucket (AUTH-L-2) — plain `=` never matches NULL.
+      const capCheck = await pool.query(
+        `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE user_id IS NOT DISTINCT FROM $1)::int AS mine
+         FROM alert_rules`,
+        [ownerId]
+      );
+      const { total, mine } = capCheck.rows[0];
+      if (mine >= ALERTS_MAX_RULES_PER_USER) {
+        return res.status(400).json({
+          error: `Rule limit reached (max ${ALERTS_MAX_RULES_PER_USER} rules per user)`,
+        });
+      }
+      if (total >= ALERTS_MAX_RULES_TOTAL) {
+        return res.status(400).json({
+          error: `Household rule limit reached (max ${ALERTS_MAX_RULES_TOTAL} rules)`,
+        });
+      }
+
       const result = await pool.query(
         `INSERT INTO alert_rules
            (name, enabled, scope_type, scope_value, characteristic, operator, match_value,
@@ -327,7 +448,7 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
           parsed.value.targetUrl,
           parsed.value.targetEmail,
           parsed.value.quietMinutes,
-          req.hcSession.user_id, // $12 — owner; never sourced from req.body (D-07)
+          ownerId, // $12 — owner; never sourced from req.body (D-07); NULL for legacy callers (AUTH-L-2)
         ]
       );
       const created = toApiRule(result.rows[0]);
@@ -342,12 +463,10 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     }
   });
 
-  // PATCH /rules/:id — IDOR-safe: WHERE id=$N AND user_id=$M (D-07, MALERT-04)
+  // PATCH /rules/:id — IDOR-safe: WHERE id=$N AND user_id=$M (D-07, MALERT-04),
+  // or ownerless for a legacy/service-token caller (AUTH-L-2)
   router.patch('/rules/:id', alertsWriteLimiter, async (req, res) => {
-    // Inline session guard (D-06): reject service-token-only callers (no req.hcSession)
-    if (!req.hcSession?.user_id) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
+    const legacy = isLegacyAdmin(req);
 
     const ruleId = Number.parseInt(String(req.params.id ?? ''), 10);
     if (!Number.isFinite(ruleId) || ruleId < 1) {
@@ -364,11 +483,18 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     }
 
     // Member email lock (D-08): force target_email to session email for members.
-    // Lock fires when channel is being set to 'email' OR when targetEmail is in the
-    // patch body (even without a channel field). A member can never set any address
-    // but their own — patching targetEmail on an already-email rule without re-sending
-    // the channel field is the bypass vector that T-26-EMAIL-SPOOF covers.
-    if (req.hcSession.role !== 'admin' && (effectiveChannel === 'email' || 'targetEmail' in parsed.value)) {
+    // Lock fires when the effective channel IS or REMAINS email: either the
+    // channel is being set to 'email', or no channel field was sent but
+    // targetEmail is in the patch body (T-26-EMAIL-SPOOF bypass vector).
+    // Deliberately excludes effectiveChannel === 'webhook' (AUTH-L-4): when
+    // switching to webhook, validatePatch already forced targetEmail to null
+    // to satisfy chk_alert_channel_fields, and this lock must not overwrite
+    // that null back to the session email. Guarded on req.hcSession so a
+    // legacy/sessionless caller is never treated as a member (AUTH-L-2).
+    if (
+      req.hcSession && req.hcSession.role !== 'admin' &&
+      (effectiveChannel === 'email' || (effectiveChannel === undefined && 'targetEmail' in parsed.value))
+    ) {
       parsed.value.targetEmail = req.hcSession.email;
     }
 
@@ -391,17 +517,22 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
       params.push(value);
       fields.push(`${map[key]} = $${params.length}`);
     }
-    // IDOR-safe WHERE: require both id match AND ownership (D-07)
+    // IDOR-safe WHERE: require both id match AND ownership (D-07). A legacy/
+    // service-token caller reaches any rule by id alone (AUTH-L-2).
     params.push(ruleId);
     const idParam = params.length;
-    params.push(req.hcSession.user_id);
-    const uidParam = params.length;
+    let whereClause = `id = $${idParam}`;
+    if (!legacy) {
+      params.push(req.hcSession.user_id);
+      const uidParam = params.length;
+      whereClause += ` AND user_id = $${uidParam}`;
+    }
 
     try {
       const result = await pool.query(
         `UPDATE alert_rules
          SET ${fields.join(', ')}, updated_at = NOW()
-         WHERE id = $${idParam} AND user_id = $${uidParam}
+         WHERE ${whereClause}
          RETURNING id, name, enabled, scope_type, scope_value, characteristic,
                    operator, match_value, channel, target_url, target_email,
                    quiet_minutes, created_at, updated_at`,
@@ -420,22 +551,25 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     }
   });
 
-  // DELETE /rules/:id — IDOR-safe: WHERE id=$1 AND user_id=$2 (D-07, MALERT-04)
+  // DELETE /rules/:id — IDOR-safe: WHERE id=$1 AND user_id=$2 (D-07, MALERT-04),
+  // or ownerless for admin / a legacy-service-token caller (M-1, AUTH-L-2)
   router.delete('/rules/:id', alertsWriteLimiter, async (req, res) => {
-    // Inline session guard (D-06): reject service-token-only callers (no req.hcSession)
-    if (!req.hcSession?.user_id) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
     const ruleId = Number.parseInt(String(req.params.id ?? ''), 10);
     if (!Number.isFinite(ruleId) || ruleId < 1) {
       return res.status(400).json({ error: 'Invalid rule id' });
     }
     try {
-      const result = await pool.query(
-        'DELETE FROM alert_rules WHERE id = $1 AND user_id = $2',
-        [ruleId, req.hcSession.user_id]
-      );
+      // Admins (and legacy/service-token callers, AUTH-L-2) may remove any
+      // rule (including orphaned / legacy-NULL-owner rows) so revoked/legacy
+      // rules do not become unmanageable (M-1). Members keep the IDOR-safe
+      // owner-scoped WHERE.
+      const isAdminGrade = isLegacyAdmin(req) || req.hcSession.role === 'admin';
+      const result = isAdminGrade
+        ? await pool.query('DELETE FROM alert_rules WHERE id = $1', [ruleId])
+        : await pool.query(
+            'DELETE FROM alert_rules WHERE id = $1 AND user_id = $2',
+            [ruleId, req.hcSession.user_id]
+          );
       if (!result.rowCount) return res.status(404).json({ error: 'Rule not found' });
       res.json({ success: true });
     } catch (err) {
@@ -444,32 +578,50 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     }
   });
 
-  // GET /deliveries — scoped to deliveries whose rule is owned by the session user (D-05, D-07)
+  // GET /deliveries — scoped to deliveries whose rule is owned by the session
+  // user (D-05, D-07), or every delivery for a legacy/service-token caller (AUTH-L-2)
   router.get('/deliveries', alertsReadLimiter, async (req, res) => {
+    const legacy = isLegacyAdmin(req);
     const uid = req.hcSession?.user_id;
     const page = parseIntInRange(req.query.page, 1, 1, 1_000_000);
     const limit = parseIntInRange(req.query.limit, 50, 1, 200);
     const offset = (page - 1) * limit;
 
     try {
-      const countResult = await pool.query(
-        `SELECT COUNT(*)::int AS total
-         FROM alert_deliveries d
-         JOIN alert_rules r ON r.id = d.rule_id
-         WHERE r.user_id = $1`,
-        [uid]
-      );
+      const countResult = legacy
+        ? await pool.query(
+            `SELECT COUNT(*)::int AS total
+             FROM alert_deliveries d
+             JOIN alert_rules r ON r.id = d.rule_id`
+          )
+        : await pool.query(
+            `SELECT COUNT(*)::int AS total
+             FROM alert_deliveries d
+             JOIN alert_rules r ON r.id = d.rule_id
+             WHERE r.user_id = $1`,
+            [uid]
+          );
       const total = countResult.rows[0]?.total ?? 0;
-      const result = await pool.query(
-        `SELECT d.id, d.rule_id, d.event_id, d.status, d.target_url, d.channel, d.recipient,
-                d.response_code, d.error, d.sent_at, r.name AS rule_name
-         FROM alert_deliveries d
-         JOIN alert_rules r ON r.id = d.rule_id
-         WHERE r.user_id = $1
-         ORDER BY d.sent_at DESC, d.id DESC
-         LIMIT $2 OFFSET $3`,
-        [uid, limit, offset]
-      );
+      const result = legacy
+        ? await pool.query(
+            `SELECT d.id, d.rule_id, d.event_id, d.status, d.target_url, d.channel, d.recipient,
+                    d.response_code, d.error, d.sent_at, r.name AS rule_name
+             FROM alert_deliveries d
+             JOIN alert_rules r ON r.id = d.rule_id
+             ORDER BY d.sent_at DESC, d.id DESC
+             LIMIT $1 OFFSET $2`,
+            [limit, offset]
+          )
+        : await pool.query(
+            `SELECT d.id, d.rule_id, d.event_id, d.status, d.target_url, d.channel, d.recipient,
+                    d.response_code, d.error, d.sent_at, r.name AS rule_name
+             FROM alert_deliveries d
+             JOIN alert_rules r ON r.id = d.rule_id
+             WHERE r.user_id = $1
+             ORDER BY d.sent_at DESC, d.id DESC
+             LIMIT $2 OFFSET $3`,
+            [uid, limit, offset]
+          );
       res.json({
         total,
         page,

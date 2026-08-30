@@ -10,6 +10,36 @@ const ALERTS_WEBHOOK_TIMEOUT_MS = (() => {
 const ALERTS_ALLOW_PRIVATE_TARGETS = /^(1|true|yes|on)$/i.test(
   process.env.ALERTS_ALLOW_PRIVATE_TARGETS ?? 'true'
 );
+// M-3: bound concurrent outbound sends per processAlertsForEvent call.
+const ALERTS_FANOUT_CONCURRENCY = (() => {
+  const parsed = Number.parseInt(process.env.ALERTS_FANOUT_CONCURRENCY ?? '4', 10);
+  if (!Number.isFinite(parsed)) return 4;
+  return Math.min(32, Math.max(1, parsed));
+})();
+// M-3: module-global ceiling on concurrent in-flight sends across ALL
+// processAlertsForEvent invocations (bounds concurrent calls from separate
+// subscriber.js events, not just one call's own fan-out).
+const ALERTS_MAX_INFLIGHT = (() => {
+  const parsed = Number.parseInt(process.env.ALERTS_MAX_INFLIGHT ?? '50', 10);
+  if (!Number.isFinite(parsed)) return 50;
+  return Math.min(1000, Math.max(1, parsed));
+})();
+// M-3: minimum backoff applied after a failed attempt, even when
+// quiet_minutes is 0, so a permanently broken target is not retried on
+// every single matching event.
+const ALERTS_FAILURE_BACKOFF_MS = (() => {
+  const parsed = Number.parseInt(process.env.ALERTS_FAILURE_BACKOFF_MS ?? '60000', 10);
+  if (!Number.isFinite(parsed)) return 60_000;
+  return Math.min(86_400_000, Math.max(1_000, parsed));
+})();
+
+// Module-global in-flight counter — bounds concurrent outbound sends across
+// every processAlertsForEvent call in this process (M-3).
+let inFlight = 0;
+// Module-global suppressed-row dedupe: at most one 'suppressed' delivery row
+// is written per rule per suppression window, so a chatty sensor does not
+// grow alert_deliveries by one row per event while suppressed (M-3).
+const lastSuppressedRowAt = new Map();
 
 function normalizeString(value) {
   return String(value ?? '').trim();
@@ -198,12 +228,24 @@ async function sendEmailAlertForRule(rule, event, emailFrom) {
 export async function processAlertsForEvent(pool, event, emailFrom) {
   if (!event?.eventId) return;
 
+  // M-1: LEFT JOIN users so a rule owned by a disabled user is excluded before
+  // it ever reaches the match/fire pipeline — a revoked household member must
+  // lose their event stream immediately. Rules with user_id IS NULL are legacy
+  // backfill (migration 0008 "A1", auth-off installs with no admin at backfill
+  // time) and intentionally still fire — there is no owner account to disable.
+  // We deliberately do NOT cascade-disable alert_rules.enabled from
+  // users-router.js when a user is disabled: this join already suppresses
+  // firing, and leaving `enabled` untouched means re-enabling the user
+  // restores their rules without the admin having to recreate them.
   const rulesResult = await pool.query(
-    `SELECT id, name, enabled, scope_type, scope_value, characteristic,
-            operator, match_value, target_url, target_email, channel, quiet_minutes
-     FROM alert_rules
-     WHERE enabled = TRUE
-     ORDER BY id ASC`
+    `SELECT r.id AS id, r.name AS name, r.enabled AS enabled, r.scope_type AS scope_type,
+            r.scope_value AS scope_value, r.characteristic AS characteristic,
+            r.operator AS operator, r.match_value AS match_value, r.target_url AS target_url,
+            r.target_email AS target_email, r.channel AS channel, r.quiet_minutes AS quiet_minutes
+     FROM alert_rules r
+     LEFT JOIN users u ON u.id = r.user_id
+     WHERE r.enabled = TRUE AND (r.user_id IS NULL OR u.disabled_at IS NULL)
+     ORDER BY r.id ASC`
   );
   if (!rulesResult.rows.length) return;
 
@@ -216,59 +258,119 @@ export async function processAlertsForEvent(pool, event, emailFrom) {
   );
   if (!matchingRules.length) return;
 
-  // Batch-load last delivery times for all matching rules in one query
+  // Batch-load last delivery times AND statuses for all matching rules in one
+  // query. Widened from status='sent' to status IN ('sent','failed') so a
+  // rule whose most recent attempt failed can be backed off (M-3), not just
+  // one that succeeded.
   const ruleIds = matchingRules.map((r) => r.id);
   const suppressionResult = await pool.query(
-    `SELECT DISTINCT ON (rule_id) rule_id, sent_at
+    `SELECT DISTINCT ON (rule_id) rule_id, sent_at, status
      FROM alert_deliveries
      WHERE rule_id = ANY($1)
-       AND status = 'sent'
+       AND status IN ('sent','failed')
      ORDER BY rule_id, sent_at DESC`,
     [ruleIds]
   );
-  const lastSentByRule = new Map(
-    suppressionResult.rows.map((r) => [r.rule_id, new Date(r.sent_at).getTime()])
+  const lastByRule = new Map(
+    suppressionResult.rows.map((r) => [
+      r.rule_id,
+      { ts: new Date(r.sent_at).getTime(), status: r.status },
+    ])
   );
 
   const now = Date.now();
+  let droppedForCeiling = 0;
 
-  for (const rule of matchingRules) {
+  async function processRule(rule) {
     try {
-      // Check suppression using batch-loaded data
+      // Check suppression using batch-loaded data. A rule whose last attempt
+      // failed gets at least ALERTS_FAILURE_BACKOFF_MS of backoff even when
+      // quiet_minutes is 0 — otherwise a permanently broken target would be
+      // retried on every single matching event (M-3).
       const quietMs = (Number.parseInt(String(rule.quiet_minutes ?? 0), 10) || 0) * 60_000;
-      const lastSent = lastSentByRule.get(rule.id);
-      const suppressed = quietMs > 0 && Number.isFinite(lastSent) && (now - lastSent) < quietMs;
+      const last = lastByRule.get(rule.id);
+      const effectiveQuietMs = Math.max(
+        quietMs,
+        last?.status === 'failed' ? ALERTS_FAILURE_BACKOFF_MS : 0
+      );
+      const suppressed =
+        effectiveQuietMs > 0 && last && Number.isFinite(last.ts) && (now - last.ts) < effectiveQuietMs;
 
       if (suppressed) {
+        // Dedupe: write at most one 'suppressed' row per rule per window so a
+        // chatty sensor does not grow alert_deliveries by one row per event
+        // while suppressed (M-3).
+        const lastRowAt = lastSuppressedRowAt.get(rule.id) ?? 0;
+        if (now - lastRowAt >= effectiveQuietMs) {
+          await createDelivery(pool, {
+            ruleId: rule.id,
+            eventId: event.eventId,
+            status: 'suppressed',
+            targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
+            channel: rule.channel ?? 'webhook',
+            recipient: rule.channel === 'email' ? rule.target_email : null,
+            error: `Suppressed by quiet period (${rule.quiet_minutes} minute(s))`,
+          });
+          lastSuppressedRowAt.set(rule.id, now);
+          // Prune stale entries so the map cannot grow unbounded over months.
+          if (lastSuppressedRowAt.size > 1000) {
+            const cutoff = now - 24 * 60 * 60 * 1000;
+            for (const [id, ts] of lastSuppressedRowAt) {
+              if (ts < cutoff) lastSuppressedRowAt.delete(id);
+            }
+          }
+        }
+        return;
+      }
+
+      // Module-global in-flight ceiling (M-3): once at capacity, drop the
+      // remaining rules with a log.warn and write NO delivery row — writing
+      // one would reintroduce the row-growth this finding is about.
+      if (inFlight >= ALERTS_MAX_INFLIGHT) {
+        droppedForCeiling += 1;
+        return;
+      }
+      inFlight += 1;
+      try {
+        const delivery = rule.channel === 'email'
+          ? await sendEmailAlertForRule(rule, event, emailFrom)
+          : await sendWebhook(rule, event);
         await createDelivery(pool, {
           ruleId: rule.id,
           eventId: event.eventId,
-          status: 'suppressed',
+          status: delivery.status,
           targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
           channel: rule.channel ?? 'webhook',
           recipient: rule.channel === 'email' ? rule.target_email : null,
-          error: `Suppressed by quiet period (${rule.quiet_minutes} minute(s))`,
+          responseCode: delivery.responseCode,
+          error: delivery.error,
         });
-        continue;
+      } finally {
+        inFlight -= 1;
       }
-
-      const delivery = rule.channel === 'email'
-        ? await sendEmailAlertForRule(rule, event, emailFrom)
-        : await sendWebhook(rule, event);
-      await createDelivery(pool, {
-        ruleId: rule.id,
-        eventId: event.eventId,
-        status: delivery.status,
-        targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
-        channel: rule.channel ?? 'webhook',
-        recipient: rule.channel === 'email' ? rule.target_email : null,
-        responseCode: delivery.responseCode,
-        error: delivery.error,
-      });
     } catch (err) {
       // Isolate per-rule failures: a broken webhook or DB error must not
       // prevent delivery attempts for the remaining rules (M-5).
       log.warn(`[alerts] rule ${rule.id} delivery failed:`, err.message);
     }
+  }
+
+  // Bounded worker pool (M-3): at most ALERTS_FANOUT_CONCURRENCY rules are
+  // ever in-flight for this call, but all matchingRules are attempted.
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < matchingRules.length) {
+      const rule = matchingRules[nextIndex];
+      nextIndex += 1;
+      await processRule(rule);
+    }
+  }
+  const workerCount = Math.min(ALERTS_FANOUT_CONCURRENCY, matchingRules.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  if (droppedForCeiling > 0) {
+    log.warn(
+      `[alerts] in-flight ceiling (${ALERTS_MAX_INFLIGHT}) reached — dropped ${droppedForCeiling} rule(s) for event ${event.eventId}`
+    );
   }
 }

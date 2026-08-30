@@ -133,7 +133,10 @@ test('processAlertsSafe does NOT fire a per-rule-DISABLED rule (per-rule filter 
   // If the SELECT includes the filter (correct), we return no rows → no delivery.
   pool.query = async (sql, params) => {
     if (sql.includes('FROM alert_rules')) {
-      if (sql.includes('WHERE enabled = TRUE') || sql.includes('WHERE enabled=TRUE')) {
+      // M-1 (quick-260830-1qj) qualified the column as `r.enabled` when the
+      // rule SELECT gained a LEFT JOIN users; match the substring without a
+      // leading WHERE/table-alias assumption so this guard survives either form.
+      if (sql.includes('enabled = TRUE') || sql.includes('enabled=TRUE')) {
         // Filter present (correct) → no matching rows for a disabled rule
         return { rows: [] };
       }
