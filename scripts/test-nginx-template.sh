@@ -118,6 +118,123 @@ else
   fail=1
 fi
 
+# -- Resolver override + auth-OFF + host-mode + composition guards (260830-0wr) --
+
+# 1. Resolver override is rendered verbatim (the env var is honoured, not hard-coded).
+override=$(NGINX_RESOLVER=10.0.0.53 render true)
+if printf '%s\n' "$override" | grep -q 'resolver 10.0.0.53 valid=10s ipv6=off;'; then
+  echo "PASS: NGINX_RESOLVER override rendered verbatim (10.0.0.53)"
+else
+  echo "FAIL: NGINX_RESOLVER override not rendered verbatim"
+  fail=1
+fi
+override_resolver_line=$(printf '%s\n' "$override" | grep '^ *resolver ' || true)
+if printf '%s\n' "$override_resolver_line" | grep -q '127.0.0.11'; then
+  echo "FAIL: default resolver 127.0.0.11 leaked into the overridden resolver directive"
+  fail=1
+else
+  echo "PASS: default resolver 127.0.0.11 does not appear in the overridden resolver directive"
+fi
+
+# 2. Exactly ONE resolver directive at server scope in the auth-ON render.
+resolver_count=$(printf '%s\n' "$rendered" | grep -c '^ *resolver ' || true)
+if [ "$resolver_count" -eq 1 ]; then
+  echo "PASS: exactly one resolver directive at server scope"
+else
+  echo "FAIL: expected exactly one resolver directive (got $resolver_count)"
+  fail=1
+fi
+
+# 3. Auth-OFF render carries the same per-request directives (fix must not depend
+#    on the auth branch).
+off=$(render false)
+off_set_count=$(printf '%s\n' "$off" | grep -c 'set \$hc_listener' || true)
+off_pp_count=$(printf '%s\n' "$off" | grep -c 'proxy_pass http://\$hc_listener:3001;' || true)
+off_resolver_count=$(printf '%s\n' "$off" | grep -c '^ *resolver ' || true)
+if [ "$off_set_count" -eq 3 ] && [ "$off_pp_count" -eq 3 ] && [ "$off_resolver_count" -ge 1 ]; then
+  echo "PASS: auth-OFF render carries set \$hc_listener x3, proxy_pass :3001 x3, resolver present"
+else
+  echo "FAIL: auth-OFF render missing directives (set=$off_set_count/3, proxy_pass=$off_pp_count/3, resolver=$off_resolver_count)"
+  fail=1
+fi
+if printf '%s\n' "$off" | grep -q '${'; then
+  echo "FAIL: literal \${...} placeholder left in auth-OFF rendered config:"
+  printf '%s\n' "$off" | grep '${'
+  fail=1
+else
+  echo "PASS: no literal \${...} placeholders remain in the auth-OFF render"
+fi
+
+# 4. Host-mode render (standalone / LISTENER_HOST as an IP literal): no placeholders,
+#    set/proxy_pass x3 using the IP literal directly.
+host=$(render true 127.0.0.1)
+host_pp_count=$(printf '%s\n' "$host" | grep -c 'proxy_pass http://\$hc_listener:3001;' || true)
+host_set_count=$(printf '%s\n' "$host" | grep -c 'set \$hc_listener 127.0.0.1;' || true)
+if [ "$host_pp_count" -eq 3 ] && [ "$host_set_count" -eq 3 ]; then
+  echo "PASS: host-mode render carries proxy_pass :3001 x3, set \$hc_listener 127.0.0.1 x3"
+else
+  echo "FAIL: host-mode render missing directives (proxy_pass=$host_pp_count/3, set=$host_set_count/3)"
+  fail=1
+fi
+if printf '%s\n' "$host" | grep -q '${'; then
+  echo "FAIL: literal \${...} placeholder left in host-mode rendered config:"
+  printf '%s\n' "$host" | grep '${'
+  fail=1
+else
+  echo "PASS: no literal \${...} placeholders remain in the host-mode render"
+fi
+
+# 5. The rendered port is honoured (already exercised above via the literal ':3001;'
+#    grep pattern in checks 3/4 — a port regression would fail those).
+echo "PASS: rendered port :3001 verified via auth-OFF and host-mode proxy_pass checks above"
+
+# 6. Composition guards: NGINX_RESOLVER must be DEFINED on every render path or
+#    nginx fails to boot (the boot-fail landmine from 260617-f5d).
+DOCKERFILE="$SCRIPT_DIR/../web/Dockerfile"
+ENTRYPOINT="$SCRIPT_DIR/../docker/standalone/entrypoint.sh"
+
+if grep -q '^ENV NGINX_RESOLVER=127.0.0.11' "$DOCKERFILE"; then
+  echo "PASS: web/Dockerfile declares ENV NGINX_RESOLVER=127.0.0.11"
+else
+  echo "FAIL: web/Dockerfile does not declare ENV NGINX_RESOLVER=127.0.0.11"
+  fail=1
+fi
+
+if grep -Fq 'export NGINX_RESOLVER="${NGINX_RESOLVER:-127.0.0.11}"' "$ENTRYPOINT"; then
+  echo "PASS: docker/standalone/entrypoint.sh exports NGINX_RESOLVER with default 127.0.0.11"
+else
+  echo "FAIL: docker/standalone/entrypoint.sh does not export NGINX_RESOLVER with default 127.0.0.11"
+  fail=1
+fi
+
+exp_line=$(grep -n 'export NGINX_RESOLVER=' "$ENTRYPOINT" | head -1 | cut -d: -f1 || true)
+sub_line=$(grep -n 'envsubst <' "$ENTRYPOINT" | head -1 | cut -d: -f1 || true)
+if [ -n "$exp_line" ] && [ -n "$sub_line" ] && [ "$exp_line" -lt "$sub_line" ]; then
+  echo "PASS: entrypoint exports NGINX_RESOLVER (line $exp_line) before envsubst (line $sub_line)"
+else
+  echo "FAIL: entrypoint NGINX_RESOLVER export must precede its envsubst invocation (export=$exp_line, envsubst=$sub_line)"
+  fail=1
+fi
+
+# 7. Template source guard: ${NGINX_RESOLVER} referenced exactly once, and every
+#    proxy_pass in the template uses the variable form (no static fourth block).
+resolver_ref_count=$(grep -c '${NGINX_RESOLVER}' "$TEMPLATE" || true)
+if [ "$resolver_ref_count" -eq 1 ]; then
+  echo "PASS: template references \${NGINX_RESOLVER} exactly once"
+else
+  echo "FAIL: template references \${NGINX_RESOLVER} $resolver_ref_count times (expected 1)"
+  fail=1
+fi
+
+proxy_pass_total=$(grep -c 'proxy_pass ' "$TEMPLATE" || true)
+proxy_pass_var=$(grep -c 'proxy_pass http://${DOLLAR}hc_listener' "$TEMPLATE" || true)
+if [ "$proxy_pass_total" -eq 3 ] && [ "$proxy_pass_var" -eq 3 ]; then
+  echo "PASS: all 3 proxy_pass lines in the template use the variable form (no static block)"
+else
+  echo "FAIL: template proxy_pass count mismatch (total=$proxy_pass_total, variable-form=$proxy_pass_var, expected 3/3)"
+  fail=1
+fi
+
 # Optional: nginx -t on BOTH bridge (hostname) and host (IP literal) renders.
 # nginx -t validates syntax only and never contacts DNS, so it passes even when
 # 127.0.0.11 is unreachable in host mode.
