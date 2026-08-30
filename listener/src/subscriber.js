@@ -226,6 +226,17 @@ export function stopSubscriber(deviceId) {
   subscriberSessions.delete(deviceId);
 }
 
+/**
+ * Stop every active subscriber session (M-6: graceful shutdown). Closes each
+ * HAP session so accessories do not accumulate dead controller peers across
+ * redeploys and trip the terminal 'max peers reached' path.
+ */
+export function stopAllSubscribers() {
+  const deviceIds = [...subscriberSessions.keys()];
+  for (const deviceId of deviceIds) stopSubscriber(deviceId);
+  log.info(`[subscriber] Stopped ${deviceIds.length} subscriber session(s)`);
+}
+
 function connectAccessory(session, pairing) {
   if (session.stopped) return;
   if (session.repairing) {

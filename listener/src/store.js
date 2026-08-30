@@ -1,5 +1,5 @@
-import { chmod, mkdir, readFile, rename, stat, writeFile } from 'fs/promises';
-import { dirname } from 'path';
+import { chmod, mkdir, readdir, readFile, rename, stat, unlink, writeFile } from 'fs/promises';
+import { basename, dirname, join } from 'path';
 import { log } from './logger.js';
 
 function clone(value) {
@@ -16,7 +16,36 @@ export class JsonObjectStore {
   }
 
   async init() {
+    await this._sweepStaleTemps();
     await this.refresh();
+  }
+
+  /**
+   * M-6: remove stale `<basename>.tmp-*` siblings left behind by an
+   * interrupted _doWrite() (e.g. a SIGKILL between writeFile(tmp) and
+   * rename()). Safe because the `.tmp-` prefix can only match temp files
+   * this class wrote itself (see _doWrite's `${this.filePath}.tmp-${pid}-${ts}`
+   * naming), and init() runs once at boot in a single-instance deployment.
+   */
+  async _sweepStaleTemps() {
+    try {
+      const dir = dirname(this.filePath);
+      const prefix = `${basename(this.filePath)}.tmp-`;
+      const entries = await readdir(dir);
+      for (const entry of entries) {
+        if (!entry.startsWith(prefix)) continue;
+        try {
+          await unlink(join(dir, entry));
+          log.info(`[store] Removed stale temp file: ${entry}`);
+        } catch (err) {
+          // One bad unlink (e.g. EACCES) must not abort the rest of the sweep.
+          log.debug(`[store] Failed to remove stale temp file ${entry}:`, err.message);
+        }
+      }
+    } catch (err) {
+      // A missing directory on first boot is normal and must not throw.
+      log.debug('[store] Stale temp sweep skipped:', err.message);
+    }
   }
 
   getSnapshot() {

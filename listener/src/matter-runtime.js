@@ -333,11 +333,19 @@ export function createMatterRuntime({
     return matterController.discover(DISCOVER_TIMEOUT_MS);
   }
 
+  /**
+   * Stop every active Matter node session (M-6: graceful shutdown).
+   */
+  function stopAll() {
+    for (const nodeId of [...sessions.keys()]) stopNode(nodeId);
+  }
+
   return {
     commission,
     scan,
     syncPairings,
     stopNode,
+    stopAll,
     getStatus,
   };
 }
