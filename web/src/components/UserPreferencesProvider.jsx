@@ -24,6 +24,7 @@ import { createContext, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchJson, API_BASE } from '../lib/api.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { D12_KEYS } from '../lib/prefKeys.js';
 
 // Debounce interval for coalescing rapid setPrefsBlob calls into one PUT.
 const DEBOUNCE_MS = 500;
@@ -32,31 +33,8 @@ const DEBOUNCE_MS = 500;
 const MAX_FLUSH_WAIT_MS = 10_000;
 const MAX_FLUSH_WAITS = MAX_FLUSH_WAIT_MS / DEBOUNCE_MS;
 
-// D-12 localStorage key inventory with codec types.
-// 'json' keys: JSON.parse / JSON.stringify
-// 'raw'  keys: bare string (theme/accent store raw strings, not JSON values)
-// 'bool' keys: raw 'true'/'false' string in localStorage, stored in the blob as a real boolean
-//   (WR-01 fix: sidebarCollapsed's consumer default is a boolean; seeding it as a raw string
-//    made the D-18 type guard reject it, so it never synced cross-device).
-const D12_KEYS = [
-  { lsKey: 'hc_dashboard_layouts',          blobKey: 'dashboardLayouts',        codec: 'json' },
-  { lsKey: 'hc_dashboard_hidden',           blobKey: 'dashboardHidden',         codec: 'json' },
-  { lsKey: 'hc_dashboard_global_days',      blobKey: 'dashboardGlobalDays',     codec: 'json' },
-  { lsKey: 'hc_dashboard_room_days',        blobKey: 'dashboardRoomDays',       codec: 'json' },
-  { lsKey: 'hc_dashboard_trend_days',       blobKey: 'dashboardTrendDays',      codec: 'json' },
-  { lsKey: 'hc_dashboard_weekday_days',     blobKey: 'dashboardWeekdayDays',    codec: 'json' },
-  { lsKey: 'hc_dashboard_top_devices_days', blobKey: 'dashboardTopDevicesDays', codec: 'json' },
-  { lsKey: 'hc_dashboard_sync_ranges',      blobKey: 'dashboardSyncRanges',     codec: 'json' },
-  { lsKey: 'hc_muted',                      blobKey: 'mutedDevices',            codec: 'json' },
-  { lsKey: 'hc_theme_preference',           blobKey: 'theme',                   codec: 'raw'  },
-  { lsKey: 'hc_accent',                     blobKey: 'accent',                  codec: 'raw'  },
-  // Sidebar collapsed — localStorage holds 'true'/'false'; the blob holds a real boolean
-  // so the consumer's boolean type guard accepts it (WR-01).
-  { lsKey: 'hc_sidebar_collapsed',          blobKey: 'sidebarCollapsed',        codec: 'bool' },
-];
-// Note (IN-02): the legacy 'hc_ui_skin' key is intentionally NOT seeded into the blob.
-// 'skin' was consolidated into 'accent'; useAccent.js reads hc_ui_skin from localStorage
-// directly as a one-time accent fallback. A 'skin' blob key would be dead (no consumer).
+// D12_KEYS now lives in ../lib/prefKeys.js (single source of truth, shared with useAuth.js's
+// logout purge without creating an import cycle — see that module's header comment).
 
 /** Read a value from localStorage using the correct codec. Returns undefined when absent. */
 function readD12Key(lsKey, codec) {

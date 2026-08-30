@@ -115,7 +115,10 @@ export function useDashboardLayout() {
   );
 
   // Mutable refs so callbacks always see the latest value without stale closures.
-  // usePreference's setValue does not support functional updaters — concrete values required.
+  // usePreference's setValue DOES support functional updaters now (web L-1), but this hook
+  // deliberately keeps ref-based concrete values: these callbacks merge incoming RGL data
+  // against a SANITIZED layout/hidden-list (sanitizeLayouts/sanitizeHidden), not raw prior
+  // state, so a functional updater would need the same ref-read-and-sanitize work anyway.
   const storedLayoutsRef = useRef(storedLayouts);
   storedLayoutsRef.current = storedLayouts;
   const hiddenArrRef = useRef(hiddenArr);
@@ -150,8 +153,9 @@ export function useDashboardLayout() {
     const newToSeed = OPTIONAL_PANEL_IDS.filter((id) => !knownIds.has(id));
     if (newToSeed.length === 0) return;
 
-    // Seed new optional panels into hidden (concrete value — usePreference.setValue
-    // does not support functional updaters).
+    // Seed new optional panels into hidden using a concrete value read via ref. Functional
+    // updaters ARE supported by usePreference.setValue now (web L-1); this stays ref-based
+    // because the merge needs sanitizeHidden(prevArr), not the raw prior state.
     const currentHidden = hiddenArrRef.current;
     const prevArr = Array.isArray(currentHidden) ? currentHidden : [];
     const merged = [...new Set([...sanitizeHidden(prevArr), ...newToSeed])];
