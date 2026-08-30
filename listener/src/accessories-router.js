@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
-import { parseIntInRange as _parseIntInRange, parentBridgeId } from './utils.js';
+import { parseIntInRange as _parseIntInRange, parentBridgeId, withTimeout } from './utils.js';
 import { isHomeKitPairing, mapReliabilityStats } from './setup-helpers.js';
 import { deriveDeviceHealth } from './device-health.js';
 import { cached } from './query-cache.js';
@@ -31,8 +31,20 @@ export function createAccessoriesRouter({
   getAllDiscoveredAccessories,
   cacheAccessoryMetadata,
   HttpClient,
+  // Upper bound for a single live HAP round-trip made from this router. Mirrors
+  // subscriber.js (HAP_REQUEST_TIMEOUT_MS, default 30s). hap-controller sets no
+  // socket timeout of its own, so without this a bridge that accepts the TCP
+  // connection but never answers — or an unreachable address that only fails
+  // at the OS connect timeout (~130s on Linux) — would hang the request.
+  hapRequestTimeoutMs = _parseIntInRange(process.env.HAP_REQUEST_TIMEOUT_MS, 30_000, 1_000, 300_000),
+  // Minimum gap between on-demand metadata warm-up attempts for the same bridge.
+  // The UI polls /accessories every 30s; without a cooldown an unreachable
+  // bridge would be re-dialled on every poll.
+  onDemandCooldownMs = 5 * 60_000,
 }) {
   const router = express.Router();
+  // bridgeId -> timestamp of the last on-demand warm-up attempt (per router instance).
+  const onDemandAttempts = new Map();
   const accessoriesReadLimiter = rateLimit({
     windowMs: ACCESSORIES_RATE_LIMIT_WINDOW_MS,
     max: ACCESSORIES_RATE_LIMIT_MAX,
@@ -69,7 +81,12 @@ export function createAccessoriesRouter({
 
     try {
       const client = new HttpClient(bridgeId, pairing.address, pairing.port, pairing.longTermData);
-      const accessories = await client.getAccessories();
+      const accessories = await withTimeout(
+        client.getAccessories(),
+        hapRequestTimeoutMs,
+        () => client.close?.(),
+        `getAccessories(${pairing.name ?? bridgeId})`,
+      );
       cacheAccessoryMetadata({
         deviceId: bridgeId,
         pairingName: pairing.name,
@@ -252,22 +269,38 @@ export function createAccessoriesRouter({
 
       // On-demand: populate metadata cache for HomeKit bridges that have no cached children.
       // This handles the case where the subscriber hasn't connected yet or the cache was
-      // cleared during a reconnect cycle. Fetches run in parallel to avoid blocking the
-      // response for the sum of all HAP round-trips (WR-04).
+      // cleared during a reconnect cycle.
+      //
+      // This is a background WARM-UP, not part of the response: the fetch is started
+      // (bounded by hapRequestTimeoutMs, closing the client on expiry) and the response is
+      // sent with whatever is cached right now — the next poll picks up the result. It used
+      // to be awaited, which meant one unreachable bridge (stale address after a network
+      // move, powered-off hub) held every /accessories response for the OS connect timeout
+      // (~130s) — far past nginx's 30s proxy timeout — so the Devices page never rendered.
+      // A per-bridge cooldown stops the 30s UI poll from re-dialling a dead bridge forever.
       const discoveredBefore = getAllDiscoveredAccessories();
       const cachedBridgeIds = new Set(discoveredBefore.map((d) => d.parent_device_id));
       const bridgesToFetch = Object.entries(currentPairings)
-        .filter(([id, p]) => p.category === 2 && !cachedBridgeIds.has(id) && isHomeKitPairing(p));
-      if (bridgesToFetch.length) {
-        await Promise.allSettled(bridgesToFetch.map(async ([id, p]) => {
-          try {
-            const client = new HttpClient(id, p.address, p.port, p.longTermData);
-            const accessories = await client.getAccessories();
+        .filter(([id, p]) => p.category === 2 && !cachedBridgeIds.has(id) && isHomeKitPairing(p))
+        .filter(([id]) => {
+          const last = onDemandAttempts.get(id) ?? 0;
+          return now - last >= onDemandCooldownMs;
+        });
+      for (const [id, p] of bridgesToFetch) {
+        onDemandAttempts.set(id, now);
+        const client = new HttpClient(id, p.address, p.port, p.longTermData);
+        withTimeout(
+          client.getAccessories(),
+          hapRequestTimeoutMs,
+          () => client.close?.(),
+          `on-demand getAccessories(${p.name ?? id})`,
+        )
+          .then((accessories) => {
             cacheAccessoryMetadata({ deviceId: id, pairingName: p.name, accessories });
-          } catch (err) {
+          })
+          .catch((err) => {
             log.debug(`[api] on-demand metadata fetch failed for ${p.name ?? id}: ${err.message}`);
-          }
-        }));
+          });
       }
 
       // Include bridge children discovered via getAccessories() that have

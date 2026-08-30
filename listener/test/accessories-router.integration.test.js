@@ -606,14 +606,102 @@ test('GET /accessories — on-demand metadata fetch for bridges with no cached c
     },
   });
   const handler = getRouteHandler(router, 'GET', '/accessories');
-  const { statusCode, jsonBody } = await invoke(handler);
+  const first = await invoke(handler);
 
-  assert.equal(statusCode, 200);
+  assert.equal(first.statusCode, 200);
   assert.ok(getAccessoriesCalled, 'HttpClient.getAccessories() should be called for bridge with no cached children');
+
+  // The warm-up is deliberately NOT awaited by the request (an unreachable bridge must never
+  // hold the response — see the regression tests below), so the cache fills on a later tick
+  // and the children show up on the next poll.
+  await new Promise((r) => setImmediate(r));
   assert.ok(cacheMetadataCalled, 'cacheAccessoryMetadata() should be called to populate the cache');
 
-  const ids = jsonBody.map((r) => r.accessory_id);
-  assert.ok(ids.includes(`${bridgeId}:2`), 'On-demand fetched child :2 should appear in response');
-  assert.ok(ids.includes(`${bridgeId}:3`), 'On-demand fetched child :3 should appear in response');
-  assert.ok(ids.includes(`${bridgeId}:4`), 'On-demand fetched child :4 should appear in response');
+  const second = await invoke(handler);
+  assert.equal(second.statusCode, 200);
+  const ids = second.jsonBody.map((r) => r.accessory_id);
+  assert.ok(ids.includes(`${bridgeId}:2`), 'On-demand fetched child :2 should appear on the next poll');
+  assert.ok(ids.includes(`${bridgeId}:3`), 'On-demand fetched child :3 should appear on the next poll');
+  assert.ok(ids.includes(`${bridgeId}:4`), 'On-demand fetched child :4 should appear on the next poll');
+});
+
+// -- On-demand bridge metadata warm-up must never block the response --
+// Regression for prod 2026-08-30: a paired bridge at a stale (unreachable) address made
+// every GET /accessories wait ~130s for the OS connect timeout, so the Devices page never
+// rendered (nginx gave up at 30s). hap-controller has no socket timeout of its own.
+
+function neverResolvingClient(track) {
+  return class HangingHttpClient {
+    constructor(id) { track.constructed.push(id); }
+    getAccessories() { track.calls += 1; return new Promise(() => {}); }
+    close() { track.closed += 1; }
+  };
+}
+
+test('GET /accessories — responds immediately when a bridge getAccessories() never resolves', async () => {
+  const track = { constructed: [], calls: 0, closed: 0 };
+  const router = makeRouter({
+    loadPairings: () => ({
+      'bb:bb:bb': { name: 'Dead Bridge', category: 2, address: '172.16.1.76', port: 21063, longTermData: {}, protocol: 'homekit' },
+    }),
+    getAllDiscoveredAccessories: () => [],
+    HttpClient: neverResolvingClient(track),
+    hapRequestTimeoutMs: 50,
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories');
+
+  const started = Date.now();
+  const { statusCode, jsonBody } = await invoke(handler);
+  const elapsed = Date.now() - started;
+
+  assert.equal(statusCode, 200);
+  assert.ok(Array.isArray(jsonBody), 'response body should be the accessories array');
+  assert.ok(elapsed < 1000, `response must not wait for the HAP round-trip (took ${elapsed}ms)`);
+  assert.equal(track.calls, 1, 'the warm-up fetch is still attempted in the background');
+
+  // The bounded fetch expires and closes the client instead of leaking the socket.
+  await new Promise((r) => setTimeout(r, 120));
+  assert.equal(track.closed, 1, 'client.close() should be called when the warm-up times out');
+});
+
+test('GET /accessories — does not re-dial an unreachable bridge on every poll (cooldown)', async () => {
+  const track = { constructed: [], calls: 0, closed: 0 };
+  const router = makeRouter({
+    loadPairings: () => ({
+      'bb:bb:bb': { name: 'Dead Bridge', category: 2, address: '172.16.1.76', port: 21063, longTermData: {}, protocol: 'homekit' },
+    }),
+    getAllDiscoveredAccessories: () => [],
+    HttpClient: neverResolvingClient(track),
+    hapRequestTimeoutMs: 20,
+    onDemandCooldownMs: 60_000,
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories');
+
+  await invoke(handler);
+  await invoke(handler);
+  await invoke(handler);
+  assert.equal(track.calls, 1, 'only the first poll inside the cooldown window should dial the bridge');
+  await new Promise((r) => setTimeout(r, 60));
+});
+
+test('GET /accessories/:accessoryId/capabilities — live query is bounded by hapRequestTimeoutMs', async () => {
+  const track = { constructed: [], calls: 0, closed: 0 };
+  const router = makeRouter({
+    getAccessoryCapabilities: () => null,
+    loadPairings: () => ({
+      'bb:bb:bb': { name: 'Dead Bridge', address: '172.16.1.76', port: 21063, longTermData: {}, protocol: 'homekit' },
+    }),
+    HttpClient: neverResolvingClient(track),
+    hapRequestTimeoutMs: 50,
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories/:accessoryId/capabilities');
+
+  const started = Date.now();
+  const { statusCode, jsonBody } = await invoke(handler, { params: { accessoryId: 'bb:bb:bb' } });
+  const elapsed = Date.now() - started;
+
+  assert.equal(statusCode, 500);
+  assert.equal(jsonBody.error, 'Could not query accessory capabilities');
+  assert.ok(elapsed < 1000, `capabilities query must time out, not hang (took ${elapsed}ms)`);
+  assert.equal(track.closed, 1, 'client.close() should be called on timeout');
 });

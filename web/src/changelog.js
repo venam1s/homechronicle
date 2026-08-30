@@ -10,6 +10,13 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.3.4',
+    title: 'Devices page no longer hangs on an unreachable HomeKit bridge',
+    items: [
+      'Fixed Devices › Browse showing loading placeholders forever when a paired HomeKit bridge could not be reached (for example after its address changed). The accessory list now loads immediately and bridge details fill in in the background.',
+    ],
+  },
+  {
     version: 'v0.3.3',
     title: 'Fixes for the default Docker setup, listener resilience, and preferences',
     items: [

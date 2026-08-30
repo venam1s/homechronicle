@@ -2,6 +2,11 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.3.4] — 2026-08-30
+
+### Fixed
+- **Devices › Browse never loaded when a paired HomeKit bridge was unreachable** — `/api/accessories` waited for a live metadata fetch from every bridge with no cached children, and a bridge at a stale address (for example after a network change) held the response for the OS connect timeout (~2 minutes), well past the proxy's 30 s limit, so the page showed loading placeholders forever. The fetch now runs in the background with a timeout (`HAP_REQUEST_TIMEOUT_MS`), the response is sent immediately with what is cached, and an unreachable bridge is not re-dialled on every poll. The per-accessory capabilities lookup is bounded the same way.
+
 ## [0.3.3] — 2026-08-30
 
 ### Fixed
