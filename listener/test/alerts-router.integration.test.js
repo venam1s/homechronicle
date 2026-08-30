@@ -71,6 +71,17 @@ function createMockPool({ initialRules = [], deliveries: initialDeliveries } = {
 
   return {
     async query(sql, params = []) {
+      // -- GET /rules?scope=all (admin all-rules view, M-1) --
+      if (sql.includes('FROM alert_rules') && sql.includes('LEFT JOIN users')) {
+        const rows = [...rules].sort((a, b) => b.id - a.id).map((r) => ({
+          ...r,
+          owner_user_id: r.user_id ?? null,
+          owner_email: r.owner_email ?? null,
+          owner_disabled: r.owner_disabled ?? false,
+        }));
+        return { rows };
+      }
+
       // -- GET /rules --
       if (sql.includes('FROM alert_rules') && sql.includes('ORDER BY updated_at DESC')) {
         const hasUserScope = sql.includes('WHERE user_id = $1');
@@ -492,12 +503,127 @@ test('DELETE /rules/:id IDOR: user A cannot delete user B rule — returns 404 (
   const router = createAlertsRouter({ pool });
   const del = getRouteHandler(router, 'DELETE', '/rules/:id');
 
-  // User A (user_id=1) attempts to DELETE B's rule (id=30)
+  // User A (user_id=1, member role) attempts to DELETE B's rule (id=30).
+  // Role is deliberately 'member', not 'admin': M-1 intentionally grants
+  // admins a cross-owner DELETE override (see the dedicated admin-delete
+  // test above), so the IDOR guard is now scoped to non-admin callers.
   const result = await invoke(del, {
-    hcSession: { user_id: 1, role: 'admin', email: 'a@test.com' },
+    hcSession: { user_id: 1, role: 'member', email: 'a@test.com' },
     params: { id: '30' },
   });
   assert.equal(result.statusCode, 404, 'DELETE targeting another user rule must return 404 (IDOR guard)');
+});
+
+// -- M-1: admin all-rules view and admin delete override --
+
+test('GET /rules?scope=all as admin returns rules from every owner, including legacy NULL-owner rows', async () => {
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 70,
+        user_id: 1,
+        owner_email: 'a@test.com',
+        owner_disabled: false,
+        name: 'A-rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook-a',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+      {
+        id: 71,
+        user_id: 2,
+        owner_email: 'b@test.com',
+        owner_disabled: true,
+        name: 'B-rule (disabled owner)',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook-b',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+      {
+        id: 72,
+        user_id: null,
+        owner_email: null,
+        owner_disabled: false,
+        name: 'Legacy rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook-legacy',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const list = getRouteHandler(router, 'GET', '/rules');
+
+  const result = await invoke(list, { hcSession: ADMIN_SESSION, query: { scope: 'all' } });
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.jsonBody.length, 3, 'scope=all must return every rule, including legacy and disabled-owner rows');
+  const bRule = result.jsonBody.find((r) => r.name === 'B-rule (disabled owner)');
+  assert.equal(bRule.ownerDisabled, true, 'disabled owner must be flagged');
+  assert.equal(bRule.ownerEmail, 'b@test.com');
+  const legacyRule = result.jsonBody.find((r) => r.name === 'Legacy rule');
+  assert.equal(legacyRule.ownerUserId, null, 'legacy rule has no owner');
+  assert.equal(legacyRule.ownerEmail, null, 'legacy rule has no owner email');
+});
+
+test('DELETE /rules/:id as admin removes another user\'s rule (M-1)', async () => {
+  const pool = createMockPool({
+    initialRules: [
+      {
+        id: 80,
+        user_id: 2,
+        name: 'Member-owned rule',
+        enabled: true,
+        scope_type: 'all',
+        scope_value: null,
+        characteristic: null,
+        operator: 'equals',
+        match_value: 'true',
+        channel: 'webhook',
+        target_url: 'https://example.test/hook',
+        target_email: null,
+        quiet_minutes: 0,
+        created_at: '2026-02-26T10:00:00.000Z',
+        updated_at: '2026-02-26T10:00:00.000Z',
+      },
+    ],
+  });
+  const router = createAlertsRouter({ pool });
+  const del = getRouteHandler(router, 'DELETE', '/rules/:id');
+
+  // Admin (user_id=1) deletes a rule owned by member (user_id=2).
+  const result = await invoke(del, {
+    hcSession: { user_id: 1, role: 'admin', email: 'a@test.com' },
+    params: { id: '80' },
+  });
+  assert.equal(result.statusCode, 200, 'admin must be able to delete another user\'s rule');
+  assert.equal(result.jsonBody.success, true);
 });
 
 // -- Member email lock + SMTP-off rejection tests (MALERT-05, MALERT-06) --

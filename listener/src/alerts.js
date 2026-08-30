@@ -198,12 +198,24 @@ async function sendEmailAlertForRule(rule, event, emailFrom) {
 export async function processAlertsForEvent(pool, event, emailFrom) {
   if (!event?.eventId) return;
 
+  // M-1: LEFT JOIN users so a rule owned by a disabled user is excluded before
+  // it ever reaches the match/fire pipeline — a revoked household member must
+  // lose their event stream immediately. Rules with user_id IS NULL are legacy
+  // backfill (migration 0008 "A1", auth-off installs with no admin at backfill
+  // time) and intentionally still fire — there is no owner account to disable.
+  // We deliberately do NOT cascade-disable alert_rules.enabled from
+  // users-router.js when a user is disabled: this join already suppresses
+  // firing, and leaving `enabled` untouched means re-enabling the user
+  // restores their rules without the admin having to recreate them.
   const rulesResult = await pool.query(
-    `SELECT id, name, enabled, scope_type, scope_value, characteristic,
-            operator, match_value, target_url, target_email, channel, quiet_minutes
-     FROM alert_rules
-     WHERE enabled = TRUE
-     ORDER BY id ASC`
+    `SELECT r.id AS id, r.name AS name, r.enabled AS enabled, r.scope_type AS scope_type,
+            r.scope_value AS scope_value, r.characteristic AS characteristic,
+            r.operator AS operator, r.match_value AS match_value, r.target_url AS target_url,
+            r.target_email AS target_email, r.channel AS channel, r.quiet_minutes AS quiet_minutes
+     FROM alert_rules r
+     LEFT JOIN users u ON u.id = r.user_id
+     WHERE r.enabled = TRUE AND (r.user_id IS NULL OR u.disabled_at IS NULL)
+     ORDER BY r.id ASC`
   );
   if (!rulesResult.rows.length) return;
 

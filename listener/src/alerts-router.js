@@ -258,8 +258,46 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     message: { error: 'Too many requests' },
   });
 
-  // GET /rules — returns only the calling session's own rules (D-07, MALERT-01)
+  // GET /rules — returns only the calling session's own rules (D-07, MALERT-01),
+  // or every rule in the household when ?scope=all is requested by an admin (M-1).
   router.get('/rules', alertsReadLimiter, async (req, res) => {
+    const scopeAll = String(req.query.scope ?? '').toLowerCase() === 'all';
+    if (scopeAll) {
+      // Inline admin guard (mirrors requireAdminSession semantics from
+      // security.js:108-113) rather than route middleware: the unit tests
+      // invoke the last route handler directly, so middleware would be
+      // invisible to them, and mounting it as middleware would also gate the
+      // owner-scoped branch below.
+      if (req.hcSession && req.hcSession.role !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      try {
+        const result = await pool.query(
+          `SELECT r.id AS id, r.name AS name, r.enabled AS enabled, r.scope_type AS scope_type,
+                  r.scope_value AS scope_value, r.characteristic AS characteristic,
+                  r.operator AS operator, r.match_value AS match_value, r.target_url AS target_url,
+                  r.target_email AS target_email, r.channel AS channel, r.quiet_minutes AS quiet_minutes,
+                  r.created_at AS created_at, r.updated_at AS updated_at,
+                  r.user_id AS owner_user_id, u.email AS owner_email,
+                  (u.disabled_at IS NOT NULL) AS owner_disabled
+           FROM alert_rules r
+           LEFT JOIN users u ON u.id = r.user_id
+           ORDER BY r.updated_at DESC, r.id DESC`
+        );
+        return res.json(result.rows.map((row) => {
+          const rule = toApiRule(row);
+          delete rule.targetUrl; // webhook URL redaction preserved (L-1)
+          rule.ownerUserId = row.owner_user_id ?? null;
+          rule.ownerEmail = row.owner_email ?? null;
+          rule.ownerDisabled = Boolean(row.owner_disabled);
+          return rule;
+        }));
+      } catch (err) {
+        log.error('[api] /api/alerts/rules?scope=all error:', err.message ?? err.stack ?? err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
     const uid = req.hcSession?.user_id;
     if (!uid) return res.json([]);
     try {
@@ -432,10 +470,16 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
       return res.status(400).json({ error: 'Invalid rule id' });
     }
     try {
-      const result = await pool.query(
-        'DELETE FROM alert_rules WHERE id = $1 AND user_id = $2',
-        [ruleId, req.hcSession.user_id]
-      );
+      // Admins may remove any rule (including orphaned / legacy-NULL-owner
+      // rows) so revoked/legacy rules do not become unmanageable (M-1).
+      // Members keep the IDOR-safe owner-scoped WHERE.
+      const isAdmin = req.hcSession.role === 'admin';
+      const result = isAdmin
+        ? await pool.query('DELETE FROM alert_rules WHERE id = $1', [ruleId])
+        : await pool.query(
+            'DELETE FROM alert_rules WHERE id = $1 AND user_id = $2',
+            [ruleId, req.hcSession.user_id]
+          );
       if (!result.rowCount) return res.status(404).json({ error: 'Rule not found' });
       res.json({ success: true });
     } catch (err) {

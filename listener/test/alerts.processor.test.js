@@ -283,6 +283,52 @@ test('processAlertsForEvent suppresses rapid-fire events on email rule within qu
   }
 });
 
+// -- M-1: disabled-owner rules stop firing, NULL-owner (legacy) rules still fire --
+// alerts.js has no owner-state logic of its own — the gate is entirely the
+// LEFT JOIN + WHERE clause in the rule SELECT. This mock simulates what a real
+// Postgres LEFT JOIN would hand back (a disabled owner's row never appears in
+// rulesResult.rows) so we can assert the downstream pipeline only acts on what
+// the DB gives it: zero fetches and zero delivery rows for the excluded rule.
+test('processAlertsForEvent fires for active-owner and NULL-owner rules, skips disabled-owner rule (M-1)', async () => {
+  const activeOwnerRule = makeRule({ id: 1, target_url: 'https://203.0.113.10/hook-active' });
+  const nullOwnerRule = makeRule({ id: 3, target_url: 'https://203.0.113.10/hook-null' });
+  // rule id 2 (disabled-owner) is intentionally absent: a real LEFT JOIN +
+  // WHERE (r.user_id IS NULL OR u.disabled_at IS NULL) would exclude it.
+  const visibleRules = [activeOwnerRule, nullOwnerRule];
+
+  const fetchedUrls = [];
+  const deliveries = [];
+  const pool = {
+    async query(sql, params = []) {
+      if (sql.includes('FROM alert_rules')) return { rows: visibleRules };
+      if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+      if (sql.startsWith('INSERT INTO alert_deliveries')) {
+        deliveries.push({ ruleId: params[0], status: params[2] });
+        return { rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    fetchedUrls.push(url);
+    return { ok: true, status: 200 };
+  };
+  try {
+    await processAlertsForEvent(pool, makeEvent());
+    assert.equal(deliveries.length, 2, 'only the two visible (non-disabled-owner) rules produce delivery rows');
+    assert.deepEqual(deliveries.map((d) => d.ruleId).sort(), [1, 3]);
+    assert.equal(
+      fetchedUrls.some((u) => u.includes('hook-disabled')),
+      false,
+      'a disabled-owner rule must never be fetched'
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 // Regression (Phase 26 WR-02): the per-rule isolation catch in processAlertsForEvent
 // calls log.warn(); alerts.js must import `log` or the catch itself throws
 // ReferenceError, aborting delivery for every remaining rule. With the household

@@ -62,6 +62,16 @@ function createMockPool() {
 
   return {
     async query(sql, params = []) {
+      // -- GET /rules?scope=all (admin all-rules view, M-1) --
+      if (sql.includes('FROM alert_rules') && sql.includes('LEFT JOIN users')) {
+        const rows = [...rules].sort((a, b) => b.id - a.id).map((r) => ({
+          ...r,
+          owner_user_id: r.user_id ?? null,
+          owner_email: r.owner_email ?? null,
+          owner_disabled: r.owner_disabled ?? false,
+        }));
+        return { rows };
+      }
       if (sql.includes('FROM alert_rules') && sql.includes('ORDER BY updated_at DESC')) {
         let rows = [...rules].sort((a, b) => b.id - a.id);
         if (sql.includes('WHERE user_id = $1')) {
@@ -299,6 +309,62 @@ test('GET /rules returns channel and targetEmail for email rule (Wave 0 - implem
   assert.equal(rule.channel, 'email', 'rule must expose channel=email');
   assert.equal(rule.targetEmail, 'alert@example.com', 'rule must expose targetEmail');
   assert.equal(rule.targetUrl, undefined, 'rule must NOT expose targetUrl (redaction preserved for D-08)');
+});
+
+// -- M-1: admin scope=all view --
+
+test('GET /rules?scope=all as admin returns every rule with owner metadata', async () => {
+  const pool = createMockPool();
+  const router = createAlertsRouter({ pool });
+  const post = getRouteHandler(router, 'POST', '/rules');
+  const list = getRouteHandler(router, 'GET', '/rules');
+
+  await invoke(post, {
+    hcSession: { user_id: 1, role: 'admin', email: 'admin@test.com' },
+    body: {
+      name: 'Admin rule',
+      scopeType: 'all',
+      operator: 'equals',
+      matchValue: 'true',
+      targetUrl: 'https://example.test/hook',
+    },
+  });
+  await invoke(post, {
+    hcSession: { user_id: 2, role: 'member', email: 'member@test.com' },
+    body: {
+      name: 'Member rule',
+      scopeType: 'all',
+      operator: 'equals',
+      matchValue: 'true',
+      targetUrl: 'https://example.test/hook-2',
+    },
+  });
+
+  const result = await invoke(list, {
+    hcSession: ADMIN_SESSION,
+    query: { scope: 'all' },
+  });
+  assert.equal(result.statusCode, 200, 'scope=all admin request must return 200');
+  assert.equal(result.jsonBody.length, 2, 'scope=all must return every rule regardless of owner');
+  for (const rule of result.jsonBody) {
+    assert.ok('ownerUserId' in rule, 'each rule must carry ownerUserId');
+    assert.ok('ownerEmail' in rule, 'each rule must carry ownerEmail');
+    assert.ok('ownerDisabled' in rule, 'each rule must carry ownerDisabled');
+    assert.equal(rule.targetUrl, undefined, 'scope=all must still redact targetUrl');
+  }
+});
+
+test('GET /rules?scope=all as member returns 403 Forbidden', async () => {
+  const pool = createMockPool();
+  const router = createAlertsRouter({ pool });
+  const list = getRouteHandler(router, 'GET', '/rules');
+
+  const result = await invoke(list, {
+    hcSession: { user_id: 2, role: 'member', email: 'member@test.com' },
+    query: { scope: 'all' },
+  });
+  assert.equal(result.statusCode, 403, 'member scope=all request must return 403');
+  assert.equal(result.jsonBody.error, 'Forbidden');
 });
 
 test('GET /rules does not expose targetUrl for webhook rules either (SC-4 + D-08) (Wave 0 - implemented by 22-03)', async () => {
