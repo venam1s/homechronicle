@@ -1,8 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchJson, API_BASE } from '../lib/api.js';
+import { useAuthConfig } from './useAuthConfig.js';
+import { purgeUserPrefStorage } from '../lib/prefKeys.js';
 
 export function useAuth() {
   const queryClient = useQueryClient();
+  // web L-4: ['auth','config'] has staleTime: Infinity, so this adds at most one extra
+  // request per session — not one per render/component.
+  const { authEnabled } = useAuthConfig();
 
   const { data: user, isLoading, isError } = useQuery({
     queryKey: ['auth', 'me'],
@@ -11,44 +16,23 @@ export function useAuth() {
     queryFn: () => fetchJson(`${API_BASE}/auth/me`).then((data) => data?.user ?? null),
     staleTime: 60_000,
     retry: false,
+    // web L-4: same predicate AuthGate.jsx:21 uses. Without this, TanStack runs
+    // ['auth','me'] whenever ANY observer is enabled, so an auth-off deployment emits a
+    // steady stream of 401s even though AuthGate's own query is correctly gated.
+    // useAuthConfig is fail-closed (anything but an explicit authEnabled:false -> true), so
+    // a loading or failing config query never drops the login wall.
+    enabled: authEnabled === true,
   });
-
-  // Per-user localStorage preference keys (D12_KEYS + hc_pref_* toast keys).
-  // Cleared on logout so the next user on a shared browser does not see a flash
-  // of the previous user's theme, layout, or toast settings.
-  const USER_PREF_LS_KEYS = [
-    'hc_dashboard_layouts',
-    'hc_dashboard_hidden',
-    'hc_dashboard_global_days',
-    'hc_dashboard_room_days',
-    'hc_dashboard_trend_days',
-    'hc_dashboard_weekday_days',
-    'hc_dashboard_top_devices_days',
-    'hc_dashboard_sync_ranges',
-    'hc_muted',
-    'hc_theme_preference',
-    'hc_accent',
-    'hc_sidebar_collapsed',
-    // toast prefs (hc_pref_* prefix, App.jsx)
-    'hc_pref_toastsEnabled',
-    'hc_pref_liveEventToastsEnabled',
-    'hc_pref_toastPosition',
-    'hc_pref_toastDuration',
-    'hc_pref_toastMaxVisible',
-  ];
 
   const logoutMutation = useMutation({
     mutationFn: () => fetchJson(`${API_BASE}/auth/logout`, { method: 'DELETE' }),
     onSuccess: () => {
+      // Clear the query cache FIRST so no observer refetches against half-purged storage.
       queryClient.clear();
-      // Clear CSRF token so it is not replayed after logout.
-      try { sessionStorage.removeItem('csrfToken'); } catch { /* private mode */ }
-      // Clear per-user preference keys so the next user does not inherit them.
-      try {
-        for (const key of USER_PREF_LS_KEYS) {
-          localStorage.removeItem(key);
-        }
-      } catch { /* private mode / blocked storage */ }
+      // web L-2: purge every hc_pref_* key by PREFIX (not a hand-maintained list), every
+      // D-12 key, the CSRF token, and the HomeKit PIN vault (see prefKeys.js for the
+      // reasoning behind the import-cycle-avoiding module split).
+      purgeUserPrefStorage();
     },
   });
 

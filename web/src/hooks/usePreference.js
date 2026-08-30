@@ -28,9 +28,15 @@
  *   - Unknown keys are not read by consumers; non-object blobs are ignored.
  *
  * First paint (D-16): useState initializer reads localStorage synchronously — no flash.
+ *
+ * Functional updaters (web L-1): setValue(prevValue => nextValue) is supported. The
+ * updater is resolved against the latest RENDERED value (via a ref kept in sync every
+ * render) before any side effect runs — never inside a setValue_(prev => ...) updater,
+ * because React StrictMode double-invokes state updaters and a side effect (localStorage
+ * write, blob PUT) must fire exactly once.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './useAuth.js';
 import { useUserPreferences } from './useUserPreferences.js';
 
@@ -78,6 +84,11 @@ export function usePreference(key, defaultValue, {
     return local !== null ? local : defaultValue;
   });
 
+  // web L-1: kept in sync every render so the setter can resolve a functional updater
+  // against the latest rendered value without a stale closure.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
   // SEEDING NOTE (PREF-11/D-14): seeding is owned solely by UserPreferencesProvider's
   // seedIfEmpty (invoked once from App.jsx with the full localStorage snapshot + shared
   // toast/grouping values). The previous per-key seeding effect here was removed — having
@@ -104,12 +115,18 @@ export function usePreference(key, defaultValue, {
 
   // SETTER
   function setValue(newVal) {
-    setValue_(newVal);
-    writeLocal(localStorageKey, newVal, serialize);
+    // web L-1: resolve a functional updater against the latest rendered value BEFORE any
+    // side effect runs. Without this, a caller like setCollapsed(c => !c) would write the
+    // function itself (String(fn) via the codec, or a raw function into the optimistic
+    // cache) instead of the concrete boolean — the classic "String((c)=>!c)" bug.
+    const resolved = typeof newVal === 'function' ? newVal(valueRef.current) : newVal;
+
+    setValue_(resolved);
+    writeLocal(localStorageKey, resolved, serialize);
 
     // Authed path: also update the server blob (debounced in useUserPreferences).
     if (user) {
-      setPrefsBlob({ [key]: newVal });
+      setPrefsBlob({ [key]: resolved });
     }
     // Anon path: localStorage only — zero server calls (D-15).
   }

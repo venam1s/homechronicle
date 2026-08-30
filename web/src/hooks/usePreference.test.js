@@ -216,6 +216,67 @@ describe('usePreference — setter delegates to setPrefsBlob (D-09/D-10)', () =>
   });
 });
 
+describe('functional updaters (web L-1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('resolves a functional updater against the latest value before any side effect', async () => {
+    const setPrefsBlob = vi.fn().mockResolvedValue(undefined);
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob });
+    const storage = makeStorage({ hc_sidebar_collapsed: 'false' });
+    vi.stubGlobal('localStorage', storage);
+
+    const { result } = renderHook(
+      () => usePreference('sidebarCollapsed', false, {
+        localStorageKey: 'hc_sidebar_collapsed',
+        serialize: String,
+        deserialize: (v) => v === 'true',
+      }),
+      { wrapper: makeWrapper() },
+    );
+
+    expect(result.current[0]).toBe(false);
+
+    act(() => { result.current[1]((c) => !c); });
+
+    await waitFor(() => expect(setPrefsBlob).toHaveBeenCalled());
+    // Pinned regression: must never write the function itself (the classic String(fn) bug).
+    const writtenValue = storage.setItem.mock.calls.find(([k]) => k === 'hc_sidebar_collapsed')[1];
+    expect(writtenValue).not.toMatch(/=>/);
+    expect(writtenValue).toBe('true');
+    expect(setPrefsBlob).toHaveBeenCalledWith({ sidebarCollapsed: true });
+    expect(result.current[0]).toBe(true);
+  });
+
+  it('a plain (non-function) value still behaves exactly as before', async () => {
+    const setPrefsBlob = vi.fn().mockResolvedValue(undefined);
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob });
+    const storage = makeStorage({ hc_sidebar_collapsed: 'false' });
+    vi.stubGlobal('localStorage', storage);
+
+    const { result } = renderHook(
+      () => usePreference('sidebarCollapsed', false, {
+        localStorageKey: 'hc_sidebar_collapsed',
+        serialize: String,
+        deserialize: (v) => v === 'true',
+      }),
+      { wrapper: makeWrapper() },
+    );
+
+    act(() => { result.current[1](true); });
+
+    await waitFor(() => expect(setPrefsBlob).toHaveBeenCalledWith({ sidebarCollapsed: true }));
+    expect(result.current[0]).toBe(true);
+  });
+});
+
 describe('usePreference — malformed blob fallback (D-18)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();

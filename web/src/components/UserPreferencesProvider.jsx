@@ -24,32 +24,17 @@ import { createContext, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchJson, API_BASE } from '../lib/api.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { D12_KEYS } from '../lib/prefKeys.js';
 
-// D-12 localStorage key inventory with codec types.
-// 'json' keys: JSON.parse / JSON.stringify
-// 'raw'  keys: bare string (theme/accent store raw strings, not JSON values)
-// 'bool' keys: raw 'true'/'false' string in localStorage, stored in the blob as a real boolean
-//   (WR-01 fix: sidebarCollapsed's consumer default is a boolean; seeding it as a raw string
-//    made the D-18 type guard reject it, so it never synced cross-device).
-const D12_KEYS = [
-  { lsKey: 'hc_dashboard_layouts',          blobKey: 'dashboardLayouts',        codec: 'json' },
-  { lsKey: 'hc_dashboard_hidden',           blobKey: 'dashboardHidden',         codec: 'json' },
-  { lsKey: 'hc_dashboard_global_days',      blobKey: 'dashboardGlobalDays',     codec: 'json' },
-  { lsKey: 'hc_dashboard_room_days',        blobKey: 'dashboardRoomDays',       codec: 'json' },
-  { lsKey: 'hc_dashboard_trend_days',       blobKey: 'dashboardTrendDays',      codec: 'json' },
-  { lsKey: 'hc_dashboard_weekday_days',     blobKey: 'dashboardWeekdayDays',    codec: 'json' },
-  { lsKey: 'hc_dashboard_top_devices_days', blobKey: 'dashboardTopDevicesDays', codec: 'json' },
-  { lsKey: 'hc_dashboard_sync_ranges',      blobKey: 'dashboardSyncRanges',     codec: 'json' },
-  { lsKey: 'hc_muted',                      blobKey: 'mutedDevices',            codec: 'json' },
-  { lsKey: 'hc_theme_preference',           blobKey: 'theme',                   codec: 'raw'  },
-  { lsKey: 'hc_accent',                     blobKey: 'accent',                  codec: 'raw'  },
-  // Sidebar collapsed — localStorage holds 'true'/'false'; the blob holds a real boolean
-  // so the consumer's boolean type guard accepts it (WR-01).
-  { lsKey: 'hc_sidebar_collapsed',          blobKey: 'sidebarCollapsed',        codec: 'bool' },
-];
-// Note (IN-02): the legacy 'hc_ui_skin' key is intentionally NOT seeded into the blob.
-// 'skin' was consolidated into 'accent'; useAccent.js reads hc_ui_skin from localStorage
-// directly as a one-time accent fallback. A 'skin' blob key would be dead (no consumer).
+// Debounce interval for coalescing rapid setPrefsBlob calls into one PUT.
+const DEBOUNCE_MS = 500;
+// M-7: bounded wait for the ['me','preferences'] GET to settle before a flush is abandoned
+// (no PUT dispatched). 10s / 500ms = 20 re-arm attempts (T-dfe-03).
+const MAX_FLUSH_WAIT_MS = 10_000;
+const MAX_FLUSH_WAITS = MAX_FLUSH_WAIT_MS / DEBOUNCE_MS;
+
+// D12_KEYS now lives in ../lib/prefKeys.js (single source of truth, shared with useAuth.js's
+// logout purge without creating an import cycle — see that module's header comment).
 
 /** Read a value from localStorage using the correct codec. Returns undefined when absent. */
 function readD12Key(lsKey, codec) {
@@ -105,6 +90,12 @@ export function UserPreferencesProvider({ children }) {
   // newer flush's value.
   const flushSeqRef = useRef(0);
 
+  // M-7 flush gate bookkeeping: how many times the current flush has been re-armed while
+  // waiting for the GET to settle, and whether we've already kicked a one-shot refetch for
+  // this provider instance after seeing the query land in 'error'.
+  const flushWaitsRef = useRef(0);
+  const refetchKickedRef = useRef(false);
+
   const { data: prefs, isLoading } = useQuery({
     queryKey: ['me', 'preferences'],
     // Self-contained queryFn — unwraps { prefs: {...} } envelope (D-09).
@@ -141,6 +132,86 @@ export function UserPreferencesProvider({ children }) {
    *
    * Returns a promise that resolves after the debounced PUT completes.
    */
+  /**
+   * flushPending — the debounce callback. Named (not inline) so the M-7 gate can re-arm it
+   * via setTimeout(flushPending, DEBOUNCE_MS) without duplicating the flush body.
+   */
+  function flushPending() {
+    debounceTimerRef.current = null;
+
+    // M-7 GATE: never build a flush body from getQueryData while the authenticated
+    // ['me','preferences'] GET is still pending or has errored — the cache would be
+    // incomplete/stale, so a merged-and-PUT body could omit keys another device already
+    // wrote. Scoped to user?.id deliberately: with no user the query is permanently
+    // disabled (status stays 'pending' forever), and gating on that would re-arm forever;
+    // without a user, usePreference never calls setPrefsBlob anyway (D-15 anon path), so
+    // today's behaviour is unchanged for that path.
+    const status = queryClient.getQueryState(['me', 'preferences'])?.status;
+    if (user?.id && status !== 'success') {
+      // One-shot recovery: a GET that failed under retry:false (e.g. a transient 502) gets
+      // exactly one refetch kick instead of burning the whole wait budget doing nothing.
+      if (status === 'error' && !refetchKickedRef.current) {
+        refetchKickedRef.current = true;
+        queryClient.refetchQueries({ queryKey: ['me', 'preferences'] });
+      }
+
+      if (flushWaitsRef.current < MAX_FLUSH_WAITS) {
+        flushWaitsRef.current += 1;
+        // Re-arm WITHOUT touching pendingPartialRef/pendingResolversRef/flushSeqRef — the
+        // buffered partial and its resolvers must survive every re-arm so the eventual PUT
+        // (once the GET resolves) carries both the fetched keys and everything buffered
+        // while waiting.
+        debounceTimerRef.current = setTimeout(flushPending, DEBOUNCE_MS);
+        return;
+      }
+
+      // Budget exhausted: abandon this flush WITHOUT dispatching a PUT. A truncated PUT is
+      // worse than a deferred one — the Part-B server-side merge is the belt-and-braces that
+      // makes even this pathological (permanently-failing GET) case non-destructive. Leave
+      // pendingPartialRef intact so a later setPrefsBlob call coalesces and retries it; drain
+      // and resolve pendingResolversRef so no caller's fire-and-forget promise hangs.
+      flushWaitsRef.current = 0;
+      const strandedResolvers = pendingResolversRef.current.splice(0);
+      strandedResolvers.forEach(({ resolve }) => resolve());
+      return;
+    }
+
+    // Normal (non-gated) flush — reset the wait counter for the next gated window.
+    flushWaitsRef.current = 0;
+
+    const mySeq = ++flushSeqRef.current;
+    const latestCache = queryClient.getQueryData(['me', 'preferences']) ?? {};
+    const merged = { ...latestCache, ...pendingPartialRef.current };
+
+    pendingPartialRef.current = {};
+    const resolvers = pendingResolversRef.current.splice(0);
+
+    // Optimistically update the cache before the PUT.
+    queryClient.setQueryData(['me', 'preferences'], merged);
+
+    // Serialize: chain after any in-flight PUT so the server receives whole-blob replaces in
+    // dispatch order. Each merged body is a superset of the prior (it reads the optimistic
+    // cache), so ordered delivery converges correctly with no dropped keys (CR-01 across-window).
+    inFlightRef.current = inFlightRef.current
+      .catch(() => {})
+      .then(async () => {
+        try {
+          const data = await putMutation.mutateAsync(merged);
+          // Adopt the server echo only if no newer flush has superseded this one — prevents a
+          // slow earlier PUT's response from clobbering a fresher value in the cache.
+          if (mySeq === flushSeqRef.current) {
+            queryClient.setQueryData(['me', 'preferences'], data?.prefs ?? merged);
+          }
+        } catch {
+          // Swallow — the write failed server-side but localStorage already mirrors it; surfacing
+          // a rejection on a fire-and-forget promise would be an unhandledrejection. Last value
+          // re-syncs on the next successful PUT or page reload.
+        } finally {
+          resolvers.forEach(({ resolve }) => resolve());
+        }
+      });
+  }
+
   function setPrefsBlob(partial) {
     Object.assign(pendingPartialRef.current, partial);
 
@@ -154,41 +225,7 @@ export function UserPreferencesProvider({ children }) {
       pendingResolversRef.current.push({ resolve });
     });
 
-    debounceTimerRef.current = setTimeout(() => {
-      debounceTimerRef.current = null;
-
-      const mySeq = ++flushSeqRef.current;
-      const latestCache = queryClient.getQueryData(['me', 'preferences']) ?? {};
-      const merged = { ...latestCache, ...pendingPartialRef.current };
-
-      pendingPartialRef.current = {};
-      const resolvers = pendingResolversRef.current.splice(0);
-
-      // Optimistically update the cache before the PUT.
-      queryClient.setQueryData(['me', 'preferences'], merged);
-
-      // Serialize: chain after any in-flight PUT so the server receives whole-blob replaces in
-      // dispatch order. Each merged body is a superset of the prior (it reads the optimistic
-      // cache), so ordered delivery converges correctly with no dropped keys (CR-01 across-window).
-      inFlightRef.current = inFlightRef.current
-        .catch(() => {})
-        .then(async () => {
-          try {
-            const data = await putMutation.mutateAsync(merged);
-            // Adopt the server echo only if no newer flush has superseded this one — prevents a
-            // slow earlier PUT's response from clobbering a fresher value in the cache.
-            if (mySeq === flushSeqRef.current) {
-              queryClient.setQueryData(['me', 'preferences'], data?.prefs ?? merged);
-            }
-          } catch {
-            // Swallow — the write failed server-side but localStorage already mirrors it; surfacing
-            // a rejection on a fire-and-forget promise would be an unhandledrejection. Last value
-            // re-syncs on the next successful PUT or page reload.
-          } finally {
-            resolvers.forEach(({ resolve }) => resolve());
-          }
-        });
-    }, 500);
+    debounceTimerRef.current = setTimeout(flushPending, DEBOUNCE_MS);
 
     return promise;
   }
