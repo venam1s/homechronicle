@@ -13,13 +13,18 @@ variables:
   DOCKER_HUB_NAMESPACE: "havuq"
 
 # ── Test (replaces .github/workflows/ci.yml) ────────────────────────────────
-# Runs on merge requests to main.
+# Runs on merge requests to main, on version tags, and on manual/API BUILD_TAG
+# builds — every pipeline that can reach a build job must run this first (M-11).
 test:
   stage: test
   image: node:${NODE_VERSION}-alpine
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $BUILD_TAG && $CI_PIPELINE_SOURCE == "web"
+    - if: $BUILD_TAG && $CI_PIPELINE_SOURCE == "api"
+    - if: $BUILD_TAG && $CI_PIPELINE_SOURCE == "trigger"
   cache:
     - key: listener-$CI_COMMIT_REF_SLUG
       paths: [listener/node_modules/]
@@ -103,6 +108,12 @@ validate-release:
     - job: validate-release
       artifacts: true
       optional: true
+    # Non-optional on purpose (M-11): optional: true would silently drop this
+    # gate if a future rules change stopped `test` from matching, whereas a
+    # non-optional need fails pipeline *creation* loudly instead. test.rules
+    # must stay a superset of these build rules or pipeline creation breaks.
+    - job: test
+      artifacts: false
   variables:
     BUILD_PLATFORMS: "linux/amd64,linux/arm64"
     # Use the host Docker socket (mounted by the self-hosted runner). The
@@ -205,6 +216,10 @@ create-release:
   needs:
     - job: validate-release
       artifacts: true
+    # Non-optional (M-11): its only rule ($CI_COMMIT_TAG =~ /^v/) is already
+    # covered by test.rules, so this gate can never silently vanish.
+    - job: test
+      artifacts: false
   script:
     - |
       TAG="${CI_COMMIT_TAG}"
