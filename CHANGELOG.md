@@ -2,6 +2,21 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.3.2] — 2026-08-30
+
+### Fixed
+- **502 errors after a listener restart** — the web container's nginx cached the listener's IP address once at startup, so when the listener container was recreated (a redeploy or restart) every `/api/*` request failed with 502 until the web container was restarted too. Nginx now re-resolves the listener on each request and recovers on its own within seconds.
+- **Login page error copy** — a backend outage was reported as "Incorrect email or password". The login page now distinguishes a genuine wrong-credentials response from a backend that is unreachable and says so.
+
+### Changed
+- **Branded HTML emails** — invitation, password-reset, and alert emails now use a shared HomeChronicle HTML layout instead of plain text.
+
+### Security
+- Alert email subjects/headings are HTML-escaped to prevent markup injection from device or rule names.
+
+### Internal
+- `NGINX_RESOLVER` (default `127.0.0.11`, Docker's embedded DNS) is now rendered into the nginx config in all deployment modes (compose, standalone).
+
 ## [0.3.1] — 2026-06-15
 
 ### Fixed

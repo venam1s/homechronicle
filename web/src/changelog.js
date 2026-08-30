@@ -10,6 +10,15 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.3.2',
+    title: 'Self-healing API proxy, clearer login errors, branded emails',
+    items: [
+      'Fixed a bug where every API request failed with a 502 after the listener container was restarted or redeployed, until the web container was also restarted. The web proxy now recovers on its own.',
+      'The login page now tells you when the backend is unreachable instead of reporting "Incorrect email or password".',
+      'Invitation, password-reset, and alert emails now use a branded HomeChronicle HTML layout.',
+    ],
+  },
+  {
     version: 'v0.3.1',
     title: 'Settings: Advanced controls now have their own tab',
     items: [
