@@ -51,7 +51,15 @@ BETA_SYNC_EXCLUDED_TABLES="users sessions invites password_reset_tokens user_pre
 beta_sync_exclude_flags() {
   _flags=""
   for _t in $BETA_SYNC_EXCLUDED_TABLES; do
-    _flags="$_flags --exclude-table=public.${_t}"
+    # Exclude the table AND its BIGSERIAL sequence. `--exclude-table` matches the
+    # exact name only, so the sequence would otherwise still be dumped and the
+    # `--clean` restore would emit `DROP SEQUENCE public.<t>_id_seq`, which fails
+    # with "cannot drop sequence ... because other objects depend on it" (beta's
+    # own <t>.id default depends on it) and aborts the whole single-transaction
+    # restore. Seen nightly on beta 2026-08-26 → 08-29 (users_id_seq). A pattern
+    # that matches nothing (user_preferences has no sequence) is ignored by
+    # pg_dump unless --strict-names is given.
+    _flags="$_flags --exclude-table=public.${_t} --exclude-table=public.${_t}_id_seq"
   done
   printf '%s' "$_flags"
 }
