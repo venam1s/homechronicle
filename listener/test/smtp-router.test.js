@@ -217,6 +217,30 @@ test('PUT /smtp: non-empty password calls writeSmtpSecret once', async () => {
   assert.equal(writeSecretArg, 'new-secret', 'writeSmtpSecret should receive the new password');
 });
 
+test('PUT /smtp: isEmailEnabled true after save -> { ok: true, emailEnabled: true }, no warning key (L-3)', async () => {
+  const app = makeApp({
+    isEmailEnabled: () => true,
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.example.com', port: 587 });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.emailEnabled, true);
+  assert.equal('warning' in res.body, false, 'no warning key on the happy path');
+});
+
+test('PUT /smtp: isEmailEnabled false after save -> { ok: true, emailEnabled: false, warning } (L-3)', async () => {
+  const app = makeApp({
+    isEmailEnabled: () => false,
+    session: { role: 'admin', email: 'admin@example.com', user_id: 1 },
+  });
+  const res = await fetch(app, 'PUT', '/api/setup/smtp', { host: 'smtp.typo.com', port: 587 });
+  assert.equal(res.status, 200, 'the save itself still succeeds');
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.emailEnabled, false);
+  assert.ok(res.body.warning && res.body.warning.length > 0, 'a non-empty warning must be present');
+});
+
 test('PUT /smtp: non-admin session → 403 (T-21-04-ADMINONLY)', async () => {
   const app = makeApp({
     session: { role: 'member', email: 'user@example.com', user_id: 2 },

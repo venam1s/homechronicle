@@ -126,7 +126,16 @@ export function createSmtpRouter({
       // Re-thread `from` and alert-channel sender in the caller (HIGH-1)
       onSmtpConfigChange?.(smtpConfig);
 
-      res.json({ ok: true });
+      // L-3: the save itself succeeded (ok: true), but report truthfully when
+      // initEmail's verify() failed and left email disabled — otherwise a typo'd
+      // host/password silently disables invites, resets, and alert email until
+      // someone happens to hit "Send test".
+      const emailEnabled = isEmailEnabled();
+      const response = { ok: true, emailEnabled };
+      if (!emailEnabled) {
+        response.warning = 'Settings saved, but the SMTP connection test failed — email is disabled until the settings are corrected.';
+      }
+      res.json(response);
     } catch (err) {
       log.error('[api] PUT /api/setup/smtp error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });

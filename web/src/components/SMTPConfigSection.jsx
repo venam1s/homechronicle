@@ -59,8 +59,15 @@ export default function SMTPConfigSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }),
-    onSuccess: () => {
-      addToast('SMTP settings saved.', 'success');
+    onSuccess: (data) => {
+      // L-3: the save itself succeeded, but the backend reports truthfully when
+      // its post-save verify() failed and left email disabled — show a warning
+      // instead of the success toast in that case.
+      if (data?.emailEnabled === false) {
+        addToast(data.warning ?? 'Settings saved, but the SMTP connection test failed — email is disabled.', 'error');
+      } else {
+        addToast('SMTP settings saved.', 'success');
+      }
       // After save, return to masked state; clear the password field
       setChangingPassword(false);
       setPassword('');

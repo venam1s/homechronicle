@@ -9,8 +9,10 @@ vi.mock('../lib/api.js', () => ({
   fetchJson: vi.fn(),
 }));
 
+const { mockAddToast } = vi.hoisted(() => ({ mockAddToast: vi.fn() }));
+
 vi.mock('./Toast.jsx', () => ({
-  useToast: () => ({ addToast: vi.fn() }),
+  useToast: () => ({ addToast: mockAddToast }),
 }));
 
 import { fetchJson } from '../lib/api.js';
@@ -289,6 +291,90 @@ describe('SMTPConfigSection', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /send test email/i })).toBeEnabled(),
       );
+    });
+  });
+
+  describe('L-3: PUT /smtp truthful emailEnabled response', () => {
+    it('shows a warning toast (not the success toast) when emailEnabled is false', async () => {
+      fetchJson
+        .mockResolvedValueOnce({
+          host: '',
+          port: 587,
+          user: '',
+          from: '',
+          secure: false,
+          passwordConfigured: false,
+          envFields: [],
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          emailEnabled: false,
+          warning: 'Settings saved, but the SMTP connection test failed — email is disabled until the settings are corrected.',
+        })
+        .mockResolvedValueOnce({
+          host: 'smtp.typo.com',
+          port: 587,
+          user: '',
+          from: '',
+          secure: false,
+          passwordConfigured: true,
+          envFields: [],
+        });
+
+      render(<SMTPConfigSection />, { wrapper: makeWrapper() });
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /send test email/i })).toBeDisabled(),
+      );
+
+      await userEvent.type(screen.getByPlaceholderText('smtp.example.com'), 'smtp.typo.com');
+      await userEvent.type(screen.getByLabelText('Password'), 'app-specific-pw');
+      await userEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith(
+          'Settings saved, but the SMTP connection test failed — email is disabled until the settings are corrected.',
+          'error',
+        );
+      });
+      expect(mockAddToast).not.toHaveBeenCalledWith('SMTP settings saved.', 'success');
+    });
+
+    it('shows the success toast when emailEnabled is true', async () => {
+      fetchJson
+        .mockResolvedValueOnce({
+          host: '',
+          port: 587,
+          user: '',
+          from: '',
+          secure: false,
+          passwordConfigured: false,
+          envFields: [],
+        })
+        .mockResolvedValueOnce({ ok: true, emailEnabled: true })
+        .mockResolvedValueOnce({
+          host: 'smtp.example.com',
+          port: 587,
+          user: '',
+          from: '',
+          secure: false,
+          passwordConfigured: true,
+          envFields: [],
+        });
+
+      render(<SMTPConfigSection />, { wrapper: makeWrapper() });
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /send test email/i })).toBeDisabled(),
+      );
+
+      await userEvent.type(screen.getByPlaceholderText('smtp.example.com'), 'smtp.example.com');
+      await userEvent.type(screen.getByLabelText('Password'), 'app-specific-pw');
+      await userEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith('SMTP settings saved.', 'success');
+      });
     });
   });
 
