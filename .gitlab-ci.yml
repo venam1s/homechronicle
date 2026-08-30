@@ -36,7 +36,14 @@ test:
     # secondary error that hid the real failure (#13133398452 in pipeline
     # 2486952137 was bitten by this).
     - (cd listener && npm ci && npm test)
-    - (cd web && npm ci && npm test)
+    # truenas-shared-runner's docker executor pins build containers to
+    # cpus=2/memory=2g in config.toml, but os.availableParallelism() is not
+    # cgroup-aware and reports the nuc host's 8 CPUs, so vitest would spawn
+    # 7 jsdom workers onto 2 real cores. That oversubscription blew the
+    # waitFor/testTimeout budgets and has flaked `main` since 2026-06-15.
+    # nuc repro: 7 workers = 253s wall / 416s tests vs 2 workers = 130s wall
+    # / 81s tests.
+    - (cd web && npm ci && npm test -- --maxWorkers=2)
 
 # ── SAST (replaces .github/workflows/codeql.yml) ────────────────────────────
 include:
