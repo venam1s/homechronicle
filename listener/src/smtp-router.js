@@ -101,6 +101,20 @@ export function createSmtpRouter({
     try {
       const body = req.body ?? {};
 
+      // L-5: range/format-check port and host BEFORE any store write. Deliberately
+      // NOT using parseIntInRange here — it clamps out-of-range values, which would
+      // silently turn an admin's typo into a plausible-looking port instead of
+      // rejecting it.
+      if (body.port !== undefined) {
+        const portNum = Number(body.port);
+        if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+          return res.status(400).json({ error: 'port must be an integer between 1 and 65535' });
+        }
+      }
+      if (typeof body.host === 'string' && body.host.trim() === '') {
+        return res.status(400).json({ error: 'host is required' });
+      }
+
       // Persist non-secret fields to the config store
       const snapshot = smtpConfigStore.getSnapshot();
       const nextConfig = {
@@ -126,7 +140,16 @@ export function createSmtpRouter({
       // Re-thread `from` and alert-channel sender in the caller (HIGH-1)
       onSmtpConfigChange?.(smtpConfig);
 
-      res.json({ ok: true });
+      // L-3: the save itself succeeded (ok: true), but report truthfully when
+      // initEmail's verify() failed and left email disabled — otherwise a typo'd
+      // host/password silently disables invites, resets, and alert email until
+      // someone happens to hit "Send test".
+      const emailEnabled = isEmailEnabled();
+      const response = { ok: true, emailEnabled };
+      if (!emailEnabled) {
+        response.warning = 'Settings saved, but the SMTP connection test failed — email is disabled until the settings are corrected.';
+      }
+      res.json(response);
     } catch (err) {
       log.error('[api] PUT /api/setup/smtp error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });

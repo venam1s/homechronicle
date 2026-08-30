@@ -220,6 +220,20 @@ function createMockPool() {
         return { rows: [{ id: token.id, user_id: token.user_id }] };
       }
 
+      // invalidateResetTokensForUser: UPDATE ... WHERE user_id = $1 AND used_at IS NULL (L-2)
+      if (s.includes('UPDATE password_reset_tokens') && s.includes('WHERE user_id = $1') && s.includes('used_at IS NULL')) {
+        const [userId] = params;
+        let count = 0;
+        const now = new Date();
+        for (const t of passwordResetTokens) {
+          if (t.user_id === userId && !t.used_at) {
+            t.used_at = now;
+            count += 1;
+          }
+        }
+        return { rowCount: count };
+      }
+
       // UPDATE users SET password_hash (used by reset-confirm and change-password)
       if (s.includes('UPDATE users SET password_hash') && s.includes('WHERE id = $2')) {
         const [passwordHash, userId] = params;
@@ -546,6 +560,19 @@ test('POST /api/auth/claim-admin with missing fields returns 400', async () => {
 
   res = await supertest(app).post('/api/auth/claim-admin').send({ email: 'a@b.com' });
   assert.equal(res.status, 400);
+});
+
+test('POST /api/auth/claim-admin rejects a malformed email address (L-1)', async () => {
+  const pool = createMockPool();
+  const app = buildApp({ pool });
+
+  const res = await supertest(app)
+    .post('/api/auth/claim-admin')
+    .send({ email: 'not-an-email', password: 'a-strong-passphrase-1' });
+
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /valid email address/i);
+  assert.equal(pool.users.length, 0, 'no user row may be created for a malformed email');
 });
 
 test('POST /api/auth/claim-admin rejects a password shorter than 12 chars (WR-01)', async () => {
@@ -892,6 +919,43 @@ test('POST /api/auth/reset-confirm with valid token resets password and revokes 
   assert.notEqual(pool.users[0].password_hash, passwordHash, 'password hash must be updated');
   // Token must be marked used
   assert.ok(pool.passwordResetTokens[0].used_at !== null, 'reset token must be marked used');
+});
+
+test('POST /api/auth/reset-confirm invalidates a sibling outstanding reset token for the same user (L-2)', async () => {
+  const pool = createMockPool();
+  const rawToken1 = generateToken();
+  const rawToken2 = generateToken();
+  const passwordHash = await hashPassword('old-password-12ch');
+  pool.users.push({ id: 1, email: 'user@test.com', password_hash: passwordHash, role: 'member' });
+  pool.passwordResetTokens.push({
+    id: 1,
+    user_id: 1,
+    token_hash: hashToken(rawToken1),
+    expires_at: new Date(Date.now() + 60 * 60 * 1000),
+    used_at: null,
+  });
+  pool.passwordResetTokens.push({
+    id: 2,
+    user_id: 1,
+    token_hash: hashToken(rawToken2),
+    expires_at: new Date(Date.now() + 60 * 60 * 1000),
+    used_at: null,
+  });
+
+  const app = buildApp({ pool });
+
+  // Redeem token #1 — 200 OK
+  const res1 = await supertest(app)
+    .post('/api/auth/reset-confirm')
+    .send({ token: rawToken1, password: 'new-strong-password-12ch' });
+  assert.equal(res1.status, 200, `expected 200, got ${res1.status}: ${JSON.stringify(res1.body)}`);
+
+  // Token #2 was never redeemed but must now be invalidated by the sibling-kill
+  const res2 = await supertest(app)
+    .post('/api/auth/reset-confirm')
+    .send({ token: rawToken2, password: 'another-strong-password-12ch' });
+  assert.equal(res2.status, 400, `expected 400, got ${res2.status}: ${JSON.stringify(res2.body)}`);
+  assert.equal(res2.body.error, 'This reset link has expired or has already been used.');
 });
 
 test('POST /api/auth/reset-confirm with already-used token returns 400 (T-21-05-REPLAY)', async () => {

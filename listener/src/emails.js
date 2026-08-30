@@ -40,6 +40,27 @@ function escapeHtml(str) {
 }
 
 /**
+ * Escape untrusted text for safe embedding inside an HTML attribute value
+ * (e.g. href="...") (L-4). Escapes the same five HTML-significant characters
+ * as escapeHtml, but deliberately WITHOUT its \n -> <br> transform, which is
+ * wrong inside an attribute. Current URL slots (invite/reset tokens, the
+ * admin-configured APP_BASE_URL) are hex-token-only or operator-controlled,
+ * so this is defence in depth against a future regression, not a fix for a
+ * reachable issue today.
+ *
+ * @param {string} str — untrusted input
+ * @returns {string} — attribute-safe string
+ */
+function escapeAttr(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Render a complete, email-client-safe branded HTML email.
  * Table-based layout, all CSS inline, no <style> blocks, no external assets.
  * The "homechronicle" wordmark uses styled-text spans (no inline SVG).
@@ -62,7 +83,7 @@ function renderEmailLayout({ heading, bodyHtml, ctaLabel, ctaUrl, footerNote }) 
     ? `
       <tr>
         <td style="padding: 24px 32px 8px 32px; text-align: center;">
-          <a href="${ctaUrl}"
+          <a href="${escapeAttr(ctaUrl)}"
              style="display: inline-block; background-color: #1d4ed8; color: #ffffff;
                     font-family: Arial, Helvetica, sans-serif; font-size: 15px;
                     font-weight: bold; text-decoration: none; padding: 12px 28px;
@@ -138,11 +159,50 @@ function renderEmailLayout({ heading, bodyHtml, ctaLabel, ctaUrl, footerNote }) 
 }
 
 /**
+ * Build the nodemailer transport options for the given SMTP config.
+ * Pure function — no I/O, safe to unit test without a real transport.
+ *
+ * `requireTLS` forces a STARTTLS upgrade before AUTH is attempted on a plaintext
+ * connection (M-10): without it, a relay that doesn't advertise STARTTLS — or an
+ * on-path attacker stripping it from EHLO — gets the SMTP password in cleartext.
+ * On `secure: true` (implicit TLS, e.g. port 465) the connection is already
+ * encrypted from the first byte, so `requireTLS` is meaningless there and is
+ * forced to false. Everywhere else it defaults to true; `config.requireTLS === false`
+ * is an explicit opt-out for a legacy relay that cannot do TLS.
+ *
+ * `disableFileAccess`/`disableUrlAccess` (I-1) are always on — this app never
+ * passes `raw`/`attachments`/`path`/`href` to sendMail, so this is defence in
+ * depth against a future regression, not a fix for a reachable issue today.
+ *
+ * @param {{ host: string, port: number, secure: boolean, user?: string, smtpPass?: string, requireTLS?: boolean }} config
+ * @returns {object} — options object suitable for nodemailer.createTransport()
+ */
+export function buildTransportOptions(config) {
+  const { host, port, secure } = config;
+  const requireTLS = !secure && (config.requireTLS ?? true);
+  return {
+    host,
+    port,
+    secure,
+    requireTLS,
+    auth: {
+      user: config.user,
+      pass: config.smtpPass,
+    },
+    disableFileAccess: true,
+    disableUrlAccess: true,
+    connectionTimeout: 10_000,
+    socketTimeout: 15_000,
+    greetingTimeout: 10_000,
+  };
+}
+
+/**
  * Initialize the nodemailer SMTP transport from config + secret.
  * Called once at startup from index.js (EMAIL-01).
  * Non-fatal: if SMTP is not configured or verify() fails, transporter stays null.
  *
- * @param {{ host?: string, port?: number, user?: string, smtpPass?: string, from?: string, secure?: boolean, _testTransport?: object }} config
+ * @param {{ host?: string, port?: number, user?: string, smtpPass?: string, from?: string, secure?: boolean, requireTLS?: boolean, _testTransport?: object }} config
  *   _testTransport: optional mock transport injected in tests (avoids real network calls)
  */
 export async function initEmail(config) {
@@ -158,18 +218,7 @@ export async function initEmail(config) {
   const secure = typeof config.secure === 'boolean' ? config.secure : port === 465;
 
   // Allow test injection via _testTransport; never use in production
-  const transport = config._testTransport ?? nodemailer.createTransport({
-    host: config.host,
-    port,
-    secure,
-    auth: {
-      user: config.user,
-      pass: config.smtpPass,
-    },
-    connectionTimeout: 10_000,
-    socketTimeout: 15_000,
-    greetingTimeout: 10_000,
-  });
+  const transport = config._testTransport ?? nodemailer.createTransport(buildTransportOptions({ ...config, port, secure }));
 
   try {
     await transport.verify();
@@ -198,7 +247,7 @@ export async function sendInvite(to, inviteUrl, { from } = {}) {
     html: renderEmailLayout({
       heading: 'You have been invited to HomeChronicle',
       bodyHtml: `<p style="margin: 0 0 12px 0;">You have been invited to join HomeChronicle. Accept your invitation within 72 hours:</p>
-<p style="margin: 0; word-break: break-all;"><a href="${inviteUrl}" style="color: #1d4ed8;">${inviteUrl}</a></p>`,
+<p style="margin: 0; word-break: break-all;"><a href="${escapeAttr(inviteUrl)}" style="color: #1d4ed8;">${escapeAttr(inviteUrl)}</a></p>`,
       ctaLabel: 'Accept invitation',
       ctaUrl: inviteUrl,
       footerNote: 'This invitation expires in 72 hours.',
@@ -223,7 +272,7 @@ export async function sendPasswordReset(to, resetUrl, { from } = {}) {
     html: renderEmailLayout({
       heading: 'Reset your HomeChronicle password',
       bodyHtml: `<p style="margin: 0 0 12px 0;">Click the button below to reset your password. This link expires in 1 hour:</p>
-<p style="margin: 0; word-break: break-all;"><a href="${resetUrl}" style="color: #1d4ed8;">${resetUrl}</a></p>`,
+<p style="margin: 0; word-break: break-all;"><a href="${escapeAttr(resetUrl)}" style="color: #1d4ed8;">${escapeAttr(resetUrl)}</a></p>`,
       ctaLabel: 'Reset password',
       ctaUrl: resetUrl,
       footerNote: 'This link expires in 1 hour. If you did not request a password reset, you can ignore this email.',

@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseIntInRange } from './utils.js';
 import { log } from './logger.js';
-import { rateLimitKeyGenerator, hashToken, generateToken, verifyPassword, hashPassword, getDummyPasswordHash, validatePasswordStrength } from './security.js';
+import { rateLimitKeyGenerator, hashToken, generateToken, verifyPassword, hashPassword, getDummyPasswordHash, validatePasswordStrength, validateEmailAddress } from './security.js';
 import {
   getUserCount,
   findUserByEmail,
@@ -16,6 +16,7 @@ import {
   redeemInvite,
   createPasswordResetToken,
   redeemResetToken,
+  invalidateResetTokensForUser,
   listSessionsForUser,
   revokeSessionById,
 } from './db.js';
@@ -277,6 +278,13 @@ export function createAuthPublicRouter({
         return res.status(400).json({ error: 'email and password are required' });
       }
 
+      // Format/length validation (L-1) — same shared validator as invite creation.
+      const emailResult = validateEmailAddress(email);
+      if (emailResult.error) {
+        return res.status(400).json({ error: emailResult.error });
+      }
+      const normalizedEmail = emailResult.value;
+
       // Server-side strength floor (WR-01). The admin account is the
       // highest-privilege credential; reject trivially brute-forceable passwords.
       // This check is authoritative — the client mirror is UX only.
@@ -302,7 +310,7 @@ export function createAuthPublicRouter({
            SELECT $1, $2, 'admin'
            WHERE NOT EXISTS (SELECT 1 FROM users)
            RETURNING id, email, role`,
-          [email, passwordHash],
+          [normalizedEmail, passwordHash],
         );
         await client.query('COMMIT');
         user = result.rows[0];
@@ -455,6 +463,10 @@ export function createAuthPublicRouter({
         'UPDATE users SET password_hash = $1 WHERE id = $2',
         [passwordHash, tokenRow.user_id],
       );
+
+      // Invalidate any other outstanding reset links for this user (L-2) — the
+      // just-redeemed token is already used_at-marked by redeemResetToken().
+      await invalidateResetTokensForUser(pool, tokenRow.user_id);
 
       // Revoke all active sessions to force re-login on every device (PWD-01)
       await revokeSessionsForUser(pool, tokenRow.user_id);

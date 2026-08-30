@@ -1,7 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
-import { rateLimitKeyGenerator, generateToken, hashToken } from './security.js';
+import { rateLimitKeyGenerator, generateToken, hashToken, validateEmailAddress } from './security.js';
 import {
   listUsers,
   disableUser,
@@ -113,12 +113,20 @@ export function createUsersRouter({ pool, sendInvite, isEmailEnabled, appBaseUrl
     try {
       if (!requireAdmin(req, res)) return;
 
-      const email = String(req.body?.email ?? '').trim().toLowerCase();
+      const rawEmail = req.body?.email;
       const role = String(req.body?.role ?? 'member').trim().toLowerCase();
 
-      if (!email) {
+      // Preserve the existing empty-input 400 message (pre-existing tests assert it),
+      // then validate format/length via the shared validator (L-1).
+      if (!String(rawEmail ?? '').trim()) {
         return res.status(400).json({ error: 'email is required' });
       }
+      const emailResult = validateEmailAddress(rawEmail);
+      if (emailResult.error) {
+        return res.status(400).json({ error: emailResult.error });
+      }
+      const email = emailResult.value;
+
       if (!VALID_ROLES.has(role)) {
         return res.status(400).json({ error: 'role must be admin or member' });
       }

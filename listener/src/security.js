@@ -169,6 +169,27 @@ export function validateWebhookTargetUrl(rawUrl, { allowPrivateTargets = true } 
   return { ok: true, normalizedUrl: parsed.toString() };
 }
 
+// -- Email address validation (L-1) --
+
+const VALID_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Validate + normalize an email address for admin-facing data hygiene (L-1).
+ * Trims and lowercases first, then enforces a length ceiling BEFORE the regex
+ * test to avoid ReDoS on a megabyte-length string (same discipline as
+ * validateTargetEmail in alerts-router.js — kept separate because that
+ * function's messages are target_email-specific).
+ * @param {unknown} value - Raw email input.
+ * @returns {{ error: string } | { value: string }}
+ */
+export function validateEmailAddress(value) {
+  const email = String(value ?? '').trim().toLowerCase();
+  if (!email) return { error: 'email is required' };
+  if (email.length > 254) return { error: 'email is too long' };
+  if (!VALID_EMAIL_RE.test(email)) return { error: 'email must be a valid email address' };
+  return { value: email };
+}
+
 // -- Password strength (PWD-04 / D-14 / D-15) --
 
 /**

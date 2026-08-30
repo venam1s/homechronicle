@@ -72,7 +72,7 @@ export async function writeSmtpSecret(smtpPass, secretPath) {
  *
  * @param {object} storeSnapshot — non-secret fields from smtpConfigStore.getSnapshot()
  * @param {string|null} secret — smtpPass from readSmtpSecret()
- * @returns {{ host: string, port: number, user: string, from: string, secure: boolean, smtpPass: string|null }}
+ * @returns {{ host: string, port: number, user: string, from: string, secure: boolean, requireTLS: boolean, smtpPass: string|null }}
  */
 export function buildSmtpConfig(storeSnapshot, secret) {
   const snap = storeSnapshot ?? {};
@@ -92,7 +92,15 @@ export function buildSmtpConfig(storeSnapshot, secret) {
     secure = port === 465;
   }
 
-  return { host, port, user, from, secure, smtpPass: secret ?? null };
+  // requireTLS (M-10): env-only escape hatch, same truthy parse as SMTP_SECURE.
+  // Defaults to true when SMTP_REQUIRE_TLS is unset or empty — STARTTLS is
+  // required by default. An explicit false/0/no/off opts out for a legacy
+  // relay that cannot do TLS.
+  const requireTLS = process.env.SMTP_REQUIRE_TLS === undefined || process.env.SMTP_REQUIRE_TLS === ''
+    ? true
+    : /^(1|true|yes|on)$/i.test(process.env.SMTP_REQUIRE_TLS);
+
+  return { host, port, user, from, secure, requireTLS, smtpPass: secret ?? null };
 }
 
 /**
@@ -122,4 +130,30 @@ export function envOverriddenFields(_snapshot) {
  */
 export function getAppBaseUrl() {
   return (process.env.APP_BASE_URL ?? '').trim();
+}
+
+/**
+ * Validate that a base URL is either empty (the missing-value warning already
+ * exists elsewhere) or a well-formed http(s) URL (L-4). Pure function, no
+ * logging inside — callers decide how to surface the result.
+ *
+ * @param {string} rawUrl
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+export function validateAppBaseUrl(rawUrl) {
+  const value = String(rawUrl ?? '').trim();
+  if (!value) return { ok: true };
+
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return { ok: false, error: 'APP_BASE_URL must be a valid URL' };
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { ok: false, error: 'APP_BASE_URL must use http or https' };
+  }
+
+  return { ok: true };
 }
