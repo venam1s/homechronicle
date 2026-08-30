@@ -290,6 +290,8 @@ deploy-beta:
   needs: [test]
   allow_failure: true
   script:
+    # LAN address: dh.venamis.net died in the Aug 2026 site move and dh.lan does
+    # not resolve from the runner host; the runner (nuc) sits on the same LAN.
     - |
-      curl -fsS -X POST -H "Authorization: Bearer $DOCKHAND_TOKEN" https://dh.venamis.net/api/git/stacks/10/sync
+      curl -fsS -X POST -H "Authorization: Bearer $DOCKHAND_TOKEN" http://10.0.0.50:30328/api/git/stacks/10/sync
       echo "Triggered Dockhand async sync for beta stack 10"
