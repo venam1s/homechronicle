@@ -52,14 +52,19 @@ AUTH=()
 STACK_URL="${DOCKHAND_URL}/api/git/stacks/${STACK_ID}"
 
 # -- Step 1: trigger the git-stack sync (deploy) ------------------------------
-log "triggering Dockhand sync: POST ${STACK_URL}/sync"
+# /deploy, not /sync: /sync only refreshes Dockhand's repo copy and never builds or
+# recreates containers (beta ran a stale listener build for days while every
+# "deploy" reported success — 2026-08-30). /deploy = deployGitStack (pull, build from
+# source, recreate) and returns a jobId immediately; the syncStatus poll below still
+# gates the data refresh, and the container-age wait in sync-beta-auto.sh gates the rest.
+log "triggering Dockhand git-stack deploy: POST ${STACK_URL}/deploy"
 if (( DRY_RUN )); then
   log "dry-run: skipping POST"
 else
   code="$(curl -sS -o /tmp/dockhand-sync-resp.json -w '%{http_code}' \
-            -X POST "${AUTH[@]}" "${STACK_URL}/sync" || echo 000)"
-  [[ "$code" =~ ^2 ]] || die "sync POST failed (HTTP ${code}); response: $(cat /tmp/dockhand-sync-resp.json 2>/dev/null)"
-  log "sync accepted (HTTP ${code})"
+            -X POST -H 'Content-Type: application/json' -d '{}' "${AUTH[@]}" "${STACK_URL}/deploy" || echo 000)"
+  [[ "$code" =~ ^2 ]] || die "deploy POST failed (HTTP ${code}); response: $(cat /tmp/dockhand-sync-resp.json 2>/dev/null)"
+  log "deploy accepted (HTTP ${code}): $(cat /tmp/dockhand-sync-resp.json 2>/dev/null | head -c 120)"
 fi
 
 # -- Step 2: poll for syncStatus=synced ---------------------------------------

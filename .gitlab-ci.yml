@@ -293,5 +293,10 @@ deploy-beta:
     # LAN address: dh.venamis.net died in the Aug 2026 site move and dh.lan does
     # not resolve from the runner host; the runner (nuc) sits on the same LAN.
     - |
-      curl -fsS -X POST -H "Authorization: Bearer $DOCKHAND_TOKEN" http://10.0.0.50:30328/api/git/stacks/10/sync
-      echo "Triggered Dockhand async sync for beta stack 10"
+      # /deploy (not /sync): /sync only refreshes Dockhand's copy of the repo and
+      # never builds or recreates anything — beta ran a stale listener build for
+      # days while every "deploy" reported success (2026-08-30). /deploy is
+      # deployGitStack: pull, build from source (buildOnDeploy), recreate; it
+      # returns a jobId immediately, so this job stays well under GitLab's limits.
+      curl -fsS -X POST -H "Authorization: Bearer $DOCKHAND_TOKEN" -H 'Content-Type: application/json' -d '{}' http://10.0.0.50:30328/api/git/stacks/10/deploy
+      echo "Triggered Dockhand git-stack deploy (build + recreate) for beta stack 10"
