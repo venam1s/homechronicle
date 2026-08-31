@@ -1,37 +1,52 @@
 /**
  * roomColors.js — deterministic, stable color assignments for room names.
- * The same room name always maps to the same color across all components.
  *
- * Uses CSS light-dark() so inline styles automatically adapt to dark mode
- * (requires color-scheme to be set on :root, which useTheme handles).
+ * The same room name always maps to the same slot, everywhere in the app, and
+ * that mapping does NOT change when filters, date ranges, or activity ranking
+ * change (ROOM-02). Colour follows the room, never its rank.
+ *
+ * Pre-v0.4 this module owned a hardcoded twelve-entry palette of `light-dark()`
+ * pairs. It now hashes into the ACTIVE palette's nine-slot categorical ramp and
+ * returns CSS custom properties rather than literal colors, which means a room
+ * badge re-colours on palette and theme change with no JS and no re-render.
+ * See src/lib/palettes.js for the ramps and their validation.
+ *
+ * Room identity is never conveyed by colour alone — every call site renders the
+ * room name alongside the swatch (ROOM-03).
  */
 
-const RAW_PALETTE = [
-  { bg: '#fee2e2', darkBg: '#450a0a', text: '#7f1d1d', darkText: '#fecaca', dot: '#f87171' }, // red
-  { bg: '#dbeafe', darkBg: '#172554', text: '#1e3a8a', darkText: '#bfdbfe', dot: '#60a5fa' }, // blue
-  { bg: '#fef3c7', darkBg: '#451a03', text: '#78350f', darkText: '#fde68a', dot: '#f59e0b' }, // amber
-  { bg: '#ede9fe', darkBg: '#2e1065', text: '#4c1d95', darkText: '#ddd6fe', dot: '#a78bfa' }, // violet
-  { bg: '#d1fae5', darkBg: '#022c22', text: '#064e3b', darkText: '#a7f3d0', dot: '#34d399' }, // emerald
-  { bg: '#fce7f3', darkBg: '#500724', text: '#831843', darkText: '#fbcfe8', dot: '#f472b6' }, // pink
-  { bg: '#fff7ed', darkBg: '#431407', text: '#7c2d12', darkText: '#fed7aa', dot: '#fb923c' }, // orange
-  { bg: '#e0f2fe', darkBg: '#0c4a6e', text: '#0c4a6e', darkText: '#bae6fd', dot: '#38bdf8' }, // sky
-  { bg: '#f5f3ff', darkBg: '#1e1b4b', text: '#3b0764', darkText: '#c7d2fe', dot: '#8b5cf6' }, // purple
-  { bg: '#ecfdf5', darkBg: '#022c22', text: '#064e3b', darkText: '#a7f3d0', dot: '#6ee7b7' }, // teal
-  { bg: '#fdf4ff', darkBg: '#4a044e', text: '#701a75', darkText: '#f5d0fe', dot: '#e879f9' }, // fuchsia
-  { bg: '#f0fdf4', darkBg: '#052e16', text: '#14532d', darkText: '#bbf7d0', dot: '#86efac' }, // green
-];
+/** Number of categorical slots each palette ramp provides. */
+export const SLOT_COUNT = 9;
 
-const PALETTE = RAW_PALETTE.map(({ bg, darkBg, text, darkText, dot }) => ({
-  bg: `light-dark(${bg}, ${darkBg})`,
-  text: `light-dark(${text}, ${darkText})`,
-  dot,
-}));
-
-export function getRoomColor(roomName) {
-  if (!roomName) return null;
+/**
+ * Stable 1-based slot for a room name.
+ *
+ * FNV-style multiply-and-add over the code points, forced unsigned so the
+ * result is platform-independent. Exported for tests and for anything that
+ * needs the slot number rather than the CSS variables.
+ */
+export function getRoomSlot(roomName) {
   let hash = 0;
-  for (let i = 0; i < roomName.length; i++) {
+  for (let i = 0; i < roomName.length; i += 1) {
     hash = (hash * 31 + roomName.charCodeAt(i)) >>> 0;
   }
-  return PALETTE[hash % PALETTE.length];
+  return (hash % SLOT_COUNT) + 1;
+}
+
+/**
+ * CSS variable references for a room's swatch, badge background, and badge
+ * text, or `null` when there is no room.
+ *
+ * Returns `var(...)` strings, not hex: callers drop them straight into inline
+ * styles and the browser resolves them against whichever palette and mode are
+ * active.
+ */
+export function getRoomColor(roomName) {
+  if (!roomName) return null;
+  const slot = getRoomSlot(roomName);
+  return {
+    dot: `var(--hc-room-${slot})`,
+    bg: `var(--hc-room-${slot}-soft)`,
+    text: `var(--hc-room-${slot}-text)`,
+  };
 }

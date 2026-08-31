@@ -19,6 +19,13 @@ import { mix, darken, lighten, toRgbTriplet, ensureContrast } from './color.js';
 const TEXT_CONTRAST_TARGET = 4.5;
 /** WCAG threshold for non-text UI components and graphics. */
 const UI_CONTRAST_TARGET = 3;
+/**
+ * Minimum contrast between a room badge's tint and the panel behind it. Well
+ * below any WCAG threshold on purpose — the tint is decoration, not
+ * information (the room NAME carries identity) — but high enough that the pill
+ * is visible as a shape rather than dissolving into the card.
+ */
+const BADGE_TINT_TARGET = 1.15;
 
 /**
  * Categorical ramps for rooms and chart categories. Nine slots each.
@@ -276,7 +283,25 @@ export function buildTokens(paletteId, mode) {
   };
 
   ramp.forEach((hex, i) => {
-    tokens[`room-${i + 1}`] = hex;
+    const slot = i + 1;
+
+    // The solid colour: dots, bar fills, left borders.
+    tokens[`room-${slot}`] = hex;
+
+    // Room badges need a tinted background with readable text on it, so each
+    // slot also carries a soft surface and a text colour guaranteed to meet AA
+    // against that surface. Deriving them here (rather than in the component)
+    // is what lets roomColors.js return plain CSS vars and stay theme-reactive
+    // with no JS.
+    // A fixed mix ratio leaves some slots almost invisible against the panel
+    // (a slot whose hue sits close to the surface measured 1.086:1, i.e. no
+    // discernible pill). Mixing first, then enforcing a floor, keeps the tint
+    // subtle where it can afford to be and nudges only the slots that need it.
+    const tinted = mix(hex, panel, isDark ? 0.82 : 0.86);
+    const soft = ensureContrast(tinted, [panel], BADGE_TINT_TARGET);
+    tokens[`room-${slot}-soft`] = soft;
+    tokens[`room-${slot}-text`] = ensureContrast(hex, [soft], TEXT_CONTRAST_TARGET);
+
     // The pre-v0.4 chart-category classes (.hc-cat-N) read these; aliasing them
     // to the same ramp is what makes chart categories palette-aware (ROOM-05).
     tokens[`cat-${i}`] = hex;

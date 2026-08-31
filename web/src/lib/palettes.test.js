@@ -134,6 +134,8 @@ describe('token derivation', () => {
     'chart-sublabel', 'tooltip-bg', 'tooltip-text', 'tooltip-border',
     'room-fallback',
     ...Array.from({ length: 9 }, (_, i) => `room-${i + 1}`),
+    ...Array.from({ length: 9 }, (_, i) => `room-${i + 1}-soft`),
+    ...Array.from({ length: 9 }, (_, i) => `room-${i + 1}-text`),
     ...Array.from({ length: 9 }, (_, i) => `cat-${i}`),
   ];
 
@@ -190,6 +192,36 @@ describe('contrast (PAL-08)', () => {
       const t = buildTokens(id, mode);
       // 3:1 is the WCAG threshold for non-text UI components and graphics.
       expect(contrastRatio(t['accent-strong'], t.bg), `${id}.${mode} accent/bg`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  // Room badges are colour-on-colour, so they need their own check: the badge
+  // text must be readable on the badge's own tinted background, in every
+  // palette, every mode, all nine slots. This includes the mono ramps, where
+  // the tint is subtle and the risk is highest.
+  it.each(PALETTE_IDS)('%s room badge text meets WCAG AA on its own tint', (id) => {
+    for (const mode of MODES) {
+      const t = buildTokens(id, mode);
+      for (let slot = 1; slot <= 9; slot += 1) {
+        const soft = t[`room-${slot}-soft`];
+        const text = t[`room-${slot}-text`];
+        expect(contrastRatio(text, soft), `${id}.${mode} room-${slot} text/soft`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  // A tint that measures ~1.05 against the panel is invisible — the pill
+  // dissolves into the card. One slot measured 1.086 before a floor was added,
+  // so this asserts the floor rather than mere inequality.
+  it.each(PALETTE_IDS)('%s room badge tint reads as a shape against the panel', (id) => {
+    for (const mode of MODES) {
+      const t = buildTokens(id, mode);
+      for (let slot = 1; slot <= 9; slot += 1) {
+        const ratio = contrastRatio(t[`room-${slot}-soft`], t.panel);
+        expect(ratio, `${id}.${mode} room-${slot} tint/panel`).toBeGreaterThanOrEqual(1.14);
+        // ...but stay a tint, not a second accent competing with the text.
+        expect(ratio, `${id}.${mode} room-${slot} tint too strong`).toBeLessThan(2.2);
+      }
     }
   });
 
