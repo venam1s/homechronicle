@@ -100,7 +100,7 @@ describe('matter normalization — units', () => {
   });
 
   test('fan speed passes through as a percentage', () => {
-    assert.equal(read(FAN, 6, 42).value, 42);
+    assert.equal(read(FAN, 3, 42).value, 42);
   });
 });
 
@@ -116,7 +116,7 @@ describe('matter normalization — booleans and enums', () => {
     assert.equal(read(SMOKE_CO, 1, 1).value, 1);
     assert.equal(read(SMOKE_CO, 1, 2).value, 1);
     assert.equal(read(SMOKE_CO, 2, 2).characteristic, 'CarbonMonoxideDetected');
-    assert.equal(read(SMOKE_CO, 0x0e, 1).characteristic, 'StatusLowBattery');
+    assert.equal(read(SMOKE_CO, 3, 1).characteristic, 'StatusLowBattery');
   });
 
   test('fan mode Off maps to inactive, any other mode to active', () => {

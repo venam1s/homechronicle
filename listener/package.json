@@ -20,8 +20,8 @@
     "tmp": "0.2.7"
   },
   "dependencies": {
-    "@matter/main": "^0.16.10",
-    "@project-chip/matter.js": "^0.16.10",
+    "@matter/main": "^0.17.9",
+    "@project-chip/matter.js": "^0.17.9",
     "argon2": "^0.44.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

@@ -76,6 +76,7 @@ const MAPPINGS = [
   // --- On/Off (0x0006) ---
   {
     clusterId: 0x0006, attributeId: 0x0000, from: 'OnOff',
+    cluster: 'OnOff', attribute: 'onOff',
     characteristic: 'On',
     convert: (v) => asBool(v),
   },
@@ -83,6 +84,7 @@ const MAPPINGS = [
   // --- Level Control (0x0008). currentLevel is 0-254; HAP Brightness is 0-100%.
   {
     clusterId: 0x0008, attributeId: 0x0000, from: 'CurrentLevel',
+    cluster: 'LevelControl', attribute: 'currentLevel',
     characteristic: 'Brightness',
     convert: (v) => {
       const n = asNumber(v);
@@ -95,6 +97,7 @@ const MAPPINGS = [
   // HAP ContactSensorState: 0 = contact detected (closed), 1 = not detected.
   {
     clusterId: 0x0045, attributeId: 0x0000, from: 'StateValue',
+    cluster: 'BooleanState', attribute: 'stateValue',
     characteristic: 'ContactSensorState',
     convert: (v) => (asBool(v) ? 0 : 1),
     unverified: 'Matter stateValue=true means CLOSED, which is HAP 0. Inverted.',
@@ -103,6 +106,7 @@ const MAPPINGS = [
   // --- Temperature Measurement (0x0402). Signed 0.01 °C.
   {
     clusterId: 0x0402, attributeId: 0x0000, from: 'MeasuredValue',
+    cluster: 'TemperatureMeasurement', attribute: 'measuredValue',
     characteristic: 'CurrentTemperature',
     convert: (v) => {
       const n = asNumber(v);
@@ -113,6 +117,7 @@ const MAPPINGS = [
   // --- Relative Humidity (0x0405). 0.01 %.
   {
     clusterId: 0x0405, attributeId: 0x0000, from: 'MeasuredValue',
+    cluster: 'RelativeHumidityMeasurement', attribute: 'measuredValue',
     characteristic: 'CurrentRelativeHumidity',
     convert: (v) => {
       const n = asNumber(v);
@@ -125,6 +130,7 @@ const MAPPINGS = [
   // being forced into an unrelated one.
   {
     clusterId: 0x0403, attributeId: 0x0000, from: 'MeasuredValue',
+    cluster: 'PressureMeasurement', attribute: 'measuredValue',
     characteristic: 'AirPressure',
     convert: (v) => {
       const n = asNumber(v);
@@ -138,6 +144,7 @@ const MAPPINGS = [
   // 0 is a defined sentinel meaning "unknown", not zero lux.
   {
     clusterId: 0x0400, attributeId: 0x0000, from: 'MeasuredValue',
+    cluster: 'IlluminanceMeasurement', attribute: 'measuredValue',
     characteristic: 'CurrentAmbientLightLevel',
     convert: (v) => {
       const n = asNumber(v);
@@ -149,6 +156,7 @@ const MAPPINGS = [
   // --- Occupancy Sensing (0x0406). Bitmap; bit 0 is "occupied".
   {
     clusterId: 0x0406, attributeId: 0x0000, from: 'Occupancy',
+    cluster: 'OccupancySensing', attribute: 'occupancy',
     characteristic: 'OccupancyDetected',
     convert: (v) => {
       if (typeof v === 'object' && v !== null && 'occupied' in v) return v.occupied ? 1 : 0;
@@ -160,6 +168,7 @@ const MAPPINGS = [
   // --- Color Control (0x0300) ---
   {
     clusterId: 0x0300, attributeId: 0x0000, from: 'CurrentHue',
+    cluster: 'ColorControl', attribute: 'currentHue',
     characteristic: 'Hue',
     convert: (v) => {
       const n = asNumber(v);
@@ -168,6 +177,7 @@ const MAPPINGS = [
   },
   {
     clusterId: 0x0300, attributeId: 0x0001, from: 'CurrentSaturation',
+    cluster: 'ColorControl', attribute: 'currentSaturation',
     characteristic: 'Saturation',
     convert: (v) => {
       const n = asNumber(v);
@@ -177,6 +187,7 @@ const MAPPINGS = [
   {
     // Both protocols use mireds here, so the value passes through unchanged.
     clusterId: 0x0300, attributeId: 0x0007, from: 'ColorTemperatureMireds',
+    cluster: 'ColorControl', attribute: 'colorTemperatureMireds',
     characteristic: 'ColorTemperature',
     convert: (v) => asNumber(v),
   },
@@ -186,6 +197,7 @@ const MAPPINGS = [
   // HAP LockCurrentState: 0 Unsecured, 1 Secured, 2 Jammed, 3 Unknown.
   {
     clusterId: 0x0101, attributeId: 0x0000, from: 'LockState',
+    cluster: 'DoorLock', attribute: 'lockState',
     characteristic: 'LockCurrentState',
     convert: (v) => {
       const n = asNumber(v);
@@ -202,6 +214,7 @@ const MAPPINGS = [
   // HAP CurrentPosition: 0 = CLOSED, 100 = OPEN. Both scaled AND inverted.
   {
     clusterId: 0x0102, attributeId: 0x000e, from: 'CurrentPosition',
+    cluster: 'WindowCovering', attribute: 'currentPositionLiftPercent100ths',
     characteristic: 'CurrentPosition',
     convert: (v) => {
       const n = asNumber(v);
@@ -213,6 +226,7 @@ const MAPPINGS = [
     // Matter operationalStatus bits 0-1: 0 stopped, 1 opening, 2 closing.
     // HAP PositionState: 0 decreasing, 1 increasing, 2 stopped.
     clusterId: 0x0102, attributeId: 0x000a, from: 'OperationalStatus',
+    cluster: 'WindowCovering', attribute: 'operationalStatus',
     characteristic: 'PositionState',
     convert: (v) => {
       const raw = typeof v === 'object' && v !== null ? asNumber(v.global) : asNumber(v);
@@ -226,6 +240,7 @@ const MAPPINGS = [
   // --- Fan Control (0x0202) ---
   {
     clusterId: 0x0202, attributeId: 0x0000, from: 'FanMode',
+    cluster: 'FanControl', attribute: 'fanMode',
     characteristic: 'Active',
     convert: (v) => {
       const n = asNumber(v);
@@ -233,7 +248,8 @@ const MAPPINGS = [
     },
   },
   {
-    clusterId: 0x0202, attributeId: 0x0006, from: 'PercentCurrent',
+    clusterId: 0x0202, attributeId: 0x0003, from: 'PercentCurrent',
+    cluster: 'FanControl', attribute: 'percentCurrent',
     characteristic: 'RotationSpeed',
     convert: (v) => {
       const n = asNumber(v);
@@ -244,6 +260,7 @@ const MAPPINGS = [
   // --- Thermostat (0x0201) ---
   {
     clusterId: 0x0201, attributeId: 0x0000, from: 'LocalTemperature',
+    cluster: 'Thermostat', attribute: 'localTemperature',
     characteristic: 'CurrentTemperature',
     convert: (v) => {
       const n = asNumber(v);
@@ -254,6 +271,7 @@ const MAPPINGS = [
     // Matter systemMode: 0 Off, 1 Auto, 3 Cool, 4 Heat, 5 EmergencyHeat, ...
     // HAP TargetHeatingCoolingState: 0 Off, 1 Heat, 2 Cool, 3 Auto.
     clusterId: 0x0201, attributeId: 0x001c, from: 'SystemMode',
+    cluster: 'Thermostat', attribute: 'systemMode',
     characteristic: 'TargetHeatingCoolingState',
     convert: (v) => {
       const n = asNumber(v);
@@ -270,6 +288,7 @@ const MAPPINGS = [
   // HomeKit has no power characteristic; keep a descriptive name, in watts.
   {
     clusterId: 0x0090, attributeId: 0x0008, from: 'ActivePower',
+    cluster: 'ElectricalPowerMeasurement', attribute: 'activePower',
     characteristic: 'ActivePower',
     convert: (v) => {
       const n = asNumber(v);
@@ -282,6 +301,7 @@ const MAPPINGS = [
   // HAP detectors are binary: 0 not detected, 1 detected.
   {
     clusterId: 0x005c, attributeId: 0x0001, from: 'SmokeState',
+    cluster: 'SmokeCoAlarm', attribute: 'smokeState',
     characteristic: 'SmokeDetected',
     convert: (v) => {
       const n = asNumber(v);
@@ -290,6 +310,7 @@ const MAPPINGS = [
   },
   {
     clusterId: 0x005c, attributeId: 0x0002, from: 'COState',
+    cluster: 'SmokeCoAlarm', attribute: 'coState',
     characteristic: 'CarbonMonoxideDetected',
     convert: (v) => {
       const n = asNumber(v);
@@ -297,7 +318,8 @@ const MAPPINGS = [
     },
   },
   {
-    clusterId: 0x005c, attributeId: 0x000e, from: 'BatteryAlert',
+    clusterId: 0x005c, attributeId: 0x0003, from: 'BatteryAlert',
+    cluster: 'SmokeCoAlarm', attribute: 'batteryAlert',
     characteristic: 'StatusLowBattery',
     convert: (v) => {
       const n = asNumber(v);
@@ -349,6 +371,23 @@ export function unverifiedMappings() {
       characteristic: m.characteristic,
       why: m.unverified,
     }));
+}
+
+/**
+ * The table's spec anchors: which matter.js cluster and attribute each entry
+ * claims to read. Used by the drift guard in matter-spec-drift.test.js to
+ * check these ids against matter.js's own cluster model, so a Matter spec
+ * revision that renames or renumbers something fails a test here instead of
+ * silently logging the wrong characteristic in production.
+ */
+export function specAnchors() {
+  return MAPPINGS.map((m) => ({
+    cluster: m.cluster,
+    attribute: m.attribute,
+    clusterId: m.clusterId,
+    attributeId: m.attributeId,
+    characteristic: m.characteristic,
+  }));
 }
 
 export const __TABLE_FOR_TESTS = MAPPINGS;

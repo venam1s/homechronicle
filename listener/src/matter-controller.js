@@ -134,7 +134,8 @@ const SUPPORTED_CLUSTERS = [
     serviceType: 'FanControl',
     attributes: [
       { name: 'fanMode', characteristic: 'FanMode', attributeId: 0 },
-      { name: 'percentCurrent', characteristic: 'PercentCurrent', attributeId: 6 },
+      // attributeId 3, not 6 — the spec-drift test checks this against matter.js's model.
+      { name: 'percentCurrent', characteristic: 'PercentCurrent', attributeId: 3 },
     ],
   },
   {
