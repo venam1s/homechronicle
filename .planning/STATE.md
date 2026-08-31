@@ -1,39 +1,39 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Multi-User Auth & Email
-status: Awaiting next milestone
-stopped_at: Phase 25 context gathered
-last_updated: "2026-06-15T16:13:30.217Z"
-last_activity: 2026-06-15 — Milestone v1.4 completed and archived
+milestone: v0.4
+milestone_name: UI Overhaul
+status: planning
+last_updated: "2026-08-30T22:00:00.000Z"
+last_activity: 2026-08-30
 progress:
   total_phases: 7
-  completed_phases: 7
-  total_plans: 45
-  completed_plans: 46
-  percent: 100
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-28)
+See: .planning/PROJECT.md (updated 2026-08-30)
 
 **Core value:** A reliable, maintainable codebase that self-hosted users can trust to run unattended for months without performance degradation or silent failures.
-**Current focus:** Milestone complete
+**Current focus:** Phase 27: Palette & Theme Foundation (v0.4 UI Overhaul — roadmap created, ready to plan)
 
 ## Current Position
 
-Phase: Milestone v1.4 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-08-30 — Audit 2026-08-30 remediation complete: 7 quick tasks (260830-1pj/1qh/1qi/1qj/dfe/1ql/1qm) fixed all 5 HIGH + 15 MEDIUM + targeted LOWs; released as v0.3.3
+Phase: 27 (1 of 7 in v0.4 UI Overhaul) — Palette & Theme Foundation
+Plan: — (not yet planned)
+Status: Roadmap created — ready to plan
+Last activity: 2026-08-30 — ROADMAP.md created for v0.4 UI Overhaul (Phases 27-33, 35/35 requirements mapped, 0 unmapped)
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
+- v0.4 UI Overhaul roadmap created (2026-08-30): Phases 27-33 derived from the 35 v0.4 requirements (PAL/ROOM/NAV/DASH/VIEW/CHART), sequenced per the code-verified design spec — Phase 27 Palette & Theme Foundation, Phase 28 Room & Category Colour Ramps, Phase 29 Almanac Navigation Shell, Phase 30 Dashboard Restyle (grid + existing panels), Phase 31 Dashboard New Analytics Panels, Phase 32 Timeline & Devices Restyle, Phase 33 Chart Restyle & Upgrade Verification. 7 phases exceeds this repo's `standard` granularity guidance (4-6) — justified in ROADMAP.md alongside the v1.2 precedent (8 phases/23 reqs) and to avoid burying PAL-06 (accent migration) and ROOM-04 (per-palette colour-blind/contrast validation) inside combined success criteria. Phase 33 closes with a composed upgrade-path verification criterion covering PAL-06 + DASH-03 + DASH-08 together rather than only per-phase in isolation.
 - Phase 24 added: Per-User UI Preferences (Phase 1) — per-user prefs blob + me-router + usePreference layer (2026-06-13)
 - Phase 25 added: Per-User Quiet Hours (Phase 2) — per-user quiet-hours in /stats/quiet-hours (2026-06-13)
 - Phase 26 added: Member Self-Serve Alerts — per-user owned alert rules (migration 0008), drop admin-only gate + master toggle, members create email-to-self + validated webhook rules (2026-06-15); milestone v1.4 reopened to fold this in before the release tag
@@ -50,7 +50,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-None — Phase 21 complete. Proceed to `/gsd:discuss-phase 22` (Email Alert Channel).
+None — roadmap for v0.4 UI Overhaul just created. Proceed to `/gsd:plan-phase 27` (Palette & Theme Foundation).
 
 ### Blockers/Concerns
 
@@ -108,17 +108,6 @@ Two headline live checks (SEC-07 keystone, real email delivery) passed live befo
 | 260830-dfe | Audit step 5 / web prefs: M-7 flush waits for GET success + server PUT is jsonb || merge with post-merge size guard; M-8 Timeline reads per-user grouping prefs; M-9 QH Exclude writes per-user blob + onError toast; web L-1 functional-updater setter (sidebar persists), L-2 prefix-based hc_pref_* + hc_pins logout purge, L-4 useAuth enabled-gated on auth config. web 414, listener 733 | 2026-08-30 | 9bc7fee (merge e47303d) | [260830-dfe-remediate-audit-2026-08-30-step-5-web-pr](./quick/260830-dfe-remediate-audit-2026-08-30-step-5-web-pr/) |
 | 260830-1ql | Audit step 6 / deps+email: npm audit fix ×2 → 0/0 vulns, nodemailer 9.0.6, react-router-dom 7.18.3, dead fast-xml-parser override dropped; M-10 requireTLS (SMTP_REQUIRE_TLS default true) + disableFileAccess/disableUrlAccess; email L-1 validateEmailAddress at invite/claim-admin, L-2 sibling reset tokens invalidated, L-3 PUT /smtp emailEnabled/warning, L-4 escapeAttr URL slots + APP_BASE_URL validation, L-5 port/host validation. listener 763, web 402 | 2026-08-30 | 96058d0 (merge 8562fa2) | [260830-1ql-remediate-audit-2026-08-30-step-6-deps-a](./quick/260830-1ql-remediate-audit-2026-08-30-step-6-deps-a/) |
 | 260830-1qm | Audit step 7 / beta+CI: M-11 test job runs on v* tags + BUILD_TAG pipelines and gates builds + create-release; M-13/M-14 docker/beta-sync-tables.sh single exclusion list (users sessions invites password_reset_tokens user_preferences alert_rules alert_deliveries) shared by db-sync + host cron, --single-transaction; M-15 RW prod listener_data mount removed from beta listener. Deferred: host-path pgmigrations re-stamp; create-release needs builds | 2026-08-30 | b34d372 (merge 0551c64) | [260830-1qm-remediate-audit-2026-08-30-step-7-beta-a](./quick/260830-1qm-remediate-audit-2026-08-30-step-7-beta-a/) |
-
-## Session Continuity
-
-Last session: 2026-06-14T13:36:12.604Z
-Stopped at: Phase 25 context gathered
-Resume file: None
----
-
-## Operator Next Steps
-
-- Start the next milestone with /gsd-new-milestone
 | 260830-fst | gitignore `.lanes/` (Lanes task-board config) and remove the 4 `.lanes/*.json` files that `git add -A` swept into the v0.3.2 release commit from tracking (kept on disk) | 2026-08-30 | 99ccf16 | — (/gsd:fast, inline) |
 | 260830-0wr | Comprehensive tests for the v0.3.2 changes (tests only, no source edits). listener/test/emails.test.js +15: sendAlertEmail happy path, HTML-injection hardening (script in subject escaped incl. <title>; body markup/entities/quotes escaped; & escaped first — no double-escape; \n→<br> in html, raw in text; numeric body coerced), no CTA on alerts, invite/reset CTA href+label+expiry footers, email-client-safety (no style/svg/script/img/link, table-based) across all 3 senders, sendMail rejection propagates without disabling transport, re-init resets (bad config / verify-throw), nodemailer secure-from-port derivation via createTransport stub. web LoginPage.test.jsx +17: 403/429/500/503/504/0/"401"-string → outage copy (pins strict ===401), one toast per failure, undefined rejection safe, success path (POST body incl. rememberMe, csrf→sessionStorage, invalidate [auth,me], navigate /), csrf failure/no-token non-fatal, pending-state button disable, show/hide toggle, form basics. scripts/test-nginx-template.sh +14 assertions: NGINX_RESOLVER override rendered, single server-scope resolver, auth-OFF parity (set/proxy_pass :3001 x3 + resolver, no placeholders), host-mode (127.0.0.1) render no placeholders, auth-ON port, composition guards (Dockerfile ENV + entrypoint export default 127.0.0.11, export precedes envsubst), template source guards (${NGINX_RESOLVER} x1, all 3 proxy_pass variable-form). Verified: listener 730/730, web 400/400, nginx RESULT: PASS under sh + bash (nginx -t SKIP — Docker down locally). NOT pushed. | 2026-08-30 | 0f3d5e0, 5f105df, 2993386, 17a87cb | [260830-0wr-add-comprehensive-tests-for-v0-3-2-chang](./quick/260830-0wr-add-comprehensive-tests-for-v0-3-2-chang/) |
 | 260830-1qk | Fix flaky GitLab CI web tests: cap vitest to 2 workers to match the truenas-shared-runner's docker executor `cpus=2` cgroup quota. Root cause (pre-diagnosed): `os.availableParallelism()` is not cgroup-aware, reports the nuc host's 8 CPUs, so vitest spawned 7 jsdom workers onto 2 real cores, blowing `waitFor`/`testTimeout` budgets and flaking `main` since 2026-06-15 (Alerts, ChangePasswordSection, ActiveSessionsPanel). Changed `(cd web && npm ci && npm test)` → `(cd web && npm ci && npm test -- --maxWorkers=2)` in `.gitlab-ci.yml` `test:` job, plus a rationale comment with nuc repro numbers (7 workers = 253s wall/416s tests vs 2 workers = 130s wall/81s tests). Listener line and pre-existing subshell comment block untouched. Verified: web 400/400 locally with the cap (14.66s), listener 730/730 regression guard. One file changed. NOT pushed — post-merge green-pipeline confirmation deferred to next `main` run. | 2026-08-30 | fa7150c | [260830-1qk-fix-flaky-gitlab-ci-web-tests-cap-vitest](./quick/260830-1qk-fix-flaky-gitlab-ci-web-tests-cap-vitest/) |
@@ -126,3 +115,13 @@ Resume file: None
 | 260830-acc | Fix Devices › Browse skeleton-forever on prod: `/api/accessories` awaited bare `HttpClient.getAccessories()` for bridges with no cached children; prod bridges sit at stale pre-site-move addresses so each response took ~134 s (OS connect timeout) > nginx 30 s → UI never rendered. Now a bounded background warm-up (withTimeout + client.close, per-bridge 5-min cooldown), capabilities query bounded too; +3 regression tests. listener 823. Released as v0.3.4 | 2026-08-30 | 192e8d0 | — (/gsd:fast, inline) |
 | 260830-bsq | Beta db-sync: nightly prod→beta refresh failed since 08-26 (`DROP SEQUENCE users_id_seq` depends on excluded users table); shared exclusion list now also excludes each table's `_id_seq` sequence. Beta-only deploy (no GA tag per release-cadence feedback) | 2026-08-30 | f3e5a36 | — (/gsd:fast, inline) |
 | 260830-bsq | (cont.) alert tables synced again with the alert_rules→users FK stripped + owners nulled (excluding them broke `--clean` on event_logs_pkey); CI deploy-beta + deploy-beta.sh now call Dockhand git-stack `/deploy` (build+recreate) instead of `/sync` (repo refresh only) — beta had run an Aug-25 listener for days. Beta redeployed from main 15:59Z | 2026-08-30 | 360e6dc, 21c85c0 | — (/gsd:fast, inline) |
+
+## Session Continuity
+
+Last session: 2026-08-30T22:00:00.000Z
+Stopped at: v0.4 ROADMAP.md created (Phases 27-33, 35/35 requirements mapped); REQUIREMENTS.md traceability updated
+Resume file: None
+
+## Operator Next Steps
+
+- Run `/gsd:plan-phase 27` to begin planning Phase 27: Palette & Theme Foundation
