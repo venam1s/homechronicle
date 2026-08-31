@@ -83,7 +83,7 @@ export default memo(function SceneGroup({ events, eventMetaMap = {}, hoveredCell
             {anyAnomaly && (
               <AlertTriangle
                 size={12}
-                className="text-amber-500 flex-shrink-0"
+                className="text-hc-warning-text flex-shrink-0"
                 title="Unusual time for one or more devices"
               />
             )}

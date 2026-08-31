@@ -408,10 +408,10 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
       {lockedCell && (
         <div className="max-w-4xl mx-auto w-full px-3 sm:px-4 py-1.5 flex items-center gap-2">
           {isJumping
-            ? <Loader2 size={11} className="text-orange-400 animate-spin flex-shrink-0" />
-            : <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+            ? <Loader2 size={11} className="text-hc-warning-text animate-spin flex-shrink-0" />
+            : <span className="w-2 h-2 rounded-full bg-hc-warning-text flex-shrink-0" />
           }
-          <span className="text-xs text-orange-500 font-medium truncate">
+          <span className="text-xs text-hc-warning-text font-medium truncate">
             {isJumping
               ? `Finding ${lockedCell.accessoryName} at ${lockedCell.hour}:00 UTC…`
               : `${lockedCell.accessoryName} · ${lockedCell.hour}:00 UTC`
@@ -459,7 +459,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
         )}
 
         {isError && (
-          <div className="flex justify-center py-12 text-red-500">
+          <div className="flex justify-center py-12 text-hc-danger-text">
             Failed to load events. Is the listener container running?
           </div>
         )}

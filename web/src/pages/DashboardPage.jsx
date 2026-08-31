@@ -121,7 +121,7 @@ export default function DashboardPage({
             className={clsx(
               'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
               editing
-                ? 'bg-hc-accent-strong border-hc-accent-strong text-white hover:opacity-90'
+                ? 'bg-hc-accent-strong border-hc-accent-strong text-hc-on-accent hover:opacity-90'
                 : 'bg-hc-panel border-hc-panel-border text-hc-muted hover:text-hc-fg',
             )}
           >

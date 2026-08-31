@@ -36,7 +36,7 @@ export default function RoomChart({ forcedDays = null, onDaysChange = null }) {
     return <SkeletonList rows={4} />;
   }
   if (isError) {
-    return <div className="h-32 flex items-center justify-center text-red-500 text-sm">Failed to load room stats.</div>;
+    return <div className="h-32 flex items-center justify-center text-hc-danger-text text-sm">Failed to load room stats.</div>;
   }
   if (!data?.length) {
     return <p className="text-sm text-hc-muted">No room data yet.</p>;

@@ -13,7 +13,7 @@
  * After editing anything here, re-run:  node scripts/gen-palettes.mjs
  */
 
-import { mix, darken, lighten, toRgbTriplet, ensureContrast } from './color.js';
+import { mix, darken, lighten, toRgbTriplet, ensureContrast, contrastRatio } from './color.js';
 
 /** WCAG AA for body text; applied to primary and secondary text tokens. */
 const TEXT_CONTRAST_TARGET = 4.5;
@@ -26,6 +26,30 @@ const UI_CONTRAST_TARGET = 3;
  * is visible as a shape rather than dissolving into the card.
  */
 const BADGE_TINT_TARGET = 1.15;
+
+/**
+ * Solid status backgrounds. These live in index.css (shared across palettes,
+ * since status colours are reserved), and are mirrored here only so the
+ * matching foreground token can be derived against them. Keep in step.
+ */
+const STATUS_SOLID = {
+  light: { danger: '#b91c1c', success: '#15803d', warning: '#b45309' },
+  dark: { danger: '#f87171', success: '#6ee7b7', warning: '#fbbf24' },
+};
+
+/**
+ * Pick a readable foreground for a solid fill.
+ *
+ * Solid buttons were hardcoded `text-white`, which fails badly once the fill is
+ * palette- and mode-aware: white on Ink's dark accent measures 2.08:1. Choose
+ * whichever end of the palette's own range starts closer, then push it to AA.
+ */
+function foregroundOn(solid, palette, mode) {
+  const light = palette[mode === 'dark' ? 'ink' : 'panel'];
+  const dark = palette[mode === 'dark' ? 'panel' : 'ink'];
+  const best = contrastRatio(light, solid) >= contrastRatio(dark, solid) ? light : dark;
+  return ensureContrast(best, [solid], TEXT_CONTRAST_TARGET);
+}
 
 /**
  * Categorical ramps for rooms and chart categories. Nine slots each.
@@ -277,6 +301,12 @@ export function buildTokens(paletteId, mode) {
     'tooltip-bg': panel,
     'tooltip-text': inkSafe,
     'tooltip-border': border,
+
+    // -- Foreground on a solid fill (buttons, badges) --
+    'on-accent': foregroundOn(accentSafe, palette[mode], mode),
+    'on-danger': foregroundOn(STATUS_SOLID[mode].danger, palette[mode], mode),
+    'on-success': foregroundOn(STATUS_SOLID[mode].success, palette[mode], mode),
+    'on-warning': foregroundOn(STATUS_SOLID[mode].warning, palette[mode], mode),
 
     // -- Rooms / categories --
     'room-fallback': mix(mutedSafe, bg, 0.25),

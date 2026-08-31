@@ -29,7 +29,7 @@ const BRIDGE_STEP = {
   color: 'green',
   content: () => (
     <div className="space-y-3">
-      <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-sm text-green-800">
+      <div className="bg-hc-success-bg border border-hc-success-border rounded-lg px-3 py-2.5 text-sm text-hc-success-text">
         Use the <span className="font-medium">bridge pairing code.</span> Pairing once gives homechronicle
         access to <em>all</em> the accessories connected through it — no individual device PINs needed.
       </div>
@@ -44,7 +44,7 @@ const BRIDGE_STEP = {
               'Or go to Settings → HomeKit → Setup Code',
             ].map((s) => (
               <li key={s} className="flex items-start gap-2">
-                <span className="mt-0.5 text-green-500 text-xs">▸</span>{s}
+                <span className="mt-0.5 text-hc-success-text text-xs">▸</span>{s}
               </li>
             ))}
           </ul>
@@ -58,7 +58,7 @@ const BRIDGE_STEP = {
               'Or check Notifications for the pairing QR code after enabling the integration',
             ].map((s) => (
               <li key={s} className="flex items-start gap-2">
-                <span className="mt-0.5 text-green-500 text-xs">▸</span>{s}
+                <span className="mt-0.5 text-hc-success-text text-xs">▸</span>{s}
               </li>
             ))}
           </ul>
@@ -71,7 +71,7 @@ const BRIDGE_STEP = {
               'Any software that exposes a HomeKit bridge will have a PIN in the same XXX-XX-XXX format',
             ].map((s) => (
               <li key={s} className="flex items-start gap-2">
-                <span className="mt-0.5 text-green-500 text-xs">▸</span>{s}
+                <span className="mt-0.5 text-hc-success-text text-xs">▸</span>{s}
               </li>
             ))}
           </ul>
@@ -100,7 +100,7 @@ const STEPS = [
             Most accessories have the 8-digit setup code printed on a label somewhere on the device body.
           </p>
           {tip?.tip && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 text-sm text-blue-800">
+            <div className="bg-hc-accent-soft border border-hc-accent-soft rounded-lg px-3 py-2.5 text-sm text-hc-accent-stronger">
               <span className="font-medium">For {tip.label}:</span> {tip.tip}
             </div>
           )}
@@ -113,7 +113,7 @@ const STEPS = [
               'On a separate card or sticker sheet included in the box',
             ].map((loc) => (
               <li key={loc} className="flex items-start gap-2">
-                <span className="mt-0.5 text-blue-400 text-xs">▸</span>
+                <span className="mt-0.5 text-hc-accent-strong text-xs">▸</span>
                 {loc}
               </li>
             ))}
@@ -147,12 +147,12 @@ const STEPS = [
             'QR label on the device body, underside, or product box',
           ].map((loc) => (
             <li key={loc} className="flex items-start gap-2">
-              <span className="mt-0.5 text-green-400 text-xs">▸</span>
+              <span className="mt-0.5 text-hc-success-text text-xs">▸</span>
               {loc}
             </li>
           ))}
         </ul>
-        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-sm text-green-800">
+        <div className="bg-hc-success-bg border border-hc-success-border rounded-lg px-3 py-2.5 text-sm text-hc-success-text">
           <span className="font-medium">To read a QR code:</span> Open the Apple Home app → tap{' '}
           <span className="font-mono bg-hc-panel px-1 rounded text-xs">+</span> → Add Accessory → point your camera at
           the QR code. The 8-digit PIN will appear in the Home app — note it down for use here.
@@ -181,7 +181,7 @@ const STEPS = [
             Some manufacturers store the HomeKit setup code in their own app — useful when the device label is worn or missing.
           </p>
           {appTip && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2.5 text-sm text-orange-800">
+            <div className="bg-hc-warning-bg border border-hc-warning-border rounded-lg px-3 py-2.5 text-sm text-hc-warning-text">
               <span className="font-medium">Common apps for this category:</span> {appTip}
             </div>
           )}
@@ -193,7 +193,7 @@ const STEPS = [
               'Wemo specifically: tap the device → Settings → HomeKit Setup Code',
             ].map((step) => (
               <li key={step} className="flex items-start gap-2">
-                <span className="mt-0.5 text-orange-400 text-xs">▸</span>
+                <span className="mt-0.5 text-hc-warning-text text-xs">▸</span>
                 {step}
               </li>
             ))}
@@ -220,7 +220,7 @@ const STEPS = [
             'Some brands can also initiate a remote reset that reveals the code',
           ].map((step) => (
             <li key={step} className="flex items-start gap-2">
-              <span className="mt-0.5 text-teal-500 text-xs">▸</span>
+              <span className="mt-0.5 text-hc-accent-strong text-xs">▸</span>
               {step}
             </li>
           ))}
@@ -235,7 +235,7 @@ const STEPS = [
     color: 'red',
     content: () => (
       <div className="space-y-3">
-        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-sm text-red-800">
+        <div className="bg-hc-danger-bg border border-hc-danger-border rounded-lg px-3 py-2.5 text-sm text-hc-danger-text">
           <span className="font-medium">Warning:</span> A factory reset will unpair the device from Apple Home
           and erase all its settings. Only do this if no other option worked.
         </div>
@@ -250,7 +250,7 @@ const STEPS = [
             'Then use that code to pair here',
           ].map((step) => (
             <li key={step} className="flex items-start gap-2">
-              <span className="mt-0.5 text-red-400 text-xs">▸</span>
+              <span className="mt-0.5 text-hc-danger-text text-xs">▸</span>
               {step}
             </li>
           ))}
@@ -261,11 +261,11 @@ const STEPS = [
 ];
 
 const COLOR_MAP = {
-  blue:   'bg-blue-100 text-blue-700',
-  green:  'bg-green-100 text-green-700',
-  orange: 'bg-orange-100 text-orange-700',
-  teal:   'bg-teal-100 text-teal-700',
-  red:    'bg-red-100 text-red-700',
+  blue:   'bg-hc-accent-soft text-hc-accent-stronger',
+  green:  'bg-hc-success-bg text-hc-success-text',
+  orange: 'bg-hc-warning-bg text-hc-warning-text',
+  teal:   'bg-hc-accent-soft text-hc-accent-stronger',
+  red:    'bg-hc-danger-bg text-hc-danger-text',
 };
 
 export default function PinHelpModal({ deviceName, category, onClose }) {

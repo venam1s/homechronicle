@@ -124,7 +124,7 @@ export default function ActivityFeed({ onNavigateToAccessory, onViewAll }) {
             onClick={scrollToBottom}
             className={clsx(
               'w-full bg-hc-accent-soft text-hc-accent-strong text-hc-caption font-medium',
-              'px-3 py-1.5 rounded-lg cursor-pointer hover:bg-hc-accent-strong hover:text-white transition-colors'
+              'px-3 py-1.5 rounded-lg cursor-pointer hover:bg-hc-accent-strong hover:text-hc-on-accent transition-colors'
             )}
           >
             {newEventsCount} new event{newEventsCount !== 1 ? 's' : ''}

@@ -102,7 +102,7 @@ function UserRow({ user, currentUser, isLastAdmin, onExpand, expanded }) {
           <button
             onClick={() => { disableMutation.mutate(user.id); setConfirmAction(null); onExpand(null); }}
             disabled={disableMutation.isPending}
-            className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="text-xs px-2 py-1 bg-hc-danger-text text-hc-on-danger rounded hover:bg-hc-danger-text disabled:opacity-50 transition-colors"
           >
             Yes, disable
           </button>
@@ -131,7 +131,7 @@ function UserRow({ user, currentUser, isLastAdmin, onExpand, expanded }) {
           <button
             onClick={() => { removeMutation.mutate(user.id); setConfirmAction(null); onExpand(null); }}
             disabled={removeMutation.isPending}
-            className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="text-xs px-2 py-1 bg-hc-danger-text text-hc-on-danger rounded hover:bg-hc-danger-text disabled:opacity-50 transition-colors"
           >
             Yes, remove
           </button>
@@ -278,7 +278,7 @@ function InviteRow({ invite }) {
           <button
             onClick={() => { revokeMutation.mutate(invite.id); setConfirmRevoke(false); }}
             disabled={revokeMutation.isPending}
-            className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="text-xs px-2 py-1 bg-hc-danger-text text-hc-on-danger rounded hover:bg-hc-danger-text disabled:opacity-50 transition-colors"
           >
             Yes, revoke
           </button>
@@ -346,7 +346,7 @@ export default function UsersPanel() {
           actions={(
             <button
               onClick={() => setShowInviteModal(true)}
-              className="inline-flex items-center gap-2 px-3 py-1 bg-hc-accent-strong text-white text-hc-caption font-semibold rounded-lg hover:bg-hc-accent-stronger transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1 bg-hc-accent-strong text-hc-on-accent text-hc-caption font-semibold rounded-lg hover:bg-hc-accent-stronger transition-colors"
             >
               <UserPlus size={14} />
               Invite user

@@ -22,7 +22,7 @@ export default class ErrorBoundary extends Component {
           <p className="text-sm text-hc-muted mt-1">{this.state.error?.message || 'An unexpected error occurred.'}</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            className="mt-4 text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            className="mt-4 text-sm px-4 py-2 rounded-lg bg-hc-accent-strong text-hc-on-accent hover:bg-hc-accent-stronger"
           >
             Try again
           </button>

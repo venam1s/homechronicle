@@ -326,7 +326,7 @@ export default function Alerts() {
             <div className="flex items-center gap-2">
               <button
                 type="submit"
-                className="inline-flex items-center gap-1 rounded-lg px-3 py-2 bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60"
+                className="inline-flex items-center gap-1 rounded-lg px-3 py-2 bg-hc-accent-strong text-hc-on-accent text-sm hover:bg-hc-accent-stronger disabled:opacity-60"
                 disabled={saveRuleMutation.isPending}
               >
                 {editingId ? <Save size={14} /> : <Plus size={14} />}
@@ -347,7 +347,7 @@ export default function Alerts() {
               )}
             </div>
           </form>
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          {error && <p className="text-sm text-hc-danger-text mt-2">{error}</p>}
         </Card.Body>
       </Card>
 
@@ -373,7 +373,7 @@ export default function Alerts() {
                 </button>
                 <button
                   type="button"
-                  className="text-sm font-medium text-hc-fg-strong hover:text-blue-700 cursor-pointer"
+                  className="text-sm font-medium text-hc-fg-strong hover:text-hc-accent-stronger cursor-pointer"
                   onClick={() => startEdit(rule)}
                 >
                   {rule.name}
@@ -397,7 +397,7 @@ export default function Alerts() {
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
+                    className="inline-flex items-center gap-1 text-xs text-hc-danger-text hover:text-hc-danger-text"
                     onClick={() => deleteRuleMutation.mutate(rule.id)}
                   >
                     <Trash2 size={12} />
@@ -432,7 +432,7 @@ export default function Alerts() {
                     ? (delivery.recipient ?? delivery.targetEmail ?? '')
                     : delivery.targetUrl}
                 </p>
-                {delivery.error && <p className="text-xs text-red-600 mt-1">{delivery.error}</p>}
+                {delivery.error && <p className="text-xs text-hc-danger-text mt-1">{delivery.error}</p>}
               </div>
             ))}
           </div>

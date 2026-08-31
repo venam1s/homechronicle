@@ -33,6 +33,12 @@
   --color-hc-danger-text: var(--hc-danger-text);
   --color-hc-danger-border: var(--hc-danger-border);
 
+  /* Foreground on solid fills */
+  --color-hc-on-accent: var(--hc-on-accent);
+  --color-hc-on-danger: var(--hc-on-danger);
+  --color-hc-on-success: var(--hc-on-success);
+  --color-hc-on-warning: var(--hc-on-warning);
+
   /* Interactive tokens */
   --color-hc-interactive: var(--hc-interactive);
   --color-hc-interactive-hover: var(--hc-interactive-hover);

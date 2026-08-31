@@ -460,7 +460,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
                     setRepairHourInput(v);
                     saveRepairMutation.mutate({ hour: localHourToUtc(v) });
                   }}
-                  className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong"
+                  className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
                 >
                   {HOURS_OPTIONS.map(({ value, label }) => (
                     <option key={value} value={value}>{label}</option>
@@ -513,7 +513,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               step="1"
               value={retentionDaysInput}
               onChange={(e) => { setRetentionDaysInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
             />
             <span className="text-xs text-hc-muted">days</span>
           </div>
@@ -575,7 +575,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               step="1"
               value={staleThresholdHoursInput}
               onChange={(e) => { setStaleThresholdHoursInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
             />
             <span className="text-xs text-hc-muted">hours</span>
           </div>
@@ -621,7 +621,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
                     saveAlertsMutation.mutate({ defaultQuietMinutes: v });
                   }
                 }}
-                className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+                className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
               />
               <span className="text-xs text-hc-muted">min</span>
             </div>
@@ -645,7 +645,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
                     saveAlertsMutation.mutate({ webhookTimeoutMs: v });
                   }
                 }}
-                className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+                className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
               />
               <span className="text-xs text-hc-muted">ms</span>
             </div>
@@ -705,7 +705,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
                 }
               }}
               disabled={!quietHoursEnabledInput}
-              className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -731,7 +731,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
                 }
               }}
               disabled={!quietHoursEnabledInput}
-              className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-hc-panel text-hc-fg-strong disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {HOURS_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -808,7 +808,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               step="1"
               value={episodeWindowInput}
               onChange={(e) => { setEpisodeWindowInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
             />
             <span className="text-xs text-hc-muted">min</span>
           </div>
@@ -832,7 +832,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               step="1"
               value={sceneWindowInput}
               onChange={(e) => { setSceneWindowInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
             />
             <span className="text-xs text-hc-muted">sec</span>
           </div>
@@ -856,7 +856,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               step="1"
               value={episodeMinEventInput}
               onChange={(e) => { setEpisodeMinEventInput(e.target.value); setSaveFeedback(null); }}
-              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
             />
             <span className="text-xs text-hc-muted">events</span>
           </div>
@@ -940,7 +940,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               const v = e.target.value;
               if (user) { setBlobToastPosition(v); } else { setToastPositionInput(v); autoSave({ toastPosition: v }); }
             }}
-            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
           >
             <option value="bottom-right">Bottom Right</option>
             <option value="bottom-left">Bottom Left</option>
@@ -967,7 +967,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               const v = Number(e.target.value);
               if (user) { setBlobToastDuration(v); } else { setToastDurationInput(v); autoSave({ toastDuration: v }); }
             }}
-            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
           >
             <option value={2}>2 seconds</option>
             <option value={3}>3 seconds</option>
@@ -992,7 +992,7 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               const v = Number(e.target.value);
               if (user) { setBlobToastMaxVisible(v); } else { setToastMaxVisibleInput(v); autoSave({ toastMaxVisible: v }); }
             }}
-            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm rounded border border-hc-border-strong bg-hc-panel text-hc-fg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
           >
             <option value={1}>1</option>
             <option value={2}>2</option>
@@ -1026,8 +1026,8 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
               'w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200',
               'disabled:opacity-40 disabled:cursor-not-allowed',
               saveFeedback === 'saved'
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200 '
-                : 'bg-blue-600 hover:bg-blue-700 hover:shadow-xl hover:scale-105 text-white shadow-blue-200 ',
+                ? 'bg-hc-success-text hover:bg-hc-success-text text-hc-on-success shadow-none '
+                : 'bg-hc-accent-strong hover:bg-hc-accent-stronger hover:shadow-xl hover:scale-105 text-hc-on-accent shadow-none ',
             )}
           >
             {savePending

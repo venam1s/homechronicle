@@ -54,7 +54,7 @@ export default function TrendChart({ forcedDays = null, onDaysChange = null }) {
     return <SkeletonChart className="h-48" />;
   }
   if (isError) {
-    return <div className="h-48 flex items-center justify-center text-red-500 text-sm">Failed to load daily stats.</div>;
+    return <div className="h-48 flex items-center justify-center text-hc-danger-text text-sm">Failed to load daily stats.</div>;
   }
   if (!hasData) {
     return (

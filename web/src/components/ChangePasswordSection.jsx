@@ -216,7 +216,7 @@ export default function ChangePasswordSection() {
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="w-auto py-2 px-4 rounded-lg bg-hc-accent-strong text-white text-hc-body font-semibold hover:bg-hc-accent-stronger disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+            className="w-auto py-2 px-4 rounded-lg bg-hc-accent-strong text-hc-on-accent text-hc-body font-semibold hover:bg-hc-accent-stronger disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
           >
             {mutation.isPending
               ? <Loader2 size={16} className="animate-spin" />

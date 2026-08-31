@@ -50,7 +50,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
     return <SkeletonBlock className="h-32 w-full" />;
   }
   if (isError) {
-    return <div className="h-32 flex items-center justify-center text-red-500 text-sm">Failed to load weekday stats.</div>;
+    return <div className="h-32 flex items-center justify-center text-hc-danger-text text-sm">Failed to load weekday stats.</div>;
   }
   if (!data.length) {
     return <p className="text-sm text-hc-muted">No data yet.</p>;

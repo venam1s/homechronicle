@@ -152,7 +152,7 @@ export default function AdminAdvancedSection({ setup }) {
               <select
                 value={logLevelInput}
                 onChange={(e) => handleLogLevelChange(e.target.value)}
-                className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+                className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
               >
                 {LOG_LEVELS.map(({ value, label, desc }) => (
                   <option key={value} value={value}>
@@ -218,7 +218,7 @@ export default function AdminAdvancedSection({ setup }) {
                                 onError: () => setConfirmDeletePairing(null),
                               })}
                               disabled={isDeleting}
-                              className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                              className="text-xs px-2 py-1 bg-hc-danger-text text-hc-on-danger rounded hover:bg-hc-danger-text disabled:opacity-50 transition-colors"
                             >
                               {isDeleting ? 'Removing…' : 'Yes, remove'}
                             </button>
@@ -233,7 +233,7 @@ export default function AdminAdvancedSection({ setup }) {
                         ) : (
                           <button
                             onClick={() => setConfirmDeletePairing(acc.id)}
-                            className="flex-shrink-0 text-xs text-red-400 hover:text-red-600  hover:bg-red-50  px-2 py-1 rounded transition-colors"
+                            className="flex-shrink-0 text-xs text-hc-danger-text hover:text-hc-danger-text  hover:bg-hc-danger-bg  px-2 py-1 rounded transition-colors"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -266,7 +266,7 @@ export default function AdminAdvancedSection({ setup }) {
                                 });
                               }}
                               disabled={isDeleting}
-                              className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                              className="text-xs px-2 py-1 bg-hc-danger-text text-hc-on-danger rounded hover:bg-hc-danger-text disabled:opacity-50 transition-colors"
                             >
                               {isDeleting ? 'Removing…' : 'Yes, remove'}
                             </button>
@@ -281,13 +281,13 @@ export default function AdminAdvancedSection({ setup }) {
                         ) : (
                           <button
                             onClick={() => setConfirmDeletePairing(`matter-${nodeId}`)}
-                            className="flex-shrink-0 text-xs text-red-400 hover:text-red-600  hover:bg-red-50  px-2 py-1 rounded transition-colors"
+                            className="flex-shrink-0 text-xs text-hc-danger-text hover:text-hc-danger-text  hover:bg-hc-danger-bg  px-2 py-1 rounded transition-colors"
                           >
                             <Trash2 size={14} />
                           </button>
                         )}
                         {matterDeleteError[nodeId] && (
-                          <p className="text-xs text-red-500 mt-1">{matterDeleteError[nodeId]}</p>
+                          <p className="text-xs text-hc-danger-text mt-1">{matterDeleteError[nodeId]}</p>
                         )}
                       </div>
                     );
@@ -309,12 +309,12 @@ export default function AdminAdvancedSection({ setup }) {
                           placeholder="Type DELETE to confirm"
                           value={removeAllConfirmText === '_' ? '' : removeAllConfirmText}
                           onChange={(e) => setRemoveAllConfirmText(e.target.value || '_')}
-                          className="flex-1 text-xs border border-hc-danger-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-red-400 bg-hc-panel text-hc-fg-strong placeholder-red-200 "
+                          className="flex-1 text-xs border border-hc-danger-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-hc-danger-border bg-hc-panel text-hc-fg-strong placeholder-hc-muted "
                         />
                         <button
                           onClick={handleRemoveAll}
                           disabled={removeAllConfirmText !== 'DELETE'}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                          className="flex items-center gap-1.5 px-3 py-2 bg-hc-danger-text text-hc-on-danger text-xs font-medium rounded-lg hover:bg-hc-danger-text disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                         >
                           Remove all
                         </button>
@@ -405,7 +405,7 @@ export default function AdminAdvancedSection({ setup }) {
                               },
                             })}
                             disabled={isDeleting}
-                            className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                            className="text-xs px-2 py-1 bg-hc-danger-text text-hc-on-danger rounded hover:bg-hc-danger-text disabled:opacity-50 transition-colors"
                           >
                             {isDeleting ? 'Deleting…' : 'Yes, delete'}
                           </button>
@@ -420,7 +420,7 @@ export default function AdminAdvancedSection({ setup }) {
                       ) : (
                         <button
                           onClick={() => setConfirmDeleteAccessory(acc.accessory_id)}
-                          className="flex-shrink-0 text-xs text-red-400 hover:text-red-600  hover:bg-red-50  px-2 py-1 rounded transition-colors"
+                          className="flex-shrink-0 text-xs text-hc-danger-text hover:text-hc-danger-text  hover:bg-hc-danger-bg  px-2 py-1 rounded transition-colors"
                         >
                           Delete history
                         </button>
@@ -442,12 +442,12 @@ export default function AdminAdvancedSection({ setup }) {
                   placeholder="Type DELETE to confirm"
                   value={wipeConfirmText}
                   onChange={(e) => setWipeConfirmText(e.target.value)}
-                  className="flex-1 text-xs border border-hc-danger-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-red-400 bg-hc-panel text-hc-fg-strong placeholder-red-200 "
+                  className="flex-1 text-xs border border-hc-danger-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-hc-danger-border bg-hc-panel text-hc-fg-strong placeholder-hc-muted "
                 />
                 <button
                   onClick={handleWipeAll}
                   disabled={wipeConfirmText !== 'DELETE' || wipePending}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-hc-danger-text text-hc-on-danger text-xs font-medium rounded-lg hover:bg-hc-danger-text disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                 >
                   {wipePending ? <><Loader size={12} className="animate-spin" /> Wiping&hellip;</> : 'Wipe all data'}
                 </button>

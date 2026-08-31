@@ -149,7 +149,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
       <div className={card}>
         {header}
         <div className="flex items-center gap-2 text-sm text-hc-muted">
-          <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+          <CheckCircle2 size={14} className="text-hc-success-text flex-shrink-0" />
           <span>No unexpected activity during quiet hours ({startLocal} – {endLocal})</span>
         </div>
       </div>

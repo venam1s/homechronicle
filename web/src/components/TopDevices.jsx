@@ -32,7 +32,7 @@ export default function TopDevices({ forcedDays = null, onDaysChange = null }) {
     return <SkeletonList rows={4} />;
   }
   if (isError) {
-    return <div className="h-24 flex items-center justify-center text-red-500 text-sm">Failed to load device stats.</div>;
+    return <div className="h-24 flex items-center justify-center text-hc-danger-text text-sm">Failed to load device stats.</div>;
   }
   if (!data?.length) {
     return <p className="text-sm text-hc-muted">No activity in the last {days} days.</p>;

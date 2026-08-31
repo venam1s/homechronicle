@@ -19,7 +19,7 @@ export default function AnomalyPanel({ onSelectAccessory, onSelectRoom }) {
   const header = (
     <div className="flex items-baseline justify-between mb-3">
       <div className="flex items-center gap-2">
-        <AlertTriangle size={14} className="text-amber-500" />
+        <AlertTriangle size={14} className="text-hc-warning-text" />
         <h3 className="text-sm font-semibold text-hc-fg">Active Outliers</h3>
       </div>
       <span className="text-xs text-hc-muted">devices + rooms</span>
@@ -30,7 +30,7 @@ export default function AnomalyPanel({ onSelectAccessory, onSelectRoom }) {
     return <div>{header}<p className="text-sm text-hc-muted">Analyzing baselines…</p></div>;
   }
   if (isError) {
-    return <div>{header}<p className="text-sm text-red-500">Failed to load anomaly data.</p></div>;
+    return <div>{header}<p className="text-sm text-hc-danger-text">Failed to load anomaly data.</p></div>;
   }
 
   const rows = [

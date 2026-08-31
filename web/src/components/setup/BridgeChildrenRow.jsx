@@ -22,7 +22,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
   }
   if (isError) {
     return (
-      <div className="ml-9 mt-2 pb-2 text-xs text-red-400">
+      <div className="ml-9 mt-2 pb-2 text-xs text-hc-danger-text">
         Could not load child accessories — is the bridge reachable?
       </div>
     );
@@ -40,7 +40,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
             onChange={(e) => onNoteChange?.(bridgeId, e.target.value)}
             onBlur={() => onNoteBlur?.(bridgeId)}
             onKeyDown={(e) => e.key === 'Enter' && onNoteBlur?.(bridgeId)}
-            className="text-xs border border-hc-panel-border bg-hc-panel text-hc-fg rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+            className="text-xs border border-hc-panel-border bg-hc-panel text-hc-fg rounded px-2 py-0.5 w-48 focus:outline-none focus:ring-1 focus:ring-hc-focus-ring placeholder-hc-muted"
           />
         </div>
       </div>
@@ -55,12 +55,12 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
         return (
           <div key={child.childId} className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+              <div className="w-1.5 h-1.5 rounded-full bg-hc-success-text flex-shrink-0" />
               <span className="text-xs text-hc-fg flex-1 truncate min-w-0">{child.name}</span>
             </div>
             <div className="flex flex-col gap-1 ml-3.5">
               <div className="flex items-center gap-1">
-                <MapPin size={9} className={isInheriting ? 'text-blue-300' : 'text-hc-muted'} />
+                <MapPin size={9} className={isInheriting ? 'text-hc-accent-strong' : 'text-hc-muted'} />
                 <input
                   type="text"
                   placeholder={bridgeRoom ? `Inherits: ${bridgeRoom}` : 'Room…'}
@@ -70,10 +70,10 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                   onBlur={() => onRoomBlur(child.childId)}
                   onKeyDown={(e) => e.key === 'Enter' && onRoomBlur(child.childId)}
                   className={clsx(
-                    'text-xs border rounded px-2 py-0.5 w-32 focus:outline-none focus:ring-1 focus:ring-blue-400',
+                    'text-xs border rounded px-2 py-0.5 w-32 focus:outline-none focus:ring-1 focus:ring-hc-focus-ring',
                     isInheriting
-                      ? 'border-blue-200 bg-blue-50/40 placeholder-blue-300 text-blue-700'
-                      : 'border-hc-panel-border bg-hc-panel text-hc-fg placeholder-gray-400',
+                      ? 'border-hc-accent-soft bg-hc-accent-soft/40 placeholder-hc-muted text-hc-accent-stronger'
+                      : 'border-hc-panel-border bg-hc-panel text-hc-fg placeholder-hc-muted',
                   )}
                 />
               </div>
@@ -86,7 +86,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                   onChange={(e) => onNoteChange?.(child.childId, e.target.value)}
                   onBlur={() => onNoteBlur?.(child.childId)}
                   onKeyDown={(e) => e.key === 'Enter' && onNoteBlur?.(child.childId)}
-                  className="text-xs border border-hc-panel-border bg-hc-panel text-hc-fg rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400"
+                  className="text-xs border border-hc-panel-border bg-hc-panel text-hc-fg rounded px-2 py-0.5 w-44 focus:outline-none focus:ring-1 focus:ring-hc-focus-ring placeholder-hc-muted"
                 />
               </div>
             </div>

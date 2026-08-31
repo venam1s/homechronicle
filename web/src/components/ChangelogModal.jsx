@@ -18,7 +18,7 @@ export default function ChangelogModal({ onClose }) {
         {/* Header */}
         <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-hc-panel-border">
           <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-blue-500" />
+            <Sparkles size={18} className="text-hc-accent-strong" />
             <h2 className="text-base font-semibold text-hc-fg-strong">What's New</h2>
           </div>
           <button
@@ -34,13 +34,13 @@ export default function ChangelogModal({ onClose }) {
           {CHANGELOG.map((entry, i) => (
             <div key={entry.version + i}>
               <div className="mb-1.5">
-                <span className="inline-block text-xs font-mono font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded mb-1">{entry.version}</span>
+                <span className="inline-block text-xs font-mono font-medium text-hc-accent-strong bg-hc-accent-soft px-1.5 py-0.5 rounded mb-1">{entry.version}</span>
                 <div className="text-sm font-semibold text-hc-fg-strong">{entry.title}</div>
               </div>
               <ul className="space-y-1 list-none">
                 {entry.items.map((item, j) => (
                   <li key={j} className="flex items-start gap-2 text-sm text-hc-muted-light">
-                    <span className="mt-0.5 text-blue-400 text-xs flex-shrink-0">▸</span>
+                    <span className="mt-0.5 text-hc-accent-strong text-xs flex-shrink-0">▸</span>
                     {item}
                   </li>
                 ))}

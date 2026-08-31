@@ -33,7 +33,7 @@ const STEPS = [
           Matter devices must be in commissioning mode before homechronicle can pair with them.
           If your device is already set up in Apple Home, you can share it:
         </p>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 text-sm text-blue-800">
+        <div className="bg-hc-accent-soft border border-hc-accent-soft rounded-lg px-3 py-2.5 text-sm text-hc-accent-stronger">
           <p className="font-medium">From Apple Home:</p>
           <ol className="mt-1.5 space-y-1 list-none">
             {[
@@ -43,7 +43,7 @@ const STEPS = [
               'A setup code will appear — enter it in homechronicle',
             ].map((s, i) => (
               <li key={s} className="flex items-start gap-2">
-                <span className="mt-0.5 text-blue-500 text-xs font-medium">{i + 1}.</span>{s}
+                <span className="mt-0.5 text-hc-accent-strong text-xs font-medium">{i + 1}.</span>{s}
               </li>
             ))}
           </ol>
@@ -76,12 +76,12 @@ const STEPS = [
             'In the manufacturer\'s app under device settings',
           ].map((loc) => (
             <li key={loc} className="flex items-start gap-2">
-              <span className="mt-0.5 text-green-400 text-xs">▸</span>
+              <span className="mt-0.5 text-hc-success-text text-xs">▸</span>
               {loc}
             </li>
           ))}
         </ul>
-        <div className="bg-green-50 border border-green-200 rounded px-3 py-2 text-sm text-green-800">
+        <div className="bg-hc-success-bg border border-hc-success-border rounded px-3 py-2 text-sm text-hc-success-text">
           <span className="font-medium">Format:</span> A numeric code, typically{' '}
           <code className="bg-hc-panel border border-hc-panel-border px-1.5 py-0.5 rounded text-xs font-mono text-hc-fg-strong">XXXX-XXX-XXXX</code>{' '}
           (11 digits) or a shorter manual code.
@@ -107,12 +107,12 @@ const STEPS = [
             'Devices on a separate IoT VLAN need a VLAN interface on the Docker host',
           ].map((req) => (
             <li key={req} className="flex items-start gap-2">
-              <span className="mt-0.5 text-orange-400 text-xs">▸</span>
+              <span className="mt-0.5 text-hc-warning-text text-xs">▸</span>
               {req}
             </li>
           ))}
         </ul>
-        <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2.5 text-sm text-orange-800">
+        <div className="bg-hc-warning-bg border border-hc-warning-border rounded-lg px-3 py-2.5 text-sm text-hc-warning-text">
           <span className="font-medium">Thread devices:</span> Thread border routers (like HomePod or Apple TV)
           bridge Thread devices onto your IP network. These should work as long as the border router
           is reachable from the listener.
@@ -152,7 +152,7 @@ const STEPS = [
             </tbody>
           </table>
         </div>
-        <div className="bg-teal-50 border border-teal-200 rounded px-3 py-2 text-sm text-teal-800">
+        <div className="bg-hc-accent-soft border border-hc-accent-soft rounded px-3 py-2 text-sm text-hc-accent-stronger">
           Devices outside this list (e.g. media players, air purifiers) can still be paired —
           they just won't generate events until cluster support is added.
         </div>
@@ -197,11 +197,11 @@ const STEPS = [
 ];
 
 const COLOR_MAP = {
-  blue:   'bg-blue-100 text-blue-700',
-  green:  'bg-green-100 text-green-700',
-  orange: 'bg-orange-100 text-orange-700',
-  teal:   'bg-teal-100 text-teal-700',
-  red:    'bg-red-100 text-red-700',
+  blue:   'bg-hc-accent-soft text-hc-accent-stronger',
+  green:  'bg-hc-success-bg text-hc-success-text',
+  orange: 'bg-hc-warning-bg text-hc-warning-text',
+  teal:   'bg-hc-accent-soft text-hc-accent-stronger',
+  red:    'bg-hc-danger-bg text-hc-danger-text',
 };
 
 export default function MatterHelpModal({ onClose, initialSection }) {

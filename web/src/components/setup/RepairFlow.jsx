@@ -28,7 +28,7 @@ export default function RepairFlow({ device, deviceId, repairMutation, onClose }
       <div className="bg-hc-panel rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Wrench size={18} className="text-amber-600" />
+            <Wrench size={18} className="text-hc-warning-text" />
             <h3 className="font-semibold text-hc-fg">Repair Pairing</h3>
           </div>
           <button onClick={onClose} className="text-hc-muted hover:text-hc-fg">
@@ -43,7 +43,7 @@ export default function RepairFlow({ device, deviceId, repairMutation, onClose }
             </p>
             <button
               onClick={() => handleRepair()}
-              className="w-full py-2 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="w-full py-2 px-4 rounded-lg bg-hc-accent-strong text-hc-on-accent text-sm font-medium hover:bg-hc-accent-stronger transition-colors"
             >
               Repair Now
             </button>
@@ -52,7 +52,7 @@ export default function RepairFlow({ device, deviceId, repairMutation, onClose }
 
         {phase === 'repairing' && (
           <div className="flex flex-col items-center py-6 gap-3">
-            <Loader2 size={32} className="animate-spin text-blue-500" />
+            <Loader2 size={32} className="animate-spin text-hc-accent-strong" />
             <p className="text-sm text-hc-muted-light">Repairing {deviceName}...</p>
             <p className="text-xs text-hc-muted">This may take up to 20 seconds</p>
           </div>
@@ -60,7 +60,7 @@ export default function RepairFlow({ device, deviceId, repairMutation, onClose }
 
         {phase === 'success' && (
           <div className="flex flex-col items-center py-6 gap-3">
-            <CheckCircle2 size={32} className="text-green-500" />
+            <CheckCircle2 size={32} className="text-hc-success-text" />
             <p className="text-sm text-hc-fg font-medium">Pairing repaired successfully!</p>
             <button
               onClick={onClose}
@@ -74,7 +74,7 @@ export default function RepairFlow({ device, deviceId, repairMutation, onClose }
         {phase === 'failed' && (
           <div className="space-y-4">
             <div className="flex items-start gap-2 p-3 bg-hc-danger-bg rounded-lg">
-              <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+              <AlertCircle size={16} className="text-hc-danger-text shrink-0 mt-0.5" />
               <p className="text-sm text-hc-danger-text">
                 {error?.guidance || error?.message || 'Repair failed.'}
               </p>
@@ -97,7 +97,7 @@ export default function RepairFlow({ device, deviceId, repairMutation, onClose }
               <button
                 onClick={() => handleRepair(pin || undefined)}
                 disabled={error?.code === 'NO_PIN' && !pin.trim()}
-                className="flex-1 py-2 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 py-2 px-4 rounded-lg bg-hc-accent-strong text-hc-on-accent text-sm font-medium hover:bg-hc-accent-stronger disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Retry
               </button>

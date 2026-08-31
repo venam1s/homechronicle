@@ -199,7 +199,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
             </p>
             <button
               onClick={() => setHelpDevice({ name: null, category: null })}
-              className="flex items-center gap-1 mt-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+              className="flex items-center gap-1 mt-1.5 text-xs text-hc-accent-strong hover:text-hc-accent-stronger transition-colors"
             >
               <HelpCircle size={12} />
               How do I find my PIN?
@@ -212,7 +212,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
             className={clsx(
               'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
               scanning ? 'bg-hc-panel-mid text-hc-muted cursor-not-allowed'
-                       : 'bg-blue-600 text-white hover:bg-blue-700',
+                       : 'bg-hc-accent-strong text-hc-on-accent hover:bg-hc-accent-stronger',
             )}
           >
             <RefreshCw size={15} className={scanning ? 'animate-spin' : ''} />
@@ -245,20 +245,20 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
               </p>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Lock size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-400" />
+                  <Lock size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-hc-accent-strong" />
                   <input
                     type="text"
                     placeholder="Shared PIN (e.g. 111-22-333)"
                     value={bulkPin}
                     onChange={(e) => setBulkPin(e.target.value)}
                     disabled={isBulkPairing}
-                    className="w-full pl-8 pr-3 py-1.5 border border-hc-panel-border bg-hc-panel text-hc-fg-strong rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="w-full pl-8 pr-3 py-1.5 border border-hc-panel-border bg-hc-panel text-hc-fg-strong rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-hc-focus-ring disabled:opacity-50"
                   />
                 </div>
                 <button
                   onClick={handleBulkPair}
                   disabled={isBulkPairing || selected.size === 0}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-hc-accent-strong text-hc-on-accent text-xs font-medium rounded-lg hover:bg-hc-accent-stronger disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                 >
                   {isBulkPairing
                     ? <><Loader size={12} className="animate-spin" /> {bulkProgress.done}/{bulkProgress.total}</>
@@ -273,7 +273,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                   </div>
                   <div className="bg-hc-accent-soft rounded-full h-1.5">
                     <div
-                      className="bg-blue-600 h-1.5 rounded-full transition-all"
+                      className="bg-hc-accent-strong h-1.5 rounded-full transition-all"
                       style={{ width: `${(bulkProgress.done / bulkProgress.total) * 100}%` }}
                     />
                   </div>
@@ -297,7 +297,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                   <div className="mb-2">
                     <button
                       onClick={() => setAddPairingExpanded((v) => !v)}
-                      className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                      className="flex items-center gap-1 text-xs text-hc-accent-strong hover:underline"
                     >
                       <ChevronsRight size={12} className={clsx('transition-transform', addPairingExpanded && 'rotate-90')} />
                       Add as Controller (advanced)
@@ -313,24 +313,24 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                           value={sourcePairingsText}
                           onChange={(e) => setSourcePairingsText(e.target.value)}
                           placeholder='{"AA:BB:CC:DD:EE:FF": {"protocol":"homekit", ...}}'
-                          className="w-full text-xs font-mono border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          className="w-full text-xs font-mono border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-hc-focus-ring"
                         />
                         <button
                           onClick={handleAddPairing}
                           disabled={!sourcePairingsText.trim() || addPairingMutation.isPending}
-                          className="text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          className="text-xs px-3 py-1 rounded bg-hc-accent-strong text-hc-on-accent hover:bg-hc-accent-stronger disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                           {addPairingMutation.isPending ? 'Adding\u2026' : 'Add as Controller'}
                         </button>
                         {addPairingResults?.loading && (
-                          <p className="text-xs text-blue-500 flex items-center gap-1"><Loader size={12} className="animate-spin" /> Discovering and adding pairings\u2026</p>
+                          <p className="text-xs text-hc-accent-strong flex items-center gap-1"><Loader size={12} className="animate-spin" /> Discovering and adding pairings\u2026</p>
                         )}
                         {addPairingResults?.error && (
                           <p className="text-xs text-hc-danger-text">{addPairingResults.error}</p>
                         )}
                         {addPairingResults?.summary && (
                           <div className="text-xs space-y-1">
-                            <p className="text-green-600">{addPairingResults.summary.succeeded} succeeded, {addPairingResults.summary.failed} failed</p>
+                            <p className="text-hc-success-text">{addPairingResults.summary.succeeded} succeeded, {addPairingResults.summary.failed} failed</p>
                             {addPairingResults.results?.filter((r) => !r.ok).map((r) => (
                               <p key={r.deviceId} className="text-hc-danger-text ml-2">{r.name}: {r.reason}</p>
                             ))}
@@ -343,7 +343,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
               )}
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs text-hc-muted">{unpaired.length} available</span>
-                <button onClick={toggleAll} className="text-xs text-blue-600 hover:underline">
+                <button onClick={toggleAll} className="text-xs text-hc-accent-strong hover:underline">
                   {allSelected ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
@@ -363,18 +363,18 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                           checked={isChecked}
                           onChange={() => toggleSelect(acc.id)}
                           disabled={isPairing || isSuccess}
-                          className="w-3.5 h-3.5 rounded border-hc-border-strong text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded border-hc-border-strong text-hc-accent-strong focus:ring-hc-focus-ring cursor-pointer"
                         />
                         {isPairing
-                          ? <Loader size={14} className="text-blue-400 animate-spin flex-shrink-0" />
+                          ? <Loader size={14} className="text-hc-accent-strong animate-spin flex-shrink-0" />
                           : isSuccess
-                            ? <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
+                            ? <CheckCircle size={14} className="text-hc-success-text flex-shrink-0" />
                             : <Circle size={14} className="text-hc-muted flex-shrink-0" />}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-hc-fg-strong text-xs truncate">{acc.name}</div>
                           <div className="text-[11px] text-hc-muted">
                             {acc.category === 2
-                              ? <span className="text-blue-600 font-medium">Bridge</span>
+                              ? <span className="text-hc-accent-strong font-medium">Bridge</span>
                               : CATEGORY_LABELS[acc.category] ?? 'Unknown'}
                             {acc.pairedElsewhere && (
                               <span className="ml-1.5 inline-flex items-center gap-0.5 text-hc-warning-text font-medium" title="Already paired to another controller (e.g. Apple Home) — pair-setup will be rejected">
@@ -399,8 +399,8 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                                 }}
                                 disabled={isPairing}
                                 className={clsx(
-                                  'w-28 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 placeholder-gray-300',
-                                  hasSavedPin ? 'border-hc-success-border bg-hc-success-bg placeholder-green-400' : 'border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong',
+                                  'w-28 px-2 py-0.5 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-hc-focus-ring disabled:opacity-50 placeholder-hc-muted',
+                                  hasSavedPin ? 'border-hc-success-border bg-hc-success-bg placeholder-hc-muted' : 'border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong',
                                 )}
                               />
                               {hasSavedPin && !isPairing && (
@@ -410,7 +410,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                                     setPinOverrides((p) => ({ ...p, [acc.id]: '' }));
                                   }}
                                   title="Clear saved PIN"
-                                  className="p-0.5 text-hc-muted hover:text-red-500 transition-colors"
+                                  className="p-0.5 text-hc-muted hover:text-hc-danger-text transition-colors"
                                 >
                                   <X size={12} />
                                 </button>
@@ -419,7 +419,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => setHelpDevice({ name: acc.name, category: acc.category })}
-                                className="flex items-center gap-0.5 text-[10px] text-hc-muted hover:text-blue-500 transition-colors"
+                                className="flex items-center gap-0.5 text-[10px] text-hc-muted hover:text-hc-accent-strong transition-colors"
                               >
                                 <HelpCircle size={9} />
                                 PIN help
@@ -427,7 +427,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                               <button
                                 onClick={() => handlePairOne(acc.id)}
                                 disabled={isPairing || isBulkPairing}
-                                className="text-[10px] px-2 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="text-[10px] px-2 py-0.5 rounded bg-hc-accent-strong text-hc-on-accent hover:bg-hc-accent-stronger disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                               >
                                 Pair
                               </button>
@@ -437,12 +437,12 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
                       </div>
                       {isSuccess && (
                         <div className="mt-1 ml-6">
-                          <p className="text-xs text-green-600">{status.message}</p>
+                          <p className="text-xs text-hc-success-text">{status.message}</p>
                           <p className="text-[11px] text-hc-muted mt-0.5">
                             Assign a room in{' '}
                             <button
                               onClick={() => onSwitchTab('devices')}
-                              className="text-blue-600 hover:underline"
+                              className="text-hc-accent-strong hover:underline"
                             >
                               Manage Accessories
                             </button>
@@ -577,7 +577,7 @@ function MatterCard({
         </p>
         <button
           onClick={onOpenHelp}
-          className="flex items-center gap-1 mt-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+          className="flex items-center gap-1 mt-1.5 text-xs text-hc-accent-strong hover:text-hc-accent-stronger transition-colors"
         >
           <HelpCircle size={12} />
           How do I pair a Matter accessory?
@@ -592,7 +592,7 @@ function MatterCard({
           'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
           matterScanning ? 'bg-hc-panel-mid text-hc-muted cursor-not-allowed'
                          : !commissionConfigured ? 'bg-hc-panel-mid text-hc-muted cursor-not-allowed'
-                         : 'bg-blue-600 text-white hover:bg-blue-700',
+                         : 'bg-hc-accent-strong text-hc-on-accent hover:bg-hc-accent-stronger',
         )}
       >
         <RefreshCw size={15} className={matterScanning ? 'animate-spin' : ''} />
@@ -645,9 +645,9 @@ function MatterCard({
                 <div key={device.id} className="px-3 py-2.5 space-y-1.5">
                   <div className="flex items-center gap-2">
                     {isPairing
-                      ? <Loader size={14} className="text-blue-400 animate-spin flex-shrink-0" />
+                      ? <Loader size={14} className="text-hc-accent-strong animate-spin flex-shrink-0" />
                       : isSuccess
-                        ? <CheckCircle size={14} className="text-green-500 flex-shrink-0" />
+                        ? <CheckCircle size={14} className="text-hc-success-text flex-shrink-0" />
                         : <Circle size={14} className="text-hc-muted flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-hc-fg-strong text-xs truncate">
@@ -668,7 +668,7 @@ function MatterCard({
                         value={matterForm[`name_${device.id}`] ?? ''}
                         onChange={(e) => setMatterForm((f) => ({ ...f, [`name_${device.id}`]: e.target.value }))}
                         disabled={isPairing}
-                        className="w-full px-2 py-1 border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
+                        className="w-full px-2 py-1 border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded text-xs focus:outline-none focus:ring-1 focus:ring-hc-focus-ring disabled:opacity-50"
                       />
                       <div className="flex gap-1.5">
                         <input
@@ -677,12 +677,12 @@ function MatterCard({
                           value={matterForm[`code_${device.id}`] ?? ''}
                           onChange={(e) => setMatterForm((f) => ({ ...f, [`code_${device.id}`]: e.target.value }))}
                           disabled={isPairing}
-                          className="flex-1 px-2 py-1 border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
+                          className="flex-1 px-2 py-1 border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded text-xs focus:outline-none focus:ring-1 focus:ring-hc-focus-ring disabled:opacity-50"
                         />
                         <button
                           onClick={() => handleMatterPairOne(device)}
                           disabled={isPairing}
-                          className="text-[10px] px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                          className="text-[10px] px-2.5 py-1 rounded bg-hc-accent-strong text-hc-on-accent hover:bg-hc-accent-stronger disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                         >
                           {isPairing ? 'Pairing\u2026' : 'Pair'}
                         </button>
@@ -691,12 +691,12 @@ function MatterCard({
                   )}
                   {isSuccess && (
                     <div className="ml-6">
-                      <p className="text-xs text-green-600">{status.message}</p>
+                      <p className="text-xs text-hc-success-text">{status.message}</p>
                       <p className="text-[11px] text-hc-muted mt-0.5">
                         Assign a room in{' '}
                         <button
                           onClick={() => onSwitchTab('devices')}
-                          className="text-blue-600 hover:underline"
+                          className="text-hc-accent-strong hover:underline"
                         >
                           Manage Accessories
                         </button>
@@ -740,7 +740,7 @@ function MatterCard({
               Assign a room in{' '}
               <button
                 onClick={() => onSwitchTab('devices')}
-                className="text-blue-600 hover:underline"
+                className="text-hc-accent-strong hover:underline"
               >
                 Manage Accessories
               </button>
@@ -773,7 +773,7 @@ function MatterCard({
             value={matterForm.name}
             onChange={(e) => setMatterForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Accessory name (e.g. Office Plug)"
-            className="w-full text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
           />
           <div className="inline-flex items-center gap-1 rounded-lg bg-hc-panel p-1 border border-hc-panel-border">
             <button
@@ -803,7 +803,7 @@ function MatterCard({
               value={matterForm.setupCode}
               onChange={(e) => setMatterForm((f) => ({ ...f, setupCode: e.target.value }))}
               placeholder="Setup code from Apple Home"
-              className="w-full text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
             />
           ) : (
             <input
@@ -811,14 +811,14 @@ function MatterCard({
               value={matterForm.nodeId}
               onChange={(e) => setMatterForm((f) => ({ ...f, nodeId: e.target.value }))}
               placeholder="Node ID"
-              className="w-full text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
             />
           )}
           <div className="grid grid-cols-1 gap-2">
             <select
               value={matterForm.transport}
               onChange={(e) => setMatterForm((f) => ({ ...f, transport: e.target.value }))}
-              className="text-xs border border-hc-panel-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-hc-panel text-hc-fg-strong"
+              className="text-xs border border-hc-panel-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
             >
               <option value="ip">Transport: IP</option>
               <option value="thread">Transport: Thread</option>
@@ -828,20 +828,20 @@ function MatterCard({
               value={matterForm.address}
               onChange={(e) => setMatterForm((f) => ({ ...f, address: e.target.value }))}
               placeholder="Address (optional)"
-              className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
             />
             <input
               type="text"
               value={matterForm.port}
               onChange={(e) => setMatterForm((f) => ({ ...f, port: e.target.value }))}
               placeholder="Port (optional)"
-              className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-xs border border-hc-panel-border bg-hc-panel-mid text-hc-fg-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
             />
           </div>
           <button
             type="submit"
             disabled={pairMatterMutation.isPending || (matterMode === 'commission' && !commissionConfigured)}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-hc-accent-strong text-hc-on-accent text-xs font-medium rounded-lg hover:bg-hc-accent-stronger disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {pairMatterMutation.isPending && <Loader size={12} className="animate-spin" />}
             {pairMatterMutation.isPending ? 'Adding\u2026' : 'Add Accessory'}
