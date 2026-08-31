@@ -443,7 +443,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
       {isError && (
         <Card>
           <Card.Body>
-            <p className="text-sm text-red-500">Failed to load accessory details.</p>
+            <p className="text-sm text-hc-danger-text">Failed to load accessory details.</p>
           </Card.Body>
         </Card>
       )}
@@ -454,8 +454,8 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           <Card>
             <Card.Body>
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                  <Icon size={20} className="text-blue-600" />
+                <div className="w-10 h-10 rounded-full bg-hc-interactive flex items-center justify-center">
+                  <Icon size={20} className="text-hc-accent-strong" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -578,13 +578,13 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Feature 1: Reliability */}
           {reliability && (
             <Card className={clsx(
-              (reliability.disconnects > 0 || reliability.resubscribe_failures > 0) && 'border border-amber-100'
+              (reliability.disconnects > 0 || reliability.resubscribe_failures > 0) && 'border border-hc-warning-border'
             )}>
               <Card.Header title={
                 <span className="flex items-center gap-2">
                   {reliability.disconnects > 0 || reliability.resubscribe_failures > 0
-                    ? <WifiOff size={14} className="text-amber-500" />
-                    : <Wifi size={14} className="text-green-500" />
+                    ? <WifiOff size={14} className="text-hc-warning-text" />
+                    : <Wifi size={14} className="text-hc-success-text" />
                   }
                   Connection Reliability
                 </span>
@@ -593,7 +593,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
                     <p className="text-[11px] text-hc-muted">Disconnects</p>
-                    <p className={clsx('text-lg font-semibold mt-0.5', reliability.disconnects > 0 ? 'text-amber-600' : 'text-hc-fg-strong')}>
+                    <p className={clsx('text-lg font-semibold mt-0.5', reliability.disconnects > 0 ? 'text-hc-warning-text' : 'text-hc-fg-strong')}>
                       {reliability.disconnects ?? 0}
                     </p>
                   </div>
@@ -603,7 +603,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                   </div>
                   <div>
                     <p className="text-[11px] text-hc-muted">Resubscribe Failures</p>
-                    <p className={clsx('text-lg font-semibold mt-0.5', reliability.resubscribe_failures > 0 ? 'text-red-600' : 'text-hc-fg-strong')}>
+                    <p className={clsx('text-lg font-semibold mt-0.5', reliability.resubscribe_failures > 0 ? 'text-hc-danger-text' : 'text-hc-fg-strong')}>
                       {reliability.resubscribe_failures ?? 0}
                     </p>
                   </div>
@@ -626,7 +626,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                   {Number.isFinite(reliability.subscribe_failures) && reliability.subscribe_failures > 0 && (
                     <div>
                       <p className="text-[11px] text-hc-muted">Subscribe Failures</p>
-                      <p className="text-lg font-semibold text-red-600 mt-0.5">{reliability.subscribe_failures}</p>
+                      <p className="text-lg font-semibold text-hc-danger-text mt-0.5">{reliability.subscribe_failures}</p>
                     </div>
                   )}
                 </div>
@@ -635,7 +635,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                     <p className="text-[11px] text-hc-danger-text">Last Error</p>
                     <p className="text-xs text-hc-danger-text mt-0.5 break-all">{reliability.last_error}</p>
                     {reliability.last_error_at && (
-                      <p className="text-[10px] text-red-400  mt-1">
+                      <p className="text-[10px] text-hc-danger-text  mt-1">
                         {formatDistanceToNow(new Date(reliability.last_error_at), { addSuffix: true })}
                       </p>
                     )}
@@ -648,7 +648,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           {/* Feature 4: Anomaly Indicators */}
           {outliers.length > 0 && (
             <Card>
-              <Card.Header title={<span className="flex items-center gap-2"><AlertTriangle size={14} className="text-amber-500" /> Anomalies (last 24h)</span>} />
+              <Card.Header title={<span className="flex items-center gap-2"><AlertTriangle size={14} className="text-hc-warning-text" /> Anomalies (last 24h)</span>} />
               <Card.Body>
                 <div className="space-y-2">
                   {outliers.slice(0, 5).map((o) => (
@@ -788,7 +788,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                         >
                           <div className="flex items-center justify-between">
                             <p className="text-[11px] text-hc-muted">{state.characteristic}</p>
-                            {isSelected ? <ChevronUp size={11} className="text-violet-400" /> : <ChevronDown size={11} className="text-hc-muted" />}
+                            {isSelected ? <ChevronUp size={11} className="text-[var(--hc-room-5)]" /> : <ChevronDown size={11} className="text-hc-muted" />}
                           </div>
                           <p className="text-sm text-hc-fg mt-0.5">{describeChange(state.characteristic, state.new_value)}</p>
                           <p className="text-[11px] text-hc-muted mt-1">

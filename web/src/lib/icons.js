@@ -144,7 +144,43 @@ export function describeChange(characteristic, newValue) {
       return `${parseFloat(newValue).toFixed(0)}% RH`;
     case 'Brightness':
       return `brightness ${newValue}%`;
+    case 'StatusLowBattery':
+      return newValue === '1' || newValue === 'true' ? 'battery low' : 'battery normal';
+    case 'BatteryLevel':
+      return `battery ${parseInt(newValue, 10)}%`;
+    case 'ChargingState': {
+      const states = ['not charging', 'charging', 'not chargeable'];
+      return states[parseInt(newValue, 10)] ?? `charging state ${newValue}`;
+    }
+    case 'StatusActive':
+      return newValue === '1' || newValue === 'true' ? 'became active' : 'became inactive';
+    case 'StatusTampered':
+      return newValue === '1' || newValue === 'true' ? 'tampering detected' : 'tampering cleared';
+    case 'StatusFault':
+      return newValue === '1' || newValue === 'true' ? 'reported a fault' : 'fault cleared';
+    case 'SmokeDetected':
+      return newValue === '1' || newValue === 'true' ? 'smoke detected' : 'smoke cleared';
+    case 'LeakDetected':
+      return newValue === '1' || newValue === 'true' ? 'leak detected' : 'leak cleared';
+    case 'CurrentAmbientLightLevel':
+      return `${parseFloat(newValue).toFixed(0)} lux`;
+    case 'OutletInUse':
+      return newValue === '1' || newValue === 'true' ? 'outlet in use' : 'outlet idle';
     default:
-      return `${characteristic}: ${newValue}`;
+      // v0.4: this string is now the timeline HEADLINE, not body text, so a raw
+      // characteristic name is far more visible than it used to be. Split the
+      // PascalCase name into words so an unmapped characteristic still reads as
+      // language ("Status Low Battery: 1") rather than an identifier.
+      return `${humanizeCharacteristic(characteristic)}: ${newValue}`;
   }
+}
+
+/** `StatusLowBattery` -> `Status low battery`. */
+export function humanizeCharacteristic(characteristic) {
+  if (typeof characteristic !== 'string' || characteristic.length === 0) return 'Changed';
+  const words = characteristic
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }

@@ -47,7 +47,7 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
   return (
     <div
       className={`group flex items-start gap-3 py-3 px-4 transition-all relative ${
-        isHighlighted ? 'bg-blue-50'
+        isHighlighted ? 'bg-hc-interactive'
         : isDimmed    ? 'opacity-40'
         : 'hover:bg-hc-panel-mid'
       }`}
@@ -55,18 +55,17 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
     >
       <div className="flex-1 min-w-0">
 
-        {/* ── Row 1: name · anomaly badge · mute button · relative time ── */}
+        {/* ── Row 1: what happened (the headline) · anomaly · mute · time ──
+            VIEW-01: the CHANGE leads, not the device name. Scanning a day is a
+            question of "what happened", and the device that reported it is
+            supporting detail — it moves to the line beneath. */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-            {onSelectAccessory && event.accessory_id ? (
-              <button
-                onClick={() => onSelectAccessory(event.accessory_id)}
-                className="font-medium text-hc-fg-strong truncate hover:text-blue-600 hover:underline transition-colors text-left"
-              >
-                {event.accessory_name}
-              </button>
-            ) : (
-              <span className="font-medium text-hc-fg-strong truncate">{event.accessory_name}</span>
+            <span className="text-hc-body font-semibold text-hc-fg-strong">{description}</span>
+            {beforeAfter && (
+              <span className="text-hc-caption font-mono text-hc-muted bg-hc-panel-mid border border-hc-panel-border px-1.5 py-0.5 rounded">
+                {beforeAfter.from} → {beforeAfter.to}
+              </span>
             )}
             {anomalyLabel && (
               <span className="inline-flex items-center gap-1 text-xs text-hc-warning-text bg-hc-warning-bg border border-hc-warning-border px-1.5 py-0.5 rounded-full flex-shrink-0">
@@ -93,20 +92,21 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
           </div>
         </div>
 
-        {/* ── Row 2: service type ── */}
-        <div className="flex items-center gap-1.5 mt-0.5">
+        {/* ── Row 2: which device said it, and where ── */}
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <Icon size={12} className="text-hc-muted flex-shrink-0" />
-          <span className="text-xs text-hc-muted">{serviceName}</span>
-        </div>
-
-        {/* ── Row 3: description · before→after · room badge ── */}
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          <span className="text-sm text-hc-fg">{description}</span>
-          {beforeAfter && (
-            <span className="text-xs font-mono text-hc-muted bg-hc-panel-mid border border-hc-panel-border px-1.5 py-0.5 rounded">
-              {beforeAfter.from} → {beforeAfter.to}
-            </span>
+          {onSelectAccessory && event.accessory_id ? (
+            <button
+              onClick={() => onSelectAccessory(event.accessory_id)}
+              className="text-hc-caption text-hc-muted truncate hover:text-hc-accent-strong hover:underline transition-colors text-left"
+            >
+              {event.accessory_name}
+            </button>
+          ) : (
+            <span className="text-hc-caption text-hc-muted truncate">{event.accessory_name}</span>
           )}
+          <span className="text-hc-caption text-hc-muted" aria-hidden="true">·</span>
+          <span className="text-hc-caption text-hc-muted">{serviceName}</span>
           {event.room_name && (
             <span
               className="text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0"
@@ -132,12 +132,12 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
             )}
 
             {marker === 'first' && (
-              <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 font-medium">
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-hc-success-bg text-hc-success-text border border-hc-success-border font-medium">
                 first today
               </span>
             )}
             {marker === 'last' && (
-              <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-medium">
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-hc-panel-mid text-hc-muted border border-hc-panel-border font-medium">
                 last today
               </span>
             )}

@@ -17,11 +17,14 @@ function parentId(id) {
 }
 
 // Activity dot color based on last_seen recency
+// Recency as a status colour, drawn from the palette's reserved status tokens
+// rather than fixed Tailwind hues, so it follows the active palette and stays
+// legible in both modes.
 function activityDot(lastSeen) {
-  if (!lastSeen) return 'bg-sky-300';
+  if (!lastSeen) return 'bg-hc-muted';
   const age = Date.now() - new Date(lastSeen).getTime();
-  if (age < 3_600_000)  return 'bg-green-400';   // < 1 hour
-  if (age < 86_400_000) return 'bg-yellow-400';  // < 24 hours
+  if (age < 3_600_000)  return 'bg-hc-success-text';   // < 1 hour
+  if (age < 86_400_000) return 'bg-hc-warning-text';   // < 24 hours
   return 'bg-hc-border-strong';
 }
 
@@ -135,8 +138,8 @@ export default function AccessoryList({ onSelectAccessory }) {
             <p className="text-xs font-semibold uppercase tracking-wide text-hc-muted mb-2">Icons</p>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs text-hc-fg">
-                <span className="w-7 h-7 rounded-full flex items-center justify-center bg-blue-50">
-                  <span className="w-3.5 h-3.5 rounded-full bg-blue-200" />
+                <span className="w-7 h-7 rounded-full flex items-center justify-center bg-hc-interactive">
+                  <span className="w-3.5 h-3.5 rounded-full bg-hc-accent-soft" />
                 </span>
                 <span>Service icon: accessory type (light, switch, sensor, lock, and others)</span>
               </div>
@@ -146,11 +149,11 @@ export default function AccessoryList({ onSelectAccessory }) {
             <p className="text-xs font-semibold uppercase tracking-wide text-hc-muted mb-2">Activity Dots</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-hc-fg">
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-400" />
+                <span className="w-2 h-2 rounded-full bg-hc-success-text" />
                 <span>Green: active within 1 hour</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                <span className="w-2 h-2 rounded-full bg-hc-warning-text" />
                 <span>Yellow: active within 24 hours</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -158,7 +161,7 @@ export default function AccessoryList({ onSelectAccessory }) {
                 <span>Gray: older than 24 hours</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-sky-300" />
+                <span className="w-2 h-2 rounded-full bg-hc-muted" />
                 <span>Sky blue: no activity yet</span>
               </div>
             </div>
@@ -246,8 +249,8 @@ export default function AccessoryList({ onSelectAccessory }) {
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
 
                   {/* Icon */}
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-blue-50">
-                    <Icon size={18} className="text-blue-600" />
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-hc-interactive">
+                    <Icon size={18} className="text-hc-accent-strong" />
                   </div>
 
                   {/* Text */}

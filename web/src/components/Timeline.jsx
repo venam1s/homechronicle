@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, Fragment } from 'react';
 import { format, startOfDay } from 'date-fns';
 import { ChevronLeft, ChevronRight, VolumeX, X, Loader2 } from 'lucide-react';
 
@@ -10,6 +10,8 @@ import { useUserPreferences } from '../hooks/useUserPreferences.js';
 import { usePreference } from '../hooks/usePreference.js';
 import { API_BASE, withApiAuthHeaders, fetchJson } from '../lib/api.js';
 import { groupIntoScenes, groupScenesIntoEpisodes } from '../lib/episodes.js';
+import { useQuietHours } from '../hooks/useEvents.js';
+import { utcHourToLocal, isWithinHourWindow, formatHour12 } from '../lib/hours.js';
 import { formatGap } from '../lib/icons.js';
 import EpisodeGroup from './EpisodeGroup.jsx';
 import SceneGroup from './SceneGroup.jsx';
@@ -23,6 +25,47 @@ function isValidTimestamp(value) {
 }
 
 /** Groups an event array (any order) into a Map keyed by ISO start-of-day string. */
+// An entry is either an episode or a plain scene group; both bottom out in
+// events, so the first event's timestamp works for either shape.
+function entryTimestamp(entry) {
+  const first = entry?.scenes?.[0]?.[0];
+  return first?.timestamp ? new Date(first.timestamp) : null;
+}
+
+/**
+ * Render a day's entries, ruling off the quiet-hours stretch.
+ *
+ * Entries run newest-first, so a quiet window that starts late in the evening
+ * and ends in the morning puts the quiet events at the END of the day's list.
+ * One divider before the first of them separates "while you were asleep" from
+ * the rest of the day (VIEW-03).
+ */
+export function withQuietDivider(entries, { quietOn, quietStart, quietEnd }, renderEntry) {
+  const firstQuiet = quietOn
+    ? entries.findIndex((entry) => {
+        const ts = entryTimestamp(entry);
+        return ts ? isWithinHourWindow(ts.getHours(), quietStart, quietEnd) : false;
+      })
+    : -1;
+
+  return entries.map((entry, index) => {
+    const content = renderEntry(entry);
+    if (index !== firstQuiet) return content;
+    return (
+      <Fragment key={`quiet-${index}`}>
+        <div className="flex items-center gap-3 px-4 pt-1">
+          <span className="flex-1 border-t border-dashed border-hc-panel-border" aria-hidden="true" />
+          <span className="text-hc-caption uppercase tracking-[0.14em] text-hc-muted whitespace-nowrap">
+            quiet hours · {formatHour12(quietStart)} – {formatHour12(quietEnd)}
+          </span>
+          <span className="flex-1 border-t border-dashed border-hc-panel-border" aria-hidden="true" />
+        </div>
+        {content}
+      </Fragment>
+    );
+  });
+}
+
 function groupByDay(events) {
   const groups = new Map();
   for (const event of events) {
@@ -59,6 +102,13 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
     queryFn: () => fetchJson('/api/setup/retention'),
     staleTime: 30_000,
   });
+
+  // VIEW-03: the quiet-hours window, used only to rule off the quiet stretch of
+  // each day. Non-fatal if unavailable — the divider simply is not drawn.
+  const { data: quietData } = useQuietHours();
+  const quietOn = quietData?.enabled !== false;
+  const quietStart = utcHourToLocal(quietData?.quietHoursStart ?? 23);
+  const quietEnd = utcHourToLocal(quietData?.quietHoursEnd ?? 6);
 
   // M-8: read grouping values from the per-user blob when present, retention otherwise.
   // Keys/defaults/localStorage keys mirror SettingsTab.jsx:61-63 exactly so the same blob
@@ -444,30 +494,37 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
                   {format(new Date(day), 'EEEE, MMMM d')}
                 </h2>
                 <div className="space-y-3">
-                  {groupScenesIntoEpisodes(groupIntoScenes(events, { sceneWindowMs }), { episodeWindowMs, episodeMinEventCount }).map((entry) => (
-                    entry.kind === 'episode' ? (
-                      <EpisodeGroup
-                        key={entry.scenes[0][0].id}
-                        episode={entry.episode}
-                        scenes={entry.scenes}
-                        eventMetaMap={eventMetaMap}
-                        hoveredCell={activeCell}
-                        onMute={mute}
-                        onSelectAccessory={onSelectAccessory}
-                      />
-                    ) : (
-                      entry.scenes.map((group) => (
-                        <SceneGroup
-                          key={group[0].id}
-                          events={group}
+                  {withQuietDivider(
+                    groupScenesIntoEpisodes(
+                      groupIntoScenes(events, { sceneWindowMs }),
+                      { episodeWindowMs, episodeMinEventCount },
+                    ),
+                    { quietOn, quietStart, quietEnd },
+                    (entry) => (
+                      entry.kind === 'episode' ? (
+                        <EpisodeGroup
+                          key={entry.scenes[0][0].id}
+                          episode={entry.episode}
+                          scenes={entry.scenes}
                           eventMetaMap={eventMetaMap}
                           hoveredCell={activeCell}
                           onMute={mute}
                           onSelectAccessory={onSelectAccessory}
                         />
-                      ))
-                    )
-                  ))}
+                      ) : (
+                        entry.scenes.map((group) => (
+                          <SceneGroup
+                            key={group[0].id}
+                            events={group}
+                            eventMetaMap={eventMetaMap}
+                            hoveredCell={activeCell}
+                            onMute={mute}
+                            onSelectAccessory={onSelectAccessory}
+                          />
+                        ))
+                      )
+                    ),
+                  )}
                 </div>
               </div>
             ))}

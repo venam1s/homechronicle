@@ -100,7 +100,7 @@ export default function FilterBar({
                 placeholder="Search accessory…"
                 value={filters.accessory ?? ''}
                 onChange={(e) => update('accessory', e.target.value)}
-                className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg pl-8 pr-3 py-2 sm:py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg pl-8 pr-3 py-2 sm:py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-hc-focus-ring"
               />
             </div>
 
@@ -115,7 +115,7 @@ export default function FilterBar({
               <select
                 value={filters.room ?? ''}
                 onChange={(e) => update('room', e.target.value)}
-                className={`border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto ${activeRoomColor ? 'pl-7 pr-3' : 'px-3'}`}
+                className={`border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-hc-focus-ring w-full sm:w-auto ${activeRoomColor ? 'pl-7 pr-3' : 'px-3'}`}
               >
                 <option value="">All rooms</option>
                 {rooms.map((r) => (
@@ -130,7 +130,7 @@ export default function FilterBar({
               placeholder="Characteristic…"
               value={filters.characteristic ?? ''}
               onChange={(e) => update('characteristic', e.target.value)}
-              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-36"
+              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-hc-focus-ring w-full sm:w-36"
             />
 
             {/* Date from */}
@@ -138,7 +138,7 @@ export default function FilterBar({
               type="datetime-local"
               value={filters.from ?? ''}
               onChange={(e) => update('from', e.target.value)}
-              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
+              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-hc-focus-ring w-full sm:w-auto"
             />
 
             {/* Date to */}
@@ -146,7 +146,7 @@ export default function FilterBar({
               type="datetime-local"
               value={filters.to ?? ''}
               onChange={(e) => update('to', e.target.value)}
-              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
+              className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-hc-focus-ring w-full sm:w-auto"
             />
 
             {/* Clear */}

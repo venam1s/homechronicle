@@ -30,6 +30,8 @@ vi.mock('../hooks/useEvents.js', () => ({
       data: stableAnomalies,
     });
   })(),
+  // Quiet-hours window drives the VIEW-03 divider; undefined = feature idle.
+  useQuietHours: () => ({ data: undefined }),
 }));
 
 vi.mock('../hooks/useMutedDevices.js', () => ({
