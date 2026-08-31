@@ -129,8 +129,6 @@ export default function App() {
             activePage={activePage}
             onNavigate={navigate}
             hasNewVersion={hasNewVersion}
-            onOpenChangelog={openChangelog}
-            buildVersion={__BUILD_VERSION__}
             availableUpdate={availableUpdate}
           />
         )}
@@ -143,7 +141,14 @@ export default function App() {
               {activePage === 'devices' && <DevicesPage onSelectAccessory={handleSelectAccessory} />}
               {activePage === 'timeline' && <TimelinePage initialFilters={timelineFilters} onSelectAccessory={handleSelectAccessory} />}
               {activePage === 'alerts' && <AlertsPage />}
-              {activePage === 'settings' && <SettingsPage />}
+              {activePage === 'settings' && (
+                <SettingsPage
+                  buildVersion={__BUILD_VERSION__}
+                  hasNewVersion={hasNewVersion}
+                  onOpenChangelog={openChangelog}
+                  availableUpdate={availableUpdate}
+                />
+              )}
             </ErrorBoundary>
           )}
         </main>

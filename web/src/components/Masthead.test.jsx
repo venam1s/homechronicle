@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
 
 const setPreference = vi.fn();
 const mutate = vi.fn();
 const mockNavigate = vi.fn();
+const flushNow = vi.fn(() => Promise.resolve());
 const themeState = { preference: 'system' };
 const authState = { user: { email: 'admin@example.com', role: 'admin' } };
 const configState = { authEnabled: true };
@@ -19,6 +20,9 @@ vi.mock('../hooks/useAuth.js', () => ({
 }));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+}));
+vi.mock('../hooks/useUserPreferences.js', () => ({
+  useUserPreferences: () => ({ flushNow }),
 }));
 
 const { default: Masthead } = await import('./Masthead.jsx');
@@ -44,6 +48,7 @@ describe('Masthead', () => {
     setPreference.mockClear();
     mutate.mockClear();
     mockNavigate.mockClear();
+    flushNow.mockClear();
     themeState.preference = 'system';
     authState.user = { email: 'admin@example.com', role: 'admin' };
     configState.authEnabled = true;
@@ -84,12 +89,21 @@ describe('Masthead', () => {
     expect(screen.getByRole('img', { name: 'homechronicle' })).toBeInTheDocument();
   });
 
-  it('shows the build version and opens the changelog', () => {
-    const onOpenChangelog = vi.fn();
-    renderMasthead({ onOpenChangelog });
-    const button = screen.getByRole('button', { name: /v0\.4\.0/ });
-    fireEvent.click(button);
-    expect(onOpenChangelog).toHaveBeenCalled();
+  // The version string moved to Settings -> About: it is diagnostic metadata,
+  // not something you act on, so it no longer occupies persistent chrome.
+  it('does not show a build version in the masthead', () => {
+    renderMasthead();
+    expect(screen.queryByText(/v0\.4\.0/)).toBeNull();
+  });
+
+  // Only the actionable half stays: a dot on Settings pointing at About.
+  it('marks Settings with a dot when a new version is available', () => {
+    const { unmount } = renderMasthead({ hasNewVersion: false });
+    expect(screen.queryByLabelText('New version available')).toBeNull();
+    unmount();
+
+    renderMasthead({ hasNewVersion: true });
+    expect(screen.getByLabelText('New version available')).toBeInTheDocument();
   });
 
   it('links to an available update only when there is one', () => {
@@ -117,36 +131,77 @@ describe('Masthead', () => {
   });
 
   // AUTH-03 — carried over from the sidebar.
-  describe('account', () => {
-    it('signs out and clears the CSRF token before redirecting', () => {
-      sessionStorage.setItem('csrfToken', 'abc');
-      renderMasthead();
-      fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-      expect(mutate).toHaveBeenCalled();
+  describe('account menu', () => {
+    const openMenu = () => fireEvent.click(screen.getByRole('button', { name: /Account:/ }));
 
-      // Run the success path the mutation would invoke.
-      mutate.mock.calls[0][1].onSuccess();
-      expect(sessionStorage.getItem('csrfToken')).toBeNull();
-      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+    it('keeps sign out behind the menu rather than loose in the toolbar', () => {
+      renderMasthead();
+      // Sign out is reversible, so it gets a menu rather than a confirm dialog —
+      // but it must not sit one misclick from the theme toggle either.
+      expect(screen.queryByRole('menuitem', { name: 'Sign out' })).toBeNull();
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Sign out' })).toBeInTheDocument();
+    });
+
+    it('shows who is signed in', () => {
+      renderMasthead();
+      openMenu();
+      expect(screen.getByText('admin@example.com')).toBeInTheDocument();
     });
 
     it('falls back to the role when the account has no email', () => {
       authState.user = { role: 'member' };
       renderMasthead();
+      openMenu();
       expect(screen.getByText('Member')).toBeInTheDocument();
       expect(screen.queryByText(/undefined/)).toBeNull();
     });
 
-    it('hides sign out when auth is disabled', () => {
-      configState.authEnabled = false;
-      renderMasthead();
-      expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull();
+    it('offers a shortcut to Appearance', () => {
+      const onNavigate = vi.fn();
+      renderMasthead({ onNavigate });
+      openMenu();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Appearance' }));
+      expect(onNavigate).toHaveBeenCalledWith('settings');
     });
 
-    it('shows sign out when auth is enabled', () => {
-      configState.authEnabled = true;
+    it('closes on Escape', () => {
       renderMasthead();
-      expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+      openMenu();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('menuitem', { name: 'Sign out' })).toBeNull();
+    });
+
+    // The bug this fixes: preference writes are debounced 500ms and logout only
+    // DELETEs the session, so signing out just after a palette change discarded
+    // it. The flush must complete BEFORE the session ends.
+    it('flushes pending preference writes before ending the session', async () => {
+      renderMasthead();
+      openMenu();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+      await waitFor(() => expect(mutate).toHaveBeenCalled());
+      expect(flushNow).toHaveBeenCalled();
+      expect(flushNow.mock.invocationCallOrder[0])
+        .toBeLessThan(mutate.mock.invocationCallOrder[0]);
+    });
+
+    it('signs out and clears the CSRF token before redirecting', async () => {
+      sessionStorage.setItem('csrfToken', 'abc');
+      renderMasthead();
+      openMenu();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+      await waitFor(() => expect(mutate).toHaveBeenCalled());
+      mutate.mock.calls[0][1].onSuccess();
+      expect(sessionStorage.getItem('csrfToken')).toBeNull();
+      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+    });
+
+    it('hides the account menu entirely when auth is disabled', () => {
+      configState.authEnabled = false;
+      renderMasthead();
+      expect(screen.queryByRole('button', { name: /Account:/ })).toBeNull();
     });
   });
 });

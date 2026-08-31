@@ -1,10 +1,12 @@
-import { Sun, Moon, SunMoon, Sparkles, ArrowUpCircle, LogOut } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Sun, Moon, SunMoon, ArrowUpCircle, LogOut, Palette, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import BrandLogo from './BrandLogo.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { useAuthConfig } from '../hooks/useAuthConfig.js';
+import { useUserPreferences } from '../hooks/useUserPreferences.js';
 
 // -- Constants --
 
@@ -74,14 +76,30 @@ export default function Masthead({
   activePage,
   onNavigate,
   hasNewVersion,
-  onOpenChangelog,
-  buildVersion,
   availableUpdate,
 }) {
   const { preference, setPreference } = useTheme();
   const { user, logoutMutation } = useAuth();
   const { authEnabled } = useAuthConfig();
+  const { flushNow } = useUserPreferences();
   const navigate = useNavigate();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
+
+  // Close the account menu on an outside click or Escape.
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const onDown = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setAccountOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [accountOpen]);
 
   const accountLabel = user?.email
     ?? (user?.role
@@ -90,7 +108,11 @@ export default function Masthead({
   const accountInitials =
     (accountLabel.split('@')[0].match(/[a-zA-Z0-9]/g)?.slice(0, 2).join('') || 'AC').toUpperCase();
 
-  function handleLogout() {
+  async function handleLogout() {
+    // Preference writes are debounced; ending the session first would discard a
+    // palette change or a dashboard drag made in the last half second.
+    await flushNow();
+    setAccountOpen(false);
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         if (typeof sessionStorage !== 'undefined') {
@@ -132,6 +154,14 @@ export default function Masthead({
                 )}
               >
                 {label}
+                {id === 'settings' && hasNewVersion && (
+                  <span
+                    // Points at where the changelog now lives, rather than
+                    // spending masthead room on a version string nobody acts on.
+                    className="inline-block w-1.5 h-1.5 rounded-full bg-hc-warning-text ml-1.5 align-middle"
+                    aria-label="New version available"
+                  />
+                )}
               </button>
             );
           })}
@@ -160,18 +190,6 @@ export default function Masthead({
 
           <button
             type="button"
-            onClick={onOpenChangelog}
-            className={clsx(
-              'flex items-center gap-1 text-hc-caption text-hc-muted hover:text-hc-fg transition-colors',
-              FOCUS_RING,
-            )}
-          >
-            {buildVersion}
-            {hasNewVersion && <Sparkles size={12} className="text-hc-warning-text" aria-hidden="true" />}
-          </button>
-
-          <button
-            type="button"
             onClick={() => setPreference(getNextPreference(preference))}
             aria-label={getThemeToggleLabel(preference)}
             className={clsx(
@@ -182,31 +200,73 @@ export default function Masthead({
             <ThemeIcon preference={preference} />
           </button>
 
-          {/* Account — hidden in auth-off (no session to end) */}
+          {/* Account — hidden in auth-off (no session to end).
+              Sign out lives behind this menu rather than as a bare icon in the
+              cluster: it is reversible, so a confirmation dialog would be
+              friction, but it sat one misclick away from the theme toggle. A
+              menu adds intent without a modal. */}
           {authEnabled !== false && (
-            <div className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-hc-interactive text-hc-fg text-hc-caption font-semibold shrink-0"
-              >
-                {accountInitials}
-              </span>
-              <span className="hidden 2xl:inline max-w-[160px] truncate text-hc-caption text-hc-muted">
-                {accountLabel}
-              </span>
+            <div className="relative" ref={accountRef}>
               <button
                 type="button"
-                onClick={handleLogout}
-                disabled={logoutMutation.isPending}
-                aria-label="Sign out"
-                title="Sign out"
+                onClick={() => setAccountOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={accountOpen}
+                aria-label={`Account: ${accountLabel}`}
                 className={clsx(
-                  'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive hover:text-hc-fg transition-colors shrink-0',
+                  'flex items-center gap-1 rounded-full pl-0.5 pr-1.5 py-0.5 transition-colors hover:bg-hc-interactive',
                   FOCUS_RING,
                 )}
               >
-                <LogOut size={18} />
+                <span
+                  aria-hidden="true"
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-hc-interactive text-hc-fg text-hc-caption font-semibold"
+                >
+                  {accountInitials}
+                </span>
+                <ChevronDown size={14} className="text-hc-muted" aria-hidden="true" />
               </button>
+
+              {accountOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full mt-2 z-30 min-w-[220px] rounded-xl border border-hc-panel-border bg-hc-panel py-1 shadow-lg"
+                >
+                  <div className="px-3 py-2 border-b border-hc-panel-border">
+                    <p className="text-hc-caption text-hc-muted">Signed in as</p>
+                    <p className="text-hc-label font-medium text-hc-fg-strong truncate">{accountLabel}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setAccountOpen(false); onNavigate('settings'); }}
+                    className={clsx(
+                      'flex w-full items-center gap-2 px-3 py-2 text-hc-label text-hc-fg hover:bg-hc-interactive transition-colors',
+                      FOCUS_RING,
+                    )}
+                  >
+                    <Palette size={15} className="text-hc-muted" aria-hidden="true" />
+                    Appearance
+                  </button>
+
+                  <div className="my-1 border-t border-hc-panel-border" />
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleLogout}
+                    disabled={logoutMutation.isPending}
+                    className={clsx(
+                      'flex w-full items-center gap-2 px-3 py-2 text-hc-label text-hc-fg hover:bg-hc-interactive transition-colors disabled:opacity-50',
+                      FOCUS_RING,
+                    )}
+                  >
+                    <LogOut size={15} className="text-hc-muted" aria-hidden="true" />
+                    {logoutMutation.isPending ? 'Signing out…' : 'Sign out'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

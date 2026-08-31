@@ -10,13 +10,14 @@ import SMTPConfigSection from '../components/SMTPConfigSection.jsx';
 import ChangePasswordSection from '../components/ChangePasswordSection.jsx';
 import ActiveSessionsPanel from '../components/ActiveSessionsPanel.jsx';
 import AppearanceSection from '../components/AppearanceSection.jsx';
+import AboutSection from '../components/AboutSection.jsx';
 
 const NAV_ACTIVE =
   'px-3 py-2 rounded-lg bg-hc-panel-mid font-semibold text-hc-fg-strong border-l-2 border-hc-accent-strong cursor-pointer';
 const NAV_INACTIVE =
   'px-3 py-2 rounded-lg text-hc-body text-hc-fg cursor-pointer hover:bg-hc-panel-hover';
 
-export default function SettingsPage() {
+export default function SettingsPage({ buildVersion, hasNewVersion, onOpenChangelog, availableUpdate }) {
   const setup = useSetup();
   const { user } = useAuth();
   const { authEnabled } = useAuthConfig();
@@ -104,7 +105,17 @@ export default function SettingsPage() {
           {activeSection === 'configuration' && (
             <SettingsTab setup={setup} showAdvanced={showAdvanced} />
           )}
-          {activeSection === 'appearance' && <AppearanceSection />}
+          {activeSection === 'appearance' && (
+            <>
+              <AppearanceSection />
+              <AboutSection
+                buildVersion={buildVersion}
+                hasNewVersion={hasNewVersion}
+                onOpenChangelog={onOpenChangelog}
+                availableUpdate={availableUpdate}
+              />
+            </>
+          )}
           {activeSection === 'account' && authEnabled && (
             <>
               <ChangePasswordSection />

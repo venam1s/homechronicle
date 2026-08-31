@@ -67,6 +67,9 @@ const NO_PROVIDER_DEFAULT = {
   isLoading: false,
   setPrefsBlob: () => Promise.resolve(),
   seedIfEmpty: () => {},
+  // Outside the provider (anonymous pages, tests) there is nothing buffered to
+  // write, so a flush is a no-op that still resolves — callers can always await it.
+  flushNow: () => Promise.resolve(),
 };
 
 export const UserPreferencesContext = createContext(NO_PROVIDER_DEFAULT);
@@ -252,11 +255,37 @@ export function UserPreferencesProvider({ children }) {
     setPrefsBlob(seedBlob);
   }
 
+  /**
+   * flushNow — write any buffered preference edit immediately and wait for it.
+   *
+   * Preference writes are debounced by DEBOUNCE_MS, and the logout mutation only
+   * DELETEs the session. So changing a palette or dragging a dashboard panel and
+   * then signing out inside the debounce window killed the session before the PUT
+   * landed, and the change was silently lost. Callers that are about to end the
+   * session (or the page) await this first.
+   *
+   * Safe to call with nothing buffered: it resolves once any in-flight PUT settles.
+   * Never rejects — a failed flush must not block the sign-out the user asked for.
+   */
+  async function flushNow() {
+    try {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+        flushPending();
+      }
+      await inFlightRef.current;
+    } catch {
+      // A failed preference write is not a reason to keep someone signed in.
+    }
+  }
+
   const value = {
     prefs: prefs ?? (user?.id ? undefined : {}),
     isLoading,
     setPrefsBlob,
     seedIfEmpty,
+    flushNow,
   };
 
   return (
