@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createElement } from 'react';
+import { createElement, useEffect } from 'react';
 import { useDashboardLayout } from './useDashboardLayout.js';
 import { PANEL_IDS, OPTIONAL_PANEL_IDS, defaultLayouts } from '../lib/dashboardPanels.js';
+
+const LAYOUTS_KEY_FOR_TEST = 'hc_dashboard_layouts';
 
 // Mock the network layer so useAuth/useUserPreferences queries fail fast (retry:false),
 // yielding user=null and the pure-localStorage anonymous path (D-15). Option B: no
@@ -50,6 +52,38 @@ describe('useDashboardLayout', () => {
     }
     // All panels (visible + hidden) must appear in the stored layout geometry.
     expect(result.current.layouts.lg.map((i) => i.i).sort()).toEqual([...PANEL_IDS].sort());
+  });
+
+  // Regression: optional panels were never hidden on a fresh install.
+  //
+  // react-grid-layout persists a full layout from its own mount effect, and
+  // child effects run BEFORE parent effects. The seeding effect therefore read
+  // storage that the grid had already filled in, concluded every optional panel
+  // was known, and seeded nothing — a fresh install opened with all 24 panels.
+  // jsdom never caught it because renderHook has no grid to write first.
+  //
+  // This reproduces the ordering with a child whose effect writes the layout.
+  it('still seeds optional panels when the grid persists a layout during mount', () => {
+    function GridLikeChild() {
+      // Stands in for RGL's onLayoutChange firing on mount.
+      useEffect(() => {
+        window.localStorage.setItem(LAYOUTS_KEY_FOR_TEST, JSON.stringify(defaultLayouts()));
+      }, []);
+      return null;
+    }
+
+    let captured;
+    function Host() {
+      captured = useDashboardLayout();
+      return createElement(GridLikeChild);
+    }
+
+    render(createElement(Host), { wrapper: makeWrapper() });
+
+    expect(captured.hidden.size).toBe(OPTIONAL_PANEL_IDS.length);
+    for (const id of OPTIONAL_PANEL_IDS) {
+      expect(captured.isHidden(id), `${id} should be hidden on a fresh install`).toBe(true);
+    }
   });
 
   it('hidePanel adds to the hidden set and persists', () => {

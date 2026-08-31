@@ -130,13 +130,31 @@ export function useDashboardLayout() {
   // Runs once per component instance (seedRef guard). Uses raw localStorage reads so
   // sanitizeLayouts output (which injects all registered panels) never falsely marks
   // new optional panels as "previously known" and defeats seeding.
+  // Snapshot raw storage during the FIRST RENDER, not inside the effect below.
+  //
+  // react-grid-layout fires onLayoutChange from its own mount effect, and child
+  // effects run before parent effects — so by the time a seeding effect ran, the
+  // grid had already persisted a full 24-panel layout. Reading storage at that
+  // point made every optional panel look "already known" and seeded nothing, so
+  // a fresh install opened with all 24 panels instead of a curated 12. The state
+  // it left behind (full layouts, no hidden key) is indistinguishable from a
+  // legitimate existing user, so the read has to happen before the grid exists.
+  // This hook renders before RGL mounts, which makes first render the only
+  // correct moment to look.
+  const initialRawRef = useRef(null);
+  if (initialRawRef.current === null) {
+    initialRawRef.current = {
+      layouts: readJson(LAYOUTS_KEY),
+      hidden: readJson(HIDDEN_KEY),
+    };
+  }
+
   const seedRef = useRef(false);
   useEffect(() => {
     if (seedRef.current) return;
     seedRef.current = true;
 
-    const rawLayouts = readJson(LAYOUTS_KEY);
-    const rawHidden = readJson(HIDDEN_KEY);
+    const { layouts: rawLayouts, hidden: rawHidden } = initialRawRef.current;
 
     // Build the set of panel ids already known to this user (in their stored layout
     // or explicitly in their hidden list). An id in either place means it was seen before.

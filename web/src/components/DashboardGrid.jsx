@@ -13,6 +13,9 @@ import {
 } from '../lib/dashboardPanels.js';
 
 import KpiCards from './KpiCards.jsx';
+import HouseSummaryPanel from './HouseSummaryPanel.jsx';
+import RoomMapPanel from './RoomMapPanel.jsx';
+import RhythmArcPanel from './RhythmArcPanel.jsx';
 import TrendChart from './TrendChart.jsx';
 import ActivityChart from './ActivityChart.jsx';
 import RoomChart from './RoomChart.jsx';
@@ -52,6 +55,12 @@ function renderPanelBody(id, ctx) {
   const onDaysChange = syncDashboardRanges ? setDashboardDays : null;
 
   switch (id) {
+    case 'houseSummary':
+      return <HouseSummaryPanel />;
+    case 'roomMap':
+      return <RoomMapPanel onSelectRoom={onSelectRoom} />;
+    case 'rhythmArc':
+      return <RhythmArcPanel />;
     case 'kpis':
       return <KpiCards dashboardDays={dashboardDays} />;
     case 'quietHours':

@@ -3,12 +3,9 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer,
 } from 'recharts';
 import { useHourlyStats, useQuietHours } from '../hooks/useEvents.js';
+import { utcHourToLocal } from '../lib/hours.js';
 
 // Convert a UTC hour to local hour using the same helper as QuietHoursPanel.jsx.
-function utcHourToLocal(utcHour) {
-  return ((utcHour + new Date().getTimezoneOffset() / -60) % 24 + 24) % 24;
-}
-
 // Build a 24-slot array of event counts indexed by local hour.
 // Uses the same UTC->local bucketing strategy as the activity clock.
 function buildLocalCounts(apiRows = []) {

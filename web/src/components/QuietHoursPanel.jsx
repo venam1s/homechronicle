@@ -6,18 +6,9 @@ import { useAuth } from '../hooks/useAuth.js';
 import { useUserPreferences } from '../hooks/useUserPreferences.js';
 import { useToast } from './Toast.jsx';
 import { fetchJson } from '../lib/api.js';
+import { utcHourToLocal, formatHour12 } from '../lib/hours.js';
 
 const DISMISS_KEY = 'hc:quiet-hours-dismissed';
-
-function utcHourToLocal(utcHour) {
-  return ((utcHour + new Date().getTimezoneOffset() / -60) % 24 + 24) % 24;
-}
-
-function formatHour12(h) {
-  const period = h < 12 ? 'AM' : 'PM';
-  const display = h % 12 === 0 ? 12 : h % 12;
-  return `${display} ${period}`;
-}
 
 function formatLastSeen(ts) {
   if (!ts) return null;

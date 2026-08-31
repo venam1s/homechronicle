@@ -57,18 +57,19 @@ describe('dashboardPanels registry', () => {
     const tier2 = ['sensorEnvironment', 'batteryLevels', 'recentEpisodes', 'retentionHealth', 'eventTypeBreakdown'];
     for (const id of tier2) {
       expect(OPTIONAL_PANEL_IDS).toContain(id);
-      expect(PANEL_IDS.indexOf(id)).toBeGreaterThanOrEqual(12);
+      expect(PANEL_IDS.indexOf(id)).toBeGreaterThanOrEqual(15);
     }
   });
 
-  it('optional panels appear AFTER the original 12 non-optional panels', () => {
+  it('optional panels appear AFTER the core panels', () => {
+    // v0.4 added three core panels (houseSummary, roomMap, rhythmArc), so the
+    // core block is 15 and the lede now leads. The invariant under test is the
+    // ordering, not the historic counts.
     const nonOptionalCount = PANELS.filter((p) => !p.optional).length;
-    expect(nonOptionalCount).toBe(12);
-    // PANEL_IDS[0] must stay kpis
-    expect(PANEL_IDS[0]).toBe('kpis');
-    // Optional panels must all be after index 11
+    expect(nonOptionalCount).toBe(15);
+    expect(PANEL_IDS[0]).toBe('houseSummary');
     for (const id of OPTIONAL_PANEL_IDS) {
-      expect(PANEL_IDS.indexOf(id)).toBeGreaterThanOrEqual(12);
+      expect(PANEL_IDS.indexOf(id)).toBeGreaterThanOrEqual(nonOptionalCount);
     }
   });
 
@@ -104,9 +105,12 @@ describe('dashboardPanels registry', () => {
 describe('v0.4 default arrangement', () => {
   // DASH-01: these ids are persisted in every user's saved layout. Renaming or
   // dropping one silently discards that panel from their dashboard on load.
-  it('still contains all 24 registered panels, ids unchanged', () => {
+  it('still contains every registered panel, ids unchanged', () => {
+    // DASH-08: the three v0.4 panels are non-optional, so sanitizeLayouts gives
+    // an existing user default geometry for them and they simply appear.
     expect(PANEL_IDS).toEqual([
-      'kpis', 'trend', 'hourly', 'rooms', 'quietHours', 'activityFeed',
+      'houseSummary', 'kpis', 'roomMap', 'rhythmArc',
+      'trend', 'hourly', 'rooms', 'quietHours', 'activityFeed',
       'roomBreakdown', 'topDevices', 'weekdayHeatmap', 'monthlyHeatmap',
       'anomalies', 'staleDevices',
       'weekOverWeek', 'healthDonut', 'alertsSummary', 'topMovers', 'dayNight',
@@ -136,10 +140,17 @@ describe('v0.4 default arrangement', () => {
 
   // DASH-04: the Almanac reading order — headline numbers, the thirty-day
   // shape, then the shape of a day.
-  it('opens with the headline numbers, then the trend, then the day', () => {
+  it('opens with the lede, the headline numbers, then the day at a glance', () => {
     const core = PANELS.filter((p) => !p.optional).map((p) => p.id);
-    expect(core.slice(0, 4)).toEqual(['kpis', 'trend', 'hourly', 'rooms']);
-    expect(PANELS.find((p) => p.id === 'kpis').lg.y).toBe(0);
+    expect(core.slice(0, 5)).toEqual(['houseSummary', 'kpis', 'roomMap', 'rhythmArc', 'trend']);
+    expect(PANELS.find((p) => p.id === 'houseSummary').lg.y).toBe(0);
+  });
+
+  // DASH-08: these must NOT be optional, or an existing user would have to go
+  // hunting in the hidden tray for panels they were never told about.
+  it.each(['houseSummary', 'roomMap', 'rhythmArc'])('%s is a core panel, not opt-in', (id) => {
+    expect(OPTIONAL_PANEL_IDS).not.toContain(id);
+    expect(PANEL_IDS).toContain(id);
   });
 
   it('lays the core panels out above the optional ones', () => {
