@@ -112,12 +112,13 @@ function CharacteristicTrend({ accessoryId, characteristic, days }) {
 }
 
 // ---------------------------------------------------------------------------
-// Donut colors for state duration
-// ---------------------------------------------------------------------------
-const DONUT_COLORS = [
-  '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
-  '#06b6d4', '#f97316', '#6366f1', '#84cc16', '#ef4444',
-];
+// Donut slices for state duration.
+//
+// v0.4: fills are CSS-driven via the .hc-cat-N classes rather than a hardcoded
+// hex array, which is what makes them follow the active palette and its dark
+// variant with no JS colour reads. Same pattern as EventTypeBreakdownPanel.
+// SLOT_COUNT matches the palette ramp (--hc-cat-0..8).
+const CAT_SLOT_COUNT = 9;
 const MAX_SLICES = 6;
 
 function stateLabel(characteristic, value) {
@@ -208,7 +209,11 @@ function StateDurationDonut({ accessoryId, days }) {
                       strokeWidth={0}
                     >
                       {group.states.map((state, i) => (
-                        <Cell key={state.name} fill={state.raw === '__other__' ? '#9CA3AF' : DONUT_COLORS[i % DONUT_COLORS.length]} />
+                        <Cell
+                          key={state.name}
+                          className={state.raw === '__other__' ? undefined : `hc-cat-${i % CAT_SLOT_COUNT}`}
+                          fill={state.raw === '__other__' ? 'var(--hc-room-fallback)' : undefined}
+                        />
                       ))}
                     </Pie>
                     <Legend
