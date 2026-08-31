@@ -3,7 +3,22 @@ import { log } from './logger.js';
 import { toOptionalText, toOptionalInt, normalizeNodeId, isMatterPairing } from './matter-utils.js';
 
 const POLL_INTERVAL_MS = Number.parseInt(process.env.MATTER_POLL_INTERVAL_MS ?? '5000', 10);
-const SUBSCRIBE_ENABLED = !/^(0|false|no|off)$/i.test(process.env.MATTER_SUBSCRIBE_ENABLED ?? 'false');
+// Matter supports native attribute subscriptions: the device reports a change
+// when it happens, instead of being asked every few seconds. That is lower
+// latency, far less network chatter, and much kinder to battery-powered Thread
+// nodes. It is now the default.
+//
+// The reason it was NOT the default is that a subscription can die quietly —
+// and startNode used to be either/or, so a dead subscription meant no events at
+// all, with nothing to notice. It is no longer either/or: a slow reconciliation
+// poll runs ALONGSIDE the subscription and re-reads every attribute every few
+// minutes, so a stalled subscription degrades to delayed events rather than to
+// silence. matter.js 0.17 also helps here — an empty keepalive report now
+// proves a subscription is alive.
+const SUBSCRIBE_ENABLED = !/^(0|false|no|off)$/i.test(process.env.MATTER_SUBSCRIBE_ENABLED ?? 'true');
+// How often the safety-net poll re-reads a subscribed node. Deliberately slow:
+// its job is to catch a dead subscription, not to be the transport.
+const RECONCILE_INTERVAL_MS = Number.parseInt(process.env.MATTER_RECONCILE_INTERVAL_MS ?? '300000', 10);
 const SUBSCRIBE_RESTART_DELAY_MS = Number.parseInt(process.env.MATTER_SUBSCRIBE_RESTART_DELAY_MS ?? '2000', 10);
 const DISCOVER_TIMEOUT_MS = Number.parseInt(process.env.MATTER_SCAN_TIMEOUT_MS ?? '15000', 10);
 const MAX_CONSECUTIVE_ERRORS = 10;
@@ -87,7 +102,9 @@ export function createMatterRuntime({
       commissionConfigured: true,
       controllerReady: controllerStatus.ready,
       missingConfig: [],
-      pollIntervalMs: POLL_INTERVAL_MS,
+      pollIntervalMs: SUBSCRIBE_ENABLED ? RECONCILE_INTERVAL_MS : POLL_INTERVAL_MS,
+      reconcileIntervalMs: SUBSCRIBE_ENABLED ? RECONCILE_INTERVAL_MS : null,
+      mode: SUBSCRIBE_ENABLED ? 'subscribe+reconcile' : 'poll',
       subscriptionEnabled: SUBSCRIBE_ENABLED,
       nodes,
     };
@@ -207,7 +224,11 @@ export function createMatterRuntime({
 
   function schedulePoll(session) {
     if (session.stopped) return;
-    const baseDelayMs = Number.isFinite(POLL_INTERVAL_MS) && POLL_INTERVAL_MS >= 1000 ? POLL_INTERVAL_MS : 30_000;
+    // Subscribed nodes only need the slow reconciliation sweep; unsubscribed
+    // ones are polled at the full rate because polling IS their transport.
+    const configured = SUBSCRIBE_ENABLED ? RECONCILE_INTERVAL_MS : POLL_INTERVAL_MS;
+    const floor = SUBSCRIBE_ENABLED ? 30_000 : 1000;
+    const baseDelayMs = Number.isFinite(configured) && configured >= floor ? configured : 30_000;
     const delayMs = nextPollDelayMs(session.consecutiveErrors ?? 0, baseDelayMs);
     session.timer = setTimeout(() => {
       void runPollCycle(session);
@@ -283,16 +304,17 @@ export function createMatterRuntime({
       lastError: null,
       lastErrorAt: null,
       lastEventAt: null,
-      initialPollPending: !SUBSCRIBE_ENABLED,
+      // Seed the value cache without logging a snapshot as change events.
+      initialPollPending: true,
     };
     sessions.set(nodeId, session);
 
     if (session.pollingEnabled) {
-      if (SUBSCRIBE_ENABLED) {
-        void startSubscription(session);
-      } else {
-        void runPollCycle(session);
-      }
+      if (SUBSCRIBE_ENABLED) void startSubscription(session);
+      // Always poll. With subscriptions on this is the slow reconciliation
+      // sweep that keeps a silently-dead subscription from meaning no events;
+      // without them it is the only source of readings.
+      void runPollCycle(session);
     }
   }
 

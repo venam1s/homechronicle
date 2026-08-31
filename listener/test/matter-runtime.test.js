@@ -301,14 +301,56 @@ test('session object is constructed with all required fields', () => {
 
 // --- Poll interval validation ---
 
-test('poll interval enforces minimum of 1000ms', () => {
+test('poll interval enforces a floor and falls back to 30s', () => {
+  // There are two modes now. Polling alone keeps the 1s floor because polling
+  // is the transport; the reconciliation sweep that backs a subscription gets
+  // a 30s floor, because a "safety net" firing every second is just polling
+  // with extra steps.
   assert.ok(
-    source.includes('POLL_INTERVAL_MS >= 1000'),
-    'Should enforce minimum poll interval of 1000ms',
+    source.includes('const floor = SUBSCRIBE_ENABLED ? 30_000 : 1000;'),
+    'Should floor the poll interval in both modes',
+  );
+  assert.ok(
+    source.includes('configured >= floor'),
+    'Should validate the configured interval against that floor',
   );
   assert.ok(
     source.includes('30_000'),
     'Should fall back to 30s for invalid intervals',
+  );
+});
+
+// --- Subscription is the default transport, with polling as the safety net ---
+
+test('subscriptions are enabled by default', () => {
+  assert.ok(
+    source.includes("process.env.MATTER_SUBSCRIBE_ENABLED ?? 'true'"),
+    'Matter should subscribe by default rather than poll every few seconds',
+  );
+});
+
+test('a subscribed node is still polled, slowly, as a safety net', () => {
+  // The reason subscriptions were off: startNode was either/or, so a
+  // subscription that died quietly meant no events at all and nothing noticed.
+  assert.ok(
+    !source.includes('} else {\n        void runPollCycle(session);'),
+    'startNode must not treat subscribe and poll as mutually exclusive',
+  );
+  assert.ok(
+    source.includes('if (SUBSCRIBE_ENABLED) void startSubscription(session);')
+    && source.includes('void runPollCycle(session);'),
+    'startNode should subscribe AND schedule the reconciliation poll',
+  );
+  assert.ok(
+    source.includes('MATTER_RECONCILE_INTERVAL_MS'),
+    'The reconciliation interval should be configurable',
+  );
+});
+
+test('the first poll seeds the cache in both modes rather than logging a snapshot', () => {
+  assert.ok(
+    source.includes('initialPollPending: true,'),
+    'A seeding poll must never insert its whole first read as change events',
   );
 });
 
