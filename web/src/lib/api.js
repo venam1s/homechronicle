@@ -67,6 +67,29 @@ function isCsrfRejection(status, data) {
   return code === 'EBADCSRFTOKEN' || /invalid or missing csrf token/i.test(msg);
 }
 
+/**
+ * Default Content-Type for a JSON string body.
+ *
+ * fetch() types a bare string body as `text/plain;charset=UTF-8`, and the
+ * listener mounts `express.json()` with its default `type: 'application/json'`
+ * — so a request that omits this header arrives with `req.body === {}` and the
+ * route rejects it. Every call site used to be responsible for the header, and
+ * one (the per-user preferences PUT) did not set it: every preference write
+ * 400ed, and the client's fire-and-forget catch swallowed it, so account-level
+ * preference sync silently never worked. Defaulting it here rather than at the
+ * call site is what stops that from happening again.
+ *
+ * Only a string body is assumed to be JSON — FormData, Blob and URLSearchParams
+ * carry their own correct types and must keep them. An explicit header on the
+ * caller always wins (checked case-insensitively).
+ */
+function jsonContentType(options) {
+  if (typeof options.body !== 'string') return {};
+  const provided = Object.keys(options.headers ?? {});
+  if (provided.some((h) => h.toLowerCase() === 'content-type')) return {};
+  return { 'Content-Type': 'application/json' };
+}
+
 export async function fetchJson(url, options = {}, { _csrfRetried = false, _csrfToken = null } = {}) {
   // Requires CORS_ALLOW_LOCALHOST=true in dev .env for cross-origin cookies to work.
   // On a CSRF retry, _csrfToken carries the freshly minted token threaded directly
@@ -82,6 +105,7 @@ export async function fetchJson(url, options = {}, { _csrfRetried = false, _csrf
     ...options,
     credentials: 'include',
     headers: {
+      ...jsonContentType(options),
       ...withApiAuthHeaders(options.headers ?? {}),
       ...(isMutation && csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
     },

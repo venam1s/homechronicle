@@ -22,6 +22,7 @@ const fetchJson = vi.fn();
 vi.mock('../lib/api.js', () => ({
   fetchJson: (...args) => fetchJson(...args),
   API_BASE: '/api',
+  withApiAuthHeaders: (h = {}) => h,
 }));
 // A signed-in user: the preferences query is gated on user?.id, and
 // usePreference only reconciles from the blob when a user is present.

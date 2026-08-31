@@ -22,7 +22,7 @@
 
 import { createContext, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchJson, API_BASE } from '../lib/api.js';
+import { fetchJson, API_BASE, withApiAuthHeaders } from '../lib/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { D12_KEYS } from '../lib/prefKeys.js';
 
@@ -254,6 +254,84 @@ export function UserPreferencesProvider({ children }) {
 
     setPrefsBlob(seedBlob);
   }
+
+  /**
+   * flushOnHide — last-chance write when the page is going away.
+   *
+   * flushNow() is useless here: nothing can be awaited once the page is being
+   * torn down, and a normal fetch is cancelled with the document. So this is a
+   * separate path that hands the request to the browser with `keepalive: true`,
+   * which keeps it in flight after the page is gone.
+   *
+   * It sends ONLY the un-written partial, not the merged blob. The server-side
+   * update is a shallow `jsonb ||` merge, so a partial is sufficient — and it
+   * means this path needs no "has the GET settled?" gate (there is no cache to
+   * read) and stays comfortably inside keepalive's 64 KB body cap.
+   *
+   * Best-effort by construction: nothing can observe the outcome, and the value
+   * is already in localStorage regardless.
+   */
+  function flushOnHide() {
+    if (debounceTimerRef.current == null) return;   // nothing buffered
+    clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = null;
+
+    const pending = pendingPartialRef.current;
+    if (!user?.id || Object.keys(pending).length === 0) return;
+
+    pendingPartialRef.current = {};
+    const resolvers = pendingResolversRef.current.splice(0);
+
+    // Keep the cache consistent with what we just sent.
+    flushSeqRef.current += 1;
+    queryClient.setQueryData(
+      ['me', 'preferences'],
+      { ...(queryClient.getQueryData(['me', 'preferences']) ?? {}), ...pending },
+    );
+
+    try {
+      const csrfToken = typeof sessionStorage !== 'undefined'
+        ? (sessionStorage.getItem('csrfToken') ?? '')
+        : '';
+      fetch(`${API_BASE}/me/preferences`, {
+        method: 'PUT',
+        credentials: 'include',
+        keepalive: true,
+        headers: withApiAuthHeaders({
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        }),
+        body: JSON.stringify({ prefs: pending }),
+      }).catch(() => {});
+    } catch {
+      // Unload is best-effort; localStorage already holds the value.
+    }
+
+    resolvers.forEach(({ resolve }) => resolve());
+  }
+
+  // Keep the listeners below bound to the CURRENT closure (user, cache) without
+  // re-subscribing on every render.
+  const flushOnHideRef = useRef(null);
+  flushOnHideRef.current = flushOnHide;
+
+  useEffect(() => {
+    const onHide = () => flushOnHideRef.current?.();
+    // Deliberately NOT 'beforeunload': it does not fire reliably when a mobile
+    // tab is discarded, and registering it makes the page ineligible for the
+    // back/forward cache. 'visibilitychange' -> hidden is the only signal that
+    // is delivered in every "the user is done with this page" case; 'pagehide'
+    // covers desktop close/navigate and bfcache entry.
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') onHide();
+    };
+    window.addEventListener('pagehide', onHide);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   /**
    * flushNow — write any buffered preference edit immediately and wait for it.

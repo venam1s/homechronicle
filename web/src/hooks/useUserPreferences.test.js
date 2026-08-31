@@ -20,6 +20,7 @@ import { createElement } from 'react';
 vi.mock('../lib/api.js', () => ({
   API_BASE: 'http://localhost:3001/api',
   fetchJson: vi.fn(),
+  withApiAuthHeaders: (h = {}) => h,
 }));
 
 vi.mock('./useAuth.js', () => ({
@@ -420,5 +421,102 @@ describe('seedIfEmpty (PREF-11/D-14)', () => {
 
     const putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
     expect(putCalls).toHaveLength(0);
+  });
+});
+
+// -- Last-chance write when the page goes away --
+//
+// flushNow() covers the sign-out button, but a debounced write was still lost
+// when the tab was closed or the session expired inside the 500ms window: a
+// normal fetch is cancelled along with the document. This path hands the
+// request over with keepalive so it survives the page.
+describe('flush on page hide', () => {
+  const user = { id: 42, role: 'member', email: 'u@example.com' };
+  let rawFetch;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    rawFetch = vi.fn(async () => ({ ok: true, status: 200, text: async () => '{}' }));
+    globalThis.fetch = rawFetch;
+    useAuth.mockReturnValue({ user });
+    fetchJson.mockResolvedValue({ prefs: { theme: 'light' } });
+  });
+
+  afterEach(() => {
+    delete globalThis.fetch;
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+  });
+
+  async function mounted() {
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toBeDefined());
+    return result;
+  }
+
+  const hide = () => {
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+
+  const putCall = () => rawFetch.mock.calls.find(([, o]) => o?.method === 'PUT');
+
+  it('writes a buffered change when the page is hidden', async () => {
+    const result = await mounted();
+    act(() => { result.current.setPrefsBlob({ palette: 'graphite' }); });
+    act(() => { hide(); });
+
+    const call = putCall();
+    expect(call, 'a buffered preference must be written on hide').toBeTruthy();
+    const [url, opts] = call;
+    expect(url).toContain('/me/preferences');
+    expect(opts.keepalive, 'without keepalive the request dies with the page').toBe(true);
+    expect(opts.credentials).toBe('include');
+    // Without this the listener's express.json() ignores the body entirely.
+    expect(opts.headers['Content-Type']).toBe('application/json');
+    // Only the un-written partial: the server merges it with `jsonb ||`.
+    expect(JSON.parse(opts.body)).toEqual({ prefs: { palette: 'graphite' } });
+  });
+
+  it('also writes on pagehide (desktop close / bfcache)', async () => {
+    const result = await mounted();
+    act(() => { result.current.setPrefsBlob({ palette: 'ink' }); });
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+
+    expect(JSON.parse(putCall()[1].body)).toEqual({ prefs: { palette: 'ink' } });
+  });
+
+  it('sends nothing when there is nothing buffered', async () => {
+    await mounted();
+    act(() => { hide(); });
+    expect(putCall()).toBeUndefined();
+  });
+
+  it('sends nothing for a signed-out visitor', async () => {
+    useAuth.mockReturnValue({ user: null });
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+    act(() => { result.current.setPrefsBlob({ palette: 'ink' }); });
+    act(() => { hide(); });
+    expect(putCall()).toBeUndefined();
+  });
+
+  it('does not fire twice when hide is followed by pagehide', async () => {
+    const result = await mounted();
+    act(() => { result.current.setPrefsBlob({ palette: 'tide' }); });
+    act(() => { hide(); });
+    act(() => { window.dispatchEvent(new Event('pagehide')); });
+
+    expect(rawFetch.mock.calls.filter(([, o]) => o?.method === 'PUT')).toHaveLength(1);
+  });
+
+  it('stops listening once unmounted', async () => {
+    const { wrapper } = makeWrapper();
+    const { result, unmount } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toBeDefined());
+    act(() => { result.current.setPrefsBlob({ palette: 'fern' }); });
+    unmount();
+    act(() => { hide(); });
+    expect(putCall()).toBeUndefined();
   });
 });
