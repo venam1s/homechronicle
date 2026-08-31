@@ -166,6 +166,53 @@ export function describeChange(characteristic, newValue) {
       return `${parseFloat(newValue).toFixed(0)} lux`;
     case 'OutletInUse':
       return newValue === '1' || newValue === 'true' ? 'outlet in use' : 'outlet idle';
+
+    // -- Colour, covering, fan, thermostat and power --
+    //
+    // Hue, Saturation, ColorTemperature and Active are produced by the HomeKit
+    // path TODAY and were reading as "Saturation: 1" in the headline. The rest
+    // arrive with the Matter normalization (see listener/src/matter-normalize.js),
+    // which now reports Matter attributes under these HomeKit names.
+    case 'Hue':
+      return `hue ${parseFloat(newValue).toFixed(0)}\u00b0`;
+    case 'Saturation':
+      return `saturation ${parseFloat(newValue).toFixed(0)}%`;
+    case 'ColorTemperature': {
+      // HomeKit stores mireds; Kelvin is what anyone actually reads a colour
+      // temperature in.
+      const mireds = parseFloat(newValue);
+      if (!Number.isFinite(mireds) || mireds <= 0) return `colour temperature ${newValue}`;
+      return `${Math.round(1e6 / mireds / 50) * 50}K`;
+    }
+    case 'Active':
+      return newValue === '1' || newValue === 'true' ? 'turned on' : 'turned off';
+    case 'RotationSpeed':
+      return `speed ${parseFloat(newValue).toFixed(0)}%`;
+    case 'CurrentPosition':
+    case 'TargetPosition': {
+      const pct = parseFloat(newValue);
+      if (!Number.isFinite(pct)) return `position ${newValue}`;
+      if (pct === 0) return 'closed';
+      if (pct === 100) return 'open';
+      return `${pct.toFixed(0)}% open`;
+    }
+    case 'PositionState': {
+      const states = ['closing', 'opening', 'stopped'];
+      return states[parseInt(newValue, 10)] ?? `position state ${newValue}`;
+    }
+    case 'TargetHeatingCoolingState':
+    case 'CurrentHeatingCoolingState': {
+      const states = ['off', 'heating', 'cooling', 'auto'];
+      return states[parseInt(newValue, 10)] ?? `mode ${newValue}`;
+    }
+    case 'CarbonMonoxideDetected':
+      return newValue === '1' || newValue === 'true' ? 'carbon monoxide detected' : 'carbon monoxide cleared';
+    case 'CarbonDioxideDetected':
+      return newValue === '1' || newValue === 'true' ? 'carbon dioxide detected' : 'carbon dioxide cleared';
+    case 'AirPressure':
+      return `${parseFloat(newValue).toFixed(1)} kPa`;
+    case 'ActivePower':
+      return `${parseFloat(newValue).toFixed(1)} W`;
     default:
       // v0.4: this string is now the timeline HEADLINE, not body text, so a raw
       // characteristic name is far more visible than it used to be. Split the

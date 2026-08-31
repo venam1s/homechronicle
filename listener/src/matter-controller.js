@@ -29,6 +29,7 @@ import { ManualPairingCodeCodec, QrPairingCodeCodec } from '@matter/main/types';
 import { CommissioningController } from '@project-chip/matter.js';
 import { NodeStates } from '@project-chip/matter.js/device';
 import { log } from './logger.js';
+import { normalizeReading } from './matter-normalize.js';
 
 // -- matter.js Logger configuration --
 // Configure the matter.js global Logger at module load (before any SDK code runs).
@@ -325,14 +326,25 @@ export async function poll(nodeId) {
         }
         if (value === undefined || value === null) continue;
 
+        // Translate to the HomeKit vocabulary and units the rest of the app
+        // speaks. An unmapped attribute, or one whose value will not convert,
+        // is dropped: a raw Matter integer under a Matter-only name is worse
+        // than no row, because alerts and filters would silently never match it.
+        const normalized = normalizeReading({
+          clusterId: clusterDef.id,
+          attributeId: attr.attributeId,
+          value,
+        });
+        if (!normalized) continue;
+
         events.push({
           nodeId,
           endpointId,
           clusterId: clusterDef.id,
           attributeId: attr.attributeId,
           serviceType: clusterDef.serviceType,
-          characteristic: attr.characteristic,
-          newValue: value,
+          characteristic: normalized.characteristic,
+          newValue: normalized.value,
         });
       }
     }
@@ -368,14 +380,26 @@ export async function subscribe(nodeId, callback) {
     if (!labels) return; // Not a cluster we track
 
     const attrDef = labels.attributeMap.get(attributeName);
+    if (!attrDef) return; // Tracked cluster, but not an attribute we map.
+
+    // Same normalization as the poll path — both funnel into ingestRows, so
+    // they must agree on names and units or the value cache would treat one
+    // reading as a change from the other.
+    const normalized = normalizeReading({
+      clusterId,
+      attributeId: attrDef.attributeId,
+      value,
+    });
+    if (!normalized) return;
+
     const event = {
       nodeId,
       endpointId,
       clusterId,
-      attributeId: attrDef?.attributeId ?? 0,
+      attributeId: attrDef.attributeId,
       serviceType: labels.serviceType,
-      characteristic: attrDef?.characteristic ?? labels.characteristic,
-      newValue: value,
+      characteristic: normalized.characteristic,
+      newValue: normalized.value,
     };
     callback([event]);
   };

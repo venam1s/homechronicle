@@ -133,13 +133,30 @@ test('subscribe handler uses attributeMap for correct characteristic resolution'
     source.includes('labels.attributeMap.get(attributeName)'),
     'Subscribe handler should look up attribute in attributeMap',
   );
+  // The old fallbacks (`attrDef?.characteristic ?? labels.characteristic` and
+  // `attrDef?.attributeId ?? 0`) were removed on purpose: an attribute of a
+  // tracked cluster that we do NOT map was being logged under the cluster's
+  // FIRST characteristic, so an unmapped ColorControl attribute recorded as
+  // CurrentHue. Dropping the reading is correct; mislabelling it is not.
   assert.ok(
-    source.includes("attrDef?.characteristic ?? labels.characteristic"),
-    'Subscribe handler should fall back to primary characteristic',
+    !source.includes('attrDef?.characteristic ?? labels.characteristic'),
+    'Subscribe handler must not mislabel an unmapped attribute as the primary characteristic',
   );
   assert.ok(
-    source.includes("attrDef?.attributeId ?? 0"),
-    'Subscribe handler should fall back to attributeId 0',
+    source.includes('if (!attrDef) return;'),
+    'Subscribe handler should drop attributes it does not map',
+  );
+});
+
+test('both Matter read paths normalize to the HomeKit vocabulary', () => {
+  // Poll and subscribe both feed ingestRows, which caches by characteristic —
+  // if they disagreed on names or units, each reading would look like a change
+  // from the other and the log would fill with phantom events.
+  const calls = source.match(/normalizeReading\(/g) ?? [];
+  assert.equal(calls.length, 2, 'expected exactly the poll and subscribe call sites');
+  assert.ok(
+    source.includes("from './matter-normalize.js'"),
+    'controller should use the shared normalization table',
   );
 });
 
