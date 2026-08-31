@@ -49,11 +49,14 @@
 }
 
 @layer base {
+  /* Masthead (auto height) above a scrolling content pane. A column flex box
+     rather than a grid so the same rule serves both shells: with the masthead
+     hidden below 1024px, <main> is simply the only child and still fills the
+     viewport. */
   .app-layout {
-    display: grid;
-    grid-template-rows: 100dvh;
-    min-height: 100dvh;
-    transition: grid-template-columns 200ms ease;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
   }
 
   :root {

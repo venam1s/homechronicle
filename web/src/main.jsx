@@ -6,6 +6,7 @@ import App from './App.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { UserPreferencesProvider } from './components/UserPreferencesProvider.jsx';
 import AuthGate from './components/AuthGate.jsx';
+import AppearanceProvider from './components/AppearanceProvider.jsx';
 import LoginPage from './components/LoginPage.jsx';
 import SetupAdminPage from './components/SetupAdminPage.jsx';
 import ResetPasswordPage from './components/ResetPasswordPage.jsx';
@@ -69,7 +70,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <RouterProvider router={router} />
+        {/* Outside the router so every route — including login, setup and
+            password reset — is painted in the user's theme and palette. */}
+        <AppearanceProvider>
+          <RouterProvider router={router} />
+        </AppearanceProvider>
       </ToastProvider>
     </QueryClientProvider>
   </React.StrictMode>

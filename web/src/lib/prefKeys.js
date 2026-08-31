@@ -28,8 +28,12 @@ export const D12_KEYS = [
   // Pre-v0.4 accent key: still seeded so an existing account's stored accent is
   // available for the one-time accent -> palette upgrade in usePalette.js.
   { lsKey: 'hc_accent',                     blobKey: 'accent',                  codec: 'raw'  },
-  // Sidebar collapsed — localStorage holds 'true'/'false'; the blob holds a real boolean
-  // so the consumer's boolean type guard accepts it (WR-01).
+  // RETIRED in v0.4: the collapsible sidebar was replaced by the masthead, so
+  // nothing reads this any more. The entry is kept so an existing account's
+  // blob round-trips unchanged rather than having the key silently dropped on
+  // the next write; remove it once no deployed client writes it.
+  // localStorage holds 'true'/'false'; the blob holds a real boolean so the
+  // consumer's boolean type guard accepts it (WR-01).
   { lsKey: 'hc_sidebar_collapsed',          blobKey: 'sidebarCollapsed',        codec: 'bool' },
 ];
 // Note (IN-02): the legacy 'hc_ui_skin' key is intentionally NOT seeded into the blob.

@@ -3,9 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from './components/Toast.jsx';
 import App from './App.jsx';
 
-vi.mock('./components/Sidebar.jsx', () => ({
-  default: ({ activePage, onNavigate, inDrawer }) => (
-    <nav data-testid={inDrawer ? 'sidebar-drawer' : 'sidebar'}>
+vi.mock('./components/Masthead.jsx', () => ({
+  default: ({ onNavigate }) => (
+    <nav data-testid="masthead">
       {['dashboard', 'devices', 'timeline', 'alerts', 'settings'].map(id => (
         <button key={id} type="button" onClick={() => onNavigate(id)}>
           {id.charAt(0).toUpperCase() + id.slice(1)}
@@ -52,10 +52,10 @@ describe('App smoke', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('renders sidebar and navigates between pages', () => {
+  it('renders the masthead and navigates between pages', () => {
     renderApp();
 
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('masthead')).toBeInTheDocument();
     expect(screen.getByText('Dashboard Page')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /timeline/i }));
@@ -85,7 +85,7 @@ describe('App smoke', () => {
     });
   });
 
-  it('renders the floating nav (not the sidebar) on mobile and navigates', () => {
+  it('renders the floating nav (not the masthead) on mobile and navigates', () => {
     // Override for this test only
     mockUseMediaQuery.mockImplementation((query) => {
       if (query === '(max-width: 767px)') return true;
@@ -94,8 +94,8 @@ describe('App smoke', () => {
 
     renderApp();
 
-    // Sidebar is replaced by the floating FAB below 1024px
-    expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
+    // Masthead is replaced by the floating FAB below 1024px
+    expect(screen.queryByTestId('masthead')).not.toBeInTheDocument();
     const fab = screen.getByRole('button', { name: 'Open navigation menu' });
     expect(fab).toBeInTheDocument();
 
