@@ -24,6 +24,9 @@ const CHANGELOG_KEY = 'hc_last_seen_version';
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
+  // Which Settings section to show. Owned here rather than inside SettingsPage
+  // so navigation can address it — see the account menu's Appearance shortcut.
+  const [settingsSection, setSettingsSection] = useState('configuration');
   const [selectedAccessoryId, setSelectedAccessoryId] = useState(null);
   const [timelineFilters, setTimelineFilters] = useState(null);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -118,7 +121,13 @@ export default function App() {
 
   const openChangelog = () => setShowChangelog(true);
   const closeChangelog = () => { setShowChangelog(false); setHasNewVersion(false); try { window.localStorage.setItem(CHANGELOG_KEY, __BUILD_VERSION__); } catch {} };
-  const navigate = (page) => { if (activePage === 'timeline' && page !== 'timeline') setTimelineFilters(null); setSelectedAccessoryId(null); setActivePage(page); };
+  const navigate = (page, options) => {
+    if (activePage === 'timeline' && page !== 'timeline') setTimelineFilters(null);
+    setSelectedAccessoryId(null);
+    // Optional deep link into a Settings section, e.g. navigate('settings', { section: 'appearance' }).
+    if (page === 'settings' && options?.section) setSettingsSection(options.section);
+    setActivePage(page);
+  };
 
   return (
     <>
@@ -147,6 +156,8 @@ export default function App() {
                   hasNewVersion={hasNewVersion}
                   onOpenChangelog={openChangelog}
                   availableUpdate={availableUpdate}
+                  section={settingsSection}
+                  onSectionChange={setSettingsSection}
                 />
               )}
             </ErrorBoundary>

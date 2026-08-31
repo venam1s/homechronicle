@@ -51,6 +51,14 @@ vi.mock('../components/ActiveSessionsPanel.jsx', () => ({
   default: () => <div data-testid="active-sessions">ActiveSessionsPanel</div>,
 }));
 
+vi.mock('../components/AppearanceSection.jsx', () => ({
+  default: () => <div data-testid="appearance-section">AppearanceSection</div>,
+}));
+
+vi.mock('../components/AboutSection.jsx', () => ({
+  default: () => <div data-testid="about-section">AboutSection</div>,
+}));
+
 vi.mock('../components/PageContainer.jsx', () => ({
   default: ({ children }) => <div>{children}</div>,
 }));
@@ -188,5 +196,89 @@ describe('SettingsPage — auth-on, admin', () => {
     // Default 'configuration' section renders; no Admin or Account present
     expect(screen.getByTestId('settings-tab')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Account' })).not.toBeInTheDocument();
+  });
+});
+
+// -- v0.4.1: About is its own section --
+
+describe('SettingsPage — About section', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: { role: 'admin' } });
+    mockUseAuthConfig.mockReturnValue({ authEnabled: true });
+  });
+
+  it('lists About first, ahead of every other section', () => {
+    renderSettings();
+    const labels = screen.getAllByRole('button').map((b) => b.textContent);
+    expect(labels[0]).toBe('About');
+  });
+
+  it('is available in auth-off mode too', () => {
+    mockUseAuth.mockReturnValue({ user: null });
+    mockUseAuthConfig.mockReturnValue({ authEnabled: false });
+    renderSettings();
+    expect(screen.getByRole('button', { name: 'About' })).toBeInTheDocument();
+  });
+
+  // It used to be stacked under Appearance, which is where nobody looks for a
+  // version number.
+  it('does not render About underneath Appearance', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Appearance' }));
+    expect(screen.getByTestId('appearance-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('about-section')).not.toBeInTheDocument();
+  });
+
+  it('shows About when its nav item is clicked', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'About' }));
+    expect(screen.getByTestId('about-section')).toBeInTheDocument();
+  });
+
+  // Landing on a read-only page would put About between the user and whatever
+  // they opened Settings to change.
+  it('still opens on Configuration, not on About', () => {
+    renderSettings();
+    expect(screen.getByTestId('settings-tab')).toBeInTheDocument();
+    expect(screen.queryByTestId('about-section')).not.toBeInTheDocument();
+  });
+});
+
+describe('SettingsPage — controlled section (deep linking)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: { role: 'admin' } });
+    mockUseAuthConfig.mockReturnValue({ authEnabled: true });
+  });
+
+  function renderControlled(section, onSectionChange = vi.fn()) {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={qc}>
+        <SettingsPage section={section} onSectionChange={onSectionChange} />
+      </QueryClientProvider>
+    );
+  }
+
+  // This is what the account menu's Appearance shortcut relies on.
+  it('opens directly on the section it is given', () => {
+    renderControlled('appearance');
+    expect(screen.getByTestId('appearance-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('settings-tab')).not.toBeInTheDocument();
+  });
+
+  it('reports nav clicks upward instead of holding its own state', () => {
+    const onSectionChange = vi.fn();
+    renderControlled('appearance', onSectionChange);
+    fireEvent.click(screen.getByRole('button', { name: 'About' }));
+    expect(onSectionChange).toHaveBeenCalledWith('about');
+  });
+
+  it('falls back to Configuration when handed a section that is not visible', () => {
+    mockUseAuthConfig.mockReturnValue({ authEnabled: false });
+    mockUseAuth.mockReturnValue({ user: null });
+    renderControlled('account');
+    expect(screen.getByTestId('settings-tab')).toBeInTheDocument();
   });
 });

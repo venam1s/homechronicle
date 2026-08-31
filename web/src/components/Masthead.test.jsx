@@ -157,12 +157,14 @@ describe('Masthead', () => {
       expect(screen.queryByText(/undefined/)).toBeNull();
     });
 
-    it('offers a shortcut to Appearance', () => {
+    // The shortcut must name the section: onNavigate('settings') alone landed
+    // on Configuration, so "Appearance" went somewhere else entirely.
+    it('deep-links to the Appearance section, not just to Settings', () => {
       const onNavigate = vi.fn();
       renderMasthead({ onNavigate });
       openMenu();
       fireEvent.click(screen.getByRole('menuitem', { name: 'Appearance' }));
-      expect(onNavigate).toHaveBeenCalledWith('settings');
+      expect(onNavigate).toHaveBeenCalledWith('settings', { section: 'appearance' });
     });
 
     it('closes on Escape', () => {

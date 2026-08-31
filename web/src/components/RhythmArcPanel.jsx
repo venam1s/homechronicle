@@ -4,9 +4,31 @@ import { SkeletonList } from './Skeleton.jsx';
 
 // Semicircle geometry: midnight at the left, noon at the top, midnight again
 // at the right. Hours map onto 180 degrees.
+//
+// The layout is derived from these constants rather than hand-placed, because
+// hand-placing it went wrong: the "noon" label was pinned at y=10 while the
+// apex of a 10px-wide stroke sat at y=14, i.e. occupying y 9-19 — so the label
+// (y ~2-12 for an 8px font) ran straight through the arc. CY now leaves room
+// above the apex for the label AND for the "now" dot, which is the widest
+// thing on the dial. Exported so a test can assert the clearances instead of
+// trusting the arithmetic. See RhythmArcPanel.test.jsx.
 const R = 78;
 const CX = 100;
-const CY = 92;
+const CY = 100;
+const STROKE = 10;
+const DOT_R = 6;
+const DOT_STROKE = 3;
+const FONT_SIZE = 8;
+const VIEWBOX_H = 120;
+// Baselines: the top label clears the apex, the bottom pair clear the arc ends.
+// The bottom pair needed moving too — they overlapped the end caps by a pixel,
+// which is the same mistake as the noon label, just too small to notice.
+const NOON_LABEL_Y = 10;
+const EDGE_LABEL_Y = 116;
+
+export const GEOMETRY = {
+  R, CX, CY, STROKE, DOT_R, DOT_STROKE, FONT_SIZE, VIEWBOX_H, NOON_LABEL_Y, EDGE_LABEL_Y,
+};
 
 function pointAt(hour) {
   const angle = Math.PI - (hour / 24) * Math.PI;
@@ -61,29 +83,29 @@ export default function RhythmArcPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <svg viewBox="0 0 200 108" className="w-full max-w-[280px] mx-auto" role="img"
+      <svg viewBox={`0 0 200 ${VIEWBOX_H}`} className="w-full max-w-[280px] mx-auto" role="img"
            aria-label={hasData ? `Daily rhythm, busiest around ${formatHour12(peak)}` : 'Daily rhythm, no activity yet'}>
         {/* Dial */}
-        <path d={arcPath(0, 24)} fill="none" stroke="var(--hc-panel-mid)" strokeWidth="10" strokeLinecap="round" />
+        <path d={arcPath(0, 24)} fill="none" stroke="var(--hc-panel-mid)" strokeWidth={STROKE} strokeLinecap="round" />
         {/* Quiet hours */}
         {quietOn && (
           isWithinHourWindow(0, qStart, qEnd)
             ? <>
-                <path d={arcPath(0, qEnd)} fill="none" stroke="var(--hc-room-3)" strokeWidth="10" strokeLinecap="round" />
-                <path d={arcPath(qStart, 24)} fill="none" stroke="var(--hc-room-3)" strokeWidth="10" strokeLinecap="round" />
+                <path d={arcPath(0, qEnd)} fill="none" stroke="var(--hc-room-3)" strokeWidth={STROKE} strokeLinecap="round" />
+                <path d={arcPath(qStart, 24)} fill="none" stroke="var(--hc-room-3)" strokeWidth={STROKE} strokeLinecap="round" />
               </>
-            : <path d={arcPath(qStart, qEnd)} fill="none" stroke="var(--hc-room-3)" strokeWidth="10" strokeLinecap="round" />
+            : <path d={arcPath(qStart, qEnd)} fill="none" stroke="var(--hc-room-3)" strokeWidth={STROKE} strokeLinecap="round" />
         )}
         {/* Busy band */}
         {hasData && (
-          <path d={arcPath(busyStart, busyEnd)} fill="none" stroke="var(--hc-accent-strong)" strokeWidth="10" strokeLinecap="round" />
+          <path d={arcPath(busyStart, busyEnd)} fill="none" stroke="var(--hc-accent-strong)" strokeWidth={STROKE} strokeLinecap="round" />
         )}
         {/* Now */}
-        <circle cx={nx} cy={ny} r="6" fill="var(--hc-accent-strong)" stroke="var(--hc-panel)" strokeWidth="3" />
-        <g fontSize="8" fill="var(--hc-muted)" fontFamily="ui-monospace, Menlo, monospace">
-          <text x="6" y="104">12 AM</text>
-          <text x="194" y="104" textAnchor="end">12 AM</text>
-          <text x={CX} y="10" textAnchor="middle">noon</text>
+        <circle cx={nx} cy={ny} r={DOT_R} fill="var(--hc-accent-strong)" stroke="var(--hc-panel)" strokeWidth={DOT_STROKE} />
+        <g fontSize={FONT_SIZE} fill="var(--hc-muted)" fontFamily="ui-monospace, Menlo, monospace">
+          <text x="6" y={EDGE_LABEL_Y}>12 AM</text>
+          <text x="194" y={EDGE_LABEL_Y} textAnchor="end">12 AM</text>
+          <text x={CX} y={NOON_LABEL_Y} textAnchor="middle">noon</text>
         </g>
       </svg>
 

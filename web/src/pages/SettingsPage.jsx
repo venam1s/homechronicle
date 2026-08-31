@@ -14,10 +14,31 @@ import AboutSection from '../components/AboutSection.jsx';
 
 const NAV_ACTIVE =
   'px-3 py-2 rounded-lg bg-hc-panel-mid font-semibold text-hc-fg-strong border-l-2 border-hc-accent-strong cursor-pointer';
+// Settings opens on Configuration, not on the first nav item: About is
+// reference material, and landing there would put a read-only page between the
+// user and the setting they came to change.
+const DEFAULT_SECTION = 'configuration';
+
 const NAV_INACTIVE =
   'px-3 py-2 rounded-lg text-hc-body text-hc-fg cursor-pointer hover:bg-hc-panel-hover';
 
-export default function SettingsPage({ buildVersion, hasNewVersion, onOpenChangelog, availableUpdate }) {
+/**
+ * SettingsPage.
+ *
+ * `section` / `onSectionChange` make the active section CONTROLLED, so a caller
+ * can deep-link into one — the account menu's "Appearance" item used to call
+ * onNavigate('settings') and land on Configuration, because the section was
+ * private state that the navigation could not address. Rendered without them
+ * (unit tests, any future standalone use) it falls back to owning the state.
+ */
+export default function SettingsPage({
+  buildVersion,
+  hasNewVersion,
+  onOpenChangelog,
+  availableUpdate,
+  section: controlledSection,
+  onSectionChange,
+}) {
   const setup = useSetup();
   const { user } = useAuth();
   const { authEnabled } = useAuthConfig();
@@ -28,13 +49,20 @@ export default function SettingsPage({ buildVersion, hasNewVersion, onOpenChange
   // the sole operator in auth-off (no session = full access, same as v1.3).
   const showAdvanced = isAdmin || !authEnabled;
 
-  const [section, setSection] = useState('configuration');
+  const [ownSection, setOwnSection] = useState(DEFAULT_SECTION);
+  const isControlled = controlledSection != null && typeof onSectionChange === 'function';
+  const section = isControlled ? controlledSection : ownSection;
+  const setSection = isControlled ? onSectionChange : setOwnSection;
 
   // Build visible nav items based on auth state:
   // - Admin tab: only when auth is on AND user is admin (Users + SMTP)
   // - Configuration: always present
   // - Account tab: only when auth is on (no password/session management in auth-off)
+  // About leads: it is the app's identity card — version, what changed, where
+  // to read the docs and file a bug — and it is the one section that is always
+  // available whatever the auth mode.
   const navItems = [
+    { id: 'about', label: 'About' },
     ...(authEnabled && isAdmin ? [{ id: 'admin', label: 'Admin' }] : []),
     { id: 'configuration', label: 'Configuration' },
     { id: 'appearance', label: 'Appearance' },
@@ -44,7 +72,7 @@ export default function SettingsPage({ buildVersion, hasNewVersion, onOpenChange
   // Generalized guard: if the stored section is not in the visible nav, fall back
   // to 'configuration'. This handles auth-off (no admin/account) as well as the
   // prior member-on-admin case.
-  const activeSection = navItems.some((i) => i.id === section) ? section : 'configuration';
+  const activeSection = navItems.some((i) => i.id === section) ? section : DEFAULT_SECTION;
 
   function handleNavChange(id) {
     if (!navItems.some((i) => i.id === id)) return;
@@ -105,17 +133,15 @@ export default function SettingsPage({ buildVersion, hasNewVersion, onOpenChange
           {activeSection === 'configuration' && (
             <SettingsTab setup={setup} showAdvanced={showAdvanced} />
           )}
-          {activeSection === 'appearance' && (
-            <>
-              <AppearanceSection />
-              <AboutSection
-                buildVersion={buildVersion}
-                hasNewVersion={hasNewVersion}
-                onOpenChangelog={onOpenChangelog}
-                availableUpdate={availableUpdate}
-              />
-            </>
+          {activeSection === 'about' && (
+            <AboutSection
+              buildVersion={buildVersion}
+              hasNewVersion={hasNewVersion}
+              onOpenChangelog={onOpenChangelog}
+              availableUpdate={availableUpdate}
+            />
           )}
+          {activeSection === 'appearance' && <AppearanceSection />}
           {activeSection === 'account' && authEnabled && (
             <>
               <ChangePasswordSection />

@@ -240,7 +240,10 @@ export default function Masthead({
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={() => { setAccountOpen(false); onNavigate('settings'); }}
+                    // Deep-links to the Appearance section; without the second
+                    // argument this landed on Configuration, which made the
+                    // shortcut pointless.
+                    onClick={() => { setAccountOpen(false); onNavigate('settings', { section: 'appearance' }); }}
                     className={clsx(
                       'flex w-full items-center gap-2 px-3 py-2 text-hc-label text-hc-fg hover:bg-hc-interactive transition-colors',
                       FOCUS_RING,

@@ -1,8 +1,22 @@
-import { ArrowUpCircle, BookOpen } from 'lucide-react';
+import { ArrowUpCircle, BookOpen, FileText, Bug } from 'lucide-react';
 import clsx from 'clsx';
 import Card from './Card.jsx';
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2';
+
+// The published docs site (docs/CNAME) and the issue tracker.
+//
+// The tracker is GitLab, not GitHub: the GitHub account was lost to a
+// suspension and `havuq` no longer resolves there, so a GitHub link would be
+// dead. This matches the two issue links already in ChangelogModal and
+// SettingsTab.
+const DOCS_URL = 'https://homechronicle.net';
+const ISSUES_URL = 'https://gitlab.com/havuq/homechronicle/-/issues';
+
+const LINK_BUTTON = [
+  'inline-flex items-center gap-2 rounded-lg border border-hc-panel-border px-3 py-2',
+  'text-hc-label font-medium text-hc-fg hover:bg-hc-interactive transition-colors',
+].join(' ');
 
 /**
  * About — build identity and what changed.
@@ -39,21 +53,39 @@ export default function AboutSection({ buildVersion, hasNewVersion, onOpenChange
           </dd>
         </dl>
 
-        <button
-          type="button"
-          onClick={onOpenChangelog}
-          className={clsx(
-            'mt-4 inline-flex items-center gap-2 rounded-lg border border-hc-panel-border px-3 py-2',
-            'text-hc-label font-medium text-hc-fg hover:bg-hc-interactive transition-colors',
-            FOCUS_RING,
-          )}
-        >
-          <BookOpen size={15} className="text-hc-muted" aria-hidden="true" />
-          What&rsquo;s new
-          {hasNewVersion && (
-            <span className="w-1.5 h-1.5 rounded-full bg-hc-warning-text" aria-label="Unread" />
-          )}
-        </button>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onOpenChangelog}
+            className={clsx(LINK_BUTTON, FOCUS_RING)}
+          >
+            <BookOpen size={15} className="text-hc-muted" aria-hidden="true" />
+            What&rsquo;s new
+            {hasNewVersion && (
+              <span className="w-1.5 h-1.5 rounded-full bg-hc-warning-text" aria-label="Unread" />
+            )}
+          </button>
+
+          <a
+            href={DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={clsx(LINK_BUTTON, FOCUS_RING)}
+          >
+            <FileText size={15} className="text-hc-muted" aria-hidden="true" />
+            Documentation
+          </a>
+
+          <a
+            href={ISSUES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={clsx(LINK_BUTTON, FOCUS_RING)}
+          >
+            <Bug size={15} className="text-hc-muted" aria-hidden="true" />
+            Report an issue
+          </a>
+        </div>
 
         <p className="mt-3 text-hc-caption text-hc-muted">
           Quote the version above when reporting a problem — it identifies the exact build you are running.
