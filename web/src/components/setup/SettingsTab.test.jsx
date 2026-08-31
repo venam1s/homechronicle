@@ -162,10 +162,13 @@ describe('Tabbed Configuration', () => {
     expect(screen.queryByText('Documentation')).not.toBeInTheDocument();
   });
 
-  it('reveals the About tab content (Documentation link) when the About tab is selected', async () => {
+  // About is a top-level Settings section now (components/AboutSection.jsx).
+  // Keeping this inner tab as well gave the app two About panels.
+  it('has no About tab — it lives at the top level of Settings', () => {
     renderTab(makeSetup());
-    await userEvent.click(screen.getByRole('tab', { name: 'About' }));
-    expect(screen.getByText('Documentation')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'About' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Documentation')).not.toBeInTheDocument();
+    expect(screen.queryByText('Report an issue')).not.toBeInTheDocument();
   });
 
   it('reveals "Retention cutoff" after clicking the Data management tab', async () => {
@@ -177,7 +180,7 @@ describe('Tabbed Configuration', () => {
 
   it('never renders "Log level" anywhere in SettingsTab', async () => {
     renderTab(makeSetup());
-    for (const name of ['About', 'Device Management', 'Data management', 'Toast']) {
+    for (const name of ['Device Management', 'Data management', 'Toast']) {
       await userEvent.click(screen.getByRole('tab', { name }));
       expect(screen.queryByText('Log level')).not.toBeInTheDocument();
     }
@@ -185,7 +188,7 @@ describe('Tabbed Configuration', () => {
 
   it('never renders "Danger Zone" anywhere in SettingsTab', async () => {
     renderTab(makeSetup());
-    for (const name of ['About', 'Device Management', 'Data management', 'Toast']) {
+    for (const name of ['Device Management', 'Data management', 'Toast']) {
       await userEvent.click(screen.getByRole('tab', { name }));
       expect(screen.queryByText('Danger Zone')).not.toBeInTheDocument();
     }

@@ -4,13 +4,15 @@ import Card from './Card.jsx';
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2';
 
-// The published docs site (docs/CNAME) and the issue tracker.
+// The published docs site (docs/CNAME) and the issue tracker. Both URLs are
+// carried over from the About tab that used to live inside Configuration —
+// this section replaced it rather than adding a second copy.
 //
 // The tracker is GitLab, not GitHub: the GitHub account was lost to a
 // suspension and `havuq` no longer resolves there, so a GitHub link would be
 // dead. This matches the two issue links already in ChangelogModal and
 // SettingsTab.
-const DOCS_URL = 'https://homechronicle.net';
+const DOCS_URL = 'https://homechronicle.net/guide/#/';
 const ISSUES_URL = 'https://gitlab.com/havuq/homechronicle/-/issues';
 
 const LINK_BUTTON = [

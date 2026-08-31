@@ -230,6 +230,13 @@ describe('SettingsPage — About section', () => {
     expect(screen.queryByTestId('about-section')).not.toBeInTheDocument();
   });
 
+  // It was ALSO an inner tab of Configuration, so for one commit the app had two
+  // About panels. The top-level section is the only one.
+  it('is not duplicated as an inner tab of Configuration', async () => {
+    const { default: SettingsTabReal } = await vi.importActual('../components/setup/SettingsTab.jsx');
+    expect(String(SettingsTabReal)).not.toMatch(/id:\s*'about'/);
+  });
+
   it('shows About when its nav item is clicked', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: 'About' }));

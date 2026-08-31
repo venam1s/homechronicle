@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { BookOpen, Check, CheckCircle2, Download, ExternalLink, Loader2, MessageSquare, Save, X } from 'lucide-react';
+import { Check, CheckCircle2, Download, Loader2, Save, X } from 'lucide-react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
@@ -27,11 +27,14 @@ function utcHourToLocal(utcHour) {
   return ((utcHour + offsetHours) % 24 + 24) % 24;
 }
 
+// About is NOT here: it is a top-level Settings section of its own
+// (components/AboutSection.jsx). It used to be an inner tab of Configuration,
+// which put the version and the help links two levels down, in the section
+// you go to in order to change something.
 const TABS = [
   { id: 'device', label: 'Device Management' },
   { id: 'data', label: 'Data management' },
   { id: 'toast', label: 'Toast' },
-  { id: 'about', label: 'About' },
 ];
 
 export default function SettingsTab({ setup, showAdvanced = false }) {
@@ -365,37 +368,6 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
           </button>
         ))}
       </div>
-
-      {/* — About — */}
-      {activeTab === 'about' && (
-      <Card>
-        <Card.Header title="About" />
-        <Card.Body>
-          <div className="flex flex-col gap-2">
-            <a
-              href="https://homechronicle.net/guide/#/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-hc-accent-strong hover:underline"
-            >
-              <BookOpen size={14} />
-              Documentation
-              <ExternalLink size={11} className="opacity-50" />
-            </a>
-            <a
-              href="https://gitlab.com/havuq/homechronicle/-/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-hc-accent-strong hover:underline"
-            >
-              <MessageSquare size={14} />
-              Report an issue
-              <ExternalLink size={11} className="opacity-50" />
-            </a>
-          </div>
-        </Card.Body>
-      </Card>
-      )}
 
       {/* — Device Management — */}
       {activeTab === 'device' && (

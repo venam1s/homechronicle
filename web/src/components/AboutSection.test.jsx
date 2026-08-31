@@ -41,7 +41,7 @@ describe('AboutSection', () => {
     it('links to the published documentation site', () => {
       renderAbout();
       expect(screen.getByRole('link', { name: 'Documentation' }))
-        .toHaveAttribute('href', 'https://homechronicle.net');
+        .toHaveAttribute('href', 'https://homechronicle.net/guide/#/');
     });
 
     // GitLab, not GitHub: the GitHub account was lost to a suspension and
