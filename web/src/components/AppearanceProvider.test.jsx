@@ -52,13 +52,19 @@ describe('AppearanceProvider', () => {
 // was not rendered — every route below 1024px, and every unauthenticated page.
 // Appearance is global; keep it mounted at the root.
 describe('appearance is applied globally, not by a nav component', () => {
-  it('is mounted above the router in main.jsx', () => {
+  // The tree itself is asserted behaviourally in AppProviders.test.jsx. All
+  // main.jsx owes us is that it delegates to AppProviders rather than
+  // hand-rolling the order again.
+  it('is composed by AppProviders, above the router', () => {
     const main = readFileSync(join(SRC, 'main.jsx'), 'utf8');
-    expect(main).toContain('AppearanceProvider');
+    expect(main).toContain('<AppProviders>');
     expect(
-      main.indexOf('<AppearanceProvider>'),
-      'AppearanceProvider must wrap the router, not sit inside it',
+      main.indexOf('<AppProviders>'),
+      'AppProviders must wrap the router, not sit inside it',
     ).toBeLessThan(main.indexOf('<RouterProvider'));
+    for (const inlined of ['AppearanceProvider', 'UserPreferencesProvider', 'ToastProvider']) {
+      expect(main, `main.jsx must not mount ${inlined} itself`).not.toContain(inlined);
+    }
   });
 
   it('is not called from a breakpoint-conditional navigation component', () => {
