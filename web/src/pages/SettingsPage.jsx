@@ -9,6 +9,7 @@ import UsersPanel from '../components/UsersPanel.jsx';
 import SMTPConfigSection from '../components/SMTPConfigSection.jsx';
 import ChangePasswordSection from '../components/ChangePasswordSection.jsx';
 import ActiveSessionsPanel from '../components/ActiveSessionsPanel.jsx';
+import AppearanceSection from '../components/AppearanceSection.jsx';
 
 const NAV_ACTIVE =
   'px-3 py-2 rounded-lg bg-hc-panel-mid font-semibold text-hc-fg-strong border-l-2 border-hc-accent-strong cursor-pointer';
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   const navItems = [
     ...(authEnabled && isAdmin ? [{ id: 'admin', label: 'Admin' }] : []),
     { id: 'configuration', label: 'Configuration' },
+    { id: 'appearance', label: 'Appearance' },
     ...(authEnabled ? [{ id: 'account', label: 'Account' }] : []),
   ];
 
@@ -102,6 +104,7 @@ export default function SettingsPage() {
           {activeSection === 'configuration' && (
             <SettingsTab setup={setup} showAdvanced={showAdvanced} />
           )}
+          {activeSection === 'appearance' && <AppearanceSection />}
           {activeSection === 'account' && authEnabled && (
             <>
               <ChangePasswordSection />
