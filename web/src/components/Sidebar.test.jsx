@@ -17,10 +17,10 @@ vi.mock('../hooks/useTheme.js', () => ({
   }),
 }));
 
-vi.mock('../hooks/useAccent.js', () => ({
-  useAccent: () => ({
-    accent: 'ocean',
-    setAccent: vi.fn(),
+vi.mock('../hooks/usePalette.js', () => ({
+  usePalette: () => ({
+    palette: 'porcelain',
+    setPalette: vi.fn(),
   }),
 }));
 

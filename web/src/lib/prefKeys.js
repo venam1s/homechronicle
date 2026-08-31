@@ -24,14 +24,17 @@ export const D12_KEYS = [
   { lsKey: 'hc_dashboard_sync_ranges',      blobKey: 'dashboardSyncRanges',     codec: 'json' },
   { lsKey: 'hc_muted',                      blobKey: 'mutedDevices',            codec: 'json' },
   { lsKey: 'hc_theme_preference',           blobKey: 'theme',                   codec: 'raw'  },
+  { lsKey: 'hc_palette',                    blobKey: 'palette',                 codec: 'raw'  },
+  // Pre-v0.4 accent key: still seeded so an existing account's stored accent is
+  // available for the one-time accent -> palette upgrade in usePalette.js.
   { lsKey: 'hc_accent',                     blobKey: 'accent',                  codec: 'raw'  },
   // Sidebar collapsed — localStorage holds 'true'/'false'; the blob holds a real boolean
   // so the consumer's boolean type guard accepts it (WR-01).
   { lsKey: 'hc_sidebar_collapsed',          blobKey: 'sidebarCollapsed',        codec: 'bool' },
 ];
 // Note (IN-02): the legacy 'hc_ui_skin' key is intentionally NOT seeded into the blob.
-// 'skin' was consolidated into 'accent'; useAccent.js reads hc_ui_skin from localStorage
-// directly as a one-time accent fallback. A 'skin' blob key would be dead (no consumer).
+// 'skin' was consolidated into 'accent'; usePalette.js reads hc_ui_skin from localStorage
+// directly as a one-time palette fallback. A 'skin' blob key would be dead (no consumer).
 
 // web L-2: prefix shared by every hc_pref_* localStorage key (toast prefs, grouping prefs,
 // quiet-hours prefs). A prefix sweep (below) is the real guarantee that a future hc_pref_*

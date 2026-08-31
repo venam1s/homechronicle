@@ -20,8 +20,8 @@ export function useAccentRgb() {
     const observer = new MutationObserver(() => {
       setRgb(readAccent());
     });
-    observer.observe(el, { attributes: true, attributeFilter: ['data-accent', 'class'] });
-    // Read once on mount in case the skin changed before the observer attached.
+    observer.observe(el, { attributes: true, attributeFilter: ['data-palette', 'class'] });
+    // Read once on mount in case the palette changed before the observer attached.
     setRgb(readAccent());
     return () => observer.disconnect();
   }, []);

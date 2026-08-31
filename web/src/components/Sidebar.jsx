@@ -7,7 +7,8 @@ import {
 import clsx from 'clsx';
 import BrandLogo from './BrandLogo.jsx';
 import { useTheme } from '../hooks/useTheme.js';
-import { useAccent } from '../hooks/useAccent.js';
+import { usePalette } from '../hooks/usePalette.js';
+import { PALETTE_IDS, PALETTES } from '../lib/palettes.js';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { useAuthConfig } from '../hooks/useAuthConfig.js';
@@ -22,38 +23,15 @@ const NAV_ITEMS = [
   { id: 'settings',  label: 'Settings',  icon: Settings },
 ];
 
-const STYLES = [
-  { id: 'ocean',    label: 'Ocean' },
-  { id: 'graphite', label: 'Graphite' },
-  { id: 'sunrise',  label: 'Sunrise' },
-  { id: 'red',      label: 'Red' },
-  { id: 'yellow',   label: 'Yellow' },
-  { id: 'purple',   label: 'Purple' },
-  { id: 'slate',    label: 'Slate' },
-  { id: 'pink',     label: 'Pink' },
-];
+// Twelve palettes, in picker order, rendered as a two-tone chip: the palette's
+// page background against its accent. Derived from the palette registry so the
+// picker can never drift from what the CSS actually paints.
+const PALETTE_OPTIONS = PALETTE_IDS.map((id) => ({ id, label: PALETTES[id].name }));
 
-const ACCENT_SWATCH = {
-  ocean:    'linear-gradient(135deg, #0ea5e9, #0891b2)',
-  graphite: 'linear-gradient(135deg, #14b8a6, #64748b)',
-  sunrise:  'linear-gradient(135deg, #fb923c, #ec4899)',
-  red:      'linear-gradient(135deg, #ef4444, #e11d48)',
-  yellow:   'linear-gradient(135deg, #facc15, #f59e0b)',
-  purple:   'linear-gradient(135deg, #8b5cf6, #9333ea)',
-  slate:    'linear-gradient(135deg, #475569, #64748b)',
-  pink:     'linear-gradient(135deg, #ec4899, #f472b6)',
-};
-
-const ACCENT_SWATCH_DARK = {
-  ocean:    'linear-gradient(135deg, #38bdf8, #67e8f9)',
-  graphite: 'linear-gradient(135deg, #5eead4, #94a3b8)',
-  sunrise:  'linear-gradient(135deg, #fdba74, #f472b6)',
-  red:      'linear-gradient(135deg, #f87171, #fb7185)',
-  yellow:   'linear-gradient(135deg, #fde047, #fbbf24)',
-  purple:   'linear-gradient(135deg, #a78bfa, #c084fc)',
-  slate:    'linear-gradient(135deg, #94a3b8, #cbd5e1)',
-  pink:     'linear-gradient(135deg, #f472b6, #fbcfe8)',
-};
+function paletteSwatch(id, mode) {
+  const { bg, accent } = PALETTES[id][mode];
+  return `linear-gradient(135deg, ${bg} 0 50%, ${accent} 50% 100%)`;
+}
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2';
 
@@ -94,14 +72,14 @@ export default function Sidebar({
 }) {
   const visibleNavItems = NAV_ITEMS;
   const { preference, resolvedTheme, setPreference } = useTheme();
-  const { accent, setAccent } = useAccent();
+  const { palette, setPalette } = usePalette();
   const { user, logoutMutation } = useAuth();
   const { authEnabled } = useAuthConfig();
   const navigate = useNavigate();
   const [accentOpen, setAccentOpen] = useState(false);
 
   const isDark = resolvedTheme === 'dark';
-  const swatchMap = isDark ? ACCENT_SWATCH_DARK : ACCENT_SWATCH;
+  const swatchMode = isDark ? 'dark' : 'light';
 
   const accountLabel = user?.email
     ?? (user?.role
@@ -179,7 +157,7 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() => setAccentOpen((o) => !o)}
-              aria-label="Open theme and accent settings"
+              aria-label="Open theme and palette settings"
               className={clsx(
                 'flex items-center justify-center w-10 h-10 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
                 FOCUS_RING,
@@ -190,19 +168,21 @@ export default function Sidebar({
             {accentOpen && (
               <div className="absolute left-full bottom-0 ml-2 z-20 bg-hc-panel border border-hc-panel-border rounded-lg p-3 shadow-lg flex flex-col gap-2 min-w-[160px]">
                 <div className="flex flex-wrap gap-1">
-                  {STYLES.map(({ id, label }) => (
+                  {PALETTE_OPTIONS.map(({ id, label }) => (
                     <button
                       key={id}
                       type="button"
-                      onClick={() => setAccent(id)}
-                      aria-label={`${label} accent`}
+                      onClick={() => setPalette(id)}
+                      aria-label={`${label} palette`}
+                      aria-pressed={palette === id}
+                      title={label}
                       style={{
-                        background: swatchMap[id],
-                        outline: accent === id ? `2px solid var(--hc-accent-strong)` : undefined,
-                        outlineOffset: accent === id ? '2px' : undefined,
-                        opacity: accent === id ? 1 : 0.7,
+                        background: paletteSwatch(id, swatchMode),
+                        outline: palette === id ? `2px solid var(--hc-accent-strong)` : undefined,
+                        outlineOffset: palette === id ? '2px' : undefined,
+                        opacity: palette === id ? 1 : 0.7,
                       }}
-                      className={clsx('w-5 h-5 rounded-full', FOCUS_RING)}
+                      className={clsx('w-5 h-5 rounded-full border border-hc-panel-border', FOCUS_RING)}
                     />
                   ))}
                 </div>
@@ -238,7 +218,7 @@ export default function Sidebar({
                 <button
                   type="button"
                   onClick={() => setAccentOpen((o) => !o)}
-                  aria-label={accentOpen ? 'Hide accent colors' : 'Show accent colors'}
+                  aria-label={accentOpen ? 'Hide palettes' : 'Show palettes'}
                   aria-expanded={accentOpen}
                   className={clsx(
                     'flex items-center justify-center w-8 h-8 rounded-lg text-hc-muted hover:bg-hc-interactive transition-colors',
@@ -266,19 +246,21 @@ export default function Sidebar({
             </div>
             {accentOpen && (
               <div className="flex items-center gap-1 transition-all">
-                {STYLES.map(({ id, label }) => (
+                {PALETTE_OPTIONS.map(({ id, label }) => (
                   <button
                     key={id}
                     type="button"
-                    onClick={() => setAccent(id)}
-                    aria-label={`${label} accent`}
+                    onClick={() => setPalette(id)}
+                    aria-label={`${label} palette`}
+                    aria-pressed={palette === id}
+                    title={label}
                     style={{
-                      background: swatchMap[id],
-                      outline: accent === id ? `2px solid var(--hc-accent-strong)` : undefined,
-                      outlineOffset: accent === id ? '2px' : undefined,
-                      opacity: accent === id ? 1 : 0.7,
+                      background: paletteSwatch(id, swatchMode),
+                      outline: palette === id ? `2px solid var(--hc-accent-strong)` : undefined,
+                      outlineOffset: palette === id ? '2px' : undefined,
+                      opacity: palette === id ? 1 : 0.7,
                     }}
-                    className={clsx('w-5 h-5 rounded-full', FOCUS_RING)}
+                    className={clsx('w-5 h-5 rounded-full border border-hc-panel-border', FOCUS_RING)}
                   />
                 ))}
               </div>

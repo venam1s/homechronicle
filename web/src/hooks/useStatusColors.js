@@ -30,7 +30,7 @@ export function useStatusColors() {
     const observer = new MutationObserver(() => {
       setColors(readStatusColors());
     });
-    observer.observe(el, { attributes: true, attributeFilter: ['class', 'data-accent'] });
+    observer.observe(el, { attributes: true, attributeFilter: ['class', 'data-palette'] });
     // Read once on mount in case theme changed before observer attached.
     setColors(readStatusColors());
     return () => observer.disconnect();

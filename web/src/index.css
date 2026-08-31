@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./palettes.css";
 
 @custom-variant dark (&:where(.theme-dark, .theme-dark *));
 
@@ -179,120 +180,10 @@
     --hc-danger-border: rgba(220, 38, 38, 0.25);
   }
 
-  html[data-accent='ocean'] {
-    --hc-accent-rgb: 37, 99, 235;
-    --hc-accent-soft: #dbeafe;
-    --hc-accent-strong: #1d4ed8;
-    --hc-accent-stronger: #1e40af;
-    --hc-glow-1: rgba(59, 130, 246, 0.16);
-    --hc-glow-2: rgba(6, 182, 212, 0.12);
-  }
-
-  html[data-accent='graphite'] {
-    --hc-accent-rgb: 20, 184, 166;
-    --hc-accent-soft: #ccfbf1;
-    --hc-accent-strong: #0f766e;
-    --hc-accent-stronger: #115e59;
-    --hc-glow-1: rgba(15, 118, 110, 0.12);
-    --hc-glow-2: rgba(51, 65, 85, 0.2);
-  }
-
-  html[data-accent='sunrise'] {
-    --hc-accent-rgb: 234, 88, 12;
-    --hc-accent-soft: #ffedd5;
-    --hc-accent-strong: #c2410c;
-    --hc-accent-stronger: #9a3412;
-    --hc-glow-1: rgba(249, 115, 22, 0.16);
-    --hc-glow-2: rgba(236, 72, 153, 0.11);
-  }
-
-  html[data-accent='red'] {
-    --hc-accent-rgb: 220, 38, 38;
-    --hc-accent-soft: #fee2e2;
-    --hc-accent-strong: #b91c1c;
-    --hc-accent-stronger: #991b1b;
-    --hc-glow-1: rgba(239, 68, 68, 0.16);
-    --hc-glow-2: rgba(251, 113, 133, 0.11);
-  }
-
-  html[data-accent='yellow'] {
-    --hc-accent-rgb: 202, 138, 4;
-    --hc-accent-soft: #fef9c3;
-    --hc-accent-strong: #a16207;
-    --hc-accent-stronger: #854d0e;
-    --hc-glow-1: rgba(245, 158, 11, 0.16);
-    --hc-glow-2: rgba(234, 179, 8, 0.11);
-  }
-
-  html[data-accent='purple'] {
-    --hc-accent-rgb: 147, 51, 234;
-    --hc-accent-soft: #ede9fe;
-    --hc-accent-strong: #7e22ce;
-    --hc-accent-stronger: #6b21a8;
-    --hc-glow-1: rgba(168, 85, 247, 0.16);
-    --hc-glow-2: rgba(129, 140, 248, 0.11);
-  }
-
-  html[data-accent='slate'] {
-    --hc-accent-rgb: 71, 85, 105;
-    --hc-accent-soft: #e2e8f0;
-    --hc-accent-strong: #475569;
-    --hc-accent-stronger: #1e293b;
-    --hc-glow-1: rgba(71, 85, 105, 0.16);
-    --hc-glow-2: rgba(100, 116, 139, 0.11);
-  }
-
-  html[data-accent='pink'] {
-    --hc-accent-rgb: 236, 72, 153;
-    --hc-accent-soft: #fdf2f8;
-    --hc-accent-strong: #ec4899;
-    --hc-accent-stronger: #be185d;
-    --hc-glow-1: rgba(236, 72, 153, 0.16);
-    --hc-glow-2: rgba(219, 39, 119, 0.11);
-  }
-
-  html.theme-dark[data-accent='graphite'] {
-    --hc-glow-1: rgba(20, 184, 166, 0.09);
-    --hc-glow-2: rgba(100, 116, 139, 0.12);
-  }
-
-  html.theme-dark[data-accent='sunrise'] {
-    --hc-glow-1: rgba(249, 115, 22, 0.11);
-    --hc-glow-2: rgba(244, 63, 94, 0.08);
-  }
-
-  html.theme-dark[data-accent='red'] {
-    --hc-glow-1: rgba(248, 113, 113, 0.1);
-    --hc-glow-2: rgba(251, 113, 133, 0.08);
-  }
-
-  html.theme-dark[data-accent='yellow'] {
-    --hc-glow-1: rgba(250, 204, 21, 0.1);
-    --hc-glow-2: rgba(234, 179, 8, 0.08);
-  }
-
-  html.theme-dark[data-accent='purple'] {
-    --hc-glow-1: rgba(196, 181, 253, 0.1);
-    --hc-glow-2: rgba(167, 139, 250, 0.08);
-  }
-
-  html.theme-dark[data-accent='slate'] {
-    --hc-accent-rgb: 148, 163, 184;
-    --hc-accent-soft: #1e293b;
-    --hc-accent-strong: #94a3b8;
-    --hc-accent-stronger: #cbd5e1;
-    --hc-glow-1: rgba(148, 163, 184, 0.1);
-    --hc-glow-2: rgba(112, 128, 144, 0.08);
-  }
-
-  html.theme-dark[data-accent='pink'] {
-    --hc-accent-rgb: 236, 72, 153;
-    --hc-accent-soft: #500724;
-    --hc-accent-strong: #ec4899;
-    --hc-accent-stronger: #db2777;
-    --hc-glow-1: rgba(236, 72, 153, 0.1);
-    --hc-glow-2: rgba(219, 39, 119, 0.08);
-  }
+  /* Palette token blocks (12 worlds x light/dark) are generated into
+     palettes.css from src/lib/palettes.js — see the @import at the top of
+     this file. The pre-v0.4 html[data-accent='...'] blocks lived here and
+     were replaced by html[data-palette='...'] in v0.4. */
 }
 
 /* Mobile sheet drawer -- always mounted when isMobile, CSS class drives open/close */
@@ -790,16 +681,35 @@
    property is ignored per element type. The palette is a balanced mid-tone
    set chosen to stay legible on BOTH light and dark panels, so it does not
    need per-theme overrides. Slot 8 is the muted 'Other' bucket. */
-:root {
-  --hc-cat-0: #3b82f6;
-  --hc-cat-1: #f59e0b;
-  --hc-cat-2: #10b981;
-  --hc-cat-3: #ec4899;
-  --hc-cat-4: #8b5cf6;
-  --hc-cat-5: #14b8a6;
-  --hc-cat-6: #f97316;
-  --hc-cat-7: #06b6d4;
-  --hc-cat-8: #94a3b8;
+/* Pre-hydration fallback only. The real values come from palettes.css, which
+   defines --hc-cat-0..8 and --hc-room-1..9 per palette; these defaults just
+   cover the instant before usePalette sets data-palette on <html>.
+
+   This block MUST stay inside @layer base. It previously sat unlayered, which
+   meant it beat every layered palette block regardless of specificity and
+   pinned all chart categories to the old fixed blue/amber/emerald set. */
+@layer base {
+  :root {
+    --hc-cat-0: #078e7e;
+    --hc-cat-1: #c05a36;
+    --hc-cat-2: #3d64a8;
+    --hc-cat-3: #bf9426;
+    --hc-cat-4: #96549c;
+    --hc-cat-5: #5f9440;
+    --hc-cat-6: #b03a68;
+    --hc-cat-7: #5a5ab5;
+    --hc-cat-8: #2f8f6b;
+
+    --hc-room-1: #078e7e;
+    --hc-room-2: #c05a36;
+    --hc-room-3: #3d64a8;
+    --hc-room-4: #bf9426;
+    --hc-room-5: #96549c;
+    --hc-room-6: #5f9440;
+    --hc-room-7: #b03a68;
+    --hc-room-8: #5a5ab5;
+    --hc-room-9: #2f8f6b;
+  }
 }
 .hc-cat-0 { fill: var(--hc-cat-0) !important; background-color: var(--hc-cat-0); }
 .hc-cat-1 { fill: var(--hc-cat-1) !important; background-color: var(--hc-cat-1); }
