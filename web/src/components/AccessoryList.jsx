@@ -119,7 +119,7 @@ export default function AccessoryList({ onSelectAccessory }) {
 
   return (
     <div className="space-y-6">
-      <details className="bg-hc-panel rounded-xl shadow-sm border border-hc-panel-border overflow-hidden group">
+      <details className="bg-hc-panel rounded-xl border border-hc-panel-border overflow-hidden group">
         <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between select-none">
           <div>
             <p className="text-sm font-semibold text-hc-fg-strong">Legend</p>
@@ -204,7 +204,7 @@ export default function AccessoryList({ onSelectAccessory }) {
             </h2>
           </div>
           <div
-            className="bg-hc-panel rounded-xl shadow-sm divide-y divide-hc-panel-border overflow-hidden"
+            className="bg-hc-panel rounded-xl border border-hc-panel-border divide-y divide-hc-panel-border overflow-hidden"
             style={roomColor ? { borderLeft: `3px solid ${roomColor.dot}` } : {}}
           >
             {rows.map((row) => {

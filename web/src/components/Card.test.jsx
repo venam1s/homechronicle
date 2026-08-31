@@ -6,13 +6,15 @@ describe('Card', () => {
   it('Test 1: renders children inside a div with correct base classes', () => {
     render(<Card><p>Hello</p></Card>);
     const card = screen.getByText('Hello').parentElement;
-    expect(card).toHaveClass('bg-hc-panel', 'rounded-xl', 'shadow-sm', 'overflow-hidden');
+    // v0.4: a hairline border replaced the drop shadow.
+    expect(card).toHaveClass('bg-hc-panel', 'rounded-xl', 'border', 'border-hc-panel-border', 'overflow-hidden');
+    expect(card.className).not.toContain('shadow');
   });
 
   it('Test 2: accepts and applies additional className prop via clsx', () => {
     render(<Card className="mt-4 w-full"><p>Styled</p></Card>);
     const card = screen.getByText('Styled').parentElement;
-    expect(card).toHaveClass('bg-hc-panel', 'rounded-xl', 'shadow-sm', 'overflow-hidden', 'mt-4', 'w-full');
+    expect(card).toHaveClass('bg-hc-panel', 'rounded-xl', 'border', 'border-hc-panel-border', 'overflow-hidden', 'mt-4', 'w-full');
   });
 
   it('Test 3: Card.Header renders title text with correct classes', () => {

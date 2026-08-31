@@ -46,4 +46,32 @@ describe('DashboardPanel', () => {
     );
     expect(container.firstChild.className).toMatch(/bg-hc-panel/);
   });
+
+  // DASH-09: in view mode a panel is a ruled section — each panel component
+  // supplies its own title, so the wrapper must not add a second one. In edit
+  // mode the wrapper's handle is the only place the title appears.
+  it('shows no wrapper title in view mode and one while editing', () => {
+    const { rerender } = render(<DashboardPanel title="Daily Activity" body={<p>body</p>} />);
+    expect(screen.queryByText('Daily Activity')).toBeNull();
+
+    rerender(<DashboardPanel title="Daily Activity" body={<p>body</p>} editing />);
+    expect(screen.getByText('Daily Activity')).toBeInTheDocument();
+  });
+
+  it('carries a hairline border rather than a drop shadow', () => {
+    const { container } = render(<DashboardPanel title="T" body={<p>body</p>} />);
+    const root = container.firstChild;
+    expect(root.className).toContain('border-hc-panel-border');
+    expect(root.className).not.toContain('shadow');
+  });
+
+  // A `bare` panel is transparent in view mode, which would make it invisible
+  // as a drag target; edit mode has to outline it like any other.
+  it('outlines a bare panel while editing even though it is transparent', () => {
+    const { container, rerender } = render(<DashboardPanel title="T" body={<p>body</p>} bare />);
+    expect(container.firstChild.className).not.toContain('ring-');
+
+    rerender(<DashboardPanel title="T" body={<p>body</p>} bare editing />);
+    expect(container.firstChild.className).toContain('ring-');
+  });
 });

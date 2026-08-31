@@ -72,7 +72,7 @@ export default function DashboardPage({
       <div className="flex items-center justify-between gap-3 px-1">
         {/* Left: range window + sync toggle */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-hc-panel border border-hc-panel-border rounded-lg p-0.5 shadow-sm">
+          <div className="flex items-center gap-1 bg-hc-panel border border-hc-panel-border rounded-lg p-0.5">
             {DASHBOARD_WINDOWS.map(({ label, days }) => (
               <button
                 key={days}

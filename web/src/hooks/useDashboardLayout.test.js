@@ -124,6 +124,28 @@ describe('useDashboardLayout', () => {
     }
   });
 
+  // DASH-03 / v0.4: the Almanac restyle reordered the DEFAULT arrangement. A
+  // user who has already arranged their dashboard must not have it rearranged
+  // underneath them — defaults are consulted only for panels absent from
+  // storage, never to correct panels that are present.
+  it('leaves a stored layout untouched when the default arrangement changes', () => {
+    const stored = {
+      lg: PANEL_IDS.map((id, i) => ({ i: id, x: 0, y: i * 3, w: 12, h: 3 })),
+      sm: PANEL_IDS.map((id, i) => ({ i: id, x: 0, y: i * 3, w: 1, h: 3 })),
+    };
+    window.localStorage.setItem('hc_dashboard_layouts', JSON.stringify(stored));
+
+    const { result } = renderHook(() => useDashboardLayout(), { wrapper: makeWrapper() });
+
+    // Every stored position survives verbatim — no snapping to the new defaults.
+    for (const item of stored.lg) {
+      const loaded = result.current.layouts.lg.find((l) => l.i === item.i);
+      expect(loaded, `${item.i} missing after load`).toBeDefined();
+      expect({ x: loaded.x, y: loaded.y, w: loaded.w }, `${item.i} moved`)
+        .toEqual({ x: item.x, y: item.y, w: item.w });
+    }
+  });
+
   it('adds newly-registered panels missing from a stored layout (upgrade migration)', () => {
     // Simulate an older saved layout that predates a panel being added.
     const partial = defaultLayouts();

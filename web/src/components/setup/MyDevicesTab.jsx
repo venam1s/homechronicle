@@ -306,7 +306,7 @@ export default function MyDevicesTab({ setup }) {
         </button>
       </div>
 
-      <div className="bg-hc-panel rounded-xl shadow-sm divide-y divide-hc-panel-border">
+      <div className="bg-hc-panel rounded-xl border border-hc-panel-border divide-y divide-hc-panel-border">
 
         {/* HomeKit paired accessories */}
         {paired.map((acc) => {

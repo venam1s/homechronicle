@@ -21,16 +21,21 @@ export const GRID_MARGIN = [16, 16];
 // (KPI tiles, the self-carded live feed and room breakdown), so the grid
 // wrapper stays transparent to avoid a card-in-card look.
 export const PANELS = [
+  // v0.4 default arrangement follows the Almanac reading order: the headline
+  // numbers, then the thirty-day shape, then the shape of a day, then notes,
+  // then what is happening now, then devices, deep history, and outliers last.
+  // Changing these defaults does NOT disturb a saved layout — sanitizeLayouts
+  // only consults them for panels absent from storage (DASH-03).
   { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 0,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
-  { id: 'quietHours',     title: 'Quiet Hours',         lg: { x: 0, y: 2,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
-  { id: 'trend',          title: 'Daily Activity',      lg: { x: 0, y: 4,  w: 12, h: 5 }, minW: 4, minH: 3 },
-  { id: 'hourly',         title: 'Events by Hour',      lg: { x: 0, y: 9,  w: 6,  h: 4 }, minW: 3, minH: 3 },
-  { id: 'rooms',          title: 'Events by Room',      lg: { x: 6, y: 9,  w: 6,  h: 4 }, minW: 3, minH: 3 },
-  { id: 'topDevices',     title: 'Most Active Devices', lg: { x: 0, y: 13, w: 6,  h: 5 }, minW: 3, minH: 3 },
-  { id: 'weekdayHeatmap', title: 'Weekly Pattern',      lg: { x: 6, y: 13, w: 6,  h: 5 }, minW: 3, minH: 3 },
-  { id: 'monthlyHeatmap', title: 'Monthly Activity',    lg: { x: 0, y: 18, w: 12, h: 4 }, minW: 4, minH: 3 },
-  { id: 'activityFeed',   title: 'Live Activity',       lg: { x: 0, y: 22, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
-  { id: 'roomBreakdown',  title: 'Rooms',               lg: { x: 6, y: 22, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
+  { id: 'trend',          title: 'Daily Activity',      lg: { x: 0, y: 2,  w: 12, h: 5 }, minW: 4, minH: 3 },
+  { id: 'hourly',         title: 'Events by Hour',      lg: { x: 0, y: 7,  w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'rooms',          title: 'Events by Room',      lg: { x: 6, y: 7,  w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'quietHours',     title: 'Quiet Hours',         lg: { x: 0, y: 11, w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
+  { id: 'activityFeed',   title: 'Live Activity',       lg: { x: 0, y: 13, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
+  { id: 'roomBreakdown',  title: 'Rooms',               lg: { x: 6, y: 13, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
+  { id: 'topDevices',     title: 'Most Active Devices', lg: { x: 0, y: 19, w: 6,  h: 5 }, minW: 3, minH: 3 },
+  { id: 'weekdayHeatmap', title: 'Weekly Pattern',      lg: { x: 6, y: 19, w: 6,  h: 5 }, minW: 3, minH: 3 },
+  { id: 'monthlyHeatmap', title: 'Monthly Activity',    lg: { x: 0, y: 24, w: 12, h: 4 }, minW: 4, minH: 3 },
   { id: 'anomalies',      title: 'Active Outliers',     lg: { x: 0, y: 28, w: 6,  h: 4 }, minW: 3, minH: 3 },
   { id: 'staleDevices',   title: 'Stale Devices',       lg: { x: 6, y: 28, w: 6,  h: 4 }, minW: 3, minH: 3 },
   // Optional panels — hidden by default; power users opt in via the "+ Add" tray.
@@ -46,7 +51,7 @@ export const PANELS = [
   { id: 'batteryLevels',     title: 'Battery Levels',     lg: { x: 6, y: 47, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'recentEpisodes',    title: 'Recent Episodes',    lg: { x: 0, y: 51, w: 6,  h: 5 }, minW: 3, minH: 4, optional: true },
   { id: 'retentionHealth',   title: 'Retention Health',   lg: { x: 6, y: 51, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
-  { id: 'eventTypeBreakdown', title: 'Event Types',       lg: { x: 0, y: 55, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
+  { id: 'eventTypeBreakdown', title: 'Event Types',       lg: { x: 0, y: 56, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
 ];
 
 export const PANEL_IDS = PANELS.map((p) => p.id);

@@ -352,7 +352,7 @@ export default function AdminAdvancedSection({ setup }) {
                       className={clsx(
                         'px-2 py-1 text-xs rounded transition-colors',
                         dangerPairFilter === key
-                          ? `bg-hc-panel ${color} shadow-sm`
+                          ? `bg-hc-panel ${color} border border-hc-panel-border`
                           : 'text-hc-muted hover:text-hc-fg',
                       )}
                     >

@@ -31,8 +31,12 @@ const DashboardPanel = forwardRef(function DashboardPanel(
         'flex flex-col overflow-hidden rounded-xl',
         // `bare` panels host components that draw their own card(s) (KPI tiles,
         // the live feed), so the wrapper stays transparent to avoid card-in-card.
-        !bare && 'bg-hc-panel shadow-sm',
-        editing && 'ring-1 ring-hc-accent-strong/40',
+        // v0.4: hairline border rather than a drop shadow, matching Card.
+        !bare && 'bg-hc-panel border border-hc-panel-border',
+        // In edit mode every panel gets a visible outline — including `bare`
+        // ones, which are otherwise invisible as drop targets.
+        editing && 'ring-2 ring-hc-accent-strong/50',
+        editing && bare && 'bg-hc-panel/40',
         className,
       )}
       {...rest}

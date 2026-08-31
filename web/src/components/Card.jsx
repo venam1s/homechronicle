@@ -1,8 +1,15 @@
 import clsx from 'clsx';
 
+/**
+ * Card — the app's standard raised surface.
+ *
+ * v0.4: a hairline border replaces the drop shadow. The Almanac look is built
+ * from ruled edges rather than floating cards, and a shadow tuned for a light
+ * theme reads as grey haze on the darker palettes.
+ */
 export default function Card({ children, className }) {
   return (
-    <div className={clsx('bg-hc-panel rounded-xl shadow-sm overflow-hidden', className)}>
+    <div className={clsx('bg-hc-panel rounded-xl border border-hc-panel-border overflow-hidden', className)}>
       {children}
     </div>
   );

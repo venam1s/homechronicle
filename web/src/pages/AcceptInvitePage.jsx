@@ -34,7 +34,7 @@ function getReasonCopy(reason) {
 function InviteCardShell({ children }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-hc-bg px-4">
-      <div className="bg-hc-panel border border-hc-panel-border rounded-xl shadow-sm w-full max-w-sm p-6 space-y-6">
+      <div className="bg-hc-panel border border-hc-panel-border rounded-xl w-full max-w-sm p-6 space-y-6">
         <div className="flex justify-center">
           <BrandLogo className="h-10" />
         </div>
@@ -173,7 +173,7 @@ export default function AcceptInvitePage() {
   // valid === true — show the account-creation form (unchanged behavior)
   return (
     <div className="min-h-screen flex items-center justify-center bg-hc-bg px-4">
-      <div className="bg-hc-panel border border-hc-panel-border rounded-xl shadow-sm w-full max-w-sm p-6 space-y-6">
+      <div className="bg-hc-panel border border-hc-panel-border rounded-xl w-full max-w-sm p-6 space-y-6">
         <div className="flex justify-center">
           <BrandLogo className="h-10" />
         </div>

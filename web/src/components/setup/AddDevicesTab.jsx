@@ -188,7 +188,7 @@ export default function AddDevicesTab({ setup, onSwitchTab }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* ── HomeKit Card ──────────────────────────────────────────────── */}
-        <div className="bg-hc-panel rounded-xl shadow-sm p-4 space-y-3 border border-hc-panel-border">
+        <div className="bg-hc-panel rounded-xl p-4 space-y-3 border border-hc-panel-border">
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-hc-fg-strong">HomeKit</h3>
@@ -566,7 +566,7 @@ function MatterCard({
   }
 
   return (
-    <div className="bg-hc-panel rounded-xl shadow-sm p-4 space-y-3 border border-hc-panel-border">
+    <div className="bg-hc-panel rounded-xl p-4 space-y-3 border border-hc-panel-border">
       <div>
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-hc-fg-strong">Matter</h3>

@@ -98,3 +98,53 @@ describe('dashboardPanels registry', () => {
     expect(defaultLayoutItem('does-not-exist')).toBeNull();
   });
 });
+
+// -- v0.4 dashboard restyle additions --
+
+describe('v0.4 default arrangement', () => {
+  // DASH-01: these ids are persisted in every user's saved layout. Renaming or
+  // dropping one silently discards that panel from their dashboard on load.
+  it('still contains all 24 registered panels, ids unchanged', () => {
+    expect(PANEL_IDS).toEqual([
+      'kpis', 'trend', 'hourly', 'rooms', 'quietHours', 'activityFeed',
+      'roomBreakdown', 'topDevices', 'weekdayHeatmap', 'monthlyHeatmap',
+      'anomalies', 'staleDevices',
+      'weekOverWeek', 'healthDonut', 'alertsSummary', 'topMovers', 'dayNight',
+      'quietCompliance', 'roomSparklines', 'sensorEnvironment', 'batteryLevels',
+      'recentEpisodes', 'retentionHealth', 'eventTypeBreakdown',
+    ]);
+  });
+
+  // react-grid-layout silently pushes overlapping items down, so a bad default
+  // never looks broken — it just isn't the layout that was declared. This
+  // caught recentEpisodes running into eventTypeBreakdown at row 55.
+  it('declares a default lg layout with no overlapping panels', () => {
+    const occupied = new Map();
+    const overlaps = [];
+    for (const panel of PANELS) {
+      const { x, y, w, h } = panel.lg;
+      for (let cx = x; cx < x + w; cx += 1) {
+        for (let cy = y; cy < y + h; cy += 1) {
+          const key = `${cx},${cy}`;
+          if (occupied.has(key)) overlaps.push(`${panel.id} overlaps ${occupied.get(key)}`);
+          else occupied.set(key, panel.id);
+        }
+      }
+    }
+    expect([...new Set(overlaps)]).toEqual([]);
+  });
+
+  // DASH-04: the Almanac reading order — headline numbers, the thirty-day
+  // shape, then the shape of a day.
+  it('opens with the headline numbers, then the trend, then the day', () => {
+    const core = PANELS.filter((p) => !p.optional).map((p) => p.id);
+    expect(core.slice(0, 4)).toEqual(['kpis', 'trend', 'hourly', 'rooms']);
+    expect(PANELS.find((p) => p.id === 'kpis').lg.y).toBe(0);
+  });
+
+  it('lays the core panels out above the optional ones', () => {
+    const lastCore = Math.max(...PANELS.filter((p) => !p.optional).map((p) => p.lg.y + p.lg.h));
+    const firstOptional = Math.min(...PANELS.filter((p) => p.optional).map((p) => p.lg.y));
+    expect(firstOptional).toBeGreaterThanOrEqual(lastCore);
+  });
+});

@@ -105,7 +105,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
 
   // When embedded as a grid panel, fill the cell (like ActivityFeed/RoomBreakdown)
   // so the unused bottom of the panel's row span doesn't show through as a gap.
-  const card = `bg-hc-panel rounded-xl shadow-sm p-4 sm:p-5${embedded ? ' h-full flex flex-col' : ''}`;
+  const card = `bg-hc-panel rounded-xl border border-hc-panel-border p-4 sm:p-5${embedded ? ' h-full flex flex-col' : ''}`;
 
   const header = (
     <div className="flex items-center gap-2 mb-3">
