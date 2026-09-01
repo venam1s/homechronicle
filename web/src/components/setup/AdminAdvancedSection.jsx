@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AlertTriangle, ChevronDown, Loader, Loader2, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
@@ -40,9 +40,40 @@ export default function AdminAdvancedSection({ setup }) {
   const [matterDeleteError, setMatterDeleteError] = useState({});
 
   const logLevelCurrent = logLevelConfig?.level ?? 'info';
-  const dangerPairedCount = dbAccessories.filter((a) => Boolean(a.paired_at)).length;
-  const dangerUnpairedCount = dbAccessories.length - dangerPairedCount;
-  const visibleDangerAccessories = dbAccessories.filter((a) => {
+
+  // GET /api/accessories returns one row per (accessory_id, service_type) pair — an
+  // accessory_id can carry more than one service_type (e.g. a firmware-revision-change
+  // event tagged 'AccessoryInformation' alongside its normal service events), which
+  // would otherwise render as duplicate rows sharing one React key below. DELETE
+  // /api/data/accessory removes history for a whole accessory_id at once, so this list
+  // must show exactly one row per accessory_id — collapse duplicates, summing event
+  // counts and keeping the most-recently-seen row's display fields.
+  //
+  // The same endpoint also re-lists a just-deleted accessory_id (via its neverSeen/
+  // discovered fallbacks) with event_count: 0 as soon as the delete succeeds and the
+  // list refetches. Since this section's purpose is deleting *stored event history*,
+  // only accessories that currently have history are relevant here — filtering to
+  // event_count > 0 keeps a deleted accessory from reappearing in this list.
+  const deletableAccessories = useMemo(() => {
+    const byId = new Map();
+    for (const acc of dbAccessories) {
+      const prev = byId.get(acc.accessory_id);
+      if (!prev) {
+        byId.set(acc.accessory_id, { ...acc });
+        continue;
+      }
+      const prevSeen = prev.last_seen ? new Date(prev.last_seen).getTime() : 0;
+      const accSeen = acc.last_seen ? new Date(acc.last_seen).getTime() : 0;
+      const merged = accSeen >= prevSeen ? { ...acc } : prev;
+      merged.event_count = (prev.event_count ?? 0) + (acc.event_count ?? 0);
+      byId.set(acc.accessory_id, merged);
+    }
+    return [...byId.values()].filter((a) => (a.event_count ?? 0) > 0);
+  }, [dbAccessories]);
+
+  const dangerPairedCount = deletableAccessories.filter((a) => Boolean(a.paired_at)).length;
+  const dangerUnpairedCount = deletableAccessories.length - dangerPairedCount;
+  const visibleDangerAccessories = deletableAccessories.filter((a) => {
     if (dangerPairFilter === 'paired') return Boolean(a.paired_at);
     if (dangerPairFilter === 'unpaired') return !a.paired_at;
     return true;
@@ -338,11 +369,11 @@ export default function AdminAdvancedSection({ setup }) {
               This only removes logged data — it does not unpair accessories.
             </p>
 
-            {dbAccessories.length > 0 && (
+            {deletableAccessories.length > 0 && (
               <div className="px-4 py-2 border-b border-hc-panel-border">
                 <div className="inline-flex items-center gap-1 rounded-lg bg-hc-panel-soft/50 p-1">
                   {[
-                    { key: 'all', label: `All (${dbAccessories.length})`, color: 'text-hc-fg' },
+                    { key: 'all', label: `All (${deletableAccessories.length})`, color: 'text-hc-fg' },
                     { key: 'paired', label: `Paired (${dangerPairedCount})`, color: 'text-hc-success-text' },
                     { key: 'unpaired', label: `No longer paired (${dangerUnpairedCount})`, color: 'text-hc-danger-text' },
                   ].map(({ key, label, color }) => (
@@ -363,7 +394,7 @@ export default function AdminAdvancedSection({ setup }) {
               </div>
             )}
 
-            {dbAccessories.length === 0 ? (
+            {deletableAccessories.length === 0 ? (
               <p className="px-4 py-4 text-xs text-hc-muted italic">No accessory data in the database.</p>
             ) : visibleDangerAccessories.length === 0 ? (
               <p className="px-4 py-4 text-xs text-hc-muted italic">No accessories match this filter.</p>
@@ -402,6 +433,10 @@ export default function AdminAdvancedSection({ setup }) {
                                 if (retentionConfig?.toastsEnabled !== false) {
                                   addToast('Accessory deleted', 'success');
                                 }
+                              },
+                              onError: (err) => {
+                                setConfirmDeleteAccessory(null);
+                                addToast(err?.message ?? 'Could not delete accessory history.', 'error');
                               },
                             })}
                             disabled={isDeleting}

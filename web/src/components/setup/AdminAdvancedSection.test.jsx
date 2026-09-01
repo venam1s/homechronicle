@@ -104,4 +104,79 @@ describe('AdminAdvancedSection', () => {
     await userEvent.click(screen.getByText('Yes, remove'));
     expect(deletePairingMutation.mutate).toHaveBeenCalledWith('acc-1', expect.anything());
   });
+
+  it('collapses duplicate accessory_id rows (different service_type) into a single delete-history row', async () => {
+    renderSection(makeSetup({
+      dbAccessories: [
+        {
+          accessory_id: 'acc-multi',
+          accessory_name: 'Ceiling Fan',
+          service_type: 'Fan',
+          event_count: 5,
+          last_seen: '2026-08-01T00:00:00Z',
+          paired_at: '2026-01-01T00:00:00Z',
+        },
+        {
+          accessory_id: 'acc-multi',
+          accessory_name: 'Ceiling Fan',
+          service_type: 'AccessoryInformation',
+          event_count: 2,
+          last_seen: '2026-08-02T00:00:00Z',
+          paired_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }));
+    await userEvent.click(screen.getByText('Danger Zone'));
+    // Only one row for the shared accessory_id, not two
+    expect(screen.getAllByText('Ceiling Fan')).toHaveLength(1);
+    expect(screen.getByText('All (1)')).toBeInTheDocument();
+  });
+
+  it('excludes accessories with zero event history from the delete-history list (deleted accessories should not resurrect)', async () => {
+    renderSection(makeSetup({
+      dbAccessories: [
+        {
+          accessory_id: 'acc-deleted',
+          accessory_name: 'Resurrected Device',
+          service_type: null,
+          event_count: 0,
+          last_seen: null,
+          paired_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+    }));
+    await userEvent.click(screen.getByText('Danger Zone'));
+    expect(screen.queryByText('Resurrected Device')).not.toBeInTheDocument();
+    expect(screen.getByText('No accessory data in the database.')).toBeInTheDocument();
+  });
+
+  it('clears confirm state and shows an error toast when deleting accessory history fails', async () => {
+    const deleteAccessoryMutation = {
+      mutate: vi.fn((_id, { onError }) => onError(new Error('Rate limited'))),
+      isPending: false,
+    };
+    renderSection(makeSetup({
+      dbAccessories: [
+        {
+          accessory_id: 'acc-fail',
+          accessory_name: 'Kitchen Sensor',
+          service_type: 'Sensor',
+          event_count: 3,
+          last_seen: '2026-08-01T00:00:00Z',
+          paired_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+      deleteAccessoryMutation,
+    }));
+    await userEvent.click(screen.getByText('Danger Zone'));
+    await userEvent.click(screen.getByText('Delete history'));
+    await userEvent.click(screen.getByText('Yes, delete'));
+
+    expect(deleteAccessoryMutation.mutate).toHaveBeenCalledWith('acc-fail', expect.anything());
+    // Error toast surfaced
+    expect(await screen.findByText('Rate limited')).toBeInTheDocument();
+    // Confirm state cleared — row reverts to the plain "Delete history" button, not stuck confirming
+    expect(screen.getByText('Delete history')).toBeInTheDocument();
+    expect(screen.queryByText('Delete history? This cannot be undone.')).not.toBeInTheDocument();
+  });
 });
