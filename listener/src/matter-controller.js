@@ -189,6 +189,35 @@ let controller = null;
 let controllerReady = false;
 
 /**
+ * Point matter.js's storage at `path`, and prove it took.
+ *
+ * Exported ONLY so a test can exercise it against the real matter.js, because
+ * this line is what broke: matter.js 0.16 let you assign
+ * `storageService.location = path`; 0.17 made it getter-only, so the
+ * assignment throws "Cannot set property location of #<StorageService> which
+ * has only a getter" and the listener crash-loops on boot. The spec-drift
+ * guard did not catch it — it checked that the APIs RESOLVE, not that the
+ * controller can actually initialise.
+ *
+ * The path must be set on the environment BEFORE the service is resolved.
+ * The read-back is not ceremony: a silently-ignored path would send the
+ * fabric to the wrong directory, which loses every commissioned node.
+ *
+ * @returns {string} the location matter.js actually adopted
+ */
+export function configureStorage(environment, path) {
+  environment.vars.set('storage.path', path);
+  const storageService = environment.get(StorageService);
+  if (storageService.location !== path) {
+    throw new Error(
+      `[matter-controller] storage path not applied: wanted ${path}, got ${storageService.location}. `
+      + 'matter.js may have changed how storage is configured again.',
+    );
+  }
+  return storageService.location;
+}
+
+/**
  * Initialize and start the CommissioningController.
  * Call once at application startup.
  */
@@ -205,9 +234,7 @@ export async function initController() {
   }
 
   // Configure storage path.
-  const storageService = environment.get(StorageService);
-  storageService.location = STORAGE_PATH;
-  log.info(`[matter-controller] Storage: ${STORAGE_PATH}`);
+  log.info(`[matter-controller] Storage: ${configureStorage(environment, STORAGE_PATH)}`);
 
   // Use a stable ID so the controller remembers commissioned nodes across restarts.
   // A timestamp-based ID would create a new fabric namespace on every restart,

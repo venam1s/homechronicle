@@ -76,3 +76,48 @@ describe('matter.js controller API lifecycle', () => {
     );
   });
 });
+
+/**
+ * Boot path.
+ *
+ * The spec-drift checks above verify that matter.js still EXPORTS what we
+ * import. That is not the same as the controller still being able to start,
+ * and the difference cost a crash-looping beta: matter.js 0.17 made
+ * StorageService.location getter-only, so `storageService.location = path`
+ * threw on boot. Every test passed, because no test ever ran the boot path.
+ *
+ * These exercise the real matter.js, not a mock.
+ */
+describe('Matter controller boot path', () => {
+  test('storage path is applied through the environment and reads back', async () => {
+    const { Environment } = await import('@matter/main');
+    const { configureStorage } = await import('../src/matter-controller.js');
+
+    // Environment.default deliberately, because that is what initController
+    // uses: a fresh `new Environment()` has no filesystem storage driver
+    // registered and reports "(off filesystem)", so it would not exercise the
+    // code path that actually broke. Restored afterwards.
+    const env = Environment.default;
+    const previous = env.vars.get('storage.path');
+    const path = '/tmp/homechronicle-matter-storage-test';
+    try {
+      assert.equal(configureStorage(env, path), path);
+    } finally {
+      if (previous !== undefined) env.vars.set('storage.path', previous);
+    }
+  });
+
+  test('a storage path that does not take is a loud failure, not a silent one', async () => {
+    const { Environment } = await import('@matter/main');
+    const { configureStorage } = await import('../src/matter-controller.js');
+
+    // An environment with no filesystem driver cannot adopt a path — it
+    // reports "(off filesystem)". That stands in for any future revision that
+    // ignores the setting. Sending the fabric to the wrong directory loses
+    // every commissioned node, so this must throw rather than carry on.
+    await assert.rejects(
+      async () => configureStorage(new Environment('no-filesystem'), '/tmp/homechronicle-never-applied'),
+      /storage path not applied/,
+    );
+  });
+});
