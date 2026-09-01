@@ -17,19 +17,16 @@ import cookieParser from 'cookie-parser';
 import supertest from 'supertest';
 import { hashToken, generateToken, secureTokenEquals } from '../src/security.js';
 import { extractBearerToken } from '../src/utils.js';
+// The REAL list, not a copy: these files each kept their own and both had
+// drifted from index.js (missing /api/auth/config and /api/auth/invite-status).
+import { PUBLIC_AUTH_PATHS } from '../src/public-paths.js';
+import { readFileSync } from 'node:fs';
 
 // ---------------------------------------------------------------------------
 // Gate factory — mirrors the gate in index.js exactly.
 // Keep in sync with index.js when the gate implementation changes.
 // ---------------------------------------------------------------------------
 
-const PUBLIC_AUTH_PATHS = new Set([
-  '/api/auth/login',
-  '/api/auth/claim-admin',
-  '/api/auth/csrf-token',
-  '/api/auth/user-count',
-  '/api/health',
-]);
 
 /**
  * Build the async session gate middleware.
@@ -337,4 +334,49 @@ test('gate AUTH_ENABLED=true: API_TOKEN fallback — valid token no session → 
 
   assert.equal(res.status, 200, 'valid API_TOKEN must authorize (AUTH-08 not weakened)');
   assert.equal(res.body.hcSession, null, 'req.hcSession must NOT be set via token-only path');
+});
+
+// ---------------------------------------------------------------------------
+// The public path list itself
+// ---------------------------------------------------------------------------
+
+test('the update check is reachable without a session', async () => {
+  // Requested deliberately: the endpoint reports gitlab.com's published
+  // release tags, which are public information and say nothing about this
+  // instance. It answers from a 12h cache, so anonymous traffic hits memory
+  // rather than making the box issue outbound requests on demand.
+  assert.ok(PUBLIC_AUTH_PATHS.has('/api/updates/latest'));
+
+  const pool = createMockPool();
+  const app = buildApp({ AUTH_ENABLED: true, API_TOKEN: 'secret', pool });
+  app.get('/api/updates/latest', (_req, res) => res.json({ enabled: true, releases: [] }));
+
+  const res = await supertest(app).get('/api/updates/latest');
+  assert.equal(res.status, 200, 'anonymous GET should pass the gate');
+});
+
+test('making it public did not open anything else', async () => {
+  // Exact match only — no prefix or wildcard behaviour that could expose a
+  // sibling route.
+  assert.equal(PUBLIC_AUTH_PATHS.has('/api/updates'), false);
+
+  const pool = createMockPool();
+  const app = buildApp({ AUTH_ENABLED: true, API_TOKEN: 'secret', pool });
+  for (const path of ['/api/data', '/api/updates']) {
+    // eslint-disable-next-line no-await-in-loop
+    const res = await supertest(app).get(path);
+    assert.equal(res.status, 401, `${path} must still require auth`);
+  }
+});
+
+test('index.js uses the shared list rather than an inline copy', () => {
+  // The copies in this file and auth-gate-empty-token.test.js had ALREADY
+  // drifted from index.js, both missing /api/auth/config and
+  // /api/auth/invite-status. One list, imported everywhere.
+  const src = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.ok(
+    !/const PUBLIC_AUTH_PATHS\s*=\s*new Set\(/.test(src),
+    'index.js must import PUBLIC_AUTH_PATHS, not redeclare it',
+  );
+  assert.ok(src.includes("from './public-paths.js'"));
 });

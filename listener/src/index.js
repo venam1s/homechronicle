@@ -22,6 +22,7 @@ import { createStatsRouter } from './stats-router.js';
 import { createAccessoriesRouter } from './accessories-router.js';
 import { createHealthRouter } from './health-router.js';
 import { createUpdatesRouter } from './updates-router.js';
+import { PUBLIC_AUTH_PATHS } from './public-paths.js';
 import { createSetupRouter } from './setup-router.js';
 import { createRepairScheduler } from './repair-scheduler.js';
 import { performPairSetupAndPersist } from './repair-helpers.js';
@@ -542,18 +543,8 @@ app.use('/api/auth', createAuthPublicRouter({
 }));
 
 // -- Auth gate: token-OR-session-OR-public (AUTH_ENABLED-aware) --
-// PUBLIC_AUTH_PATHS are exempt from the gate by position (public auth router
-// is mounted before this middleware). These paths are also listed here so the
-// gate correctly passes them even when mounted after a catch-all router.
-const PUBLIC_AUTH_PATHS = new Set([
-  '/api/auth/login',
-  '/api/auth/claim-admin',
-  '/api/auth/config',
-  '/api/auth/csrf-token',
-  '/api/auth/user-count',
-  '/api/auth/invite-status',
-  '/api/health',
-]);
+// The exempt paths live in ./public-paths.js so the tests can import the real
+// list instead of keeping a copy (they had already drifted).
 
 // Express 5 propagates async errors natively — no try/catch wrapper needed.
 app.use(async (req, res, next) => {

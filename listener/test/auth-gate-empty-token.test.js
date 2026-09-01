@@ -22,14 +22,10 @@ import cookieParser from 'cookie-parser';
 import supertest from 'supertest';
 import { hashToken, generateToken, secureTokenEquals } from '../src/security.js';
 import { extractBearerToken } from '../src/utils.js';
+// The REAL list, not a copy: these files each kept their own and both had
+// drifted from index.js (missing /api/auth/config and /api/auth/invite-status).
+import { PUBLIC_AUTH_PATHS } from '../src/public-paths.js';
 
-const PUBLIC_AUTH_PATHS = new Set([
-  '/api/auth/login',
-  '/api/auth/claim-admin',
-  '/api/auth/csrf-token',
-  '/api/auth/user-count',
-  '/api/health',
-]);
 
 // Gate factory — byte-identical to index.js / gate.test.js. Keep in sync.
 function makeGate({ AUTH_ENABLED, API_TOKEN, API_TOKEN_READS_ENABLED = false, pool }) {
