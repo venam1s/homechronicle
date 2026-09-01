@@ -13,32 +13,52 @@ import { createAlertsSettingsRouter } from '../src/alerts-settings-router.js';
 function makeApp(initial = { defaultQuietMinutes: 0, webhookTimeoutMs: 5000 }) {
   let settings = { ...initial };
   const app = express();
-  app.use(express.json());
+  // No express.json(): requests are driven in-process with `body` already
+  // populated, so there is no stream for a body parser to read.
   app.use('/api/setup', createAlertsSettingsRouter({
     getSettings: () => ({ ...settings }),
     saveSettings: async (s) => { settings = { ...s }; },
     onSettingsChange: () => {},
     // The real router mounts an admin guard and a rate limiter; both are
-    // pass-throughs here so the tests exercise the validation logic itself.
+    // pass-throughs here so these tests exercise the validation itself.
     requireAdminSession: (req, res, next) => next(),
     writeLimiter: (req, res, next) => next(),
   }));
   return { app, read: () => settings };
 }
 
-async function patch(app, body) {
-  const server = app.listen(0);
-  await new Promise((r) => server.once('listening', r));
-  try {
-    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/setup/alerts`, {
+/**
+ * Drive the router in-process rather than over a socket.
+ *
+ * An earlier version of this file opened a real `app.listen(0)` server per
+ * assertion. It passed locally and broke CI: the runner is capped at 2 CPUs,
+ * node --test parallelises across files, and six extra listening sockets were
+ * enough to perturb a timing-sensitive reconnect test in a different file.
+ * Express handlers are just functions — there is no reason to involve TCP.
+ */
+function patch(app, body) {
+  return new Promise((resolve, reject) => {
+    const req = {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    return { status: res.status, body: await res.json().catch(() => null) };
-  } finally {
-    server.close();
-  }
+      url: '/api/setup/alerts',
+      originalUrl: '/api/setup/alerts',
+      headers: { 'content-type': 'application/json' },
+      body,
+      // Express reads these off the request even for a handler that never
+      // touches the network.
+      socket: { remoteAddress: '127.0.0.1' },
+      connection: { remoteAddress: '127.0.0.1' },
+    };
+    const res = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { resolve({ status: this.statusCode, body: payload }); return this; },
+      setHeader() { return this; },
+      getHeader() { return undefined; },
+      end() { resolve({ status: this.statusCode, body: null }); },
+    };
+    app.handle(req, res, (err) => (err ? reject(err) : resolve({ status: 404, body: null })));
+  });
 }
 
 describe('alerts settings router', () => {
