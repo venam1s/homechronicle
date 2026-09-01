@@ -203,7 +203,7 @@ If `docker compose pull` fails:
 
 ### Webhooks not firing
 
-- Verify `ALERTS_ENABLED=true` in `.env`
+- Verify the rule itself is enabled (each rule has its own toggle — there is no global alerts switch)
 - Check that your rule is enabled: `GET /api/alerts/rules`
 - Check the delivery log: `GET /api/alerts/deliveries` — look for `failed` or `suppressed` status
 - If status is `suppressed`, the quiet period hasn't elapsed yet

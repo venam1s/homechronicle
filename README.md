@@ -97,7 +97,7 @@ homechronicle can send webhook notifications when device events match rules you 
 ### Enabling Alerts
 
 1. Open **Manage > Settings** in the web UI.
-2. Under **Alerts & Quiet Hours**, toggle alerts on.
+2. Under **Alerts & Quiet Hours**, set the default quiet period if you want one.
 3. Optionally set a **default quiet period** (suppresses duplicate alerts for N minutes after one fires) and a **webhook timeout**.
 
 ### Creating Alert Rules

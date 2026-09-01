@@ -27,11 +27,17 @@ export function createAlertsSettingsRouter({ getSettings, saveSettings, onSettin
       const body = req.body ?? {};
       const updates = {};
 
+      // `enabled` is deliberately NOT accepted. MALERT-07 removed the
+      // household-wide alerts gate when alert rules became per-user: a single
+      // admin switch would silently kill every other user's personal alerts.
+      // The field lingered here afterwards — accepted and persisted, but read
+      // by nothing — so toggling it off told an operator alerts were disabled
+      // while every rule kept firing. Rejecting it is honest; accepting a
+      // setting that does nothing is not.
       if (body.enabled !== undefined) {
-        if (typeof body.enabled !== 'boolean') {
-          return res.status(400).json({ error: 'enabled must be a boolean.' });
-        }
-        updates.enabled = body.enabled;
+        return res.status(400).json({
+          error: 'Alerts are enabled per rule, not household-wide. Disable individual rules instead.',
+        });
       }
 
       if (body.defaultQuietMinutes !== undefined) {
@@ -58,7 +64,7 @@ export function createAlertsSettingsRouter({ getSettings, saveSettings, onSettin
       const next = { ...current, ...updates };
       await saveSettings(next);
       onSettingsChange(next);
-      log.info(`[alerts-settings] Settings updated: enabled=${next.enabled} defaultQuietMinutes=${next.defaultQuietMinutes} webhookTimeoutMs=${next.webhookTimeoutMs}`);
+      log.info(`[alerts-settings] Settings updated: defaultQuietMinutes=${next.defaultQuietMinutes} webhookTimeoutMs=${next.webhookTimeoutMs}`);
       res.json(getSettings());
     } catch (err) {
       log.error('[alerts-settings] PATCH /alerts error:', err.message ?? err.stack ?? err);

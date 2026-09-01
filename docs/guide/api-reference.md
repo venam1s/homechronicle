@@ -31,7 +31,6 @@ No authentication required.
 {
   "status": "ok",
   "paired": 12,
-  "alertsEnabled": false,
   "matter": {
     "commissionConfigured": true,
     "pollingConfigured": true,
@@ -391,7 +390,7 @@ Change log level at runtime (no restart needed).
 
 ## Alerts
 
-Requires `ALERTS_ENABLED=true`.
+Each alert rule carries its own `enabled` flag; there is no global switch.
 
 ### `GET /api/alerts/rules`
 

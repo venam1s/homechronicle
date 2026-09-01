@@ -57,7 +57,7 @@ Number of hours without events before an accessory is marked as "stale" on the d
 
 #### Alert Rules
 
-Alert rules notify you when specific device events occur. Requires `ALERTS_ENABLED=true`. Two delivery channels are available: **webhook** (HTTP POST to any URL) and **email** (requires SMTP — see [Email (SMTP)](email.md)).
+Alert rules notify you when specific device events occur. Each rule is enabled or disabled individually. Two delivery channels are available: **webhook** (HTTP POST to any URL) and **email** (requires SMTP — see [Email (SMTP)](email.md)).
 
 All users can create and manage their own alert rules. For email-channel rules, non-admin users can only send to their own account email address; admins can set any recipient.
 

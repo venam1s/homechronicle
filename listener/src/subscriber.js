@@ -37,6 +37,18 @@ export function setAlertEmailFrom(value) {
   alertEmailFrom = value ?? '';
 }
 
+/**
+ * The current alert "from" address.
+ *
+ * Exposed because alert processing is not HomeKit-specific but this module
+ * owns the address: the Matter runtime needs the same value to run the same
+ * rules. Reading it through a getter rather than copying it keeps one source
+ * of truth, so a later SMTP config change reaches both transports at once.
+ */
+export function getAlertEmailFrom() {
+  return alertEmailFrom;
+}
+
 // Milliseconds before attempting reconnect after a lost connection
 let reconnectBaseMs = Number.parseInt(process.env.RECONNECT_BASE_MS ?? '5000', 10);
 let reconnectMaxMs  = Number.parseInt(process.env.RECONNECT_MAX_MS ?? '60000', 10);

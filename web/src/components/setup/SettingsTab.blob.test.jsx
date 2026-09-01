@@ -113,9 +113,9 @@ function makeSetup(overrides = {}) {
   };
 }
 
-function renderTab(setup, alertsConfig = undefined) {
+function renderTab(setup) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const finalSetup = alertsConfig ? { ...setup, alertsConfig } : setup;
+  const finalSetup = setup;
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>

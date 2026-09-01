@@ -102,7 +102,7 @@ The web frontend is a React single-page application built with Vite and styled w
 | **Timeline** | Chronological event feed grouped by day, with episode grouping for events within 30s of each other |
 | **Accessories** | Device inventory with room grouping, health indicators, and drill-down detail view |
 | **Manage** | Discovery, pairing, room assignment, retention settings, log level |
-| **Alerts** | Rule management and delivery log (visible when `ALERTS_ENABLED=true`) |
+| **Alerts** | Rule management and delivery log |
 
 ### Anomaly Detection (Active Outliers)
 

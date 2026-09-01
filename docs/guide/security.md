@@ -65,7 +65,7 @@ Set `CORS_ALLOW_LOCALHOST=false` to disable the localhost fallback when a custom
 
 ## Webhook Security
 
-When alerts are enabled (`ALERTS_ENABLED=true`), webhook targets are validated:
+Webhook targets are validated when an alert rule is saved:
 
 | Target | Default | Override |
 |--------|---------|----------|

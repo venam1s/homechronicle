@@ -389,3 +389,35 @@ test('accessoryId uses nodeId when no endpointId', () => {
     'Should construct accessoryId correctly',
   );
 });
+
+// --- Alerts run for Matter events too ---
+//
+// processAlertsForEvent was called from exactly one place: subscriber.js, the
+// HomeKit path. matter-runtime inserted events but never ran alert rules, so
+// every rule was silently HomeKit-only and no Matter device could trigger one.
+test('matter-runtime accepts an injected alert processor', () => {
+  assert.ok(
+    source.includes('processAlerts = async () => {}'),
+    'createMatterRuntime should take a processAlerts dependency with an inert default',
+  );
+});
+
+test('a Matter event runs alert rules after it is inserted', () => {
+  assert.ok(
+    source.includes('await processAlerts({'),
+    'ingestRows should run alert rules for each inserted event',
+  );
+  assert.ok(
+    source.includes('eventId: inserted?.id'),
+    'Alerts need the inserted row id, as the HomeKit path passes',
+  );
+});
+
+test('an alert failure does not abort the rest of the batch', () => {
+  // Same reasoning as the per-row insert isolation (M-5): one slow webhook
+  // must not cost us the remaining events in a poll cycle.
+  assert.ok(
+    source.includes("log.error('[alerts] Matter alert processing failed:'"),
+    'Alert failures should be caught and logged, not thrown',
+  );
+});

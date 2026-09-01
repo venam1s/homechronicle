@@ -83,7 +83,6 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 
 | Variable | Default | Used by | Description |
 |---|---|---|---|
-| `ALERTS_ENABLED` | `false` | listener | Enable alert rule processing. |
 | `ALERTS_WEBHOOK_TIMEOUT_MS` | `5000` | listener | Timeout for alert webhook delivery. |
 | `ALERTS_ALLOW_PRIVATE_TARGETS` | `true` | listener | Allow webhook targets on RFC1918/private ranges. Set to `false` to block private IPs. Loopback/link-local targets are always blocked. |
 | `ALERTS_MAX_RULES_PER_USER` | `25` | listener | Max alert rules a single user may own. `POST /api/alerts/rules` returns 400 once reached. |

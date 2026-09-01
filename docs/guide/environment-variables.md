@@ -120,7 +120,6 @@ All SMTP variables are optional. If `SMTP_HOST` or `SMTP_PASS` is not set, email
 
 | Variable | Default | Description |
 |---|---|---|
-| `ALERTS_ENABLED` | `false` | Enable alert rule processing |
 | `ALERTS_WEBHOOK_TIMEOUT_MS` | `5000` | Webhook delivery timeout |
 | `ALERTS_ALLOW_PRIVATE_TARGETS` | `true` | Allow RFC1918 webhook targets (set `false` to block private IPs) |
 | `RECONNECT_BASE_MS` | `5000` | Initial reconnect delay |
@@ -265,5 +264,4 @@ API_TOKEN=<openssl rand -hex 32>
 LISTENER_NETWORK_MODE=host
 LISTENER_HOST=host.docker.internal
 RETENTION_DAYS=365
-ALERTS_ENABLED=true
 ```

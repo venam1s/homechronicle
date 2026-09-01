@@ -26,7 +26,8 @@ import { createRepairScheduler } from './repair-scheduler.js';
 import { performPairSetupAndPersist } from './repair-helpers.js';
 import { createRepairRouter } from './repair-router.js';
 import { createAlertsSettingsRouter } from './alerts-settings-router.js';
-import { setAlertEmailFrom } from './subscriber.js';
+import { setAlertEmailFrom, getAlertEmailFrom } from './subscriber.js';
+import { processAlertsForEvent } from './alerts.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { cached } from './query-cache.js';
@@ -95,7 +96,6 @@ const CORS_ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS ?? '')
 const CORS_ALLOW_LOCALHOST = /^(1|true|yes|on)$/i.test(
   process.env.CORS_ALLOW_LOCALHOST ?? (IS_PRODUCTION ? 'false' : 'true')
 );
-const ALERTS_ENABLED = !/^(0|false|no|off)$/i.test(process.env.ALERTS_ENABLED ?? 'false');
 
 // M-8: warn when loopback origins are reflected with credentials in production.
 // Legitimate production deployments should not reflect localhost origins;
@@ -199,8 +199,10 @@ const repairStore = new JsonObjectStore(REPAIR_FILE, {
   lastRunAt: null,
   lastRunResult: null,
 });
+// No `enabled` key: MALERT-07 made alerts per-RULE rather than household-wide.
+// An alerts-settings.json written before that change may still carry one; it is
+// ignored, and the settings router rejects any attempt to set it.
 const alertsSettingsStore = new JsonObjectStore(ALERTS_SETTINGS_FILE, {
-  enabled: ALERTS_ENABLED,
   defaultQuietMinutes: 0,
   webhookTimeoutMs: 5000,
 });
@@ -266,6 +268,11 @@ await initMatterController();
 matterRuntime = createMatterRuntime({
   insertEvent,
   loadRooms,
+  // Alert processing used to live only in the HomeKit subscriber, so every
+  // alert rule was silently HomeKit-only and no Matter device could ever
+  // trigger one. Both transports now run the same rules against the same
+  // "from" address.
+  processAlerts: (event) => processAlertsForEvent(pool, event, getAlertEmailFrom()),
 });
 
 let retentionSettings = loadRetentionSettings();
@@ -658,7 +665,10 @@ app.use('/api/setup', createAlertsSettingsRouter({
   getSettings: () => alertsSettingsStore.getSnapshot(),
   saveSettings: async (s) => alertsSettingsStore.write(s),
   onSettingsChange: (next) => {
-    log.info(`[alerts-settings] Alerts ${next.enabled ? 'enabled' : 'disabled'}`);
+    // Was `Alerts ${next.enabled ? 'enabled' : 'disabled'}` — there is no
+    // `enabled` key any more (MALERT-07), so it logged "Alerts disabled" on
+    // every single save regardless of state.
+    log.info(`[alerts-settings] Updated: quiet=${next.defaultQuietMinutes}m timeout=${next.webhookTimeoutMs}ms`);
   },
 }));
 

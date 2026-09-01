@@ -100,7 +100,6 @@ docker run -d \
 | `POSTGRES_DB` | `homekit_events` | PostgreSQL database name |
 | `TZ` | `UTC` | Container timezone |
 | `RETENTION_DAYS` | `365` | How long to keep events |
-| `ALERTS_ENABLED` | `false` | Enable webhook alert rules |
 | `DISCOVER_IFACE` | *(auto)* | Force mDNS discovery to a specific network interface (e.g., `bond0`, `eth0`) |
 
 For the full variable reference, see [Environment Variables](environment-variables.md).

@@ -38,7 +38,6 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       API_TOKEN: ${API_TOKEN:-}
       TZ: ${TZ:-UTC}
-      ALERTS_ENABLED: ${ALERTS_ENABLED:-false}
       # TRUST_PROXY is a hop count: the number of proxies between the client and
       # the listener that append to X-Forwarded-For. 1 is correct for this
       # file's single bundled nginx. If a TLS terminator (Traefik, Caddy,

@@ -57,6 +57,12 @@ function normalizePolledEvents(raw) {
 export function createMatterRuntime({
   insertEvent,
   loadRooms,
+  // Runs alert rules against a freshly inserted event. Injected so this module
+  // stays testable, and defaulted so an omitted wiring is inert rather than a
+  // crash — but it MUST be wired in production: alert processing lived only in
+  // the HomeKit subscriber, so every alert rule was silently HomeKit-only and
+  // no Matter device could ever trigger one.
+  processAlerts = async () => {},
 }) {
   const sessions = new Map();
   const valueCache = new Map();
@@ -185,8 +191,22 @@ export function createMatterRuntime({
 
       // eslint-disable-next-line no-await-in-loop
       try {
-        await insertEvent(eventPayload);
+        const inserted = await insertEvent(eventPayload);
         session.lastEventAt = nowIso();
+
+        // Run alert rules, exactly as the HomeKit subscriber does. Failures are
+        // swallowed for the same reason inserts are isolated: a webhook that
+        // times out must not cost us the rest of the batch.
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await processAlerts({
+            ...eventPayload,
+            eventId: inserted?.id,
+            timestamp: inserted?.timestamp ?? nowIso(),
+          });
+        } catch (alertErr) {
+          log.error('[alerts] Matter alert processing failed:', alertErr.message ?? alertErr);
+        }
       } catch (err) {
         // Isolate per-row DB failures: a single bad insert must not abort
         // the remaining events in the polling batch (M-5).

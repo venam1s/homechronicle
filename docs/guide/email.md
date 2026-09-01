@@ -31,7 +31,7 @@ Environment variable values override any settings saved through the UI.
 |---------|---------|
 | User invitations (invite link doubles as email verification) | SMTP + `APP_BASE_URL` |
 | Password reset links | SMTP + `APP_BASE_URL` |
-| Email alert channel | SMTP + `ALERTS_ENABLED=true` |
+| Email alert channel | SMTP configured |
 
 For email alerts, see [Settings](settings.md#alerts).
 

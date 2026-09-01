@@ -56,7 +56,6 @@ Edit `.env` with at minimum:
 | `API_PORT` | `3001` | Port for the listener API |
 | `RETENTION_DAYS` | `365` | How long to keep events |
 | `STALE_THRESHOLD_HOURS` | `12` | Hours without an event before a device is flagged stale |
-| `ALERTS_ENABLED` | `false` | Enable webhook alert rules |
 
 For the full list, see [Environment Variables](environment-variables.md).
 

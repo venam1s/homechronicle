@@ -1172,7 +1172,6 @@ services:
       NODE_ENV: production
       API_TOKEN: replace-with-openssl-rand-hex-32
       TZ: UTC
-      ALERTS_ENABLED: "false"
     volumes:
       - ./listener/data:/app/data
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket:ro

@@ -11,7 +11,7 @@ homechronicle is a self-hosted event log for Apple HomeKit and Matter devices. I
 - **Device management** — discover, pair, and monitor accessories from the web UI
 - **Multi-user accounts** — optional login with invite-only members, admin/member roles, and DB-backed sessions ([details](accounts.md))
 - **Email** — SMTP for user invitations, password resets, and email alert delivery ([details](email.md))
-- **Webhook & email alerts** — get notified when specific events occur (enable with `ALERTS_ENABLED=true`)
+- **Webhook & email alerts** — get notified when specific events occur
 - **Scheduled repair** — daily automated repair cycle for stale HomeKit pairings ([details](devices.md#scheduled-repair))
 - **Firmware tracking** — detects and logs firmware version changes on reconnect ([details](devices.md#firmware-tracking))
 - **Quiet hours** — flag unexpected activity during a defined time window
