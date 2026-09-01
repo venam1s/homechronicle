@@ -6,6 +6,24 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Wait for a condition instead of guessing at a duration.
+ *
+ * A fixed `sleep()` standing in for "the reconnect loop has run N times" is a
+ * race, and it lost twice on CI: the runner is capped at 2 CPUs, only two of
+ * the three reconnect attempts landed inside the window, so the implicit
+ * auto-repair never fired and the count came up 2 instead of 3. Polling the
+ * actual condition is both faster in the normal case and immune to load.
+ */
+async function waitUntil(predicate, { timeoutMs = 5000, label = 'condition' } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return;
+    await sleep(5);
+  }
+  throw new Error(`waitUntil timed out after ${timeoutMs}ms waiting for ${label}`);
+}
+
 test('scheduleReconnect refreshes pairing before reconnecting', async () => {
   __testHooks.resetState();
   __testHooks.setReconnectWindow(5, 20);
@@ -637,7 +655,12 @@ test('full flow: auth errors → with PIN → discovery fails → circuit breake
     savePairing: async () => {},
   });
 
-  await sleep(200);
+  // The reconnect loop must burn all three auth failures and fire the implicit
+  // auto-repair before the two explicit calls below can add up to 3.
+  await waitUntil(
+    () => connectCount >= 3 && getSubscriberStats('e2e-pin-1')?.autoRepairAttempts >= 1,
+    { label: 'three auth failures and the first auto-repair' },
+  );
 
   const session = __testHooks.getSession('e2e-pin-1');
   const pairing = { name: 'E2E Pin Device', pin: '111-22-333', longTermData: {} };
