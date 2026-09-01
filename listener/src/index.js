@@ -21,6 +21,7 @@ import { createArchiveRouter } from './archive-router.js';
 import { createStatsRouter } from './stats-router.js';
 import { createAccessoriesRouter } from './accessories-router.js';
 import { createHealthRouter } from './health-router.js';
+import { createUpdatesRouter } from './updates-router.js';
 import { createSetupRouter } from './setup-router.js';
 import { createRepairScheduler } from './repair-scheduler.js';
 import { performPairSetupAndPersist } from './repair-helpers.js';
@@ -737,6 +738,10 @@ app.use('/api', createAccessoriesRouter({
 
 
 
+
+// Update check. Proxied server-side because the SPA is served with
+// `connect-src 'self'` — the browser cannot reach gitlab.com directly.
+app.use('/api/updates', createUpdatesRouter());
 
 app.use('/api', createHealthRouter({
   pool,

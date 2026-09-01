@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
+import { fetchJson, API_BASE } from '../lib/api.js';
 
-const GITHUB_RELEASES_URL =
-  'https://api.github.com/repos/havuq/homechronicle/releases?per_page=10';
+// Asks our OWN listener, which fetches and caches GitLab's releases server-side
+// (listener/src/updates-router.js). It used to call api.github.com directly,
+// which could never work: the GitHub account is gone so the repo 404s, and the
+// SPA is served with `connect-src 'self'` so the browser is not allowed to
+// reach any third-party origin anyway. Same-origin sidesteps both without
+// loosening the CSP.
+const UPDATES_URL = `${API_BASE}/updates/latest`;
 const CHECK_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
 const DISMISS_KEY = 'hc_update_dismissed';
 
@@ -53,9 +59,8 @@ export function useUpdateCheck(currentBuild) {
 
     async function check() {
       try {
-        const res = await fetch(GITHUB_RELEASES_URL);
-        if (!res.ok) return;
-        const releases = await res.json();
+        const payload = await fetchJson(UPDATES_URL);
+        const releases = payload?.releases;
         if (!Array.isArray(releases) || releases.length === 0) return;
 
         // Determine if the current build is a pre-release (beta)
@@ -66,7 +71,7 @@ export function useUpdateCheck(currentBuild) {
         // - If running stable, only consider stable releases
         let candidate = null;
         for (const release of releases) {
-          const ver = parseVersion(release.tag_name);
+          const ver = parseVersion(release.tag);
           if (!ver) continue;
           if (!runningBeta && ver.pre) continue; // stable users skip betas
           if (!candidate || isNewer(ver, candidate.version)) {
@@ -77,7 +82,7 @@ export function useUpdateCheck(currentBuild) {
         if (!candidate) return;
 
         if (isNewer(candidate.version, currentVersion)) {
-          const tag = candidate.release.tag_name;
+          const tag = candidate.release.tag;
           // Check if user already dismissed this exact version
           try {
             if (window.localStorage.getItem(DISMISS_KEY) === tag) return;
@@ -85,9 +90,9 @@ export function useUpdateCheck(currentBuild) {
 
           setUpdate({
             tag,
-            url: candidate.release.html_url,
+            url: candidate.release.url,
             isPrerelease: candidate.release.prerelease,
-            publishedAt: candidate.release.published_at,
+            publishedAt: candidate.release.publishedAt,
           });
         } else {
           setUpdate(null);
