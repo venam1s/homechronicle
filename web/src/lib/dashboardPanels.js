@@ -26,21 +26,25 @@ export const PANELS = [
   // then what is happening now, then devices, deep history, and outliers last.
   // Changing these defaults does NOT disturb a saved layout — sanitizeLayouts
   // only consults them for panels absent from storage (DASH-03).
-  { id: 'houseSummary',   title: 'House Summary',       lg: { x: 0, y: 0,  w: 12, h: 2 }, minW: 4, minH: 2, maxH: 3, bare: true },
-  { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 2,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
-  { id: 'roomMap',        title: 'Where Things Happen', lg: { x: 0, y: 4,  w: 7,  h: 5 }, minW: 4, minH: 4 },
-  { id: 'rhythmArc',      title: "Today's Rhythm",      lg: { x: 7, y: 4,  w: 5,  h: 5 }, minW: 3, minH: 4 },
-  { id: 'trend',          title: 'Daily Activity',      lg: { x: 0, y: 9,  w: 12, h: 5 }, minW: 4, minH: 3 },
-  { id: 'hourly',         title: 'Events by Hour',      lg: { x: 0, y: 14, w: 6,  h: 4 }, minW: 3, minH: 3 },
-  { id: 'rooms',          title: 'Events by Room',      lg: { x: 6, y: 14, w: 6,  h: 4 }, minW: 3, minH: 3 },
-  { id: 'quietHours',     title: 'Quiet Hours',         lg: { x: 0, y: 18, w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
-  { id: 'activityFeed',   title: 'Live Activity',       lg: { x: 0, y: 20, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
-  { id: 'roomBreakdown',  title: 'Rooms',               lg: { x: 6, y: 20, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
-  { id: 'topDevices',     title: 'Most Active Devices', lg: { x: 0, y: 26, w: 6,  h: 5 }, minW: 3, minH: 3 },
-  { id: 'weekdayHeatmap', title: 'Weekly Pattern',      lg: { x: 6, y: 26, w: 6,  h: 5 }, minW: 3, minH: 3 },
-  { id: 'monthlyHeatmap', title: 'Monthly Activity',    lg: { x: 0, y: 31, w: 12, h: 4 }, minW: 4, minH: 3 },
-  { id: 'anomalies',      title: 'Active Outliers',     lg: { x: 0, y: 35, w: 6,  h: 4 }, minW: 3, minH: 3 },
-  { id: 'staleDevices',   title: 'Stale Devices',       lg: { x: 6, y: 35, w: 6,  h: 4 }, minW: 3, minH: 3 },
+  // h:1, minH:1 — the lede is one heading and one sentence, about 50px. It sat
+  // in a 144px box (h:2) with minH:2, so ~95px was dead space AND the grid
+  // refused to let anyone drag it smaller. maxH:3 still allows growing it if
+  // the sentence wraps on a narrow window.
+  { id: 'houseSummary',   title: 'House Summary',       lg: { x: 0, y: 0,  w: 12, h: 1 }, minW: 4, minH: 1, maxH: 3, bare: true, smH: 2 },
+  { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 1,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
+  { id: 'roomMap',        title: 'Where Things Happen', lg: { x: 0, y: 3,  w: 7,  h: 5 }, minW: 4, minH: 4 },
+  { id: 'rhythmArc',      title: "Today's Rhythm",      lg: { x: 7, y: 3,  w: 5,  h: 5 }, minW: 3, minH: 4 },
+  { id: 'trend',          title: 'Daily Activity',      lg: { x: 0, y: 8,  w: 12, h: 5 }, minW: 4, minH: 3 },
+  { id: 'hourly',         title: 'Events by Hour',      lg: { x: 0, y: 13, w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'rooms',          title: 'Events by Room',      lg: { x: 6, y: 13, w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'quietHours',     title: 'Quiet Hours',         lg: { x: 0, y: 17, w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
+  { id: 'activityFeed',   title: 'Live Activity',       lg: { x: 0, y: 19, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
+  { id: 'roomBreakdown',  title: 'Rooms',               lg: { x: 6, y: 19, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
+  { id: 'topDevices',     title: 'Most Active Devices', lg: { x: 0, y: 25, w: 6,  h: 5 }, minW: 3, minH: 3 },
+  { id: 'weekdayHeatmap', title: 'Weekly Pattern',      lg: { x: 6, y: 25, w: 6,  h: 5 }, minW: 3, minH: 3 },
+  { id: 'monthlyHeatmap', title: 'Monthly Activity',    lg: { x: 0, y: 30, w: 12, h: 4 }, minW: 4, minH: 3 },
+  { id: 'anomalies',      title: 'Active Outliers',     lg: { x: 0, y: 34, w: 6,  h: 4 }, minW: 3, minH: 3 },
+  { id: 'staleDevices',   title: 'Stale Devices',       lg: { x: 6, y: 34, w: 6,  h: 4 }, minW: 3, minH: 3 },
   // Optional panels — hidden by default; power users opt in via the "+ Add" tray.
   { id: 'weekOverWeek',   title: 'Week over Week',      lg: { x: 0, y: 39, w: 12, h: 2 }, minW: 4, minH: 2, maxH: 2, bare: true, optional: true },
   { id: 'healthDonut',    title: 'Device Health',       lg: { x: 0, y: 41, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
@@ -88,7 +92,9 @@ function smLayoutItem(panel, y) {
     x: 0,
     y,
     w: 1,
-    h: panel.lg.h,
+    // `smH` overrides the desktop height for the single-column layout: a lede
+    // that fits one row at 1600px wraps to several lines at phone width.
+    h: panel.smH ?? panel.lg.h,
     minW: 1,
     minH: panel.minH,
     ...(panel.maxH != null ? { maxH: panel.maxH } : {}),
@@ -101,7 +107,7 @@ export function defaultLayouts() {
   let smY = 0;
   const sm = PANELS.map((panel) => {
     const item = smLayoutItem(panel, smY);
-    smY += panel.lg.h;
+    smY += panel.smH ?? panel.lg.h;
     return item;
   });
   return {
@@ -118,6 +124,6 @@ export function defaultLayoutItem(panelId, breakpoint = 'lg') {
   if (index === -1) return null;
   const panel = PANELS[index];
   if (breakpoint !== 'sm') return lgLayoutItem(panel);
-  const y = PANELS.slice(0, index).reduce((acc, p) => acc + p.lg.h, 0);
+  const y = PANELS.slice(0, index).reduce((acc, p) => acc + (p.smH ?? p.lg.h), 0);
   return smLayoutItem(panel, y);
 }

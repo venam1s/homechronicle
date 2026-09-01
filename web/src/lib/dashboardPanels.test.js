@@ -159,3 +159,69 @@ describe('v0.4 default arrangement', () => {
     expect(firstOptional).toBeGreaterThanOrEqual(lastCore);
   });
 });
+
+// -- The lede's height --
+//
+// houseSummary is one heading and one sentence, about 52px. It shipped as h:2
+// with minH:2, which is a 144px box: ~95px of dead space above the fold, and
+// minH:2 meant the grid REFUSED to let anyone drag it smaller. "No matter what
+// I do it doesn't collapse" was the grid enforcing the minimum, not a styling
+// problem.
+describe('house summary lede sizing', () => {
+  const lede = () => PANELS.find((p) => p.id === 'houseSummary');
+
+  it('defaults to a single row', () => {
+    expect(lede().lg.h).toBe(1);
+  });
+
+  it('can be dragged down to a single row', () => {
+    // This is the half that matters for anyone with a saved layout: the new
+    // default never reaches them, but a lower minH lets them collapse it.
+    expect(lede().minH).toBe(1);
+  });
+
+  it('can still be grown when the sentence wraps', () => {
+    expect(lede().maxH).toBeGreaterThan(1);
+  });
+
+  // A row that fits on a 1600px desktop wraps to several lines on a phone,
+  // where the grid is a single narrow column.
+  it('reserves more height in the mobile column', () => {
+    expect(lede().smH).toBe(2);
+    const { sm } = defaultLayouts();
+    expect(sm.find((i) => i.i === 'houseSummary').h).toBe(2);
+  });
+
+  it('keeps the mobile column gap-free with the override applied', () => {
+    const { sm } = defaultLayouts();
+    let y = 0;
+    for (const item of sm) {
+      expect(item.y).toBe(y);
+      y += item.h;
+    }
+  });
+
+  it('still leads the dashboard at the top-left', () => {
+    expect(PANEL_IDS[0]).toBe('houseSummary');
+    expect(lede().lg.y).toBe(0);
+    expect(lede().lg.x).toBe(0);
+  });
+
+  // Shifting the lede up a row moved everything below it; overlapping panels
+  // are silently pushed around by react-grid-layout rather than looking broken.
+  it('leaves no overlaps after the row shift', () => {
+    const occupied = new Map();
+    const overlaps = [];
+    for (const panel of PANELS) {
+      const { x, y, w, h } = panel.lg;
+      for (let cx = x; cx < x + w; cx += 1) {
+        for (let cy = y; cy < y + h; cy += 1) {
+          const key = `${cx},${cy}`;
+          if (occupied.has(key)) overlaps.push(`${panel.id} overlaps ${occupied.get(key)}`);
+          else occupied.set(key, panel.id);
+        }
+      }
+    }
+    expect([...new Set(overlaps)]).toEqual([]);
+  });
+});
