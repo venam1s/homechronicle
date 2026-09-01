@@ -50,6 +50,89 @@ test:
     # / 81s tests.
     - (cd web && npm ci && npm test -- --maxWorkers=2)
 
+# ── Boot smoke ───────────────────────────────────────────────────────────────
+# Starts the listener for real and waits for it to answer /api/health.
+#
+# This exists because on 2026-08-31 the matter.js 0.16 -> 0.17 bump crash-looped
+# beta while all 886 unit tests stayed green. matter.js made
+# StorageService.location getter-only, so `storageService.location = path` threw
+# one line into initController — and nothing in the suite had ever run the boot
+# path. A unit suite proves the parts work; only starting the process proves it
+# starts.
+#
+# `deploy-beta` needs this job, so a commit that cannot boot cannot deploy.
+boot-smoke:
+  stage: test
+  image: node:${NODE_VERSION}-alpine
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $BUILD_TAG && $CI_PIPELINE_SOURCE == "web"
+    - if: $BUILD_TAG && $CI_PIPELINE_SOURCE == "api"
+    - if: $BUILD_TAG && $CI_PIPELINE_SOURCE == "trigger"
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    POSTGRES_USER: homekit
+    POSTGRES_PASSWORD: bootsmoke
+    POSTGRES_DB: homekit_events
+    DATABASE_URL: "postgres://homekit:bootsmoke@postgres:5432/homekit_events"
+    # AUTH_ENABLED=false keeps this a boot check, not an auth fixture. API_TOKEN
+    # is still required in production mode, so it is set to a throwaway value.
+    AUTH_ENABLED: "false"
+    API_TOKEN: "ci-boot-smoke-not-a-real-token"
+    NODE_ENV: production
+    PORT: "3001"
+    MATTER_STORAGE_PATH: "/tmp/matter-storage"
+  cache:
+    - key: listener-$CI_COMMIT_REF_SLUG
+      paths: [listener/node_modules/]
+  before_script:
+    - apk add --no-cache python3 make g++ linux-headers curl
+  script:
+    - cd listener && npm ci
+    # NODE_ENV=production points every JsonObjectStore at /app/data (index.js:66+),
+    # which does not exist in a CI container. Production mode is kept because it
+    # is how the service actually runs; the directory is just created.
+    - mkdir -p /app/data /tmp/matter-storage
+    # Run the entry point directly: `npm start` passes --env-file=../.env,
+    # which does not exist in CI.
+    - node src/index.js > /tmp/boot.log 2>&1 &
+    - echo $! > /tmp/boot.pid
+    - |
+      ok=0
+      for i in $(seq 1 60); do
+        if curl -fsS --max-time 3 "http://127.0.0.1:3001/api/health" >/dev/null 2>&1; then ok=1; break; fi
+        # A process that has already exited will never become healthy.
+        if ! kill -0 "$(cat /tmp/boot.pid)" 2>/dev/null; then
+          echo "LISTENER EXITED DURING BOOT"; break
+        fi
+        sleep 1
+      done
+      echo "──────── listener output ────────"
+      cat /tmp/boot.log
+      echo "─────────────────────────────────"
+      if [ "$ok" != "1" ]; then echo "FAIL: /api/health never answered"; exit 1; fi
+    - |
+      # Still running a moment later: catches a process that answers once and
+      # then dies, which is what a crash loop looks like from outside.
+      sleep 5
+      kill -0 "$(cat /tmp/boot.pid)" 2>/dev/null || { echo "FAIL: listener exited after becoming healthy"; cat /tmp/boot.log; exit 1; }
+    - |
+      if grep -qiE "FATAL|Uncaught exception" /tmp/boot.log; then
+        echo "FAIL: fatal error during boot"; exit 1
+      fi
+    - |
+      # The Matter controller is what broke, and it initialises unconditionally
+      # at index.js:267 — so its start line is the specific evidence that the
+      # regression class is covered.
+      grep -q "Controller started" /tmp/boot.log || { echo "FAIL: Matter controller did not start"; exit 1; }
+    - echo "boot smoke passed"
+  after_script:
+    - kill "$(cat /tmp/boot.pid)" 2>/dev/null || true
+
 # ── SAST (replaces .github/workflows/codeql.yml) ────────────────────────────
 include:
   - template: Jobs/SAST.gitlab-ci.yml
@@ -287,7 +370,7 @@ deploy-beta:
   # and scripts/deploy-beta.sh remains as a manual fallback.
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" && $DOCKHAND_TOKEN'
-  needs: [test]
+  needs: [test, boot-smoke]
   allow_failure: true
   script:
     # LAN address: dh.venamis.net died in the Aug 2026 site move and dh.lan does
