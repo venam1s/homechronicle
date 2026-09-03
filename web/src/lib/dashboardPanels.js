@@ -33,8 +33,15 @@ export const PANELS = [
   // stale stored height (e.g. 2, from before this row shrank) down to 1 for
   // already-onboarded users, not just fresh installs. HouseSummaryPanel.jsx
   // truncates the heading and paragraph to a single line each, so content is
-  // deterministically bounded and never needs to grow past one row — no smH
-  // override needed for mobile either.
+  // deterministically bounded and never needs to grow past one row.
+  // Tradeoff: maxH is a single registry value shared by both breakpoints (see
+  // smLayoutItem), so it can't be 1 on desktop and looser on mobile — the old
+  // smH:2 override that gave phones extra height for wrapped text is gone.
+  // On a narrow phone column the truncated heading/sentence lose more of
+  // their tail than on desktop (same 1-line cap, much less width). Accepted
+  // as a deliberate product tradeoff: the panel is a compact glance, and the
+  // same underlying data (today's count, top room, quiet-hours activity) is
+  // fully available elsewhere on the dashboard (KPI cards, Quiet Hours panel).
   { id: 'houseSummary',   title: 'House Summary',       lg: { x: 0, y: 0,  w: 12, h: 1 }, minW: 4, minH: 1, maxH: 1, bare: true },
   { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 1,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
   { id: 'roomMap',        title: 'Where Things Happen', lg: { x: 0, y: 3,  w: 7,  h: 5 }, minW: 4, minH: 4 },
