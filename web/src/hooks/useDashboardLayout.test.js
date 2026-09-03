@@ -3,7 +3,7 @@ import { renderHook, act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement, useEffect } from 'react';
 import { useDashboardLayout } from './useDashboardLayout.js';
-import { PANEL_IDS, OPTIONAL_PANEL_IDS, defaultLayouts } from '../lib/dashboardPanels.js';
+import { PANEL_IDS, OPTIONAL_PANEL_IDS, PANEL_BY_ID, defaultLayouts } from '../lib/dashboardPanels.js';
 
 const LAYOUTS_KEY_FOR_TEST = 'hc_dashboard_layouts';
 
@@ -178,6 +178,38 @@ describe('useDashboardLayout', () => {
       expect({ x: loaded.x, y: loaded.y, w: loaded.w }, `${item.i} moved`)
         .toEqual({ x: item.x, y: item.y, w: item.w });
     }
+  });
+
+  // Regression: minH/maxH are app-defined resize constraints, not user data. Before
+  // this fix, sanitizeLayouts trusted a stored minH/maxH when present, so a
+  // constraint captured before a release tightened it (e.g. house-summary's minH
+  // going 2 -> 1 in commit 98c4402) would round-trip through localStorage forever —
+  // locking an already-onboarded user out of ever dragging the panel down to the
+  // new, smaller floor, even though a fresh install got it immediately.
+  it('re-derives minH/maxH from the current registry, ignoring a stale stored value', () => {
+    const stored = defaultLayouts();
+    // Simulate a layout saved before minH tightened: houseSummary persisted with
+    // the old (looser) minH:2, one full row taller than what the registry allows now.
+    stored.lg = stored.lg.map((it) =>
+      it.i === 'houseSummary' ? { ...it, h: 2, minH: 2, maxH: 5 } : it,
+    );
+    window.localStorage.setItem('hc_dashboard_layouts', JSON.stringify(stored));
+
+    const { result } = renderHook(() => useDashboardLayout(), { wrapper: makeWrapper() });
+
+    const loaded = result.current.layouts.lg.find((it) => it.i === 'houseSummary');
+    const registry = PANEL_BY_ID.houseSummary;
+    // The resize floor/ceiling reflect the CURRENT registry, not the stale stored
+    // values — so the user is no longer locked out of dragging down to the new floor.
+    expect(loaded.minH).toBe(registry.minH);
+    expect(loaded.maxH).toBe(registry.maxH);
+    // Stored height (genuine user/carried-forward data) is preserved as long as it
+    // still fits inside the current [minH, maxH] window — but the registry's window
+    // for houseSummary is now [1, 1], so a stale stored h:2 no longer fits and gets
+    // clamped down to the new ceiling. This is the exact real-world scenario the
+    // fix targets: an already-onboarded user's oversized box collapses on next load,
+    // with no manual resize required.
+    expect(loaded.h).toBe(registry.maxH);
   });
 
   it('adds newly-registered panels missing from a stored layout (upgrade migration)', () => {

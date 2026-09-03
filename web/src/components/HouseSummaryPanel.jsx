@@ -66,13 +66,17 @@ export default function HouseSummaryPanel() {
 
   return (
     <div className="flex flex-col gap-1 py-1">
-      <h2 className="text-hc-page-title font-semibold text-hc-fg-strong leading-tight">
+      {/* Truncated to one line each: the panel's grid row (h:1, maxH:1) is sized
+          for exactly this — a wrapped second line would overflow the box and
+          produce DashboardPanel's overflow-auto scrollbar instead of the
+          intended "reads as prose" glance. See dashboardPanels.js houseSummary. */}
+      <h2 className="text-hc-page-title font-semibold text-hc-fg-strong leading-tight truncate">
         {greeting(now.getHours())}
         {topRoom
           ? <> — <span className="text-hc-accent-strong">{topRoom.room_name || 'an unnamed room'}</span> is doing most of the talking.</>
           : ' — the house is quiet.'}
       </h2>
-      <p className="text-hc-body text-hc-muted">
+      <p className="text-hc-body text-hc-muted truncate">
         {describeToday(today, yesterday)}
         {quietWindow && (
           quietEvents.length > 0

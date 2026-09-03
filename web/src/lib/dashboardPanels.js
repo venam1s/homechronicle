@@ -26,11 +26,16 @@ export const PANELS = [
   // then what is happening now, then devices, deep history, and outliers last.
   // Changing these defaults does NOT disturb a saved layout — sanitizeLayouts
   // only consults them for panels absent from storage (DASH-03).
-  // h:1, minH:1 — the lede is one heading and one sentence, about 50px. It sat
-  // in a 144px box (h:2) with minH:2, so ~95px was dead space AND the grid
-  // refused to let anyone drag it smaller. maxH:3 still allows growing it if
-  // the sentence wraps on a narrow window.
-  { id: 'houseSummary',   title: 'House Summary',       lg: { x: 0, y: 0,  w: 12, h: 1 }, minW: 4, minH: 1, maxH: 3, bare: true, smH: 2 },
+  // h:1, minH:1, maxH:1 — the lede is one heading and one sentence, about 50px.
+  // It sat in a 144px box (h:2) with minH:2, so ~95px was dead space AND the
+  // grid refused to let anyone drag it smaller. maxH is pinned to 1 (not just
+  // h/minH) so sanitizeLayouts' registry-derived clamp actually collapses a
+  // stale stored height (e.g. 2, from before this row shrank) down to 1 for
+  // already-onboarded users, not just fresh installs. HouseSummaryPanel.jsx
+  // truncates the heading and paragraph to a single line each, so content is
+  // deterministically bounded and never needs to grow past one row — no smH
+  // override needed for mobile either.
+  { id: 'houseSummary',   title: 'House Summary',       lg: { x: 0, y: 0,  w: 12, h: 1 }, minW: 4, minH: 1, maxH: 1, bare: true },
   { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 1,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
   { id: 'roomMap',        title: 'Where Things Happen', lg: { x: 0, y: 3,  w: 7,  h: 5 }, minW: 4, minH: 4 },
   { id: 'rhythmArc',      title: "Today's Rhythm",      lg: { x: 7, y: 3,  w: 5,  h: 5 }, minW: 3, minH: 4 },
@@ -64,12 +69,13 @@ export const PANELS = [
 export const PANEL_IDS = PANELS.map((p) => p.id);
 export const PANEL_TITLES = Object.fromEntries(PANELS.map((p) => [p.id, p.title]));
 export const OPTIONAL_PANEL_IDS = PANELS.filter((p) => p.optional).map((p) => p.id);
-// Per-panel max grid height (rows). Used to clamp stored layouts on load so a
-// previously-saved oversize height (e.g. a panel the user dragged taller before
-// a max was introduced) is corrected down without requiring a manual resize.
-export const PANEL_MAX_H = Object.fromEntries(
-  PANELS.filter((p) => p.maxH != null).map((p) => [p.id, p.maxH]),
-);
+// Lookup by id. minW/minH/maxH are app-defined resize constraints (never something
+// a user sets directly — RGL resize only ever changes x/y/w/h), so callers should
+// always read them from here rather than from a persisted layout blob. See
+// sanitizeLayouts() in useDashboardLayout.js for why: a constraint that tightens in
+// a later release must reach users who already have a saved layout, not just fresh
+// installs.
+export const PANEL_BY_ID = Object.fromEntries(PANELS.map((p) => [p.id, p]));
 
 function lgLayoutItem(panel) {
   return {

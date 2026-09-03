@@ -180,16 +180,22 @@ describe('house summary lede sizing', () => {
     expect(lede().minH).toBe(1);
   });
 
-  it('can still be grown when the sentence wraps', () => {
-    expect(lede().maxH).toBeGreaterThan(1);
+  // Growth was only ever needed because the heading/paragraph could wrap to a
+  // second line. HouseSummaryPanel.jsx now truncates both to one line each, so
+  // content height is bounded and the row never needs to grow past minH — and
+  // maxH is pinned to 1 so sanitizeLayouts' registry-derived clamp actually
+  // collapses a stale stored height for users who already have a saved layout.
+  it('is capped at a single row — content is truncated, never wraps', () => {
+    expect(lede().maxH).toBe(1);
   });
 
-  // A row that fits on a 1600px desktop wraps to several lines on a phone,
-  // where the grid is a single narrow column.
-  it('reserves more height in the mobile column', () => {
-    expect(lede().smH).toBe(2);
+  // Truncated content no longer needs extra height on a narrow phone column —
+  // the smH override existed only to cover multi-line wrapping, which the
+  // truncate classes in HouseSummaryPanel.jsx now prevent.
+  it('uses the same single row on mobile — no smH override needed', () => {
+    expect(lede().smH).toBeUndefined();
     const { sm } = defaultLayouts();
-    expect(sm.find((i) => i.i === 'houseSummary').h).toBe(2);
+    expect(sm.find((i) => i.i === 'houseSummary').h).toBe(1);
   });
 
   it('keeps the mobile column gap-free with the override applied', () => {

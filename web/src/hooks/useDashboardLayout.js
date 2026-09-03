@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   PANEL_IDS,
   OPTIONAL_PANEL_IDS,
-  PANEL_MAX_H,
+  PANEL_BY_ID,
   defaultLayouts,
   defaultLayoutItem,
 } from '../lib/dashboardPanels.js';
@@ -38,19 +38,27 @@ function sanitizeLayouts(stored) {
     const cleaned = arr
       .filter((it) => it && typeof it.i === 'string' && VALID_IDS.has(it.i))
       .map((it) => {
-        // Clamp a stored height down to the panel's registered max (if any) so a
-        // previously-saved oversize layout is corrected on load, and re-assert the
-        // max so RGL keeps enforcing it during this session.
-        const maxH = PANEL_MAX_H[it.i];
-        const h = maxH != null ? Math.min(Number(it.h) || 1, maxH) : (Number(it.h) || 1);
+        // minW/minH/maxH always come from the CURRENT panel registry, never from
+        // the stored blob. These are app-defined resize constraints, not user data
+        // — a user can only ever change x/y/w/h by dragging. Trusting a stored
+        // constraint value means a tightened minH/maxH in a later release never
+        // reaches anyone who already has a saved layout (they keep round-tripping
+        // the old, looser constraint through localStorage forever). Stored height
+        // is still genuinely user data, so it's preserved, just re-clamped into
+        // whatever the current [minH, maxH] window is.
+        const panel = PANEL_BY_ID[it.i];
+        const minH = panel?.minH ?? 1;
+        const maxH = panel?.maxH;
+        const rawH = Number(it.h) || 1;
+        const h = maxH != null ? Math.min(Math.max(rawH, minH), maxH) : Math.max(rawH, minH);
         return {
           i: it.i,
           x: Number(it.x) || 0,
           y: Number(it.y) || 0,
           w: Number(it.w) || 1,
           h,
-          ...(it.minW != null ? { minW: Number(it.minW) } : {}),
-          ...(it.minH != null ? { minH: Number(it.minH) } : {}),
+          ...(panel?.minW != null ? { minW: panel.minW } : {}),
+          minH,
           ...(maxH != null ? { maxH } : {}),
         };
       });
