@@ -1,0 +1,13 @@
+# GSD Debug Knowledge Base
+
+Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypotheses at the start of new investigations.
+
+---
+
+## dashboard-widget-gap — dashboard view mode showed a persistent dead band under the House Summary lede (and stale saved layouts ignored new panel defaults)
+- **Date:** 2026-09-02
+- **Error patterns:** dashboard gap, dead space, house summary, react-grid-layout, panel height, saved layout, localStorage, stale layout, internal scrollbar, overflow-auto, edit mode resize, grid row height, minH, maxH, truncate, line wrap
+- **Root cause:** (1) `sanitizeLayouts()` treated minH/maxH resize constraints as persisted user data (read from the stored localStorage blob) instead of re-deriving them from the current PANELS registry, and only clamped stored `h` down to `maxH` — so when commit 98c4402 shrank houseSummary's default h/minH from 2 to 1 but left maxH at 3, every user with a pre-existing saved layout kept the old oversized h:2 (144px) box forever. (2) HouseSummaryPanel's heading/paragraph had no line-count bound, so real two-clause content wrapped and overflowed a correctly-sized 64px box into DashboardPanel's `overflow-auto` scrollbar. General lesson: registry constraint changes NEVER reach already-onboarded users unless the load path re-derives constraints from code; and per-breakpoint content needs per-breakpoint constraint windows (a shared maxH clamped a correct mobile h:2 down to 1 — the first fix attempt reintroduced the same stale-constraint bug class on the other breakpoint). Also surfaced (unrelated, unfixed): `--font-size-hc-*` is not a Tailwind v4 theme namespace, so text-hc-* font-size utilities are dead app-wide and render at 16px; the row-height math verified here depends on that — fix both together or desktop overflows.
+- **Fix:** `sanitizeLayouts()` now always derives minW/minH/maxH from the current panel registry (per-breakpoint: new `smMinH`/`smMaxH` fields fall back to minH/maxH), clamping stored h into the current window — so shrunken defaults migrate automatically on next load, with react-grid-layout's default vertical compaction closing the visual gap. houseSummary pinned to lg [1,1] and sm [2,2] (smH:2); heading `truncate`, paragraph `line-clamp-2`. Verified in real Chrome (20 width/theme/content combinations, zero scrollbars, gap closure measured on real grid-item coordinates) plus TDD regression tests.
+- **Files changed:** web/src/lib/dashboardPanels.js, web/src/hooks/useDashboardLayout.js, web/src/components/HouseSummaryPanel.jsx, web/src/lib/dashboardPanels.test.js, web/src/hooks/useDashboardLayout.test.js
+---

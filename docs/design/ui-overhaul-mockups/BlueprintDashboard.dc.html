@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; background: #16324c; color: #d8e8f4; font-family: 'Space Mono', 'Courier New', monospace; font-size: 13px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+    a { color: #ffffff; text-decoration: underline; } a:hover { color: #ffd27a; }
+    .cond { font-family: 'Saira Condensed', 'Arial Narrow', Arial, sans-serif; text-transform: uppercase; }
+    .lbl { font-family: 'Saira Condensed', 'Arial Narrow', Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.22em; font-size: 12px; color: #9fbdd4; }
+    .frame { border: 1px solid #6f93b0; }
+    .grid-bg { background-image: linear-gradient(rgba(159, 189, 212, 0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(159, 189, 212, 0.12) 1px, transparent 1px); background-size: 24px 24px; }
+  </style>
+</helmet>
+<div class="grid-bg" style="width: 1440px; min-height: 980px; background-color: #16324c; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 0;">
+  <div class="frame" style="flex-grow: 1; display: flex; flex-direction: column; border-width: 2px; padding: 0;">
+
+    <!-- Top band -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #6f93b0; padding: 12px 20px;">
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <span class="cond" style="font-size: 24px; font-weight: 600; letter-spacing: 0.12em; color: #ffffff;">Home Chronicle</span>
+        <span class="lbl">Dwelling event record · drawing no. HC-0316</span>
+      </div>
+      <div style="display: flex; gap: 28px;" class="lbl">
+        <span style="color: #ffffff; border-bottom: 1px solid #ffffff; padding-bottom: 2px;">Dashboard</span>
+        <span>Devices</span><span>Timeline</span><span>Alerts</span><span>Settings</span>
+      </div>
+      <span style="color: #9fbdd4;">2026-06-16 · 12:41</span>
+    </div>
+
+    <!-- Callout band -->
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid #6f93b0;">
+      <div style="padding: 16px 20px; border-right: 1px solid #6f93b0; display: flex; flex-direction: column; gap: 4px;">
+        <span class="lbl">Events today</span>
+        <span style="font-size: 40px; font-weight: 700; color: #ffffff; line-height: 1;">107</span>
+        <span style="color: #9fbdd4;">Δ −180 vs. yesterday</span>
+      </div>
+      <div style="padding: 16px 20px; border-right: 1px solid #6f93b0; display: flex; flex-direction: column; gap: 4px;">
+        <span class="lbl">This week</span>
+        <span style="font-size: 40px; font-weight: 700; color: #ffffff; line-height: 1;">2,387</span>
+        <span style="color: #9fbdd4;">mean 341 / day</span>
+      </div>
+      <div style="padding: 16px 20px; border-right: 1px solid #6f93b0; display: flex; flex-direction: column; gap: 4px;">
+        <span class="lbl">Detail A · top device</span>
+        <span style="font-size: 22px; color: #ffffff; padding-top: 8px;">WEATHER STATION</span>
+        <span style="color: #9fbdd4;">832 ev · humidity · outside</span>
+      </div>
+      <div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+        <span class="lbl">Fault note</span>
+        <span style="color: #ffd27a; padding-top: 8px;">⚠ G4 WIFI BASEMENT</span>
+        <span style="color: #ffd27a;">pairing lost 3d 1h · <span style="text-decoration: underline;">repair</span></span>
+      </div>
+    </div>
+
+    <!-- Main split -->
+    <div style="display: grid; grid-template-columns: 1.55fr 1fr; flex-grow: 1;">
+      <!-- Left: section chart -->
+      <div style="border-right: 1px solid #6f93b0; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #6f93b0;">
+          <span class="lbl" style="color: #ffffff;">Section A–A · Daily activity, 30 days</span>
+          <span class="lbl">scale 1 div = 200 ev</span>
+        </div>
+        <svg width="830" height="330" viewBox="0 0 830 330" style="margin: 16px 20px 4px 20px;">
+          <g stroke="#3f5f7c" stroke-width="1"><line x1="40" y1="10" x2="820" y2="10"/><line x1="40" y1="75" x2="820" y2="75"/><line x1="40" y1="140" x2="820" y2="140"/><line x1="40" y1="205" x2="820" y2="205"/></g>
+          <line x1="40" y1="270" x2="820" y2="270" stroke="#d8e8f4" stroke-width="1"/>
+          <g font-family="Space Mono, monospace" font-size="10" fill="#9fbdd4"><text x="0" y="14">800</text><text x="0" y="79">600</text><text x="0" y="144">400</text><text x="0" y="209">200</text><text x="0" y="274">0</text></g>
+          <g transform="translate(40,10) scale(0.78,1)">
+            <polyline fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linejoin="round" vector-effect="non-scaling-stroke" points="0.0,165.8 34.5,162.5 69.0,100.8 103.4,123.5 137.9,107.3 172.4,201.5 206.9,123.5 241.4,149.5 275.9,201.5 310.3,247.0 344.8,221.0 379.3,113.8 413.8,162.5 448.3,71.5 482.8,107.3 517.2,110.5 551.7,152.8 586.2,156.0 620.7,120.3 655.2,198.3 689.7,169.0 724.1,143.0 758.6,149.5 793.1,149.5 827.6,162.5 862.1,26.0 896.6,172.3 931.0,201.5 965.5,172.3 1000.0,227.5"/>
+          </g>
+          <g stroke="#ffd27a" stroke-width="1" stroke-dasharray="4 3"><line x1="712" y1="36" x2="712" y2="270"/></g>
+          <circle cx="712" cy="36" r="3.5" fill="none" stroke="#ffd27a" stroke-width="1.5"/>
+          <text x="700" y="24" font-family="Space Mono, monospace" font-size="11" fill="#ffd27a" text-anchor="end">PEAK 718 — JUN 12</text>
+          <g font-family="Space Mono, monospace" font-size="10" fill="#9fbdd4"><text x="40" y="290">MAY 18</text><text x="230" y="290">MAY 25</text><text x="424" y="290">JUN 01</text><text x="616" y="290">JUN 08</text><text x="800" y="290" text-anchor="end">JUN 15</text></g>
+        </svg>
+        <div style="display: flex; justify-content: space-between; padding: 8px 20px 14px 20px; border-top: 1px solid #3f5f7c;">
+          <span class="lbl">Elevation B · events by hour</span>
+          <span style="color: #9fbdd4; font-size: 11px;">peak 11:00 / 903</span>
+        </div>
+        <svg width="830" height="150" viewBox="0 0 830 150" style="margin: 0 20px 16px 20px;">
+          <g transform="translate(40,0) scale(1.5,0.85)" fill="none" stroke="#d8e8f4" stroke-width="1"><rect x="1.0" y="118.5" width="19.7" height="31.5"/><rect x="22.7" y="127.5" width="19.7" height="22.5"/><rect x="44.3" y="123.0" width="19.7" height="27.0"/><rect x="66.0" y="127.5" width="19.7" height="22.5"/><rect x="87.7" y="132.0" width="19.7" height="18.0"/><rect x="109.3" y="129.0" width="19.7" height="21.0"/><rect x="131.0" y="126.0" width="19.7" height="24.0"/><rect x="152.7" y="112.5" width="19.7" height="37.5"/><rect x="174.3" y="105.0" width="19.7" height="45.0"/><rect x="196.0" y="82.5" width="19.7" height="67.5"/><rect x="217.7" y="48.0" width="19.7" height="102.0"/><rect x="239.3" y="15.0" width="19.7" height="135.0" stroke="#ffd27a"/><rect x="261.0" y="52.5" width="19.7" height="97.5"/><rect x="282.7" y="79.5" width="19.7" height="70.5"/><rect x="304.3" y="55.5" width="19.7" height="94.5"/><rect x="326.0" y="75.0" width="19.7" height="75.0"/><rect x="347.7" y="54.0" width="19.7" height="96.0"/><rect x="369.3" y="64.5" width="19.7" height="85.5"/><rect x="391.0" y="57.0" width="19.7" height="93.0"/><rect x="412.7" y="85.5" width="19.7" height="64.5"/><rect x="434.3" y="69.0" width="19.7" height="81.0"/><rect x="456.0" y="69.0" width="19.7" height="81.0"/><rect x="477.7" y="91.5" width="19.7" height="58.5"/><rect x="499.3" y="114.0" width="19.7" height="36.0"/></g>
+          <line x1="40" y1="128" x2="826" y2="128" stroke="#d8e8f4"/>
+          <g font-family="Space Mono, monospace" font-size="10" fill="#9fbdd4"><text x="40" y="145">0000</text><text x="235" y="145">0600</text><text x="430" y="145">1200</text><text x="625" y="145">1800</text><text x="800" y="145" text-anchor="end">2300</text></g>
+        </svg>
+      </div>
+
+      <!-- Right: plan view -->
+      <div style="display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #6f93b0;">
+          <span class="lbl" style="color: #ffffff;">Plan view · events by room, 30 days</span>
+          <span class="lbl">hatch = top room</span>
+        </div>
+        <svg width="520" height="330" viewBox="0 0 520 330" style="margin: 16px 20px;">
+          <defs><pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="7" stroke="#9fbdd4" stroke-width="1"/></pattern></defs>
+          <rect x="10" y="10" width="300" height="200" fill="url(#hatch)" fill-opacity="0.5" stroke="#ffffff" stroke-width="1.5"/>
+          <text x="24" y="38" font-family="Saira Condensed, Arial, sans-serif" font-size="15" letter-spacing="2" fill="#ffffff">OUTSIDE</text>
+          <text x="24" y="60" font-family="Space Mono, monospace" font-size="13" fill="#ffffff">6,688</text>
+          <rect x="310" y="10" width="150" height="120" fill="none" stroke="#d8e8f4" stroke-width="1.5"/>
+          <text x="322" y="34" font-family="Saira Condensed, Arial, sans-serif" font-size="13" letter-spacing="2" fill="#d8e8f4">BASEMENT</text>
+          <text x="322" y="54" font-family="Space Mono, monospace" font-size="12" fill="#d8e8f4">2,042</text>
+          <rect x="310" y="130" width="150" height="80" fill="none" stroke="#d8e8f4" stroke-width="1.5"/>
+          <text x="322" y="152" font-family="Saira Condensed, Arial, sans-serif" font-size="13" letter-spacing="2" fill="#d8e8f4">OFFICE</text>
+          <text x="322" y="172" font-family="Space Mono, monospace" font-size="12" fill="#d8e8f4">752</text>
+          <rect x="10" y="210" width="150" height="70" fill="none" stroke="#d8e8f4" stroke-width="1.5"/>
+          <text x="22" y="232" font-family="Saira Condensed, Arial, sans-serif" font-size="12" letter-spacing="2" fill="#d8e8f4">MEDIA · 149</text>
+          <rect x="160" y="210" width="150" height="70" fill="none" stroke="#d8e8f4" stroke-width="1.5"/>
+          <text x="172" y="232" font-family="Saira Condensed, Arial, sans-serif" font-size="12" letter-spacing="2" fill="#d8e8f4">ENTRANCE · 99</text>
+          <rect x="310" y="210" width="150" height="70" fill="none" stroke="#d8e8f4" stroke-width="1.5"/>
+          <text x="322" y="232" font-family="Saira Condensed, Arial, sans-serif" font-size="12" letter-spacing="2" fill="#d8e8f4">LIVING · 54</text>
+          <line x1="470" y1="10" x2="500" y2="10" stroke="#9fbdd4"/><line x1="470" y1="280" x2="500" y2="280" stroke="#9fbdd4"/>
+          <line x1="485" y1="10" x2="485" y2="280" stroke="#9fbdd4" stroke-dasharray="4 3"/>
+          <text x="492" y="150" font-family="Space Mono, monospace" font-size="10" fill="#9fbdd4" transform="rotate(90 492 150)">AREA ∝ EVENT COUNT</text>
+        </svg>
+        <!-- Title block -->
+        <div style="margin-top: auto; border-top: 1px solid #6f93b0; display: grid; grid-template-columns: 1fr 1fr 1fr;">
+          <div style="padding: 10px 20px; border-right: 1px solid #6f93b0;"><span class="lbl">Sheet</span><div style="color: #ffffff;">1 / 5 — DASHBOARD</div></div>
+          <div style="padding: 10px 20px; border-right: 1px solid #6f93b0;"><span class="lbl">Rev</span><div style="color: #ffffff;">v0.3.1</div></div>
+          <div style="padding: 10px 20px;"><span class="lbl">Checked</span><div style="color: #ffffff;">SYNC 12s AGO</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

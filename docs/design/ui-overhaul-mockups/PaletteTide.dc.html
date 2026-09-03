@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; background: #f1f5f8; color: #17242d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+    a { color: #0e7fa8; text-decoration: none; } a:hover { color: #095e7d; }
+    .serif { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.015em; }
+    .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .caps { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #5f7280; font-weight: 500; }
+    .panel { background: #fafcfd; border: 1px solid #d3dfe7; border-radius: 10px; }
+    .roomblock { border-radius: 10px; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px 14px; color: #fafcfd; }
+    .dot { width: 9px; height: 9px; border-radius: 999px; display: inline-block; }
+  </style>
+</helmet>
+<div style="width: 1440px; min-height: 1150px; background: #f1f5f8; box-sizing: border-box; padding: 28px 56px 40px 56px; display: flex; flex-direction: column;">
+
+  <!-- Masthead -->
+  <div style="display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 14px;">
+    <div style="display: flex; align-items: center; gap: 10px;"><svg width="32" height="27" viewBox="4 8 116 96" fill="none"><path d="M18 45.5L62 12.5C64.6 10.5 68.2 10.5 70.8 12.5L114.8 45.5" stroke="#0e7fa8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 53V84C24 89.5 28.5 94 34 94H100C105.5 94 110 89.5 110 84V53" stroke="#0e7fa8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M40 74L57 57L74 67L91 49" stroke="#0e7fa8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="57" cy="57" r="5.5" fill="#fafcfd" stroke="#0e7fa8" stroke-width="5"/><circle cx="74" cy="67" r="5.5" fill="#fafcfd" stroke="#0e7fa8" stroke-width="5"/><circle cx="91" cy="49" r="5.5" fill="#fafcfd" stroke="#0e7fa8" stroke-width="5"/></svg><span style="font-size: 20px; font-weight: 700;">home<span style="color: #0e7fa8;">chronicle</span></span></div>
+    <div style="display: flex; gap: 36px; font-size: 14px; font-weight: 500;">
+      <span style="border-bottom: 2px solid #17242d; padding-bottom: 2px;">Dashboard</span>
+      <span style="color: #5f7280;">Devices</span>
+      <span style="color: #5f7280;">Timeline</span>
+      <span style="color: #5f7280;">Alerts</span>
+      <span style="color: #5f7280;">Settings</span>
+    </div>
+    <div style="display: flex; gap: 20px; align-items: baseline;">
+      <span class="caps">Tuesday 16 June 2026 · 12:41</span>
+      <span class="mono" style="font-size: 12px; color: #5f7280;">admin</span>
+    </div>
+  </div>
+  <div style="border-top: 2px solid #17242d; border-bottom: 1px solid #17242d; height: 3px;"></div>
+
+  <!-- Editorial deck -->
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; padding: 22px 0 18px 0; border-bottom: 1px solid #d3dfe7;">
+    <div style="display: flex; flex-direction: column; gap: 6px; max-width: 1020px;">
+      <span class="serif" style="font-size: 28px; font-weight: 700; line-height: 1.2;">Tuesday afternoon — the house has been quiet <span style="">since 12:28.</span></span>
+      <span style="font-size: 15px; color: #5f7280;">107 events so far, a slow day — 180 fewer than yesterday. Outside is doing most of the talking. <span style="color: #0e7fa8;">One device has pairing issues</span> · <span style="text-decoration: underline; text-underline-offset: 3px; color: #17242d;">review</span></span>
+    </div>
+    <div style="display: flex; gap: 18px; align-items: baseline; flex-shrink: 0;">
+      <span class="caps">Range</span>
+      <span class="mono" style="font-size: 13px; color: #5f7280;">7d</span>
+      <span class="mono" style="font-size: 13px; border-bottom: 1.5px solid #17242d;">30d</span>
+      <span class="mono" style="font-size: 13px; color: #5f7280;">90d</span>
+      <span class="mono" style="font-size: 12px; color: #5f7280; margin-left: 12px;">synced 12s ago</span>
+    </div>
+  </div>
+
+  <!-- Ledger row -->
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 24px 0 20px 0; border-bottom: 1px solid #d3dfe7;">
+    <div style="display: flex; flex-direction: column; gap: 6px; padding-right: 32px; border-right: 1px solid #d3dfe7;">
+      <span class="caps">Today</span>
+      <div style="display: flex; align-items: baseline; gap: 14px;">
+        <span class="serif" style="font-size: 52px; line-height: 1; font-weight: 700; letter-spacing: -0.03em;">107</span>
+        <span style="font-size: 14px; color: #5f7280;">events</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <svg width="120" height="32" viewBox="0 0 120 32" style="overflow: visible;"><polyline fill="none" stroke="#0e7fa8" stroke-width="1.8" stroke-linejoin="round" points="0.0,24.0 10.9,8.0 21.8,4.0 32.7,16.0 43.6,20.0 54.5,20.0 65.5,18.0 76.4,20.0 87.3,22.0 98.2,24.0 109.1,23.2 120.0,24.8"/></svg>
+        <span class="mono" style="font-size: 12px; color: #0e7fa8;">−180 vs. yesterday</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 0 32px; border-right: 1px solid #d3dfe7;">
+      <span class="caps">This week</span>
+      <span class="serif" style="font-size: 52px; line-height: 1; font-weight: 700; letter-spacing: -0.03em;">2,387</span>
+      <span style="font-size: 13px; color: #5f7280;">last 7 days · avg 341 per day</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 0 32px; border-right: 1px solid #d3dfe7;">
+      <span class="caps">Most active device</span>
+      <span class="serif" style="font-size: 22px; line-height: 1.2; font-weight: 700;">Weather Station</span>
+      <span style="font-size: 13px; color: #5f7280;"><span class="mono">832</span> events · humidity · <span class="dot" style="background: #0e7fa8;"></span> Outside</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; padding-left: 32px;">
+      <span class="caps">Most active room</span>
+      <span class="serif" style="font-size: 22px; line-height: 1.2; font-weight: 700;"><span class="dot" style="background: #0e7fa8; width: 12px; height: 12px; margin-right: 6px;"></span>Outside</span>
+      <span style="font-size: 13px; color: #5f7280;"><span class="mono">1,635</span> events · 3 devices</span>
+    </div>
+  </div>
+
+  <!-- Room map + rhythm -->
+  <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; padding: 22px 0;">
+    <div class="panel" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <span class="serif" style="font-size: 17px; font-weight: 700;">Where things happen</span>
+        <span class="caps">block area ∝ events · 30 days</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: 150px 110px; gap: 8px;">
+        <div class="roomblock" style="background: #0e7fa8; grid-row: span 2;">
+          <span class="serif" style="font-size: 32px; font-weight: 500;">6,688</span>
+          <span style="font-size: 14px; opacity: 0.92;">Outside · Weather Station, 2 cameras</span>
+        </div>
+        <div class="roomblock" style="background: #5f9440;">
+          <span class="serif" style="font-size: 20px; font-weight: 700;">2,042</span>
+          <span style="font-size: 13px; opacity: 0.92;">Basement</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+          <div class="roomblock" style="background: #bf9426; padding: 8px 12px; color: #17242d;">
+            <span class="serif" style="font-size: 16px; font-weight: 700;">752</span>
+            <span style="font-size: 12px;">Office</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="roomblock" style="background: #3d64a8; padding: 6px 12px; flex-grow: 1;"><span style="font-size: 12px;">Media · 149</span></div>
+            <div class="roomblock" style="background: #c05a36; padding: 6px 12px; flex-grow: 1; color: #17242d;"><span style="font-size: 12px;">Entrance 99 · Living 54 · +1</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <span class="serif" style="font-size: 17px; font-weight: 700;">Today’s rhythm</span>
+        <span class="caps">quiet hours 12–5 AM</span>
+      </div>
+      <svg width="430" height="128" viewBox="0 0 430 128" style="overflow: visible;">
+        <path d="M22 112 A190 96 0 0 1 408 112" fill="none" stroke="#e5edf2" stroke-width="12" stroke-linecap="round"/>
+        <path d="M22 112 A190 96 0 0 1 88 38" fill="none" stroke="#3d64a8" stroke-width="12" stroke-linecap="round"/>
+        <path d="M88 38 A190 96 0 0 1 276 21" fill="none" stroke="#bf9426" stroke-width="12" stroke-linecap="round"/>
+        <circle cx="303" cy="25" r="8" fill="#0e7fa8" stroke="#fafcfd" stroke-width="3"/>
+        <g font-family="ui-monospace, SF Mono, Menlo, monospace" font-size="11" fill="#5f7280"><text x="8" y="126">00</text><text x="404" y="126">24</text><text x="215" y="12" text-anchor="middle">noon</text></g>
+        <text x="303" y="54" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-weight="600" font-size="13" fill="#0e7fa8">now · 12:41</text>
+      </svg>
+      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+        <div style="display: flex; gap: 10px; align-items: baseline;"><span class="dot" style="background: #3d64a8; flex-shrink: 0;"></span><span><strong>Quiet hours</strong> — 1 event: the basement remote reported low battery at <span class="mono">00:28</span></span></div>
+        <div style="display: flex; gap: 10px; align-items: baseline;"><span class="dot" style="background: #bf9426; flex-shrink: 0;"></span><span><strong>Morning</strong> — busiest at 11 AM, as usual for this house</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily activity -->
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 6px 0 18px 0; border-top: 1px solid #d3dfe7; border-bottom: 1px solid #d3dfe7;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 16px;">
+      <span class="serif" style="font-size: 17px; font-weight: 700;">The last thirty days</span>
+      <span class="caps">18 May – 16 June · events per day</span>
+    </div>
+    <svg width="1328" height="250" viewBox="0 0 1328 250" style="overflow: visible;">
+      <g class="mono" font-family="ui-monospace, SF Mono, Menlo, monospace" font-size="11" fill="#5f7280">
+        <text x="0" y="14">800</text><text x="0" y="66">600</text><text x="0" y="118">400</text><text x="0" y="170">200</text><text x="0" y="222">0</text>
+      </g>
+      <g stroke="#e2eaf0" stroke-width="1" stroke-dasharray="2 4">
+        <line x1="40" y1="10" x2="1328" y2="10"/><line x1="40" y1="62" x2="1328" y2="62"/><line x1="40" y1="114" x2="1328" y2="114"/><line x1="40" y1="166" x2="1328" y2="166"/>
+      </g>
+      <line x1="40" y1="218" x2="1328" y2="218" stroke="#17242d" stroke-width="1"/>
+      <g transform="translate(40,10) scale(1.288,0.8)">
+        <polyline fill="rgba(14,127,168,0.07)" stroke="none" points="0.0,260 0.0,165.8 34.5,162.5 69.0,100.8 103.4,123.5 137.9,107.3 172.4,201.5 206.9,123.5 241.4,149.5 275.9,201.5 310.3,247.0 344.8,221.0 379.3,113.8 413.8,162.5 448.3,71.5 482.8,107.3 517.2,110.5 551.7,152.8 586.2,156.0 620.7,120.3 655.2,198.3 689.7,169.0 724.1,143.0 758.6,149.5 793.1,149.5 827.6,162.5 862.1,26.0 896.6,172.3 931.0,201.5 965.5,172.3 1000.0,227.5 1000.0,260"/>
+        <polyline fill="none" stroke="#17242d" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke" points="0.0,165.8 34.5,162.5 69.0,100.8 103.4,123.5 137.9,107.3 172.4,201.5 206.9,123.5 241.4,149.5 275.9,201.5 310.3,247.0 344.8,221.0 379.3,113.8 413.8,162.5 448.3,71.5 482.8,107.3 517.2,110.5 551.7,152.8 586.2,156.0 620.7,120.3 655.2,198.3 689.7,169.0 724.1,143.0 758.6,149.5 793.1,149.5 827.6,162.5 862.1,26.0 896.6,172.3 931.0,201.5 965.5,172.3 1000.0,227.5"/>
+      </g>
+      <circle cx="1150" cy="31" r="4.5" fill="#0e7fa8"/>
+      <text x="1162" y="28" font-family="ui-monospace, SF Mono, Menlo, monospace" font-size="11" fill="#0e7fa8">Jun 12 · 718 — peak</text>
+      <g font-family="ui-monospace, SF Mono, Menlo, monospace" font-size="11" fill="#5f7280">
+        <text x="40" y="242">May 18</text><text x="352" y="242">May 25</text><text x="664" y="242">Jun 1</text><text x="976" y="242">Jun 8</text><text x="1290" y="242" text-anchor="end">Jun 15</text>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Two columns -->
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 56px; padding: 20px 0 0 0;">
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <span class="serif" style="font-size: 17px; font-weight: 700;">Events by hour</span>
+        <span class="caps">last 30 days · local</span>
+      </div>
+      <svg width="636" height="188" viewBox="0 0 636 188">
+        <g transform="translate(40,8) scale(1.1417,1)" fill="#c3d3dd"><rect x="1.0" y="118.5" width="19.7" height="31.5" rx="2"/><rect x="22.7" y="127.5" width="19.7" height="22.5" rx="2"/><rect x="44.3" y="123.0" width="19.7" height="27.0" rx="2"/><rect x="66.0" y="127.5" width="19.7" height="22.5" rx="2"/><rect x="87.7" y="132.0" width="19.7" height="18.0" rx="2"/><rect x="109.3" y="129.0" width="19.7" height="21.0" rx="2"/><rect x="131.0" y="126.0" width="19.7" height="24.0" rx="2"/><rect x="152.7" y="112.5" width="19.7" height="37.5" rx="2"/><rect x="174.3" y="105.0" width="19.7" height="45.0" rx="2"/><rect x="196.0" y="82.5" width="19.7" height="67.5" rx="2" fill="#58a8c6"/><rect x="217.7" y="48.0" width="19.7" height="102.0" rx="2" fill="#58a8c6"/><rect x="239.3" y="15.0" width="19.7" height="135.0" rx="2" fill="#0e7fa8"/><rect x="261.0" y="52.5" width="19.7" height="97.5" rx="2" fill="#58a8c6"/><rect x="282.7" y="79.5" width="19.7" height="70.5" rx="2"/><rect x="304.3" y="55.5" width="19.7" height="94.5" rx="2" fill="#58a8c6"/><rect x="326.0" y="75.0" width="19.7" height="75.0" rx="2"/><rect x="347.7" y="54.0" width="19.7" height="96.0" rx="2" fill="#58a8c6"/><rect x="369.3" y="64.5" width="19.7" height="85.5" rx="2"/><rect x="391.0" y="57.0" width="19.7" height="93.0" rx="2" fill="#58a8c6"/><rect x="412.7" y="85.5" width="19.7" height="64.5" rx="2"/><rect x="434.3" y="69.0" width="19.7" height="81.0" rx="2"/><rect x="456.0" y="69.0" width="19.7" height="81.0" rx="2"/><rect x="477.7" y="91.5" width="19.7" height="58.5" rx="2"/><rect x="499.3" y="114.0" width="19.7" height="36.0" rx="2"/></g>
+        <line x1="40" y1="160" x2="636" y2="160" stroke="#17242d" stroke-width="1"/>
+        <g font-family="ui-monospace, SF Mono, Menlo, monospace" font-size="11" fill="#5f7280">
+          <text x="0" y="12">1k</text><text x="0" y="160">0</text>
+          <text x="40" y="180">midnight</text><text x="185" y="180">6am</text><text x="326" y="180">noon</text><text x="470" y="180">6pm</text>
+        </g>
+        <text x="318" y="12" font-family="ui-monospace, SF Mono, Menlo, monospace" font-size="11" fill="#0e7fa8">11am · 903</text>
+      </svg>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <span class="serif" style="font-size: 17px; font-weight: 700;">Events by room</span>
+        <span class="caps">last 30 days</span>
+      </div>
+      <div style="display: flex; flex-direction: column;">
+        <div style="display: grid; grid-template-columns: 170px 1fr 80px 56px; gap: 12px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #17242d;"><span class="caps">Room</span><span></span><span class="caps" style="text-align: right;">Events</span><span class="caps" style="text-align: right;">Share</span></div>
+        <div style="display: grid; grid-template-columns: 170px 1fr 80px 56px; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid #d3dfe7;"><span><span class="dot" style="background: #0e7fa8; margin-right: 8px;"></span>Outside</span><div style="height: 7px; border-radius: 4px; background: #0e7fa8; width: 100%;"></div><span class="mono" style="text-align: right;">6,688</span><span class="mono" style="text-align: right; color: #5f7280;">68%</span></div>
+        <div style="display: grid; grid-template-columns: 170px 1fr 80px 56px; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid #d3dfe7;"><span><span class="dot" style="background: #5f9440; margin-right: 8px;"></span>Basement</span><div style="height: 7px; border-radius: 4px; background: #5f9440; width: 31%;"></div><span class="mono" style="text-align: right;">2,042</span><span class="mono" style="text-align: right; color: #5f7280;">21%</span></div>
+        <div style="display: grid; grid-template-columns: 170px 1fr 80px 56px; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid #d3dfe7;"><span><span class="dot" style="background: #bf9426; margin-right: 8px;"></span>Office</span><div style="height: 7px; border-radius: 4px; background: #bf9426; width: 11%;"></div><span class="mono" style="text-align: right;">752</span><span class="mono" style="text-align: right; color: #5f7280;">8%</span></div>
+        <div style="display: grid; grid-template-columns: 170px 1fr 80px 56px; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid #d3dfe7;"><span><span class="dot" style="background: #3d64a8; margin-right: 8px;"></span>Media Room</span><div style="height: 7px; border-radius: 4px; background: #3d64a8; width: 2.2%;"></div><span class="mono" style="text-align: right;">149</span><span class="mono" style="text-align: right; color: #5f7280;">2%</span></div>
+        <div style="display: grid; grid-template-columns: 170px 1fr 80px 56px; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid #d3dfe7;"><span><span class="dot" style="background: #c05a36; margin-right: 8px;"></span>Entrance</span><div style="height: 7px; border-radius: 4px; background: #c05a36; width: 1.5%;"></div><span class="mono" style="text-align: right;">99</span><span class="mono" style="text-align: right; color: #5f7280;">1%</span></div>
+        <div style="display: grid; grid-template-columns: 170px 1fr 80px 56px; gap: 12px; align-items: center; padding: 7px 0;"><span><span class="dot" style="background: #96549c; margin-right: 8px;"></span>Living Room</span><div style="height: 7px; border-radius: 4px; background: #96549c; width: 0.8%;"></div><span class="mono" style="text-align: right;">54</span><span class="mono" style="text-align: right; color: #5f7280;">1%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: space-between; margin-top: auto; padding-top: 28px;">
+    <span class="mono" style="font-size: 11px; color: #5f7280;">HomeChronicle v0.3.1 · 38 devices · 9,841 events retained</span>
+    <span class="mono" style="font-size: 11px; color: #5f7280;">Light · Dark</span>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

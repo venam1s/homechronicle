@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; background: #f6f0e3; color: #221e19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+    a { color: #c05a36; text-decoration: none; } a:hover { color: #8f3f22; }
+    .serif { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.015em; }
+    .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .caps { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #7a7060; font-weight: 500; }
+    .dot { width: 9px; height: 9px; border-radius: 999px; display: inline-block; flex-shrink: 0; }
+    .entry { display: grid; grid-template-columns: 96px 1fr 210px 150px; gap: 24px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid #ded3bd; }
+    .chip { border: 1px solid #ded3bd; border-radius: 999px; padding: 4px 12px; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; background: #fbf6ea; }
+  </style>
+</helmet>
+<div style="width: 1440px; min-height: 900px; background: #f6f0e3; box-sizing: border-box; padding: 28px 56px 40px 56px; display: flex; flex-direction: column;">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 14px;">
+    <div style="display: flex; align-items: center; gap: 10px;"><svg width="32" height="27" viewBox="4 8 116 96" fill="none"><path d="M18 45.5L62 12.5C64.6 10.5 68.2 10.5 70.8 12.5L114.8 45.5" stroke="#c05a36" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 53V84C24 89.5 28.5 94 34 94H100C105.5 94 110 89.5 110 84V53" stroke="#c05a36" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M40 74L57 57L74 67L91 49" stroke="#c05a36" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="57" cy="57" r="5.5" fill="#fbf6ea" stroke="#c05a36" stroke-width="5"/><circle cx="74" cy="67" r="5.5" fill="#fbf6ea" stroke="#c05a36" stroke-width="5"/><circle cx="91" cy="49" r="5.5" fill="#fbf6ea" stroke="#c05a36" stroke-width="5"/></svg><span style="font-size: 20px; font-weight: 700;">home<span style="color: #c05a36;">chronicle</span></span></div>
+    <div style="display: flex; gap: 36px; font-size: 14px; font-weight: 500;">
+      <span style="color: #7a7060;">Dashboard</span>
+      <span style="color: #7a7060;">Devices</span>
+      <span style="border-bottom: 2px solid #221e19; padding-bottom: 2px;">Timeline</span>
+      <span style="color: #7a7060;">Alerts</span>
+      <span style="color: #7a7060;">Settings</span>
+    </div>
+    <span class="caps">Tuesday 16 June 2026 · 12:41</span>
+  </div>
+  <div style="border-top: 2px solid #221e19; border-bottom: 1px solid #221e19; height: 3px;"></div>
+
+  <!-- Filters -->
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0 14px 0; border-bottom: 1px solid #ded3bd;">
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <div class="chip" style="width: 260px; color: #7a7060;">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7a7060" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><path d="M9 9 12.5 12.5"/></svg>
+        Search the day…
+      </div>
+      <span class="chip" style="background: #c05a36; border-color: #c05a36; color: #fbf6ea;"><span class="dot" style="background: #fbf6ea;"></span>Outside</span>
+      <span class="chip"><span class="dot" style="background: #48884f;"></span>Basement</span>
+      <span class="chip"><span class="dot" style="background: #dda32e;"></span>Office</span>
+      <span class="chip"><span class="dot" style="background: #3d64a8;"></span>Media Room</span>
+      <span class="chip">+3</span>
+    </div>
+    <div style="display: flex; gap: 18px; align-items: baseline;">
+      <span class="caps">Grouping <span style="color: #221e19; font-weight: 600;">Episodes</span> · every event</span>
+    </div>
+  </div>
+
+  <!-- Day heading -->
+  <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 24px 0 6px 0;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 26px; font-weight: 700;">Tuesday, June 16</span>
+      <span style="font-size: 14px; color: #7a7060;" class="serif">A quiet day so far — 39 entries, most of them the weather drifting.</span>
+    </div>
+    <span class="caps">Quiet since 12:28</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 96px 1fr 210px 150px; gap: 24px; padding: 6px 0; border-top: 1px solid #221e19; border-bottom: 1px solid #221e19;">
+    <span class="caps">Time</span><span class="caps">Entry</span><span class="caps">Change</span><span class="caps" style="text-align: right;">Room</span>
+  </div>
+
+  <div class="entry">
+    <span class="mono" style="font-size: 13px;">12:34</span>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 16px;">The basement remote is running low</span>
+      <span style="font-size: 13px; color: #7a7060;">3 Button Basement Remote · Battery — second warning today, quiet 8h 57m before</span>
+    </div>
+    <span class="mono" style="font-size: 13px; color: #c05a36;">battery → 20%</span>
+    <span style="text-align: right; display: flex; gap: 8px; justify-content: flex-end; align-items: center;"><span class="dot" style="background: #3d64a8;"></span>Media Room</span>
+  </div>
+
+  <div class="entry" style="background: #f0e7d3; margin: 0 -16px; padding-left: 16px; padding-right: 16px; border-radius: 8px;">
+    <span class="mono" style="font-size: 13px;">11:58<br><span style="color: #7a7060;">–12:28</span></span>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span class="serif" style="font-size: 16px;">Humidity drifting down outside <span style="color: #7a7060;">— an episode of four readings</span></span>
+      <div style="display: flex; gap: 5px; align-items: flex-end; height: 22px;">
+        <span style="width: 22px; height: 20px; border-radius: 4px; background: #d8c8ab;"></span><span style="width: 22px; height: 18px; border-radius: 4px; background: #cf9367;"></span><span style="width: 22px; height: 17px; border-radius: 4px; background: #cf9367;"></span><span style="width: 22px; height: 16px; border-radius: 4px; background: #c05a36;"></span>
+        <span class="mono" style="font-size: 12px; color: #7a7060; margin-left: 8px;">75 · 74 · 62 · 61 · 60</span>
+        <span style="font-size: 13px; margin-left: 12px; text-decoration: underline; text-underline-offset: 3px;">show all four</span>
+      </div>
+    </div>
+    <span class="mono" style="font-size: 13px;">74% → 60% RH</span>
+    <span style="text-align: right; display: flex; gap: 8px; justify-content: flex-end; align-items: center;"><span class="dot" style="background: #c05a36;"></span>Outside</span>
+  </div>
+
+  <div class="entry">
+    <span class="mono" style="font-size: 13px;">11:31</span>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 16px;">Kasa Smelly switched on</span>
+      <span style="font-size: 13px; color: #7a7060;">Outlet — quiet 2h 10m before · 3rd today</span>
+    </div>
+    <span class="mono" style="font-size: 13px;">off → on</span>
+    <span style="text-align: right; display: flex; gap: 8px; justify-content: flex-end; align-items: center;"><span class="dot" style="background: #22a7c4;"></span>Entrance</span>
+  </div>
+
+  <div class="entry">
+    <span class="mono" style="font-size: 13px;">09:41<br><span style="color: #7a7060;">–10:04</span></span>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 16px;">Someone at the office desk</span>
+      <span style="font-size: 13px; color: #7a7060;">Office Desk motion · 2 events, 23 minutes apart · 11th–12th today</span>
+    </div>
+    <span class="mono" style="font-size: 13px;">clear → detected</span>
+    <span style="text-align: right; display: flex; gap: 8px; justify-content: flex-end; align-items: center;"><span class="dot" style="background: #dda32e;"></span>Office</span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 14px; padding: 12px 0;">
+    <div style="flex-grow: 1; border-top: 1px dashed #ded3bd;"></div>
+    <span class="caps">quiet hours</span>
+    <div style="flex-grow: 1; border-top: 1px dashed #ded3bd;"></div>
+  </div>
+
+  <div class="entry" style="border-bottom: 0;">
+    <span class="mono" style="font-size: 13px; color: #7a7060;">00:28</span>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 16px; color: #55493c;">The basement remote’s first low-battery warning</span>
+      <span style="font-size: 13px; color: #7a7060;">During quiet hours · 1st today</span>
+    </div>
+    <span class="mono" style="font-size: 13px; color: #c05a36;">battery → 20%</span>
+    <span style="text-align: right; display: flex; gap: 8px; justify-content: flex-end; align-items: center;"><span class="dot" style="background: #3d64a8;"></span>Media Room</span>
+  </div>
+
+  <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 26px 0 8px 0; border-top: 1px solid #221e19; margin-top: 8px;">
+    <span class="serif" style="font-size: 26px; font-weight: 700; color: #7a7060;">Monday, June 15</span>
+    <span class="caps">412 entries · load</span>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

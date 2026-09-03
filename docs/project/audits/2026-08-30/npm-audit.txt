@@ -1,0 +1,24 @@
+=== listener prod-only ===
+totals: {'info': 0, 'low': 1, 'moderate': 0, 'high': 3, 'critical': 0, 'total': 4}
+  body-parser [low] range=2.0.0 - 2.2.2 direct=False fix=True via=['body-parser vulnerable to denial of service when invalid limit value silently disables size enforcement']
+  brace-expansion [high] range=3.0.0 - 5.0.8 direct=False fix=True via=['brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups', 'brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash']
+  ip-address [high] range=<=10.3.0 direct=False fix=True via=['ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass', 'ip-address: a CIDR suffix on the parsed address suppresses special-use classification and can bypass SSRF and trust-boundary checks']
+  nodemailer [high] range=<=9.0.0 direct=True fix=nodemailer@9.0.6 major=True via=['Nodemailer: Message-level raw option bypasses disableFileAccess/disableUrlAccess, enabling arbitrary file read and full-response SSRF in the delivered message']
+=== listener all ===
+totals: {'info': 0, 'low': 1, 'moderate': 0, 'high': 4, 'critical': 0, 'total': 5}
+  body-parser [low] range=2.0.0 - 2.2.2 direct=False fix=True via=['body-parser vulnerable to denial of service when invalid limit value silently disables size enforcement']
+  brace-expansion [high] range=3.0.0 - 5.0.8 direct=False fix=True via=['brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups', 'brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash']
+  form-data [high] range=4.0.0 - 4.0.5 direct=False fix=True via=['form-data: CRLF injection in form-data via unescaped multipart field names and filenames']
+  ip-address [high] range=<=10.3.0 direct=False fix=True via=['ip-address: Address4 decodes leading-zero octets as decimal while resolvers decode them as octal, allowing SSRF and trust-boundary bypass', 'ip-address: a CIDR suffix on the parsed address suppresses special-use classification and can bypass SSRF and trust-boundary checks']
+  nodemailer [high] range=<=9.0.0 direct=True fix=nodemailer@9.0.6 major=True via=['Nodemailer: Message-level raw option bypasses disableFileAccess/disableUrlAccess, enabling arbitrary file read and full-response SSRF in the delivered message']
+=== web prod-only ===
+totals: {'info': 0, 'low': 0, 'moderate': 1, 'high': 1, 'critical': 0, 'total': 2}
+  react-router [high] range=6.0.0 - 7.18.1 direct=False fix=True via=['React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass)', 'React Router: RSCErrorHandler Missing Protocol Validation (XSS)']
+  react-router-dom [moderate] range=6.0.0-alpha.0 - 7.17.0 direct=True fix=True via=['react-router']
+=== web all ===
+totals: {'info': 0, 'low': 0, 'moderate': 1, 'high': 4, 'critical': 0, 'total': 5}
+  nanoid [high] range=<=3.3.17 direct=False fix=True via=['nanoid: non-secure generators can loop indefinitely with negative size', 'nanoid: custom generators can loop indefinitely when size is zero']
+  postcss [high] range=<=8.5.22 direct=True fix=True via=['PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset', 'PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure']
+  react-router [high] range=6.0.0 - 7.18.1 direct=False fix=True via=['React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass)', 'React Router: RSCErrorHandler Missing Protocol Validation (XSS)']
+  react-router-dom [moderate] range=6.0.0-alpha.0 - 7.17.0 direct=True fix=True via=['react-router']
+  undici [high] range=7.0.0 - 7.28.0 direct=False fix=True via=['undici vulnerable to TLS certificate validation bypass via dropped requestTls in SOCKS5 ProxyAgent', 'undici vulnerable to HTTP header injection via Set-Cookie percent-decoding']

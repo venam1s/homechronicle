@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;900&display=swap">
+  <style>
+    body { margin: 0; background: #f7f7f5; color: #111111; font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.4; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+    a { color: #111111; text-decoration: underline; } a:hover { color: #d92b1f; }
+    .cap { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+    .gray { color: #6b6b66; }
+    .cell { border-left: 1px solid #111111; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+  </style>
+</helmet>
+<div style="width: 1440px; min-height: 980px; background: #f7f7f5; box-sizing: border-box; display: flex; flex-direction: column;">
+
+  <!-- Top bar -->
+  <div style="display: flex; justify-content: space-between; align-items: center; background: #111111; color: #f7f7f5; padding: 0 32px; height: 56px;">
+    <span style="font-weight: 900; font-size: 18px; letter-spacing: 0.02em;">HOMECHRONICLE</span>
+    <div style="display: flex; gap: 40px;" class="cap">
+      <span style="color: #f7f7f5; border-bottom: 2px solid #d92b1f; padding: 18px 0;">Dashboard</span>
+      <span style="color: #8f8f8a; padding: 18px 0;">Devices</span>
+      <span style="color: #8f8f8a; padding: 18px 0;">Timeline</span>
+      <span style="color: #8f8f8a; padding: 18px 0;">Alerts</span>
+      <span style="color: #8f8f8a; padding: 18px 0;">Settings</span>
+    </div>
+    <span class="cap" style="color: #8f8f8a;">Tue 16.06 — 12:41</span>
+  </div>
+
+  <!-- Alert strip -->
+  <div style="display: flex; align-items: center; gap: 16px; padding: 10px 32px; border-bottom: 1px solid #111111; background: #f7f7f5;">
+    <span style="width: 10px; height: 10px; background: #d92b1f;"></span>
+    <span style="font-weight: 700;">1 device not receiving events</span>
+    <span class="gray">G4 WiFi Basement · offline 3 days</span>
+    <span class="cap" style="margin-left: auto; text-decoration: underline; text-underline-offset: 3px;">Repair</span>
+  </div>
+
+  <!-- Big number band -->
+  <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; border-bottom: 1px solid #111111;">
+    <div style="padding: 24px 32px; display: flex; flex-direction: column; gap: 0;">
+      <span class="cap gray">Events today</span>
+      <div style="display: flex; align-items: baseline; gap: 20px;">
+        <span style="font-size: 148px; font-weight: 900; line-height: 0.95; letter-spacing: -0.04em;">107</span>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-weight: 700; color: #d92b1f;">▼ 180</span>
+          <span class="gray">vs. yesterday</span>
+        </div>
+      </div>
+    </div>
+    <div class="cell">
+      <span class="cap gray">This week</span>
+      <span style="font-size: 56px; font-weight: 900; line-height: 1; letter-spacing: -0.03em;">2387</span>
+      <span class="gray">avg 341 / day</span>
+    </div>
+    <div class="cell">
+      <span class="cap gray">Top device</span>
+      <span style="font-size: 24px; font-weight: 700; line-height: 1.1; padding-top: 10px;">Weather Station</span>
+      <span class="gray">832 events — Outside</span>
+    </div>
+    <div class="cell">
+      <span class="cap gray">Top room</span>
+      <span style="font-size: 24px; font-weight: 700; line-height: 1.1; padding-top: 10px;">Outside</span>
+      <span class="gray">1635 events — 3 devices</span>
+    </div>
+  </div>
+
+  <!-- Chart band -->
+  <div style="display: grid; grid-template-columns: 2fr 1fr; flex-grow: 1;">
+    <div style="padding: 20px 32px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <span class="cap">01 — Daily activity</span>
+        <div style="display: flex; gap: 16px;" class="cap"><span class="gray">7d</span><span style="border-bottom: 2px solid #d92b1f;">30d</span><span class="gray">90d</span></div>
+      </div>
+      <svg width="856" height="330" viewBox="0 0 856 330">
+        <g stroke="#dcdcd8" stroke-width="1"><line x1="36" y1="10" x2="856" y2="10"/><line x1="36" y1="75" x2="856" y2="75"/><line x1="36" y1="140" x2="856" y2="140"/><line x1="36" y1="205" x2="856" y2="205"/></g>
+        <line x1="36" y1="270" x2="856" y2="270" stroke="#111111" stroke-width="2"/>
+        <g font-family="Archivo, Arial, sans-serif" font-size="11" fill="#6b6b66"><text x="0" y="14">800</text><text x="0" y="79">600</text><text x="0" y="144">400</text><text x="0" y="209">200</text><text x="0" y="274">0</text></g>
+        <g transform="translate(36,10) scale(0.82,1)">
+          <polyline fill="none" stroke="#111111" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke" points="0.0,165.8 34.5,162.5 69.0,100.8 103.4,123.5 137.9,107.3 172.4,201.5 206.9,123.5 241.4,149.5 275.9,201.5 310.3,247.0 344.8,221.0 379.3,113.8 413.8,162.5 448.3,71.5 482.8,107.3 517.2,110.5 551.7,152.8 586.2,156.0 620.7,120.3 655.2,198.3 689.7,169.0 724.1,143.0 758.6,149.5 793.1,149.5 827.6,162.5 862.1,26.0 896.6,172.3 931.0,201.5 965.5,172.3 1000.0,227.5"/>
+        </g>
+        <circle cx="743" cy="36" r="5" fill="#d92b1f"/>
+        <text x="756" y="32" font-family="Archivo, Arial, sans-serif" font-size="12" font-weight="700" fill="#d92b1f">718</text>
+        <g font-family="Archivo, Arial, sans-serif" font-size="11" fill="#6b6b66"><text x="36" y="292">MAY 18</text><text x="238" y="292">MAY 25</text><text x="440" y="292">JUN 1</text><text x="642" y="292">JUN 8</text><text x="844" y="292" text-anchor="end">JUN 15</text></g>
+      </svg>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; border-top: 1px solid #111111;">
+        <span class="cap">02 — By hour</span>
+        <span class="gray" style="font-size: 12px;">peak 11:00 — 903</span>
+      </div>
+      <svg width="856" height="120" viewBox="0 0 856 120">
+        <g transform="translate(36,-30) scale(1.55,0.85)" fill="#111111"><rect x="1.0" y="118.5" width="17" height="31.5"/><rect x="22.7" y="127.5" width="17" height="22.5"/><rect x="44.3" y="123.0" width="17" height="27.0"/><rect x="66.0" y="127.5" width="17" height="22.5"/><rect x="87.7" y="132.0" width="17" height="18.0"/><rect x="109.3" y="129.0" width="17" height="21.0"/><rect x="131.0" y="126.0" width="17" height="24.0"/><rect x="152.7" y="112.5" width="17" height="37.5"/><rect x="174.3" y="105.0" width="17" height="45.0"/><rect x="196.0" y="82.5" width="17" height="67.5"/><rect x="217.7" y="48.0" width="17" height="102.0"/><rect x="239.3" y="15.0" width="17" height="135.0" fill="#d92b1f"/><rect x="261.0" y="52.5" width="17" height="97.5"/><rect x="282.7" y="79.5" width="17" height="70.5"/><rect x="304.3" y="55.5" width="17" height="94.5"/><rect x="326.0" y="75.0" width="17" height="75.0"/><rect x="347.7" y="54.0" width="17" height="96.0"/><rect x="369.3" y="64.5" width="17" height="85.5"/><rect x="391.0" y="57.0" width="17" height="93.0"/><rect x="412.7" y="85.5" width="17" height="64.5"/><rect x="434.3" y="69.0" width="17" height="81.0"/><rect x="456.0" y="69.0" width="17" height="81.0"/><rect x="477.7" y="91.5" width="17" height="58.5"/><rect x="499.3" y="114.0" width="17" height="36.0"/></g>
+        <line x1="36" y1="98" x2="856" y2="98" stroke="#111111" stroke-width="2"/>
+        <g font-family="Archivo, Arial, sans-serif" font-size="11" fill="#6b6b66"><text x="36" y="116">MIDNIGHT</text><text x="238" y="116">6AM</text><text x="440" y="116">NOON</text><text x="642" y="116">6PM</text></g>
+      </svg>
+    </div>
+    <div style="border-left: 1px solid #111111; padding: 20px 32px; display: flex; flex-direction: column; gap: 14px;">
+      <span class="cap">03 — By room</span>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between;"><span style="font-weight: 700;">Outside</span><span>6688</span></div><div style="height: 14px; background: #111111; width: 100%;"></div></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between;"><span style="font-weight: 700;">Basement</span><span>2042</span></div><div style="height: 14px; background: #111111; width: 31%;"></div></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between;"><span style="font-weight: 700;">Office</span><span>752</span></div><div style="height: 14px; background: #111111; width: 11%;"></div></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between;"><span style="font-weight: 700;">Media Room</span><span>149</span></div><div style="height: 14px; background: #111111; width: 2.5%;"></div></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between;"><span style="font-weight: 700;">Entrance</span><span>99</span></div><div style="height: 14px; background: #111111; width: 1.8%;"></div></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between;"><span style="font-weight: 700;">Living Room</span><span>54</span></div><div style="height: 14px; background: #111111; width: 1.2%;"></div></div>
+      </div>
+      <div style="margin-top: auto; border-top: 1px solid #111111; padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+        <span class="cap gray">Quiet hours 00–05</span>
+        <span><span style="font-weight: 700;">1 event</span> — Basement remote, low battery 00:28</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: space-between; padding: 10px 32px; border-top: 1px solid #111111;" class="cap gray">
+    <span>v0.3.1 — 38 devices — synced 12s</span>
+    <span>Light / Dark</span>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

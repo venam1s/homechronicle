@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Public+Sans:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; background: #f7f1e6; color: #2b2622; font-family: 'Public Sans', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+    a { color: #c4623f; text-decoration: none; } a:hover { color: #9a4a2e; }
+    .disp { font-family: 'Bricolage Grotesque', 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.02em; }
+    .muted { color: #85786a; }
+    .pill { border-radius: 999px; padding: 8px 16px; font-weight: 500; }
+    .knot { width: 14px; height: 14px; border-radius: 999px; border: 3px solid #f7f1e6; box-shadow: 0 0 0 2px #d9cdb8; margin-left: -8px; margin-top: 22px; flex-shrink: 0; }
+    .bubble { background: #fffaf0; border-radius: 22px; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #85786a; }
+    .dot { width: 8px; height: 8px; border-radius: 999px; }
+  </style>
+</helmet>
+<div style="width: 1440px; min-height: 760px; background: #f7f1e6; box-sizing: border-box; padding: 28px 40px 40px 40px; display: flex; flex-direction: column; gap: 24px;">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#2b2622" stroke-width="2" stroke-linejoin="round"><path d="M4 14 15 5l11 9v11H4z"/><path d="M9 21c2-4 4-4 6 0s4 4 6 0" stroke="#c4623f"/></svg>
+      <span class="disp" style="font-size: 22px; font-weight: 600;">HomeChronicle</span>
+    </div>
+    <div style="display: flex; gap: 4px; background: #efe6d6; border-radius: 999px; padding: 4px;">
+      <span class="pill">Home</span>
+      <span class="pill">Devices</span>
+      <span class="pill" style="background: #2b2622; color: #fffaf0;">Timeline</span>
+      <span class="pill">Alerts</span>
+      <span class="pill">Settings</span>
+    </div>
+    <span class="muted">Tue 16 Jun · 12:41</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 300px 1fr; gap: 40px;">
+    <!-- Left: day + filters -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-direction: column;">
+        <span class="disp" style="font-size: 56px; font-weight: 700; line-height: 1;">Tuesday</span>
+        <span class="disp" style="font-size: 24px; font-weight: 500; color: #85786a;">June 16 · 39 events</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; background: #fffaf0; border-radius: 999px; padding: 12px 16px;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#85786a" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+        <span class="muted">Search the day…</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <span class="muted" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;">Rooms</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <span class="pill" style="background: #c4623f; color: #fffaf0; padding: 6px 12px; font-size: 13px;">Outside</span>
+          <span class="pill" style="background: #efe6d6; padding: 6px 12px; font-size: 13px;">Basement</span>
+          <span class="pill" style="background: #efe6d6; padding: 6px 12px; font-size: 13px;">Office</span>
+          <span class="pill" style="background: #efe6d6; padding: 6px 12px; font-size: 13px;">Media Room</span>
+          <span class="pill" style="background: #efe6d6; padding: 6px 12px; font-size: 13px;">Entrance</span>
+          <span class="pill" style="background: #efe6d6; padding: 6px 12px; font-size: 13px;">+2</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <span class="muted" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;">Show</span>
+        <div style="display: flex; gap: 4px; background: #efe6d6; border-radius: 999px; padding: 4px; align-self: flex-start;">
+          <span class="pill" style="background: #fffaf0; padding: 6px 12px; font-size: 13px;">Episodes</span>
+          <span class="pill" style="padding: 6px 12px; font-size: 13px;">Every event</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+        <span class="muted" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;">Earlier</span>
+        <span class="disp" style="font-size: 18px; font-weight: 500;">Monday · 412</span>
+        <span class="disp" style="font-size: 18px; font-weight: 500; color: #85786a;">Sunday · 388</span>
+        <span class="disp" style="font-size: 18px; font-weight: 500; color: #85786a;">Saturday · 451</span>
+      </div>
+    </div>
+
+    <!-- Right: thread -->
+    <div style="display: flex; flex-direction: column; gap: 14px; border-left: 2px solid #d9cdb8; padding-left: 0;">
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <span class="knot" style="background: #33415e;"></span>
+        <div class="bubble">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span class="disp" style="font-size: 20px; font-weight: 600;">Basement remote is running low</span><span class="muted">12:34</span></div>
+          <span>3 Button Basement Remote · battery at 20%, second warning today.</span>
+          <span class="chip"><span class="dot" style="background: #33415e;"></span>Media Room · quiet 8h 57m before</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <span class="knot" style="background: #c4623f;"></span>
+        <div class="bubble" style="border: 2px solid #f2d9cd;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span class="disp" style="font-size: 20px; font-weight: 600;">Humidity drifting down outside</span><span class="muted">11:58 – 12:28</span></div>
+          <span>Weather Station · <strong>74% → 60%</strong> over 36 minutes, four readings.</span>
+          <div style="display: flex; gap: 6px; align-items: flex-end; height: 28px; margin-top: 4px;">
+            <span style="width: 28px; height: 26px; border-radius: 6px; background: #e6c2b3;"></span><span style="width: 28px; height: 22px; border-radius: 6px; background: #d48d70;"></span><span style="width: 28px; height: 21px; border-radius: 6px; background: #d48d70;"></span><span style="width: 28px; height: 20px; border-radius: 6px; background: #c4623f;"></span>
+            <span class="muted" style="font-size: 12px; margin-left: 6px;">75 · 74 · 62 · 61 · 60</span>
+          </div>
+          <span class="chip"><span class="dot" style="background: #c4623f;"></span>Outside · 36th–39th today · <span style="text-decoration: underline; text-underline-offset: 3px; color: #2b2622;">show all four</span></span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <span class="knot" style="background: #8bb0c9;"></span>
+        <div class="bubble">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span class="disp" style="font-size: 20px; font-weight: 600;">Kasa Smelly switched on</span><span class="muted">11:31</span></div>
+          <span class="chip"><span class="dot" style="background: #8bb0c9;"></span>Entrance · quiet 2h 10m before · 3rd today</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <span class="knot" style="background: #d9a23a;"></span>
+        <div class="bubble">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span class="disp" style="font-size: 20px; font-weight: 600;">Someone at the office desk</span><span class="muted">09:41 – 10:04</span></div>
+          <span>Office Desk motion · 2 events, 23 minutes apart.</span>
+          <span class="chip"><span class="dot" style="background: #d9a23a;"></span>Office · 11th–12th today</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: center; padding: 8px 0 0 24px;">
+        <span class="muted" style="font-size: 13px;">— quiet hours —</span>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <span class="knot" style="background: #33415e;"></span>
+        <div class="bubble" style="background: #f1eadb;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;"><span class="disp" style="font-size: 20px; font-weight: 600; color: #5b5147;">Basement remote low battery</span><span class="muted">00:28</span></div>
+          <span class="chip"><span class="dot" style="background: #33415e;"></span>Media Room · during quiet hours · 1st today</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

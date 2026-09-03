@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Archivo:wght@500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #0d0e0c; color: #d6d3c4; font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+    a { color: #e9b44c; text-decoration: none; } a:hover { color: #f5cf7d; }
+    .lbl { font-family: 'Archivo', 'Arial Narrow', Arial, sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #7d7b6e; }
+    .amber { color: #e9b44c; } .dim { color: #7d7b6e; }
+    .nav { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-left: 2px solid transparent; }
+    .row { display: grid; grid-template-columns: 70px 250px 150px 240px 110px 1fr; gap: 16px; align-items: center; padding: 0 12px; height: 32px; border-bottom: 1px solid #1d1e19; }
+  </style>
+</helmet>
+<div style="width: 1440px; min-height: 760px; background: #0d0e0c; box-sizing: border-box; display: flex; flex-direction: column;">
+  <div style="display: flex; justify-content: space-between; align-items: center; height: 36px; padding: 0 16px; border-bottom: 1px solid #2a2b24; background: #0a0b09;">
+    <div style="display: flex; gap: 24px; align-items: center;">
+      <span style="font-weight: 700; color: #e9b44c; letter-spacing: 0.04em;">HOMECHRONICLE</span>
+      <span class="dim">v0.3.1</span>
+      <span><span style="color: #8fbf5a;">●</span> LISTENER up 14d 06h</span>
+      <span><span style="color: #e9b44c;">●</span> 38 DEVICES · <span class="amber">2 STALE</span></span>
+      <span class="dim">SYNC 12s</span>
+    </div>
+    <span>2026-06-16 <span class="amber">12:41:07</span></span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 200px 1fr; flex-grow: 1;">
+    <div style="border-right: 1px solid #2a2b24; display: flex; flex-direction: column; padding-top: 8px; background: #0a0b09;">
+      <div class="nav"><span class="dim">1</span><span>DASHBOARD</span></div>
+      <div class="nav"><span class="dim">2</span><span>DEVICES</span></div>
+      <div class="nav" style="border-left-color: #e9b44c; background: #131410; color: #e9b44c;"><span class="dim">3</span><span>TIMELINE</span></div>
+      <div class="nav"><span class="dim">4</span><span>ALERTS</span><span class="dim" style="margin-left: auto;">1</span></div>
+      <div class="nav"><span class="dim">5</span><span>SETTINGS</span></div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; padding: 12px; gap: 12px;">
+      <!-- Query bar -->
+      <div style="display: flex; gap: 12px; align-items: stretch;">
+        <div style="flex-grow: 1; display: flex; align-items: center; gap: 10px; border: 1px solid #2a2b24; background: #131410; padding: 0 12px; height: 36px;">
+          <span class="amber">›</span>
+          <span>room:outside</span>
+          <span class="dim">type:humidity since:24h</span>
+          <span style="width: 8px; height: 16px; background: #e9b44c; margin-left: 2px;"></span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0; border: 1px solid #2a2b24;">
+          <span style="padding: 0 12px; line-height: 34px; background: #131410; color: #e9b44c;">RAW</span>
+          <span style="padding: 0 12px; line-height: 34px; color: #7d7b6e;">EPISODES</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0; border: 1px solid #2a2b24;">
+          <span style="padding: 0 12px; line-height: 34px; color: #7d7b6e;">LIVE</span>
+          <span style="padding: 0 12px; line-height: 34px; color: #7d7b6e;">24H</span>
+          <span style="padding: 0 12px; line-height: 34px; background: #131410; color: #e9b44c;">7D</span>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="lbl">2,387 events · 39 today · showing newest first</span>
+        <span class="dim" style="font-size: 11px;">j/k move · enter open · f filter · / search</span>
+      </div>
+
+      <div style="border: 1px solid #2a2b24; background: #131410; display: flex; flex-direction: column;">
+        <div class="row" style="background: #0a0b09; border-bottom: 1px solid #2a2b24;">
+          <span class="lbl">Time</span><span class="lbl">Device</span><span class="lbl">Characteristic</span><span class="lbl">Change</span><span class="lbl">Room</span><span class="lbl">Context</span>
+        </div>
+        <div style="display: flex; gap: 16px; align-items: center; padding: 0 12px; height: 32px; background: #151710; border-bottom: 1px solid #2a2b24;"><span class="amber">── 2026-06-16 TUE</span><span class="dim">39 events · quiet since 12:28</span></div>
+        <div class="row" style="background: #1c1a12; border-left: 2px solid #e9b44c;"><span class="amber">12:34:11</span><span>3 Button Basement Remote</span><span class="dim">Battery</span><span style="color: #e0654a;">StatusLowBattery 20</span><span>MEDIA</span><span class="dim">quiet 8h57m · 2nd today</span></div>
+        <div class="row"><span>12:28:40</span><span>Weather Station</span><span class="dim">Humidity</span><span>61 → <span class="amber">60</span> %RH</span><span>OUTSIDE</span><span class="dim">quiet 10m · 39th today</span></div>
+        <div class="row"><span>12:18:02</span><span>Weather Station</span><span class="dim">Humidity</span><span>62 → <span class="amber">61</span> %RH</span><span>OUTSIDE</span><span class="dim">quiet 5m · 38th</span></div>
+        <div class="row"><span>12:13:19</span><span>Weather Station</span><span class="dim">Humidity</span><span>74 → <span class="amber">62</span> %RH</span><span>OUTSIDE</span><span class="dim">quiet 15m · 37th</span></div>
+        <div class="row"><span>11:58:44</span><span>Weather Station</span><span class="dim">Humidity</span><span>75 → <span class="amber">74</span> %RH</span><span>OUTSIDE</span><span class="dim">36th</span></div>
+        <div class="row"><span>11:31:05</span><span>Kasa Smelly</span><span class="dim">On</span><span>off → <span class="amber">on</span></span><span>ENTRANCE</span><span class="dim">quiet 2h10m · 3rd</span></div>
+        <div class="row"><span>10:04:52</span><span>Office Desk</span><span class="dim">MotionDetected</span><span>0 → <span class="amber">1</span></span><span>OFFICE</span><span class="dim">12th</span></div>
+        <div class="row"><span>09:41:30</span><span>Office Desk</span><span class="dim">MotionDetected</span><span>1 → <span class="amber">0</span></span><span>OFFICE</span><span class="dim">11th</span></div>
+        <div class="row"><span class="dim">00:28:17</span><span>3 Button Basement Remote</span><span class="dim">Battery</span><span style="color: #e0654a;">StatusLowBattery 20</span><span>MEDIA</span><span class="dim">QUIET HOURS · 1st</span></div>
+        <div style="display: flex; gap: 16px; align-items: center; padding: 0 12px; height: 32px; background: #151710; border-bottom: 1px solid #2a2b24;"><span class="dim">── 2026-06-15 MON</span><span class="dim">412 events</span></div>
+        <div class="row"><span class="dim">23:57:09</span><span class="dim">Weather Station</span><span class="dim">Temperature</span><span class="dim">18.4 → 18.1 °C</span><span class="dim">OUTSIDE</span><span class="dim">412th</span></div>
+        <div class="row" style="border-bottom: 0;"><span class="dim">23:52:41</span><span class="dim">G4 Doorbell</span><span class="dim">MotionDetected</span><span class="dim">1 → 0</span><span class="dim">ENTRANCE</span><span class="dim">411th</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

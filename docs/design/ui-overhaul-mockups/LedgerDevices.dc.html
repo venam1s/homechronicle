@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #f5f1e8; color: #1c1a17; font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+    a { color: #8c3b2e; text-decoration: none; } a:hover { color: #5e2419; }
+    .serif { font-family: 'Newsreader', 'Georgia', 'Times New Roman', serif; }
+    .mono { font-family: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .caps { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #6f6a60; font-weight: 500; }
+    .devrow { display: grid; grid-template-columns: 1fr 300px 110px 90px; gap: 24px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid #d9d2c3; }
+  </style>
+</helmet>
+<div style="width: 1440px; min-height: 980px; background: #f5f1e8; box-sizing: border-box; padding: 28px 56px 40px 56px; display: flex; flex-direction: column;">
+
+  <div style="display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 14px;">
+    <div class="serif" style="font-size: 26px; font-weight: 500; letter-spacing: -0.01em;">Home <span style="font-style: italic; font-weight: 400;">Chronicle</span></div>
+    <div style="display: flex; gap: 36px; font-size: 14px; font-weight: 500;">
+      <span style="color: #6f6a60;">Dashboard</span>
+      <span style="border-bottom: 2px solid #1c1a17; padding-bottom: 2px;">Devices</span>
+      <span style="color: #6f6a60;">Timeline</span>
+      <span style="color: #6f6a60;">Alerts</span>
+      <span style="color: #6f6a60;">Settings</span>
+    </div>
+    <span class="caps">Tuesday 16 June 2026 · 12:41</span>
+  </div>
+  <div style="border-top: 2px solid #1c1a17; border-bottom: 1px solid #1c1a17; height: 3px;"></div>
+
+  <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 16px 0 14px 0; border-bottom: 1px solid #d9d2c3;">
+    <div style="display: flex; gap: 28px; align-items: baseline;">
+      <span style="font-weight: 500; border-bottom: 1.5px solid #1c1a17; padding-bottom: 2px;">Browse</span>
+      <span style="color: #6f6a60;">Add accessories</span>
+      <span style="color: #6f6a60;">Manage</span>
+    </div>
+    <div style="display: flex; gap: 24px; align-items: baseline;">
+      <span class="mono" style="font-size: 12px; color: #6f6a60;">38 devices · 7 rooms · 2 bridges</span>
+      <span class="mono" style="font-size: 12px; color: #8c3b2e;">2 stale</span>
+    </div>
+  </div>
+
+  <!-- Basement -->
+  <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 26px 0 4px 0;">
+    <span class="serif" style="font-size: 26px; font-weight: 500;">Basement</span>
+    <span class="caps">via UniFi Protect BFDB · 3 accessories</span>
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 300px 110px 90px; gap: 24px; padding: 6px 0; border-top: 1px solid #1c1a17; border-bottom: 1px solid #1c1a17;">
+    <span class="caps">Accessory</span><span class="caps">Status</span><span class="caps" style="text-align: right;">Events</span><span class="caps" style="text-align: right;">Heartbeat</span>
+  </div>
+  <div class="devrow">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 19px;">G4 WiFi Basement <span style="color: #6f6a60;">· Motion</span></span>
+      <span style="font-size: 13px; color: #6f6a60;">HomeKit · Ubiquiti G4 Instant · FW 5.3.94</span>
+    </div>
+    <span style="font-size: 13px;"><span class="serif" style="font-style: italic; color: #8c3b2e;">Stale — offline 3d 1h,</span> <span class="mono" style="color: #8c3b2e;">4,379</span> <span style="color: #8c3b2e;">missed · </span><span style="text-decoration: underline; text-underline-offset: 3px;">repair</span></span>
+    <span class="mono" style="text-align: right;">2,167</span>
+    <span class="mono" style="text-align: right; color: #6f6a60;">~1m</span>
+  </div>
+  <div class="devrow">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 19px;">G4 WiFi Basement <span style="color: #6f6a60;">· Light level</span></span>
+      <span style="font-size: 13px; color: #6f6a60;">HomeKit · Ubiquiti G4 Instant · FW 5.3.94</span>
+    </div>
+    <span style="font-size: 13px;"><span class="serif" style="font-style: italic; color: #8c3b2e;">Stale — offline 3d 1h</span></span>
+    <span class="mono" style="text-align: right;">34</span>
+    <span class="mono" style="text-align: right; color: #6f6a60;">~1m</span>
+  </div>
+  <div class="devrow" style="border-bottom: 0;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 19px;">3 Button Basement Remote <span style="color: #6f6a60;">· Battery</span></span>
+      <span style="font-size: 13px; color: #6f6a60;">HomeKit · programmable switch · battery 20%</span>
+    </div>
+    <span style="font-size: 13px;">Active — last seen <span class="mono">12:34</span> · <span class="serif" style="font-style: italic;">battery low</span></span>
+    <span class="mono" style="text-align: right;">433</span>
+    <span class="mono" style="text-align: right; color: #6f6a60;">~1m</span>
+  </div>
+
+  <!-- Entrance -->
+  <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 30px 0 4px 0;">
+    <span class="serif" style="font-size: 26px; font-weight: 500;">Entrance</span>
+    <span class="caps">via TplinkSmarthome 78EC · 2 accessories</span>
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 300px 110px 90px; gap: 24px; padding: 6px 0; border-top: 1px solid #1c1a17; border-bottom: 1px solid #1c1a17;">
+    <span class="caps">Accessory</span><span class="caps">Status</span><span class="caps" style="text-align: right;">Events</span><span class="caps" style="text-align: right;">Heartbeat</span>
+  </div>
+  <div class="devrow">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 19px;">Kasa Smelly <span style="color: #6f6a60;">· Outlet</span></span>
+      <span style="font-size: 13px; color: #6f6a60;">HomeKit · TP-Link EP25(US) · FW 1.0.14</span>
+    </div>
+    <span style="font-size: 13px;">Active — last seen <span class="mono">11:31</span>, switched on</span>
+    <span class="mono" style="text-align: right;">223</span>
+    <span class="mono" style="text-align: right; color: #6f6a60;">~2h</span>
+  </div>
+  <div class="devrow" style="border-bottom: 0;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 19px;">G4 Doorbell <span style="color: #6f6a60;">· Motion</span></span>
+      <span style="font-size: 13px; color: #6f6a60;">HomeKit · Ubiquiti G4 Doorbell · FW 4.75.66</span>
+    </div>
+    <span style="font-size: 13px;">Active — last seen <span class="mono">23:52</span> yesterday</span>
+    <span class="mono" style="text-align: right;">1,904</span>
+    <span class="mono" style="text-align: right; color: #6f6a60;">~1m</span>
+  </div>
+
+  <!-- Outside -->
+  <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 30px 0 4px 0;">
+    <span class="serif" style="font-size: 26px; font-weight: 500;">Outside</span>
+    <span class="caps">Matter · 1 accessory, 3 sensors</span>
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 300px 110px 90px; gap: 24px; padding: 6px 0; border-top: 1px solid #1c1a17; border-bottom: 1px solid #1c1a17;">
+    <span class="caps">Accessory</span><span class="caps">Status</span><span class="caps" style="text-align: right;">Events</span><span class="caps" style="text-align: right;">Heartbeat</span>
+  </div>
+  <div class="devrow" style="border-bottom: 0;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span class="serif" style="font-size: 19px;">Weather Station <span style="color: #6f6a60;">· Humidity, Temperature, Light</span></span>
+      <span style="font-size: 13px; color: #6f6a60;">Matter · polled every 5m</span>
+    </div>
+    <span style="font-size: 13px;">Active — last seen <span class="mono">12:28</span>, 60% RH · 18.1 °C</span>
+    <span class="mono" style="text-align: right;">6,688</span>
+    <span class="mono" style="text-align: right; color: #6f6a60;">~5m</span>
+  </div>
+
+  <div style="display: flex; justify-content: space-between; margin-top: auto; padding-top: 28px; border-top: 1px solid #d9d2c3;">
+    <span class="mono" style="font-size: 11px; color: #6f6a60;">Legend: stale = no heartbeat for 24h · events count is 30 days</span>
+    <span class="mono" style="font-size: 11px; color: #6f6a60;">4 more rooms ↓</span>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

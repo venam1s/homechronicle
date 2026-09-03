@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Archivo:wght@500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #0d0e0c; color: #d6d3c4; font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace; font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+    a { color: #e9b44c; text-decoration: none; } a:hover { color: #f5cf7d; }
+    .lbl { font-family: 'Archivo', 'Arial Narrow', Arial, sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #7d7b6e; }
+    .panel { background: #131410; border: 1px solid #2a2b24; display: flex; flex-direction: column; }
+    .ph { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #2a2b24; }
+    .amber { color: #e9b44c; }
+    .dim { color: #7d7b6e; }
+    .nav { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-left: 2px solid transparent; }
+  </style>
+</helmet>
+<div style="width: 1440px; min-height: 980px; background: #0d0e0c; box-sizing: border-box; display: flex; flex-direction: column;">
+
+  <!-- Status bar -->
+  <div style="display: flex; justify-content: space-between; align-items: center; height: 36px; padding: 0 16px; border-bottom: 1px solid #2a2b24; background: #0a0b09;">
+    <div style="display: flex; gap: 24px; align-items: center;">
+      <span style="font-weight: 700; color: #e9b44c; letter-spacing: 0.04em;">HOMECHRONICLE</span>
+      <span class="dim">v0.3.1</span>
+      <span><span style="color: #8fbf5a;">●</span> LISTENER up 14d 06h</span>
+      <span><span style="color: #8fbf5a;">●</span> DB 2.1 GB · 9,841 rows</span>
+      <span><span style="color: #e9b44c;">●</span> 38 DEVICES · <span class="amber">2 STALE</span></span>
+      <span class="dim">SYNC 12s</span>
+    </div>
+    <div style="display: flex; gap: 24px; align-items: center;">
+      <span class="dim">admin@venamis</span>
+      <span>2026-06-16 <span class="amber">12:41:07</span></span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 200px 1fr; gap: 0; flex-grow: 1;">
+    <!-- Rail -->
+    <div style="border-right: 1px solid #2a2b24; display: flex; flex-direction: column; padding-top: 8px; background: #0a0b09;">
+      <div class="nav" style="border-left-color: #e9b44c; background: #131410; color: #e9b44c;"><span class="dim">1</span><span>DASHBOARD</span></div>
+      <div class="nav"><span class="dim">2</span><span>DEVICES</span></div>
+      <div class="nav"><span class="dim">3</span><span>TIMELINE</span></div>
+      <div class="nav"><span class="dim">4</span><span>ALERTS</span><span class="dim" style="margin-left: auto;">1</span></div>
+      <div class="nav"><span class="dim">5</span><span>SETTINGS</span></div>
+      <div style="margin-top: auto; padding: 12px 14px; border-top: 1px solid #2a2b24; display: flex; flex-direction: column; gap: 6px;">
+        <span class="lbl">Retention</span>
+        <div style="height: 6px; background: #1d1e19; position: relative;"><div style="height: 6px; width: 46%; background: #e9b44c;"></div></div>
+        <span class="dim" style="font-size: 11px;">168 / 365 days · 2.1 GB</span>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 12px;">
+
+      <!-- Fault row -->
+      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid #5a3a2a; background: #1a1210; color: #e0654a;">
+        <span style="font-weight: 700;">!</span>
+        <span>1 DEVICE PAIRING FAULT — G4 WiFi Basement · MotionSensor not receiving events (4,379 missed heartbeats)</span>
+        <span style="margin-left: auto; border: 1px solid #e0654a; padding: 2px 8px; font-size: 11px;">REPAIR ↵</span>
+        <span class="dim" style="font-size: 11px;">DISMISS</span>
+      </div>
+
+      <!-- Metric cells -->
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+        <div class="panel" style="padding: 12px; gap: 6px;">
+          <span class="lbl">Today</span>
+          <div style="display: flex; align-items: baseline; gap: 10px;"><span style="font-size: 40px; font-weight: 700; color: #e9b44c; line-height: 1;">107</span><span class="dim">ev</span></div>
+          <span style="color: #e0654a;">▼ 180 vs yesterday</span>
+        </div>
+        <div class="panel" style="padding: 12px; gap: 6px;">
+          <span class="lbl">7 days</span>
+          <div style="display: flex; align-items: baseline; gap: 10px;"><span style="font-size: 40px; font-weight: 700; color: #e9b44c; line-height: 1;">2,387</span><span class="dim">ev</span></div>
+          <span class="dim">avg 341/day</span>
+        </div>
+        <div class="panel" style="padding: 12px; gap: 6px;">
+          <span class="lbl">Top device</span>
+          <span style="font-size: 20px; font-weight: 500; line-height: 1.2; padding-top: 6px;">Weather Station</span>
+          <span class="dim"><span class="amber">832</span> ev · humidity · OUTSIDE</span>
+        </div>
+        <div class="panel" style="padding: 12px; gap: 6px;">
+          <span class="lbl">Top room</span>
+          <span style="font-size: 20px; font-weight: 500; line-height: 1.2; padding-top: 6px;">OUTSIDE</span>
+          <span class="dim"><span class="amber">1,635</span> ev · 3 devices</span>
+        </div>
+      </div>
+
+      <!-- Daily activity -->
+      <div class="panel">
+        <div class="ph">
+          <span class="lbl">Daily activity · events/day</span>
+          <div style="display: flex; gap: 14px; align-items: center;">
+            <span class="dim">7D</span><span class="amber" style="border-bottom: 1px solid #e9b44c;">30D</span><span class="dim">90D</span>
+            <span class="dim">│</span>
+            <span class="dim">peak 718 @ 06-12 · min 41 @ 05-27</span>
+          </div>
+        </div>
+        <svg width="1200" height="236" viewBox="0 0 1200 236" style="display: block; margin: 8px 8px 4px 8px;">
+          <g stroke="#1f201b" stroke-width="1"><line x1="44" y1="8" x2="1188" y2="8"/><line x1="44" y1="63" x2="1188" y2="63"/><line x1="44" y1="118" x2="1188" y2="118"/><line x1="44" y1="173" x2="1188" y2="173"/></g>
+          <line x1="44" y1="228" x2="1188" y2="228" stroke="#3a3b32" stroke-width="1"/>
+          <g font-family="JetBrains Mono, Menlo, monospace" font-size="10" fill="#7d7b6e"><text x="0" y="12">800</text><text x="0" y="67">600</text><text x="0" y="122">400</text><text x="0" y="177">200</text><text x="0" y="232">0</text></g>
+          <g transform="translate(44,8)">
+            <polyline fill="none" stroke="#e9b44c" stroke-width="1.5" stroke-linejoin="miter" points="0.0,140.3 39.4,137.5 78.9,85.3 118.3,104.5 157.8,90.8 197.2,170.5 236.7,104.5 276.1,126.5 315.6,170.5 355.0,209.0 394.5,187.0 433.9,96.3 473.4,137.5 512.8,60.5 552.3,90.8 591.7,93.5 631.2,129.3 670.6,132.0 710.1,101.8 749.5,167.8 789.0,143.0 828.4,121.0 867.9,126.5 907.3,126.5 946.8,137.5 986.2,22.0 1025.7,145.8 1065.1,170.5 1104.6,145.8 1144.0,192.5"/>
+            <g fill="#e9b44c"><rect x="-1.5" y="138.8" width="3" height="3"/><rect x="984.7" y="20.5" width="3" height="3"/><rect x="1142.5" y="191" width="3" height="3"/></g>
+            <text x="996" y="20" font-family="JetBrains Mono, Menlo, monospace" font-size="10" fill="#e9b44c">718</text>
+          </g>
+        </svg>
+        <div style="display: flex; justify-content: space-between; padding: 0 12px 8px 52px; font-size: 10px; color: #7d7b6e;"><span>05-18</span><span>05-25</span><span>06-01</span><span>06-08</span><span>06-15</span></div>
+      </div>
+
+      <!-- Bottom grid -->
+      <div style="display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px;">
+        <div class="panel">
+          <div class="ph"><span class="lbl">Events by hour · 30d</span><span class="dim">peak 11:00 · 903</span></div>
+          <svg width="520" height="186" viewBox="0 0 520 186" style="display: block; margin: 8px;">
+            <g transform="translate(0,6)" fill="#6a5a35"><rect x="1.0" y="118.5" width="19.7" height="31.5"/><rect x="22.7" y="127.5" width="19.7" height="22.5"/><rect x="44.3" y="123.0" width="19.7" height="27.0"/><rect x="66.0" y="127.5" width="19.7" height="22.5"/><rect x="87.7" y="132.0" width="19.7" height="18.0"/><rect x="109.3" y="129.0" width="19.7" height="21.0"/><rect x="131.0" y="126.0" width="19.7" height="24.0"/><rect x="152.7" y="112.5" width="19.7" height="37.5"/><rect x="174.3" y="105.0" width="19.7" height="45.0"/><rect x="196.0" y="82.5" width="19.7" height="67.5" fill="#a88235"/><rect x="217.7" y="48.0" width="19.7" height="102.0" fill="#c99a3f"/><rect x="239.3" y="15.0" width="19.7" height="135.0" fill="#e9b44c"/><rect x="261.0" y="52.5" width="19.7" height="97.5" fill="#c99a3f"/><rect x="282.7" y="79.5" width="19.7" height="70.5" fill="#a88235"/><rect x="304.3" y="55.5" width="19.7" height="94.5" fill="#c99a3f"/><rect x="326.0" y="75.0" width="19.7" height="75.0" fill="#a88235"/><rect x="347.7" y="54.0" width="19.7" height="96.0" fill="#c99a3f"/><rect x="369.3" y="64.5" width="19.7" height="85.5" fill="#a88235"/><rect x="391.0" y="57.0" width="19.7" height="93.0" fill="#c99a3f"/><rect x="412.7" y="85.5" width="19.7" height="64.5" fill="#a88235"/><rect x="434.3" y="69.0" width="19.7" height="81.0" fill="#a88235"/><rect x="456.0" y="69.0" width="19.7" height="81.0" fill="#a88235"/><rect x="477.7" y="91.5" width="19.7" height="58.5"/><rect x="499.3" y="114.0" width="19.7" height="36.0"/></g>
+            <line x1="0" y1="156" x2="520" y2="156" stroke="#3a3b32"/>
+            <g font-family="JetBrains Mono, Menlo, monospace" font-size="10" fill="#7d7b6e"><text x="0" y="176">00</text><text x="130" y="176">06</text><text x="260" y="176">12</text><text x="390" y="176">18</text><text x="508" y="176">23</text></g>
+          </svg>
+        </div>
+        <div class="panel">
+          <div class="ph"><span class="lbl">Events by room · 30d</span><span class="dim">7 rooms</span></div>
+          <div style="display: flex; flex-direction: column; padding: 8px 12px; gap: 5px; font-size: 12px;">
+            <div style="display: grid; grid-template-columns: 96px 1fr 52px; gap: 10px; align-items: center;"><span>OUTSIDE</span><div style="height: 10px; background: #e9b44c; width: 100%;"></div><span style="text-align: right;">6688</span></div>
+            <div style="display: grid; grid-template-columns: 96px 1fr 52px; gap: 10px; align-items: center;"><span>BASEMENT</span><div style="height: 10px; background: #e9b44c; width: 31%;"></div><span style="text-align: right;">2042</span></div>
+            <div style="display: grid; grid-template-columns: 96px 1fr 52px; gap: 10px; align-items: center;"><span>OFFICE</span><div style="height: 10px; background: #e9b44c; width: 11%;"></div><span style="text-align: right;">752</span></div>
+            <div style="display: grid; grid-template-columns: 96px 1fr 52px; gap: 10px; align-items: center;"><span>MEDIA</span><div style="height: 10px; background: #e9b44c; width: 2.2%;"></div><span style="text-align: right;">149</span></div>
+            <div style="display: grid; grid-template-columns: 96px 1fr 52px; gap: 10px; align-items: center;"><span>ENTRANCE</span><div style="height: 10px; background: #e9b44c; width: 1.5%;"></div><span style="text-align: right;">99</span></div>
+            <div style="display: grid; grid-template-columns: 96px 1fr 52px; gap: 10px; align-items: center;"><span>SOFTWARE</span><div style="height: 10px; background: #e9b44c; width: 0.9%;"></div><span style="text-align: right;">57</span></div>
+            <div style="display: grid; grid-template-columns: 96px 1fr 52px; gap: 10px; align-items: center;"><span>LIVING</span><div style="height: 10px; background: #e9b44c; width: 0.8%;"></div><span style="text-align: right;">54</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><span class="lbl">Quiet hours · 00:00–05:00</span><span class="dim">1 ev</span></div>
+          <div style="display: flex; flex-direction: column; padding: 10px 12px; gap: 8px; font-size: 12px;">
+            <div style="display: flex; gap: 10px;"><span class="dim">00:28</span><span>3 Button Basement Remote</span></div>
+            <div style="display: flex; gap: 10px;"><span class="dim">     </span><span class="amber">Battery → StatusLowBattery 20</span></div>
+            <div style="display: flex; gap: 10px;"><span class="dim">     </span><span class="dim">MEDIA ROOM · <span style="text-decoration: underline;">mute device</span></span></div>
+            <div style="border-top: 1px solid #2a2b24; margin-top: 4px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <span class="lbl">Stale devices</span>
+              <div style="display: flex; justify-content: space-between;"><span>G4 WiFi Basement</span><span class="amber">3d 01h</span></div>
+              <div style="display: flex; justify-content: space-between;"><span>G3 Flex 3D Printer</span><span class="amber">4d 21h</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
