@@ -66,17 +66,25 @@ export default function HouseSummaryPanel() {
 
   return (
     <div className="flex flex-col gap-1 py-1">
-      {/* Truncated to one line each: the panel's grid row (h:1, maxH:1) is sized
-          for exactly this — a wrapped second line would overflow the box and
-          produce DashboardPanel's overflow-auto scrollbar instead of the
-          intended "reads as prose" glance. See dashboardPanels.js houseSummary. */}
+      {/* Heading stays a hard single-line truncate: it's a short greeting + room
+          name, and real content fits comfortably up to mobile widths (verified
+          in a real browser — only very narrow phone widths with a long room
+          name lose the trailing clause, which is an acceptable compact-glance
+          tradeoff). The paragraph, by contrast, commonly carries TWO clauses
+          (the day-over-day sentence plus an appended quiet-hours clause) —
+          real-browser measurement showed `truncate` there silently drops the
+          quiet-hours clause on narrow/mobile widths, which is the common case,
+          not an edge case. `line-clamp-2` wraps normally and only ellipsizes
+          past two lines, so the common one-line case still renders in full and
+          only genuinely-long combinations lose their tail. See
+          dashboardPanels.js houseSummary for the row-height this is sized to. */}
       <h2 className="text-hc-page-title font-semibold text-hc-fg-strong leading-tight truncate">
         {greeting(now.getHours())}
         {topRoom
           ? <> — <span className="text-hc-accent-strong">{topRoom.room_name || 'an unnamed room'}</span> is doing most of the talking.</>
           : ' — the house is quiet.'}
       </h2>
-      <p className="text-hc-body text-hc-muted truncate">
+      <p className="text-hc-body text-hc-muted line-clamp-2">
         {describeToday(today, yesterday)}
         {quietWindow && (
           quietEvents.length > 0

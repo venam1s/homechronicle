@@ -180,22 +180,36 @@ describe('house summary lede sizing', () => {
     expect(lede().minH).toBe(1);
   });
 
-  // Growth was only ever needed because the heading/paragraph could wrap to a
-  // second line. HouseSummaryPanel.jsx now truncates both to one line each, so
-  // content height is bounded and the row never needs to grow past minH — and
-  // maxH is pinned to 1 so sanitizeLayouts' registry-derived clamp actually
-  // collapses a stale stored height for users who already have a saved layout.
-  it('is capped at a single row — content is truncated, never wraps', () => {
+  // Desktop maxH is pinned to minH (1), measured in a real browser to fit the
+  // heading (single line, truncated) + paragraph (up to 2 lines, line-clamp-2)
+  // + the panel's own spacing at any width >= 768px, even with worst-case
+  // realistic content. Pinning maxH to 1 is also what lets sanitizeLayouts'
+  // registry-derived clamp force-correct a legacy stale stored height down to
+  // 1 for already-onboarded desktop users (Math.min is the only thing that
+  // pulls a stored value DOWN — see useDashboardLayout.js sanitizeLayouts()).
+  it('is capped at a single row on desktop', () => {
     expect(lede().maxH).toBe(1);
   });
 
-  // Truncated content no longer needs extra height on a narrow phone column —
-  // the smH override existed only to cover multi-line wrapping, which the
-  // truncate classes in HouseSummaryPanel.jsx now prevent.
-  it('uses the same single row on mobile — no smH override needed', () => {
-    expect(lede().smH).toBeUndefined();
+  // Mobile needs its own, taller window: measured in a real browser, the
+  // paragraph's two-clause sentence commonly wraps to 2 lines in a single
+  // narrow phone column even for ordinary (non-extreme) content — a single
+  // 64px row can't hold a 1-line heading plus a 2-line paragraph no matter
+  // how much of the panel's own py-1/gap-1 spacing is trimmed. smH/smMinH/
+  // smMaxH override the desktop lg.h/minH/maxH for exactly this case, and
+  // pinning smMinH == smMaxH == 2 means the ONLY thing that could shrink it
+  // (a stale stored value clamped while maxH was still shared across
+  // breakpoints) gets forced back to 2 on next load, same as the desktop
+  // migration forces a stale h:2 down to 1.
+  it('uses a taller row on mobile — the two-clause sentence commonly wraps there', () => {
+    expect(lede().smH).toBe(2);
+    expect(lede().smMinH).toBe(2);
+    expect(lede().smMaxH).toBe(2);
     const { sm } = defaultLayouts();
-    expect(sm.find((i) => i.i === 'houseSummary').h).toBe(1);
+    const smItem = sm.find((i) => i.i === 'houseSummary');
+    expect(smItem.h).toBe(2);
+    expect(smItem.minH).toBe(2);
+    expect(smItem.maxH).toBe(2);
   });
 
   it('keeps the mobile column gap-free with the override applied', () => {

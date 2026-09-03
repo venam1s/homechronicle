@@ -212,6 +212,66 @@ describe('useDashboardLayout', () => {
     expect(loaded.h).toBe(registry.maxH);
   });
 
+  // Regression: minH/maxH were being re-derived from a SINGLE registry value
+  // shared by both breakpoints, but houseSummary now genuinely needs a
+  // different ceiling per breakpoint (lg:1, tight to a one-line desktop
+  // reading; sm:2, because the same content commonly wraps to two lines in a
+  // single narrow mobile column). A shared maxH can't satisfy both: pinning
+  // it to 1 (needed to force-correct a legacy stale desktop h:2 down to 1
+  // without a manual resize) would also clamp a correct, already-persisted
+  // mobile h:2 down to 1 on every subsequent load -- and react-grid-layout
+  // persists a layout from its own mount effect, so "subsequent load" is as
+  // soon as the second page view, not some rare edge case. Per-breakpoint
+  // `smMaxH` (mirroring the existing `smH` override pattern) lets lg and sm
+  // each reach their own correct value.
+  it('re-derives per-breakpoint maxH: lg clamps a legacy h:2 down to 1, sm keeps its own h:2 ceiling', () => {
+    const stored = defaultLayouts();
+    stored.lg = stored.lg.map((it) =>
+      it.i === 'houseSummary' ? { ...it, h: 2, minH: 2, maxH: 5 } : it,
+    );
+    stored.sm = stored.sm.map((it) =>
+      it.i === 'houseSummary' ? { ...it, h: 2, minH: 2, maxH: 5 } : it,
+    );
+    window.localStorage.setItem('hc_dashboard_layouts', JSON.stringify(stored));
+
+    const { result } = renderHook(() => useDashboardLayout(), { wrapper: makeWrapper() });
+
+    const loadedLg = result.current.layouts.lg.find((it) => it.i === 'houseSummary');
+    const loadedSm = result.current.layouts.sm.find((it) => it.i === 'houseSummary');
+
+    // lg: registry ceiling is 1 -- a stale stored h:2 (pre-dating the fix) is
+    // force-corrected down, closing the desktop dead-space gap with no manual resize.
+    expect(loadedLg.maxH).toBe(1);
+    expect(loadedLg.h).toBe(1);
+    // sm: registry ceiling is its own smMaxH (2) -- the stored h:2 is the CORRECT
+    // mobile value (content wraps to two lines there) and must not be clamped
+    // down to lg's tighter ceiling just because they share a panel id.
+    expect(loadedSm.maxH).toBe(2);
+    expect(loadedSm.h).toBe(2);
+  });
+
+  // Regression: the mirror case. maxH is the only thing that can pull a
+  // stored value DOWN (Math.min); minH is the only thing that can force one
+  // UP (Math.max). Anyone who loaded the dashboard on mobile while maxH:1 was
+  // still shared across both breakpoints (the first pass of this fix) would
+  // have had their sm height clamped and persisted at 1 -- a bare minH:1
+  // floor leaves them stuck there forever with no way to recover, since
+  // mobile resize is disabled. smMinH is required, not optional, for the
+  // fix to actually be durable for that population.
+  it('re-derives per-breakpoint minH: a stale sm h:1 (from when maxH was still shared) recovers to 2', () => {
+    const stored = defaultLayouts();
+    stored.sm = stored.sm.map((it) =>
+      it.i === 'houseSummary' ? { ...it, h: 1, minH: 1, maxH: 1 } : it,
+    );
+    window.localStorage.setItem('hc_dashboard_layouts', JSON.stringify(stored));
+
+    const { result } = renderHook(() => useDashboardLayout(), { wrapper: makeWrapper() });
+    const loadedSm = result.current.layouts.sm.find((it) => it.i === 'houseSummary');
+
+    expect(loadedSm.minH).toBe(2);
+    expect(loadedSm.h).toBe(2);
+  });
+
   it('adds newly-registered panels missing from a stored layout (upgrade migration)', () => {
     // Simulate an older saved layout that predates a panel being added.
     const partial = defaultLayouts();

@@ -26,23 +26,56 @@ export const PANELS = [
   // then what is happening now, then devices, deep history, and outliers last.
   // Changing these defaults does NOT disturb a saved layout — sanitizeLayouts
   // only consults them for panels absent from storage (DASH-03).
-  // h:1, minH:1, maxH:1 — the lede is one heading and one sentence, about 50px.
-  // It sat in a 144px box (h:2) with minH:2, so ~95px was dead space AND the
-  // grid refused to let anyone drag it smaller. maxH is pinned to 1 (not just
-  // h/minH) so sanitizeLayouts' registry-derived clamp actually collapses a
-  // stale stored height (e.g. 2, from before this row shrank) down to 1 for
-  // already-onboarded users, not just fresh installs. HouseSummaryPanel.jsx
-  // truncates the heading and paragraph to a single line each, so content is
-  // deterministically bounded and never needs to grow past one row.
-  // Tradeoff: maxH is a single registry value shared by both breakpoints (see
-  // smLayoutItem), so it can't be 1 on desktop and looser on mobile — the old
-  // smH:2 override that gave phones extra height for wrapped text is gone.
-  // On a narrow phone column the truncated heading/sentence lose more of
-  // their tail than on desktop (same 1-line cap, much less width). Accepted
-  // as a deliberate product tradeoff: the panel is a compact glance, and the
-  // same underlying data (today's count, top room, quiet-hours activity) is
-  // fully available elsewhere on the dashboard (KPI cards, Quiet Hours panel).
-  { id: 'houseSummary',   title: 'House Summary',       lg: { x: 0, y: 0,  w: 12, h: 1 }, minW: 4, minH: 1, maxH: 1, bare: true },
+  // Desktop (lg): h:1, minH:1, maxH:1 — measured in a real browser (Chrome via
+  // Playwright), the heading (single line, truncated) plus the paragraph (up
+  // to 2 lines, `line-clamp-2`) plus the panel's own py-1/gap-1 spacing need
+  // at most ~56px at any width >= 768px, even with worst-case realistic
+  // content (long room name, large numbers, full quiet-hours clause) — a
+  // one-row (64px) box fits with only ~8px slack. It sat in a 144px box (h:2)
+  // before, so ~95px was dead space AND the grid refused to let anyone drag
+  // it smaller. maxH is pinned to minH (1) so sanitizeLayouts' registry-
+  // derived clamp actually collapses a stale stored height (e.g. 2, from
+  // before this row shrank) down to 1 for already-onboarded desktop users,
+  // not just fresh installs — Math.min(rawH, maxH) is the only thing that can
+  // pull a stored value DOWN, so this ceiling has to stay tight for the
+  // migration to keep working with no manual resize required.
+  //
+  // Mobile (sm): smH:2 / smMaxH:2. The same content is measured in a real
+  // browser to need up to 80px on a single narrow phone column (the
+  // paragraph's 2-clause sentence commonly wraps at that width even for
+  // everyday, non-extreme content) — more than a single 64px row can hold no
+  // matter how much of the panel's own py-1/gap-1 spacing is trimmed (heading
+  // 20px + a 2-line paragraph at 48px already exceeds 64px before any
+  // padding). smMaxH is a SEPARATE registry field from `maxH`, not just a
+  // different smH default: minH/maxH used to be read from a single value
+  // shared by both breakpoints in sanitizeLayouts() (see useDashboardLayout.js),
+  // so pinning `maxH` to 1 for the desktop migration above would also clamp a
+  // correctly-persisted mobile h:2 down to 1 on every load after the first —
+  // react-grid-layout persists a layout from its own mount effect, so that's
+  // the SECOND page view, not a rare edge case. smMaxH lets sm keep its own,
+  // looser ceiling. There's no `smMinH`: mobile resize is already disabled
+  // (DashboardGrid's resizeConfig is `enabled: editing && !isMobile`), so a
+  // mobile floor wouldn't do anything.
+  //
+  // smMinH:2 is the mirror of smMaxH:2, needed for the same reason: minH is
+  // also read per-breakpoint in sanitizeLayouts() and is the only thing that
+  // can force a stored value UP (`Math.max(rawH, minH)`). Without it, anyone
+  // who loaded the dashboard on mobile while `maxH:1` was shared across both
+  // breakpoints (b111d05/dd8db08) would have had their `sm` height clamped
+  // and persisted at 1 — and a bare minH:1 floor would leave them stuck there
+  // forever, the same "stale constraint never reaches an already-onboarded
+  // user" bug class this whole fix targets, just on the floor instead of the
+  // ceiling. Pinning smMinH:2 == smMaxH:2 costs nothing: mobile resize is
+  // already disabled (DashboardGrid's resizeConfig is
+  // `enabled: editing && !isMobile`), so a mobile floor above 1 has no UX
+  // effect beyond correcting exactly this stale-value case.
+  //
+  // Known limitation, not fixed here: minW/minH stay a single shared value on
+  // desktop. A user who drags this panel's WIDTH down to minW:4 on desktop
+  // gets a permanent scrollbar (no matching height increase), since maxH:1
+  // leaves no headroom to grow into. Self-inflicted via manual resize, out of
+  // scope for this pass, called out here so it isn't rediscovered as a surprise.
+  { id: 'houseSummary',   title: 'House Summary',       lg: { x: 0, y: 0,  w: 12, h: 1 }, minW: 4, minH: 1, maxH: 1, smH: 2, smMinH: 2, smMaxH: 2, bare: true },
   { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 1,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
   { id: 'roomMap',        title: 'Where Things Happen', lg: { x: 0, y: 3,  w: 7,  h: 5 }, minW: 4, minH: 4 },
   { id: 'rhythmArc',      title: "Today's Rhythm",      lg: { x: 7, y: 3,  w: 5,  h: 5 }, minW: 3, minH: 4 },
@@ -109,8 +142,17 @@ function smLayoutItem(panel, y) {
     // that fits one row at 1600px wraps to several lines at phone width.
     h: panel.smH ?? panel.lg.h,
     minW: 1,
-    minH: panel.minH,
-    ...(panel.maxH != null ? { maxH: panel.maxH } : {}),
+    // `smMinH` overrides the desktop minH the same way `smH` overrides h: see
+    // sanitizeLayouts() in useDashboardLayout.js, which reads this same field
+    // per-breakpoint as the floor a stale stored value gets forced UP to.
+    minH: panel.smMinH ?? panel.minH,
+    // `smMaxH` overrides the desktop maxH the same way `smH` overrides h: when
+    // a panel's mobile default genuinely needs to be taller than its desktop
+    // ceiling (houseSummary: sm needs 2 rows, lg is pinned to 1), the shared
+    // `maxH` can't express both — see sanitizeLayouts() in
+    // useDashboardLayout.js, which reads this same field per-breakpoint.
+    ...(panel.smMaxH != null ? { maxH: panel.smMaxH }
+      : panel.maxH != null ? { maxH: panel.maxH } : {}),
   };
 }
 

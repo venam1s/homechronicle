@@ -46,9 +46,22 @@ function sanitizeLayouts(stored) {
         // the old, looser constraint through localStorage forever). Stored height
         // is still genuinely user data, so it's preserved, just re-clamped into
         // whatever the current [minH, maxH] window is.
+        //
+        // minH/maxH are read per-breakpoint (panel.smMinH/panel.smMaxH for
+        // 'sm', falling back to panel.minH/panel.maxH) because a panel's two
+        // breakpoints can need genuinely different windows — e.g. houseSummary
+        // is pinned to [1,1] on desktop (so a legacy stale h:2 gets force-
+        // corrected down with no manual resize) but needs [2,2] on mobile,
+        // where the same content commonly wraps to two lines in a single
+        // narrow column. A single shared minH/maxH can't satisfy both without
+        // breaking one of them on the very next load: maxH is the only thing
+        // that can pull a stored value DOWN (Math.min), minH the only thing
+        // that can force one UP (Math.max) — a stale mobile h:1 persisted
+        // while maxH:1 was shared across breakpoints needs its own smMinH to
+        // ever recover.
         const panel = PANEL_BY_ID[it.i];
-        const minH = panel?.minH ?? 1;
-        const maxH = panel?.maxH;
+        const minH = (bp === 'sm' ? panel?.smMinH : null) ?? panel?.minH ?? 1;
+        const maxH = (bp === 'sm' ? panel?.smMaxH : null) ?? panel?.maxH;
         const rawH = Number(it.h) || 1;
         const h = maxH != null ? Math.min(Math.max(rawH, minH), maxH) : Math.max(rawH, minH);
         return {
