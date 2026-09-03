@@ -21,6 +21,7 @@ import AlertsPage from './pages/AlertsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
 const CHANGELOG_KEY = 'hc_last_seen_version';
+const PAGE_LABELS = { dashboard: 'Dashboard', devices: 'Devices', timeline: 'Timeline', alerts: 'Alerts', settings: 'Settings' };
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
@@ -141,7 +142,11 @@ export default function App() {
             availableUpdate={availableUpdate}
           />
         )}
-        <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto">
+        <main
+          ref={mainRef}
+          className="flex-1 min-h-0 overflow-y-auto"
+          aria-label={selectedAccessoryId ? 'Accessory detail' : (PAGE_LABELS[activePage] ?? 'Content')}
+        >
           {selectedAccessoryId ? (
             <ErrorBoundary key={selectedAccessoryId}><AccessoryDetail accessoryId={selectedAccessoryId} onBack={handleAccessoryBack} /></ErrorBoundary>
           ) : (

@@ -81,10 +81,6 @@ export default function SettingsPage({
 
   return (
     <PageContainer>
-      <div className="mb-6">
-        <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Settings</h1>
-      </div>
-
       {/* Mobile: select nav */}
       {!isDesktop && (
         <div className="mb-4">

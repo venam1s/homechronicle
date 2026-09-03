@@ -19,9 +19,6 @@ export default function DevicesPage({ onSelectAccessory }) {
 
   return (
     <PageContainer narrow className="space-y-6">
-      <div className="mb-6">
-        <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Devices</h1>
-      </div>
       <nav className="flex gap-1 border-b border-hc-panel-border">
         {DEVICE_TABS.map(({ id, label }) => (
           <button

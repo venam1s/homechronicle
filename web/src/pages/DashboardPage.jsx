@@ -63,10 +63,6 @@ export default function DashboardPage({
   return (
     <PageContainer className="space-y-4">
 
-      <div className="mb-2">
-        <h1 className="text-hc-page-title font-semibold text-hc-fg-strong">Dashboard</h1>
-      </div>
-
       <PairingHealthBanner onViewDetails={onViewDeviceRepair} />
 
       <div className="flex items-center justify-between gap-3 px-1">
