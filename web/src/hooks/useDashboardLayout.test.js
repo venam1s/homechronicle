@@ -272,6 +272,35 @@ describe('useDashboardLayout', () => {
     expect(loadedSm.h).toBe(2);
   });
 
+  // Regression: the same disease as houseSummary, one panel down. The KPI card
+  // row's content height used to sit BETWEEN two row sizes on desktop (160px
+  // of cards vs a 144px h:2 box), so users enlarged the panel to h:3 to kill
+  // the scrollbar and got a ~64px blank band under the cards instead — the
+  // "gap between widgets" report. KpiCards now fits h:2, and the registry pins
+  // maxH:2 so that persisted h:3 is clamped back down on load. On mobile the
+  // 2x2 card stack measures ~256px, so the old shared h:2 (144px) box has
+  // always overflowed there: smMinH:4 migrates a stored sm h:2 UP to 4.
+  it('kpis: clamps a stale desktop h:3 down to 2 and raises a stale mobile h:2 up to 4', () => {
+    const stored = defaultLayouts();
+    stored.lg = stored.lg.map((it) =>
+      it.i === 'kpis' ? { ...it, h: 3 } : it,
+    );
+    stored.sm = stored.sm.map((it) =>
+      it.i === 'kpis' ? { ...it, h: 2, minH: 2 } : it,
+    );
+    window.localStorage.setItem('hc_dashboard_layouts', JSON.stringify(stored));
+
+    const { result } = renderHook(() => useDashboardLayout(), { wrapper: makeWrapper() });
+
+    const loadedLg = result.current.layouts.lg.find((it) => it.i === 'kpis');
+    const loadedSm = result.current.layouts.sm.find((it) => it.i === 'kpis');
+
+    expect(loadedLg.maxH).toBe(2);
+    expect(loadedLg.h).toBe(2);
+    expect(loadedSm.minH).toBe(4);
+    expect(loadedSm.h).toBe(4);
+  });
+
   it('adds newly-registered panels missing from a stored layout (upgrade migration)', () => {
     // Simulate an older saved layout that predates a panel being added.
     const partial = defaultLayouts();

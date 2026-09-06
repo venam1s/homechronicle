@@ -52,12 +52,12 @@ export default function KpiCards({ dashboardDays = 7 }) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid h-full auto-rows-fr grid-cols-2 md:grid-cols-4 gap-3">
         {KPI_DEFS.map(def => (
           <Card key={def.key}>
-            <Card.Body compact>
+            <div className="p-3">
               <div className="skeleton h-16 rounded-lg" />
-            </Card.Body>
+            </div>
           </Card>
         ))}
       </div>
@@ -113,11 +113,23 @@ export default function KpiCards({ dashboardDays = 7 }) {
     topRoom: topRoom ? `${toInt(topRoom.count).toLocaleString()} events (7d)` : null,
   };
 
+  // Layout notes (all measured in a real browser, Chromium via Playwright):
+  // - h-full + auto-rows-fr: the card row stretches to fill whatever box the
+  //   grid gives this panel, so leftover height becomes card interior instead
+  //   of a blank band below the row (the "gap between widgets" bug).
+  // - md:grid-cols-4 (not lg:): the dashboard grid's desktop breakpoint starts
+  //   at 768px, so the cards must go 4-across there too — with lg: the
+  //   768-1023px band stacked them 2x2 inside a 2-row box and overflowed.
+  // - p-3 body + 24px sparkline + mt-1: the tallest card (TODAY, with the
+  //   sparkline) measures ~136px, fitting the panel's 2-row 144px box with
+  //   ~8px slack. Card.Body compact (p-3 sm:p-4 = 16px) plus a 36px sparkline
+  //   measured 160px — 16px of overflow that no integer row height could
+  //   resolve (h:2 scrolled, h:3 left a 64px gap).
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid h-full auto-rows-fr grid-cols-2 md:grid-cols-4 gap-3">
       {KPI_DEFS.map(def => (
         <Card key={def.key}>
-          <Card.Body compact>
+          <div className="p-3">
             <div className="flex items-start gap-3">
               <div className={clsx('flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center', def.bgClass)}>
                 <def.icon size={16} className={def.iconClass} />
@@ -137,8 +149,8 @@ export default function KpiCards({ dashboardDays = 7 }) {
               </div>
             </div>
             {def.key === 'today' && sparkData.length > 0 && (
-              <div className="mt-2 -mx-1">
-                <ResponsiveContainer width="100%" height={36}>
+              <div className="mt-1 -mx-1">
+                <ResponsiveContainer width="100%" height={24}>
                   <AreaChart data={sparkData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="sparklineGradient" x1="0" y1="0" x2="0" y2="1">
@@ -159,7 +171,7 @@ export default function KpiCards({ dashboardDays = 7 }) {
                 </ResponsiveContainer>
               </div>
             )}
-          </Card.Body>
+          </div>
         </Card>
       ))}
     </div>

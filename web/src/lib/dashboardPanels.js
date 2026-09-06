@@ -76,7 +76,22 @@ export const PANELS = [
   // leaves no headroom to grow into. Self-inflicted via manual resize, out of
   // scope for this pass, called out here so it isn't rediscovered as a surprise.
   { id: 'houseSummary',   title: 'House Summary',       lg: { x: 0, y: 0,  w: 12, h: 1 }, minW: 4, minH: 1, maxH: 1, smH: 2, smMinH: 2, smMaxH: 2, bare: true },
-  { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 1,  w: 12, h: 2 }, minW: 4, minH: 2, bare: true },
+  // kpis follows the same migration mechanics as houseSummary above, for the
+  // same bug on the neighbouring panel: the KPI card row's measured content
+  // height used to sit BETWEEN two row sizes (160px vs a 144px h:2 box), so
+  // h:2 scrolled and h:3 left a ~64px blank band under the cards — the
+  // "gap between widgets" report. KpiCards is now trimmed to ~136px (see its
+  // layout notes) and stretches to fill its box, and maxH:2 == minH:2 pins the
+  // desktop height so sanitizeLayouts clamps an already-persisted h:3 back
+  // down on load, with no manual resize or layout reset.
+  //
+  // Mobile (sm): the cards stack 2x2 in the single narrow column and measure
+  // ~256px — the old shared h:2 (144px) box has ALWAYS overflowed there.
+  // smH/smMinH/smMaxH: 4 (304px box) gives the stack room; auto-rows-fr in
+  // KpiCards distributes the slack inside the cards rather than below them.
+  // smMinH is the half that migrates existing users UP from a stored sm h:2
+  // (Math.max), smMaxH pins the ceiling; mobile resize is disabled anyway.
+  { id: 'kpis',           title: 'Overview',            lg: { x: 0, y: 1,  w: 12, h: 2 }, minW: 4, minH: 2, maxH: 2, smH: 4, smMinH: 4, smMaxH: 4, bare: true },
   { id: 'roomMap',        title: 'Where Things Happen', lg: { x: 0, y: 3,  w: 7,  h: 5 }, minW: 4, minH: 4 },
   { id: 'rhythmArc',      title: "Today's Rhythm",      lg: { x: 7, y: 3,  w: 5,  h: 5 }, minW: 3, minH: 4 },
   { id: 'trend',          title: 'Daily Activity',      lg: { x: 0, y: 8,  w: 12, h: 5 }, minW: 4, minH: 3 },
