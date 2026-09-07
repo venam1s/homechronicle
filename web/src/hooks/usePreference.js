@@ -45,6 +45,28 @@ const defaultSerialize = JSON.stringify;
 const defaultDeserialize = JSON.parse;
 
 /**
+ * Cross-instance sync registry (localStorageKey -> Set<setState>).
+ *
+ * The same preference key is mounted by several components at once — theme by
+ * AppearanceProvider (the painter), Masthead, and AppearanceSection — and each
+ * instance owns its own useState. Without an in-tab broadcast they only ever
+ * reconverge through the server-blob echo, which does not exist on the anon
+ * path and is best-effort on the authed one. Concretely: picking "System" in
+ * Settings updated only the Settings instance, so once it unmounted the painter
+ * still held the old explicit theme and OS scheme flips repainted nothing until
+ * a full reload. setValue notifies every sibling instance of the same key.
+ */
+const instancesByKey = new Map();
+
+function broadcast(localStorageKey, value, except) {
+  const set = instancesByKey.get(localStorageKey);
+  if (!set) return;
+  for (const setState of set) {
+    if (setState !== except) setState(value);
+  }
+}
+
+/**
  * Read a value from localStorage using the provided deserialize function.
  * Returns null on any error (missing key, parse failure, storage unavailable).
  */
@@ -89,6 +111,23 @@ export function usePreference(key, defaultValue, {
   const valueRef = useRef(value);
   valueRef.current = value;
 
+  // Register this instance for in-tab sibling broadcasts. setValue_ is stable
+  // across renders (React guarantees setState identity), so the effect runs once
+  // per mount and the cleanup cannot leak entries.
+  useEffect(() => {
+    if (!localStorageKey) return undefined;
+    let set = instancesByKey.get(localStorageKey);
+    if (!set) {
+      set = new Set();
+      instancesByKey.set(localStorageKey, set);
+    }
+    set.add(setValue_);
+    return () => {
+      set.delete(setValue_);
+      if (set.size === 0) instancesByKey.delete(localStorageKey);
+    };
+  }, [localStorageKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // SEEDING NOTE (PREF-11/D-14): seeding is owned solely by UserPreferencesProvider's
   // seedIfEmpty (invoked once from App.jsx with the full localStorage snapshot + shared
   // toast/grouping values). The previous per-key seeding effect here was removed — having
@@ -123,6 +162,10 @@ export function usePreference(key, defaultValue, {
 
     setValue_(resolved);
     writeLocal(localStorageKey, resolved, serialize);
+    // Keep every other mounted instance of this key in agreement — the painter
+    // (AppearanceProvider) must learn about a change made from Settings even on
+    // the anon path, where no server-blob echo will ever reconcile it.
+    broadcast(localStorageKey, resolved, setValue_);
 
     // Authed path: also update the server blob (debounced in useUserPreferences).
     if (user) {
