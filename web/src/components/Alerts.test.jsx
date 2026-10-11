@@ -285,3 +285,22 @@ describe('Alerts member recipient read-only lock (MALERT-05)', () => {
     });
   });
 });
+
+// The quiet-period field defaults to 0, so its placeholder never showed and
+// sighted users saw a bare, unexplained "0" (its name existed only in aria-label).
+describe('Alerts quiet-period field', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchJson.mockImplementation(() => Promise.resolve({}));
+  });
+
+  it('has a visible label and unit, not just an aria-label', () => {
+    renderAlerts();
+    const input = screen.getByRole('spinbutton', { name: /quiet period/i });
+    expect(input).not.toHaveAttribute('aria-label');
+    const label = input.closest('label');
+    expect(label).not.toBeNull();
+    expect(label.textContent).toMatch(/Quiet period/);
+    expect(label.textContent).toMatch(/min/);
+  });
+});
