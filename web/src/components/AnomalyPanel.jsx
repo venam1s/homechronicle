@@ -1,6 +1,21 @@
 import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useAnomalies, useAccessories } from '../hooks/useEvents.js';
+import { utcHourToLocal, formatHour12 } from '../lib/hours.js';
+
+/**
+ * The outlier sentence in the viewer's local time. The listener's `message` is
+ * pre-formatted with a UTC hour ("drop-off at 12pm UTC"), which was the one UTC
+ * time on a dashboard that is otherwise local, so rebuild it from the
+ * structured `hour` and `kind` fields. Falls back to `message` if they are
+ * missing.
+ */
+export function describeOutlier(row) {
+  const hour = Number(row.hour);
+  if (row.hour == null || !Number.isInteger(hour) || hour < 0 || hour > 23) return row.message;
+  const what = row.kind === 'spike' ? 'spike' : 'drop-off';
+  return `${row.scopeType} activity ${what} at ${formatHour12(utcHourToLocal(hour))}`;
+}
 
 function labelFor(scopeType) {
   return scopeType === 'room' ? 'Room' : 'Device';
@@ -82,7 +97,7 @@ export default function AnomalyPanel({ onSelectAccessory, onSelectRoom }) {
               {row.scopeName}
             </div>
             <div className="text-xs text-hc-warning-text mt-0.5">
-              {row.message} · observed {row.eventCount}, baseline {row.baselineAvg}
+              {describeOutlier(row)} · observed {row.eventCount}, baseline {row.baselineAvg}
             </div>
           </div>
         ))}
