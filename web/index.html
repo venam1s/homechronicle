@@ -14,26 +14,7 @@
     <meta name="apple-mobile-web-app-title" content="homechronicle" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20260228-1" />
     <title>homechronicle</title>
-    <script>
-      (function () {
-        const themeKey = 'hc_theme_preference';
-        const accentKey = 'hc_accent';
-        const legacyKey = 'hc_ui_skin';
-        const stored = localStorage.getItem(themeKey);
-        const preference = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
-        const resolved = preference === 'system'
-          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : preference;
-        const storedAccent = localStorage.getItem(accentKey) || localStorage.getItem(legacyKey);
-        const validAccents = ['ocean','graphite','sunrise','red','yellow','purple','slate','pink'];
-        const accent = validAccents.includes(storedAccent) ? storedAccent : 'ocean';
-        document.documentElement.dataset.theme = resolved;
-        document.documentElement.dataset.accent = accent;
-        document.documentElement.classList.toggle('theme-dark', resolved === 'dark');
-        document.documentElement.classList.toggle('theme-light', resolved === 'light');
-        document.documentElement.style.colorScheme = resolved;
-      })();
-    </script>
+    <script src="/theme-init.js?v=20261011"></script>
   </head>
   <body>
     <div id="root"></div>
