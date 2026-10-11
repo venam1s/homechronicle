@@ -253,77 +253,81 @@ export default function AccessoryList({ onSelectAccessory }) {
                     <Icon size={18} className="text-hc-accent-strong" />
                   </div>
 
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-hc-fg-strong truncate">{accessory.accessory_name}</div>
-                    <div className="text-xs text-hc-muted mt-0.5 flex flex-wrap items-center gap-x-1.5">
-                      {accessory.protocol && (
-                        <span className="inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1 py-px bg-hc-panel-mid text-hc-muted border border-hc-panel-border">
-                          {accessory.protocol === 'matter' ? 'Matter' : 'HomeKit'}
-                        </span>
-                      )}
-                      {accessory.service_type
-                        ? <span>{accessory.service_type}</span>
-                        : <span className="italic">waiting for first event</span>
-                      }
-                      {accessory.last_seen && (
-                        <><span className="text-hc-muted">·</span>
-                        <span>last seen {formatDistanceToNow(new Date(accessory.last_seen), { addSuffix: true })}</span></>
-                      )}
-                      {health.status && health.status !== 'online' && (
-                        <><span className="text-hc-muted">·</span>
-                        <span>{health.status}</span></>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-hc-muted mt-0.5 flex flex-wrap gap-x-1.5">
-                      {metadata && (
-                        <span>{metadata}</span>
-                      )}
-                      {offlineFor && health.status !== 'online' && (
-                        <>
-                          {metadata && <span className="text-hc-muted">·</span>}
-                          <span>offline for {offlineFor}</span>
-                        </>
-                      )}
-                      {Number.isFinite(health.missedHeartbeats) && health.missedHeartbeats > 0 && (
-                        <>
-                          <span className="text-hc-muted">·</span>
-                          <span>
-                            missed {health.missedHeartbeats} heartbeat{health.missedHeartbeats === 1 ? '' : 's'}
+                  {/* Text + badges. Below sm the badges drop under the text: as a
+                      fixed right-hand column they left a 390px screen ~15
+                      characters for the name. */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <div className="min-w-0 sm:flex-1">
+                      <div className="font-medium text-hc-fg-strong line-clamp-2 break-words sm:line-clamp-none sm:truncate" title={accessory.accessory_name}>{accessory.accessory_name}</div>
+                      <div className="text-xs text-hc-muted mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                        {accessory.protocol && (
+                          <span className="inline-block text-[10px] font-semibold uppercase tracking-wide rounded px-1 py-px bg-hc-panel-mid text-hc-muted border border-hc-panel-border">
+                            {accessory.protocol === 'matter' ? 'Matter' : 'HomeKit'}
                           </span>
-                        </>
-                      )}
-                      {heartbeatFor && (
-                        <>
-                          <span className="text-hc-muted">·</span>
-                          <span>heartbeat ~{heartbeatFor}</span>
-                        </>
-                      )}
-                      {reliability && (
-                        <>
-                          <span className="text-hc-muted">·</span>
-                          <span>{reliability}</span>
-                        </>
-                      )}
+                        )}
+                        {accessory.service_type
+                          ? <span>{accessory.service_type}</span>
+                          : <span className="italic">waiting for first event</span>
+                        }
+                        {accessory.last_seen && (
+                          <><span className="text-hc-muted">·</span>
+                          <span>last seen {formatDistanceToNow(new Date(accessory.last_seen), { addSuffix: true })}</span></>
+                        )}
+                        {health.status && health.status !== 'online' && (
+                          <><span className="text-hc-muted">·</span>
+                          <span>{health.status}</span></>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-hc-muted mt-0.5 flex flex-wrap gap-x-1.5">
+                        {metadata && (
+                          <span>{metadata}</span>
+                        )}
+                        {offlineFor && health.status !== 'online' && (
+                          <>
+                            {metadata && <span className="text-hc-muted">·</span>}
+                            <span>offline for {offlineFor}</span>
+                          </>
+                        )}
+                        {Number.isFinite(health.missedHeartbeats) && health.missedHeartbeats > 0 && (
+                          <>
+                            <span className="text-hc-muted">·</span>
+                            <span>
+                              missed {health.missedHeartbeats} heartbeat{health.missedHeartbeats === 1 ? '' : 's'}
+                            </span>
+                          </>
+                        )}
+                        {heartbeatFor && (
+                          <>
+                            <span className="text-hc-muted">·</span>
+                            <span>heartbeat ~{heartbeatFor}</span>
+                          </>
+                        )}
+                        {reliability && (
+                          <>
+                            <span className="text-hc-muted">·</span>
+                            <span>{reliability}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Event count badge */}
-                  {(accessory.event_count > 0 || showStale) && (
-                    <div className="flex flex-col items-end gap-1">
-                      {showStale && (
-                        <div className="inline-flex items-center gap-1 text-[11px] text-hc-warning-text bg-hc-warning-bg border border-hc-warning-border rounded-full px-2 py-0.5 whitespace-nowrap">
-                          <AlertTriangle size={11} />
-                          stale device
-                        </div>
-                      )}
-                      {accessory.event_count > 0 && (
-                        <div className="flex-shrink-0 text-xs text-hc-muted bg-hc-panel-mid border border-hc-panel-border rounded-full px-2 py-0.5 whitespace-nowrap">
-                          {accessory.event_count.toLocaleString()} {accessory.event_count === 1 ? 'event' : 'events'}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    {/* Event count badge */}
+                    {(accessory.event_count > 0 || showStale) && (
+                      <div className="flex flex-row flex-wrap items-center gap-1 sm:flex-col sm:items-end">
+                        {showStale && (
+                          <div className="inline-flex items-center gap-1 text-[11px] text-hc-warning-text bg-hc-warning-bg border border-hc-warning-border rounded-full px-2 py-0.5 whitespace-nowrap">
+                            <AlertTriangle size={11} />
+                            stale device
+                          </div>
+                        )}
+                        {accessory.event_count > 0 && (
+                          <div className="flex-shrink-0 text-xs text-hc-muted bg-hc-panel-mid border border-hc-panel-border rounded-full px-2 py-0.5 whitespace-nowrap">
+                            {accessory.event_count.toLocaleString()} {accessory.event_count === 1 ? 'event' : 'events'}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <ChevronRight size={14} className="text-hc-muted flex-shrink-0" />
                 </button>
               );
