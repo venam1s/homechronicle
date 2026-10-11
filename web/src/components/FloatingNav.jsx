@@ -21,6 +21,13 @@ const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring 
 // sits bottom-left; tapping it expands a vertical stack of page links. The menu
 // auto-collapses on navigation, backdrop tap, Escape, or when the main content
 // scrolls. Expanded/collapsed is transient UI state (not persisted).
+/**
+ * Bottom padding the scroll container needs so the FAB never permanently covers
+ * the end of the page: 16px offset + 56px button (w-14) + 16px breathing room,
+ * plus the safe-area inset the cluster itself is offset by.
+ */
+export const FLOATING_NAV_CLEARANCE = 'calc(env(safe-area-inset-bottom) + 88px)';
+
 export default function FloatingNav({ activePage, onNavigate, scrollRef }) {
   const [open, setOpen] = useState(false);
   const firstItemRef = useRef(null);

@@ -85,6 +85,20 @@ describe('App smoke', () => {
     });
   });
 
+  // The FAB is fixed bottom-left over the scrolling <main>. Without bottom
+  // padding, whatever ends up under it at the end of the page can never be
+  // scrolled clear (at 390px it covered the last dashboard panel).
+  it('pads the content so the floating nav never covers the end of the page', () => {
+    mockUseMediaQuery.mockImplementation((query) => query === '(max-width: 767px)');
+    const { unmount } = renderApp();
+    expect(screen.getByRole('main').style.paddingBottom).toMatch(/88px/);
+    unmount();
+
+    mockUseMediaQuery.mockImplementation(() => false);
+    renderApp();
+    expect(screen.getByRole('main').style.paddingBottom).toBe('');
+  });
+
   it('renders the floating nav (not the masthead) on mobile and navigates', () => {
     // Override for this test only
     mockUseMediaQuery.mockImplementation((query) => {

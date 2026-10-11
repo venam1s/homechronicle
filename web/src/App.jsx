@@ -9,7 +9,7 @@ import { useUpdateCheck } from './hooks/useUpdateCheck.js';
 import { useLiveEventToasts } from './hooks/useLiveEventToasts.js';
 import { useToast } from './components/Toast.jsx';
 import Masthead from './components/Masthead.jsx';
-import FloatingNav from './components/FloatingNav.jsx';
+import FloatingNav, { FLOATING_NAV_CLEARANCE } from './components/FloatingNav.jsx';
 import clsx from 'clsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import ChangelogModal from './components/ChangelogModal.jsx';
@@ -145,6 +145,7 @@ export default function App() {
         <main
           ref={mainRef}
           className="flex-1 min-h-0 overflow-y-auto"
+          style={isFloatingNav ? { paddingBottom: FLOATING_NAV_CLEARANCE } : undefined}
           aria-label={selectedAccessoryId ? 'Accessory detail' : (PAGE_LABELS[activePage] ?? 'Content')}
         >
           {selectedAccessoryId ? (
