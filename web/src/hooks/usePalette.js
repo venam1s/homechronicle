@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { usePreference } from './usePreference.js';
+import { useAuth } from './useAuth.js';
+import { useUserPreferences } from './useUserPreferences.js';
 import { PALETTES, DEFAULT_PALETTE, ACCENT_TO_PALETTE, isPaletteId, resolvePaletteId } from '../lib/palettes.js';
 
 /**
@@ -82,6 +84,29 @@ export function usePalette() {
   // Guard the value on the way out too: a synced blob written by a newer or
   // older build could hold something this build does not know about.
   const palette = resolvePaletteId(stored);
+
+  // PAL-06, account side. getStoredPalette() above only sees localStorage, but a
+  // v0.3 account's server blob carries `accent` and no `palette`, and logout
+  // purges both local keys — so on a new device, or the first login after any
+  // logout, the upgrade above has nothing to read. Map the account's accent
+  // here and save the result, which writes `palette` into the blob and makes the
+  // upgrade durable. A palette this browser already holds is left alone.
+  const { user } = useAuth();
+  const { prefs } = useUserPreferences();
+  useEffect(() => {
+    if (!user || !prefs || typeof prefs !== 'object') return;
+    if ('palette' in prefs) return;
+    if (!Object.hasOwn(ACCENT_TO_PALETTE, prefs.accent)) return;
+    const storage = getStorage();
+    let local = null;
+    try {
+      local = storage?.getItem(STORAGE_KEY) ?? null;
+    } catch {
+      // Unreadable storage counts as "no local choice".
+    }
+    if (isPaletteId(local)) return;
+    setPalette(ACCENT_TO_PALETTE[prefs.accent]);
+  }, [user, prefs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     applyPalette(palette);

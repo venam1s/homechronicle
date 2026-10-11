@@ -104,3 +104,56 @@ describe('the inverted nesting that shipped', () => {
     expect(localStorage.getItem('hc_palette')).toBeNull();
   });
 });
+
+// PAL-06 for a signed-in account. upgrade.test.js seeds only localStorage, so it
+// cannot see this: a v0.3 account's server blob carries `accent` and no
+// `palette`, and logout purges both local keys. Without a blob-side upgrade the
+// first login after any logout (or on a new device) snapped to the default.
+describe('upgrading a signed-in v0.3 account', () => {
+  beforeEach(() => {
+    fetchJson.mockReset();
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-palette');
+  });
+
+  function serveBlob(prefs) {
+    fetchJson.mockImplementation((url, opts) =>
+      Promise.resolve(opts?.method === 'PUT' ? { prefs: {} } : { prefs }));
+  }
+
+  function putBodies() {
+    return fetchJson.mock.calls
+      .filter(([, opts]) => opts?.method === 'PUT')
+      .map(([, opts]) => JSON.parse(opts.body));
+  }
+
+  it('maps the account accent to its palette on a device with no local choice', async () => {
+    serveBlob({ accent: 'purple', theme: 'dark' });
+    renderTree(<AppProviders><span>app</span></AppProviders>);
+    await waitFor(() => expect(document.documentElement.dataset.palette).toBe('iris'));
+    expect(localStorage.getItem('hc_palette')).toBe('iris');
+  });
+
+  it('saves the mapped palette to the account, so the upgrade survives the next logout', async () => {
+    serveBlob({ accent: 'purple' });
+    renderTree(<AppProviders><span>app</span></AppProviders>);
+    await waitFor(() => expect(putBodies().some((b) => b.prefs?.palette === 'iris')).toBe(true), { timeout: 2000 });
+  });
+
+  it('leaves an account palette alone', async () => {
+    serveBlob({ accent: 'purple', palette: 'fern' });
+    renderTree(<AppProviders><span>app</span></AppProviders>);
+    await waitFor(() => expect(document.documentElement.dataset.palette).toBe('fern'));
+    await new Promise((r) => setTimeout(r, 700));
+    expect(putBodies().filter((b) => 'palette' in (b.prefs ?? {}))).toEqual([]);
+  });
+
+  it('does not override a palette this browser already chose', async () => {
+    localStorage.setItem('hc_palette', 'ember');
+    serveBlob({ accent: 'purple' });
+    renderTree(<AppProviders><span>app</span></AppProviders>);
+    await waitFor(() => expect(fetchJson).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(document.documentElement.dataset.palette).toBe('ember');
+  });
+});
