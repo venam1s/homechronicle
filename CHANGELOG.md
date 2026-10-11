@@ -2,6 +2,49 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.4.0] — 2026-10-11
+
+A redesign of the whole interface — twelve colour palettes, each with its own light and dark version, a new top navigation bar, and a restyled dashboard, timeline and devices view — plus native Matter subscriptions and a batch of fixes.
+
+### Upgrade notes
+- **Matter users: devices switch from polling to live subscriptions automatically.** Changes now arrive as they happen, and a background re-read every 5 minutes covers a subscription that quietly stops. If you'd rather keep the old behaviour (polling every 5 s), set `MATTER_SUBSCRIBE_ENABLED=false` before upgrading.
+- **Your colour choice carries over.** The old accent setting maps to the nearest palette: Ocean → Tide, Graphite → Graphite, Sunrise and Yellow → Harvest, Red → Ember, Purple → Iris, Slate → Atlas, Pink → Dusk. With sign-in enabled, this also applies on a new device or after you sign out.
+- **Alerts are enabled per rule.** `PATCH /api/setup/alerts` now rejects an `enabled` field with a 400 — the household-wide switch was retired in 0.3.0 and no longer did anything.
+
+### Added
+- **Twelve colour palettes, each with a designed light and dark variant** — Porcelain (the new default), Gallery, Ember, Almanac, Harvest, Ink, Fern, Tide, Atlas, Iris, Dusk and Graphite. Choose one in **Settings › Appearance**, along with **Light / Dark / System**; System follows your OS and switches live. Charts, room colours and status colours all follow the palette.
+- **Room colours follow your palette** — each room keeps the same colour across every filter and date range, chosen from a nine-colour set picked to stay distinguishable for colour-blind users. Room names are always shown beside the colour, so colour is never the only cue.
+- **Three new dashboard panels:**
+  - **House Summary** — a one-line summary of today: the busiest room, the change on yesterday, and whether anything happened during quiet hours.
+  - **Where Things Happen** (room map) — blocks sized by each room's share of events; select a room to open its timeline.
+  - **Today's Rhythm** — an arc of your day showing quiet hours, the busiest hours, and the current time.
+
+  Existing dashboards get the three new panels automatically, and your saved layout and hidden panels are kept. You can remove the new panels like any other.
+- **Update check that works** — Settings › About shows your version and whether a newer release is available. It now checks the project's GitLab releases through the listener, so your browser never contacts a third-party site (the old check looked at a GitHub account that no longer exists, and was blocked by the page's security policy anyway). `GET /api/updates/latest` is public, like `/api/health`.
+- **Account menu** in the top bar, and a dedicated **About** section in Settings.
+
+### Changed
+- **Top navigation bar replaces the sidebar** on desktop. Phones and tablets keep the floating navigation button.
+- **Restyled dashboard, Timeline and Devices.** Timeline entries now lead with what happened ("motion detected", "60% RH"), with the device and room underneath, and more HomeKit characteristics read as plain sentences instead of raw names. Devices are grouped in per-room tables showing status, event count and heartbeat.
+- **Matter devices report changes as they happen** — native subscriptions are now on by default (`MATTER_SUBSCRIBE_ENABLED`, default `true`), with a slow background re-read every 5 minutes (`MATTER_RECONCILE_INTERVAL_MS`) as a safety net if a subscription quietly stops. matter.js upgraded to 0.17.9 (Matter spec 1.6).
+- **Matter readings use the same names and units as HomeKit** — for example 23.5 °C instead of `2350`, and brightness as a percentage. Alert rules, Timeline filters and headlines now work for Matter devices. Alert rules also fire for Matter events now.
+- The pages no longer repeat a heading under the navigation bar.
+
+### Fixed
+- **Per-user preferences were never saved to your account** — since 0.3.0, every save was silently rejected by the server, so theme, layout and other settings only lived in the browser you set them in. They now sync to your account. Changes are also saved if you sign out or close the tab straight after making one.
+- **Theme "System" didn't follow the OS** until you reloaded the page.
+- **Theme wasn't applied on phones, tablets, or the sign-in pages**.
+- **New installs showed all 24 dashboard panels** instead of the default set.
+- **Dashboard spacing** — the KPI row and House Summary now fit their grid boxes without empty space.
+- **Settings › Danger Zone** listed deleted accessories again after deleting them, and showed duplicate rows.
+- **Text contrast** — room-map labels, accent-coloured buttons, and success/warning buttons in Graphite now meet WCAG AA in every palette, light and dark.
+- **Phones:** the floating navigation button no longer covers the bottom of the page, device names on Devices are no longer cut short, and the alert form's quiet-period field is labelled.
+- **Active Outliers** showed hours in UTC; they are now in your local time like the rest of the dashboard.
+
+### Internal
+- CI boots the listener on every pipeline and waits for `/api/health` (boot-smoke), which catches startup failures before release.
+- Tests that fail if a hard-coded colour comes back, if a Matter cluster or attribute ID changes upstream, or if the first-paint theme script stops matching the app.
+
 ## [0.3.4] — 2026-08-30
 
 ### Fixed

@@ -10,6 +10,19 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.4.0',
+    title: 'A redesigned interface with twelve colour palettes',
+    items: [
+      'Twelve colour palettes, each with its own light and dark version. Choose one in Settings › Appearance, along with Light, Dark or System (System follows your device and switches live). Your old colour setting carries over to the nearest palette.',
+      'A new top navigation bar on desktop, and a restyled dashboard, Timeline and Devices view. Timeline entries now lead with what happened, and room colours follow your palette.',
+      'Three new dashboard panels: House Summary, Where Things Happen (a room map) and Today\'s Rhythm. They are added to your dashboard automatically, your existing layout is kept, and you can remove them like any other panel.',
+      'Matter devices now report changes as they happen (live subscriptions replace polling automatically), and their readings use the same names and units as HomeKit, so alert rules and Timeline filters work for Matter devices too.',
+      'Your preferences now really sync to your account. Since 0.3.0 they had been silently saved only in the browser.',
+      'Settings › About shows your version and whether an update is available.',
+      'Fixes for phones and readability: the floating button no longer covers the bottom of the page, device names are no longer cut short, outlier times are shown in your local time, and text meets contrast standards in every palette.',
+    ],
+  },
+  {
     version: 'v0.3.4',
     title: 'Devices page no longer hangs on an unreachable HomeKit bridge',
     items: [
