@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { PALETTE_IDS, MODES, buildTokens } from './palettes.js';
+import { PALETTE_IDS, MODES, STATUS_SOLID, buildTokens } from './palettes.js';
 import { contrastRatio } from './color.js';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,15 +48,22 @@ describe('palette compliance', () => {
     expect(offenders).toEqual([]);
   });
 
-  // `text-white` on a palette-driven solid fill was the failure mode the sweep
-  // exposed: white on Ink's dark accent measures 2.08:1. Foreground on a solid
-  // fill must come from an --hc-on-* token, which is derived to meet AA.
-  it('never puts text-white on a palette-driven solid fill', () => {
-    const SOLID = /bg-hc-(?:accent-(?:strong|stronger)|danger-text|success-text|warning-text)/;
+  // A hardcoded white foreground was the failure mode the sweep exposed: white
+  // on Ink's dark accent measures 2.08:1. An earlier version of this check only
+  // looked for `text-white` beside a `bg-hc-*` class, which missed fills set
+  // through inline styles — the Room Map put white on --hc-room-N (as low as
+  // 1.5:1) and three help modals put `color: '#fff'` on the accent. Every fill
+  // in this app is palette-driven, so white text is never safe: foreground on a
+  // solid fill must come from an --hc-on-* or --hc-room-N-on token.
+  it('never hardcodes a white foreground', () => {
+    const WHITE = [
+      /(?<![\w-])text-white(?![\w-])/,
+      /\bcolor:\s*['"](?:#fff(?:fff)?|white)['"]/i,
+    ];
     const offenders = [];
     for (const file of files) {
       readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-        if (SOLID.test(line) && /(?<![\w-])text-white(?![\w-])/.test(line)) {
+        if (WHITE.some((re) => re.test(line))) {
           offenders.push(`${file.replace(SRC + '/', '')}:${i + 1}`);
         }
       });
@@ -70,6 +77,32 @@ describe('foreground-on-solid tokens', () => {
     for (const mode of MODES) {
       const t = buildTokens(id, mode);
       expect(contrastRatio(t['on-accent'], t['accent-strong']), `${id}.${mode}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  // Graphite light shipped on-success/on-warning at 4.36:1 while only
+  // on-accent was asserted here.
+  it.each(PALETTE_IDS)('%s: on-danger/success/warning meet AA against their status fills', (id) => {
+    for (const mode of MODES) {
+      const t = buildTokens(id, mode);
+      for (const status of ['danger', 'success', 'warning']) {
+        expect(
+          contrastRatio(t[`on-${status}`], STATUS_SOLID[mode][status]),
+          `${id}.${mode} on-${status}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it.each(PALETTE_IDS)('%s: room-N-on meets AA against every room slot', (id) => {
+    for (const mode of MODES) {
+      const t = buildTokens(id, mode);
+      for (let slot = 1; slot <= 9; slot += 1) {
+        expect(
+          contrastRatio(t[`room-${slot}-on`], t[`room-${slot}`]),
+          `${id}.${mode} room-${slot}-on`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
     }
   });
 

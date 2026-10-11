@@ -34,8 +34,8 @@ export function getRoomSlot(roomName) {
 }
 
 /**
- * CSS variable references for a room's swatch, badge background, and badge
- * text, or `null` when there is no room.
+ * CSS variable references for a room's swatch, badge background, badge text,
+ * and text placed directly on the swatch, or `null` when there is no room.
  *
  * Returns `var(...)` strings, not hex: callers drop them straight into inline
  * styles and the browser resolves them against whichever palette and mode are
@@ -48,5 +48,6 @@ export function getRoomColor(roomName) {
     dot: `var(--hc-room-${slot})`,
     bg: `var(--hc-room-${slot}-soft)`,
     text: `var(--hc-room-${slot}-text)`,
+    on: `var(--hc-room-${slot}-on)`,
   };
 }

@@ -32,7 +32,7 @@ const BADGE_TINT_TARGET = 1.15;
  * since status colours are reserved), and are mirrored here only so the
  * matching foreground token can be derived against them. Keep in step.
  */
-const STATUS_SOLID = {
+export const STATUS_SOLID = {
   light: { danger: '#b91c1c', success: '#15803d', warning: '#b45309' },
   dark: { danger: '#f87171', success: '#6ee7b7', warning: '#fbbf24' },
 };
@@ -47,8 +47,16 @@ const STATUS_SOLID = {
 function foregroundOn(solid, palette, mode) {
   const light = palette[mode === 'dark' ? 'ink' : 'panel'];
   const dark = palette[mode === 'dark' ? 'panel' : 'ink'];
-  const best = contrastRatio(light, solid) >= contrastRatio(dark, solid) ? light : dark;
-  return ensureContrast(best, [solid], TEXT_CONTRAST_TARGET);
+  const [first, second] = contrastRatio(light, solid) >= contrastRatio(dark, solid) ? [light, dark] : [dark, light];
+  // ensureContrast picks its push direction from the fill's lightness, so on a
+  // fill near mid-lightness it can push a light label darker and stall short of
+  // AA (Ink dark room-8 stopped at 4.46:1). Fall through to the other end, then
+  // to pure black/white, which always clears 4.5 on some side.
+  for (const candidate of [first, second]) {
+    const fg = ensureContrast(candidate, [solid], TEXT_CONTRAST_TARGET);
+    if (contrastRatio(fg, solid) >= TEXT_CONTRAST_TARGET) return fg;
+  }
+  return contrastRatio('#ffffff', solid) >= contrastRatio('#000000', solid) ? '#ffffff' : '#000000';
 }
 
 /**
@@ -331,6 +339,11 @@ export function buildTokens(paletteId, mode) {
     const soft = ensureContrast(tinted, [panel], BADGE_TINT_TARGET);
     tokens[`room-${slot}-soft`] = soft;
     tokens[`room-${slot}-text`] = ensureContrast(hex, [soft], TEXT_CONTRAST_TARGET);
+
+    // Text placed directly ON the solid colour (Room Map blocks). The ramps run
+    // light in dark mode and mid-tone in light mode, so a fixed white label
+    // failed AA on 162 of 216 palette/mode/slot combinations.
+    tokens[`room-${slot}-on`] = foregroundOn(hex, palette[mode], mode);
 
     // The pre-v0.4 chart-category classes (.hc-cat-N) read these; aliasing them
     // to the same ramp is what makes chart categories palette-aware (ROOM-05).

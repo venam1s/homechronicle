@@ -41,19 +41,20 @@ export default function RoomMapPanel({ onSelectRoom }) {
         type="button"
         onClick={() => onSelectRoom?.(room.name)}
         title={`${room.name} — ${room.count.toLocaleString()} events`}
-        style={{ backgroundColor: color.dot, flexGrow: room.count, flexBasis: 0 }}
+        style={{ backgroundColor: color.dot, color: color.on, flexGrow: room.count, flexBasis: 0 }}
         className={[
           'group relative flex flex-col justify-end min-w-[84px] rounded-lg px-3 py-2 text-left',
           'transition-transform hover:scale-[1.01] focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2',
           big ? 'h-24' : 'h-16',
         ].join(' ')}
       >
-        {/* White-on-colour: the ramp is mid-tone in both modes, so a light
-            label is legible on every slot without a per-slot text token. */}
-        <span className={`font-semibold text-white drop-shadow-sm ${big ? 'text-hc-section' : 'text-hc-label'}`}>
+        {/* Label colour comes from --hc-room-N-on, derived per palette and
+            mode to meet AA on that slot. The ramps run light in dark mode, so
+            a fixed white label measured as low as 1.5:1. */}
+        <span className={`font-semibold ${big ? 'text-hc-section' : 'text-hc-label'}`}>
           {room.count.toLocaleString()}
         </span>
-        <span className="text-hc-caption text-white/90 truncate">
+        <span className="text-hc-caption truncate">
           {room.name}{big ? ` · ${share(room.count)}%` : ''}
         </span>
       </button>
