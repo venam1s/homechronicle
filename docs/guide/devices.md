@@ -1,19 +1,45 @@
 # Device Setup
 
-homechronicle supports two protocols for device communication: **HomeKit** (HAP) and **Matter** (beta).
+homechronicle supports two protocols: **HomeKit** (HAP) and **Matter**. Everything about your devices lives on the **Devices** page, which has three tabs:
+
+| Tab | Use it to |
+|-----|-----------|
+| **Browse** | See every device grouped by room, with its status, and open a device's detail page |
+| **Add Accessories** | Scan for and pair HomeKit accessories, and commission Matter accessories |
+| **Manage Accessories** | Rename devices, assign rooms, add notes, choose live-toast devices, and repair pairings |
+
+## Browsing devices
+
+![Devices › Browse with per-room tables of devices](../screenshots/devices-browse.png)
+
+**Browse** groups your devices into one table per room, each marked with the room's colour. Devices without a room are listed last under **No room**. Each row shows the device's status, how many events it has logged, and its heartbeat — when a device goes offline or stale, the row says for how long and how many heartbeats it has missed. Open **Legend** for what the icons and activity dots mean.
+
+Select a device to open its detail page.
+
+### Device detail
+
+![A device's detail page with activity chart, current state and history](../screenshots/device-detail.png)
+
+The detail page shows, where the device has the data:
+
+- **Device Info** — manufacturer, model, serial number, firmware and hardware revision, protocol and transport
+- **Connection Reliability** — disconnects, reconnect attempts, subscribe failures, last connected/subscribed, last error
+- **Anomalies (last 24h)** — unusual activity compared with the device's baseline
+- **Activity Over Time** — event counts over a range you choose
+- **Current State**, **State Duration**, **Activity Heatmap** and **Characteristic Summary**
+- **Firmware History** — only shown once a firmware change has been seen (see [Firmware tracking](#firmware-tracking))
+- **Full History** — every event for the device, page by page
 
 ## HomeKit Devices
 
 ### Discovery
 
-Before pairing, you need to discover accessories on your network.
+**From the web UI:**
 
-**From the Web UI:**
-
-1. Go to the **Manage** tab
-2. Click **Scan Network**
-3. Wait ~10 seconds for mDNS discovery to complete
-4. Available accessories appear in the list
+1. Go to **Devices › Add Accessories**
+2. Click **Scan Network** in the HomeKit section
+3. Wait about 10 seconds for mDNS discovery to finish
+4. Accessories found on your network appear in the list
 
 **From the CLI:**
 
@@ -27,15 +53,16 @@ Set a specific network interface if needed:
 DISCOVER_IFACE=en0 docker compose run --rm listener node src/discover.js
 ```
 
-The scan output shows each accessory's name, device ID (e.g., `AA:BB:CC:DD:EE:FF`), address, port, and pairing status.
+The scan output shows each accessory's name, device ID (for example `AA:BB:CC:DD:EE:FF`), address, port, and pairing status.
 
 ### Pairing
 
-**From the Web UI:**
+**From the web UI:**
 
-1. After scanning, click **Pair** next to an accessory
-2. Enter the 8-digit PIN (format: `111-22-333`)
-3. The listener starts subscribing to events immediately
+1. After scanning, enter the 8-digit PIN (format `111-22-333`) for an accessory and click **Pair**. You can also enter a shared PIN once for several accessories.
+2. The listener starts subscribing to events straight away.
+
+The PIN is saved so that [scheduled repair](#scheduled-repair) can re-pair the device later if its pairing breaks.
 
 **From the CLI:**
 
@@ -43,39 +70,39 @@ The scan output shows each accessory's name, device ID (e.g., `AA:BB:CC:DD:EE:FF
 docker compose run --rm listener node src/pairing.js <device-id> <pin>
 ```
 
-After CLI pairing, restart the listener to start subscribing:
+After CLI pairing, restart the listener so it starts subscribing:
 
 ```bash
 docker compose restart listener
 ```
 
-> **Important:** Pair-setup only works on devices that are not already paired to another controller. If a device is already in Apple Home, see [Multiple Controllers](#multiple-controllers-homekit) below.
+> **Important:** Pair-setup only works on devices that are not already paired to another controller. Devices that are paired elsewhere are marked **paired elsewhere** after a scan. If a device is already in Apple Home, see [Multiple Controllers](#multiple-controllers-homekit) below.
 
 ### Multiple Controllers (HomeKit)
 
-The HomeKit protocol only allows **one pair-setup** per device. Once a device is paired to Apple Home (or any controller), additional controllers must be registered via the **add-pairing** mechanism. There are three approaches:
+The HomeKit protocol only allows **one pair-setup** per device. Once a device is paired to Apple Home (or any controller), additional controllers must be registered with the **add-pairing** mechanism. There are three approaches:
 
 #### Option 1: Enable Homebridge Insecure Mode (recommended for Homebridge users)
 
-Homebridge's insecure mode (`-I` flag) bypasses the pair-setup restriction, allowing multiple controllers to pair independently.
+Homebridge's insecure mode (`-I` flag) bypasses the pair-setup restriction, so several controllers can pair independently.
 
 1. Open the Homebridge web UI
 2. Go to **Settings** (gear icon, top right)
 3. Enable **Enable UI Accessory Control –I**
 4. Restart Homebridge
 
-With insecure mode enabled, you can pair devices with both Apple Home and HomeChronicle using the normal pair-setup flow. The order does not matter.
+With insecure mode enabled, you can pair devices with both Apple Home and HomeChronicle using the normal pair-setup flow, in either order.
 
-> **Note:** This setting only affects Homebridge accessories. Native HomeKit devices (e.g. TP-Link plugs, Ecobee thermostats) do not have this option.
+> **Note:** This setting only affects Homebridge accessories. Native HomeKit devices (for example TP-Link plugs or Ecobee thermostats) don't have this option.
 
 #### Option 2: Add as Controller (add-pairing)
 
-If you have another HomeChronicle instance already paired to the devices (e.g. a production instance), you can register this instance as an additional controller.
+If another HomeChronicle instance is already paired to the devices (for example a production instance), you can register this instance as an additional controller.
 
-**From the Web UI:**
+**From the web UI:**
 
-1. Go to **Manage > Add Devices**
-2. If devices show an amber "paired elsewhere" warning, expand **Add as Controller (advanced)**
+1. Go to **Devices › Add Accessories**
+2. If devices show the amber **paired elsewhere** warning, expand **Add as Controller (advanced)**
 3. Paste the contents of the other instance's `pairings.json` file
 4. Click **Add as Controller**
 
@@ -92,25 +119,37 @@ The source instance must have admin-level pairings to the target devices. The co
 For native HomeKit devices without Homebridge insecure mode:
 
 1. Remove the device from Apple Home
-2. Pair with HomeChronicle (pair-setup works because the device is now unpaired)
-3. Re-add the device to Apple Home
+2. Pair it with HomeChronicle (pair-setup works because the device is now unpaired)
+3. Add the device back to Apple Home
 
 ### Bridges (Homebridge, etc.)
 
-When you pair a bridge device, homechronicle automatically discovers and subscribes to all child accessories behind it. You can view bridge children in the **Manage** tab or via:
+When you pair a bridge, homechronicle automatically discovers and subscribes to every accessory behind it. Bridge children are listed under the bridge in **Devices › Manage Accessories**, or via:
 
 ```
 GET /api/setup/bridge-children/:deviceId
 ```
 
-### Room Assignment
+If a bridge is unreachable (for example after its IP address changed), Devices still loads with what's cached and the bridge is retried in the background.
 
-HomeKit does not expose room names over the protocol. You assign rooms manually:
+## Managing devices
 
-**From the Web UI:**
-- Go to **Manage** > click a device > set the room name
+**Devices › Manage Accessories** lists every paired HomeKit and Matter device. For each one you can:
+
+| Field / button | What it does |
+|----------------|--------------|
+| **Name** (pencil icon) | Set a display name in place of the name the device reports |
+| **Room** | Assign a room — HomeKit and Matter don't share room names with homechronicle, so you set them here |
+| **Note** | Free-text note shown on the device detail page (PIN, firmware, location, …) |
+| **Bell** | Choose whether this device triggers [live event toasts](settings.md#toast) |
+| **Repair** (wrench icon) | Re-pair a HomeKit device whose pairing has broken |
+
+Each HomeKit device shows a status badge — **Logging**, **Stale**, or **Needs Repair**. **Repair All** at the top repairs every HomeKit device in one go; any it skips are listed so you can repair them one at a time. Changes to names, rooms and notes save as you type, and a reminder at the top says how many devices still have no room.
+
+### Room assignment
 
 **From the API:**
+
 ```bash
 curl -X PATCH http://localhost:3001/api/setup/room \
   -H "Content-Type: application/json" \
@@ -118,19 +157,36 @@ curl -X PATCH http://localhost:3001/api/setup/room \
   -d '{"accessoryId": "<id>", "roomName": "Living Room"}'
 ```
 
-Room assignments are stored in `listener/data/rooms.json`.
+Room assignments are stored in `listener/data/rooms.json`. Each room gets a colour from your palette — see [Appearance](appearance.md#room-colours).
 
-## Matter Devices (Beta)
+### Device notes
+
+**From the API:**
+
+```bash
+curl -X PATCH http://localhost:3001/api/setup/note \
+  -H "Content-Type: application/json" \
+  -H "X-API-Token: <token>" \
+  -d '{"accessoryId": "<id>", "note": "PIN: 111-22-333, mounted above garage door"}'
+```
+
+To clear a note, send an empty string or `null` for `note`. Notes are stored in `listener/data/notes.json`.
+
+## Matter Devices
 
 Matter support is built into the listener image.
 
 ### Commissioning
 
-**From the Web UI:**
+**From the web UI:**
 
-1. Go to **Manage** > **Matter** section
-2. Click **Scan** to discover Matter devices
-3. Enter the setup code to commission a device
+1. Go to **Devices › Add Accessories** and find the **Matter** section
+2. Click **Scan Network** to find accessories in commissioning mode
+3. Enter a name and the setup code, then click **Pair**
+
+To add a device that's already in Apple Home, open it in the Home app, tap the gear icon, and choose **Turn On Pairing Mode** — Apple Home shows a setup code to enter here. **How do I pair a Matter accessory?** in the Matter section explains this and where else to find setup codes. If the scan doesn't find your device, use **Add manually…** to enter a setup code (or import by node ID) without scanning.
+
+Commissioning can take a few minutes; the web proxy allows up to 5 minutes for it.
 
 **From the API:**
 
@@ -141,58 +197,55 @@ curl -X POST http://localhost:3001/api/setup/matter/pair \
   -d '{"name": "My Device", "setupCode": "<code>"}'
 ```
 
-### Polling vs Subscriptions
+### How Matter devices report changes
 
-Matter devices are monitored in two ways:
+By default the listener keeps a **subscription** open to each Matter device, so a change is reported the moment it happens. As a safety net, it also re-reads every device every 5 minutes, so a subscription that quietly stops causes delayed events rather than missing ones. If a subscription drops, it is restarted with a back-off that starts at 2 seconds and doubles up to 5 minutes.
 
-| Mode | Default | Description |
-|------|---------|-------------|
-| **Polling** | Enabled, every 5s | Periodically reads device state |
-| **Subscriptions** | Disabled | Long-lived connections for real-time updates |
+If you'd rather poll devices on a fixed interval instead (the behaviour before 0.4), turn subscriptions off:
 
-Configure via environment variables:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MATTER_SUBSCRIBE_ENABLED` | `true` | Use native subscriptions. Set `false` to poll instead. |
+| `MATTER_RECONCILE_INTERVAL_MS` | `300000` (5 min) | How often subscribed devices are re-read as a safety net. Values below 30000 use 30000. |
+| `MATTER_POLL_INTERVAL_MS` | `5000` | Poll interval, used only when subscriptions are off. Values below 1000 use 30000. |
+| `MATTER_SUBSCRIBE_RESTART_DELAY_MS` | `2000` | Starting delay before a dropped subscription is restarted |
 
-```
-MATTER_POLL_INTERVAL_MS=5000
-MATTER_SUBSCRIBE_ENABLED=false
-```
+A device that stops answering is never given up on. After 10 errors in a row, the listener reads it less and less often (up to every 10 minutes) and keeps retrying, so it recovers on its own when it comes back.
 
-### Supported Matter Clusters
+To see which mode is active and the state of each device, call `GET /api/setup/matter/runtime` — it reports `mode` (`subscribe+reconcile` or `poll`) and, per node, whether its subscription is active and when it was last read. See the [API Reference](api-reference.md).
 
-- On/Off
-- Level Control
-- Temperature Measurement
-- Relative Humidity Measurement
-- Occupancy Sensing
+### Supported Matter clusters
 
-## Device Notes
+Matter readings use the same names and units as HomeKit — for example a temperature of 23.5 °C rather than the raw `2350`, and brightness as a percentage — so Timeline headlines, filters and alert rules work the same for both.
 
-You can attach a free-text note to any accessory. Notes are visible on the device detail page and useful for recording PIN codes, firmware versions, physical location, or other reminders.
+| Cluster | Examples |
+|---------|----------|
+| On/Off | Smart plugs, switches, lights |
+| Level Control | Dimmers (brightness %) |
+| Boolean State | Contact sensors, door/window sensors |
+| Temperature Measurement | Temperature sensors |
+| Relative Humidity Measurement | Humidity sensors |
+| Occupancy Sensing | Motion/occupancy sensors |
+| Color Control | Hue, saturation, colour temperature |
+| Door Lock | Smart locks |
+| Window Covering | Blinds and shades (position) |
+| Fan Control | Fans (on/off, speed) |
+| Thermostat | Current temperature, heating/cooling mode |
+| Pressure Measurement | Barometric pressure sensors |
+| Illuminance Measurement | Light-level sensors |
+| Electrical Power Measurement | Energy-monitoring plugs |
+| Smoke/CO Alarm | Smoke detected, carbon monoxide detected, low battery |
 
-**From the Web UI:**
-- Go to **Accessories** > click a device > edit the **Notes** field
-
-**From the API:**
-```bash
-curl -X PATCH http://localhost:3001/api/setup/note \
-  -H "Content-Type: application/json" \
-  -H "X-API-Token: <token>" \
-  -d '{"accessoryId": "<id>", "note": "PIN: 111-22-333, mounted above garage door"}'
-```
-
-To clear a note, send an empty string or `null` for the `note` field.
-
-Notes are stored in `listener/data/notes.json`.
+Devices that only use other clusters will pair but won't produce events.
 
 ## Scheduled Repair
 
-The listener can automatically repair stale HomeKit pairings on a daily schedule. When enabled, it identifies devices with reconnection errors or that haven't been seen recently, then attempts to re-discover and re-subscribe to each one.
+The listener can repair broken HomeKit pairings automatically once a day. When enabled, it looks for devices with reconnection errors or that haven't been seen recently, then re-discovers and re-subscribes to each one. Devices whose stored keys were rejected are fully re-paired using the saved PIN; devices without a saved PIN are skipped with a warning.
 
-**From the Web UI:**
-- Go to **Manage** > **Settings** > **Scheduled Repair** section
-- Toggle the repair cycle on/off and set the preferred hour
+**From the web UI:** go to **Settings › Configuration › Device Management**, turn on **Scheduled Repair**, and choose the **Repair Hour** (shown in your local time).
 
 **From the API:**
+
 ```bash
 curl -X PATCH http://localhost:3001/api/setup/repair \
   -H "Content-Type: application/json" \
@@ -200,39 +253,34 @@ curl -X PATCH http://localhost:3001/api/setup/repair \
   -d '{"enabled": true, "hour": 3}'
 ```
 
-The `hour` is UTC. The web UI converts to your local timezone automatically.
+Over the API, `hour` is a UTC hour, whatever time zone the container runs in. Settings are stored in `listener/data/repair.json`.
 
-Settings are stored in `listener/data/repair.json`.
+## Firmware tracking
 
-## Firmware Tracking
+The listener detects firmware version changes on HomeKit accessories. When a device reconnects and reports a different `FirmwareRevision` from the one cached, the listener logs a `FirmwareRevision` event with the old and new version. It appears in the Timeline like any other change, and in the **Firmware History** section of the device's detail page.
 
-The listener automatically detects firmware version changes on HomeKit accessories. When a device reconnects and reports a different `FirmwareRevision` than what was previously cached, the listener:
+## Event subscriptions (HomeKit)
 
-1. Logs a `FirmwareRevision` event with the old and new version
-2. The event appears in the device's timeline like any other state change
-
-You can view the firmware update history on the **Accessory Detail** page under the **Firmware History** section (only shown if firmware changes have been detected).
-
-## Event Subscriptions
-
-Once paired, the listener maintains persistent connections to all HomeKit accessories. For each state change (light on/off, temperature reading, motion detected, etc.), the listener:
+Once paired, the listener keeps a persistent connection to every HomeKit accessory. For each state change (light on/off, temperature reading, motion detected, and so on) it:
 
 1. Receives the HAP event
-2. Records `old_value` from its in-memory cache
+2. Records the previous value from its in-memory cache
 3. Inserts a row into the `event_logs` table
-4. Evaluates alert rules (if enabled)
+4. Checks your [alert rules](alerts.md)
 5. Updates the value cache
 
 ### Reconnection
 
-If a device becomes unreachable, the listener automatically reconnects with exponential backoff:
+If a device becomes unreachable, the listener reconnects with exponential back-off:
 
 - Initial delay: 5 seconds (`RECONNECT_BASE_MS`)
 - Maximum delay: 60 seconds (`RECONNECT_MAX_MS`)
 
-### Background Discovery
+Every HomeKit request has a timeout (`HAP_REQUEST_TIMEOUT_MS`, default 30 seconds; pairing uses `HAP_PAIR_TIMEOUT_MS`, default 60 seconds), so a device that accepts a connection but never answers is dropped and reconnected rather than left hanging.
 
-By default, the listener runs a background mDNS scan every hour to detect new devices and update IP addresses for existing pairings. Disable with:
+### Background discovery
+
+By default the listener runs a background mDNS scan every hour to find new devices and update the IP addresses of existing pairings. Turn it off in **Settings › Configuration › Device Management** (**HomeKit auto-scan**), or with:
 
 ```
 DISCOVERY_SCAN_ENABLED=false
@@ -240,13 +288,13 @@ DISCOVERY_SCAN_ENABLED=false
 
 ## Unpairing
 
-**From the Web UI:**
-- Go to **Manage** > click a device > **Remove Pairing**
+**From the web UI:** go to **Settings › Configuration › Advanced**, open the **Danger Zone**, and use **Remove pairings** (admins only). See [Settings](settings.md#danger-zone).
 
 **From the API:**
+
 ```bash
 curl -X DELETE http://localhost:3001/api/setup/pairing/<deviceId> \
   -H "X-API-Token: <token>"
 ```
 
-This removes the pairing keys and stops the subscriber. Event history for the device is preserved.
+This removes the pairing keys and stops the subscription. The device's event history is kept.

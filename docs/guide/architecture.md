@@ -7,7 +7,7 @@ homechronicle runs as three Docker services on your local network. No cloud serv
 ```
 HomeKit / Matter Devices
         │
-        │  HAP events / Matter polling
+        │  HAP events / Matter subscriptions
         ▼
 ┌─────────────────────┐     ┌──────────────────┐
 │     Listener         │────▶│   PostgreSQL 16   │
@@ -26,9 +26,9 @@ HomeKit / Matter Devices
 │  (React + Nginx)     │
 │                      │
 │  - Dashboard         │
+│  - Devices           │
 │  - Timeline          │
-│  - Accessories       │
-│  - Manage/Setup      │
+│  - Alerts / Settings │
 └─────────────────────┘
 ```
 
@@ -42,7 +42,8 @@ The listener is the core service. It runs on Node.js with ES modules and serves 
 |------|---------|
 | `index.js` | Express server entry point; boots API routes, subscribers, scheduled repair, and background tasks |
 | `subscriber.js` | Maintains persistent HAP event subscriptions via `hap-controller` |
-| `matter-runtime.js` | Matter.js polling loop and subscription management |
+| `matter-runtime.js` | Matter node sessions: native subscriptions with a background re-read, or polling when subscriptions are off |
+| `matter-normalize.js` | Maps Matter cluster attributes to HomeKit characteristic names and units |
 | `matter-controller.js` | Matter commissioning and controller lifecycle |
 | `db.js` | PostgreSQL pool, `insertEvent()`, schema migrations, retention sweep |
 | `store.js` | `JsonObjectStore` for persistent JSON files (pairings, rooms, retention) |
@@ -51,9 +52,10 @@ The listener is the core service. It runs on Node.js with ES modules and serves 
 | `repair-router.js` | GET/PATCH endpoints for scheduled repair settings |
 | `repair-scheduler.js` | Daily scheduled repair cycle for stale HomeKit pairings |
 | `retention-router.js` | Retention and settings configuration endpoints |
+| `updates-router.js` | Server-side update check against the project's GitLab releases |
 | `setup-helpers.js` | Pairing normalization and store helper factory |
 | `discovery-helpers.js` | Discovery scan and repair helper factory |
-| `alerts.js` | Rule matching and webhook dispatch with quiet-period suppression |
+| `alerts.js` | Rule matching and webhook/email dispatch with quiet-period suppression |
 | `discover.js` | CLI tool for mDNS network scanning |
 | `pairing.js` | CLI tool for HAP pair-setup |
 | `accessory-metadata.js` | Caches device identity (manufacturer, model, serial, firmware) |
@@ -64,12 +66,12 @@ The listener is the core service. It runs on Node.js with ES modules and serves 
 
 ### Event Flow
 
-1. A HomeKit accessory changes state (e.g., light turns on)
-2. The HAP subscriber receives the characteristic change event
+1. A HomeKit or Matter accessory changes state (e.g., light turns on)
+2. The HAP subscriber or Matter runtime receives the change (Matter values are first normalized to HomeKit names and units)
 3. `old_value` is read from the in-memory value cache
 4. A row is inserted into `event_logs` with all metadata
 5. Alert rules are evaluated against the new event
-6. Matching rules trigger webhook delivery (with quiet-period checks)
+6. Matching rules trigger webhook or email delivery (with quiet-period checks)
 7. The value cache is updated
 
 ### Background Tasks
@@ -88,21 +90,23 @@ When a HomeKit device becomes unreachable, the subscriber uses exponential backo
 - Maximum delay: 60 seconds
 - Multiplied by 2 on each failure, with jitter
 
-For Matter, polling stops after 10 consecutive errors per node.
+For Matter, each node keeps a native subscription open, re-read every 5 minutes as a safety net (`MATTER_RECONCILE_INTERVAL_MS`). A dropped subscription is restarted with exponential back-off (from `MATTER_SUBSCRIBE_RESTART_DELAY_MS`, doubling up to 5 minutes). After 10 consecutive read errors, a node is read less often — up to every 10 minutes — but never dropped. With `MATTER_SUBSCRIBE_ENABLED=false` the runtime polls every `MATTER_POLL_INTERVAL_MS` instead.
 
 ## Web
 
 The web frontend is a React single-page application built with Vite and styled with Tailwind CSS v4.
 
-### Tabs
+### Pages
 
-| Tab | Description |
-|-----|-------------|
-| **Dashboard** | KPI cards, trend charts, hourly distribution, room breakdown, device rankings, heatmaps, anomaly detection, stale device alerts |
-| **Timeline** | Chronological event feed grouped by day, with episode grouping for events within 30s of each other |
-| **Accessories** | Device inventory with room grouping, health indicators, and drill-down detail view |
-| **Manage** | Discovery, pairing, room assignment, retention settings, log level |
+On desktop (1024 px and wider) the pages are reached from the top navigation bar (`Masthead.jsx`); below that, from the floating navigation button (`FloatingNav.jsx`).
+
+| Page | Description |
+|------|-------------|
+| **Dashboard** | Customizable grid: House Summary, KPI cards, room map, daily rhythm, trends, hourly distribution, room breakdown, device rankings, heatmaps, outliers, stale devices |
+| **Devices** | Browse (per-room device tables and detail view), Add Accessories (discovery, pairing, Matter commissioning), Manage Accessories (names, rooms, notes, repair) |
+| **Timeline** | Event feed grouped by day, with scenes (events within a few seconds) and episodes (scenes within a few minutes) |
 | **Alerts** | Rule management and delivery log |
+| **Settings** | About, Admin, Configuration, Appearance, Account |
 
 ### Anomaly Detection (Active Outliers)
 
@@ -127,7 +131,7 @@ Each outlier is assigned a severity based on its score: **medium** (score 3–4)
 
 ### Appearance
 
-The UI supports light and dark modes (or follows system preference) and six color themes: Ocean, Graphite, Sunrise, Red, Yellow, and Purple. Preferences are stored in the browser's localStorage.
+The UI has Light, Dark and System themes and twelve palettes, each with designed light and dark variants. Palette tokens are generated from `web/src/lib/palettes.js` into CSS custom properties (`--hc-*`), applied through `data-palette` and `data-theme` attributes on `<html>`. Theme and palette are per-user preferences: synced to the account when signed in, otherwise kept in `localStorage`. See [Appearance](appearance.md).
 
 ### Key Libraries
 
@@ -205,7 +209,7 @@ These are the most significant design patterns used across the codebase.
 
 **Router factories** (`listener/src/events-router.js`, `alerts-router.js`, `matter-router.js`, `retention-router.js`, `setup-router.js`, `stats-router.js`, `accessories-router.js`, `archive-router.js`, `health-router.js`): Each domain owns its own `createXxxRouter({ pool, ...deps })` function that returns an `express.Router()` with its own rate limiters. This keeps `index.js` from growing into a monolith and makes each router independently testable.
 
-**Query hooks** (`web/src/hooks/`): Custom React hooks (`useEvents`, `useSetup`, `useAlerts`, `useSkin`, `useTheme`, etc.) wrap TanStack Query with domain-specific configuration (stale time, refetch interval, query keys). Components never call `fetch` directly; all server state flows through these hooks.
+**Query hooks** (`web/src/hooks/`): Custom React hooks (`useEvents`, `useSetup`, `useAlerts`, etc.) wrap TanStack Query with domain-specific configuration (stale time, refetch interval, query keys); almost all server state flows through them. Preference hooks (`useTheme`, `usePalette`, `usePreference`) read and write per-user preferences, syncing to `/api/me/preferences` when signed in and to `localStorage` otherwise.
 
 **`ApiError`** (`web/src/lib/api.js`): The `fetchJson()` wrapper throws a typed `ApiError` on non-2xx responses. The error carries `status`, `statusText`, and `url` so that TanStack Query error boundaries and toast notifications can surface actionable messages (including user-friendly hints for 502/503/504 gateway errors).
 

@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>homechronicle — Event Logging for Apple HomeKit</title>
-  <meta name="description" content="Self-hosted dashboard that captures every state change from your HomeKit accessories. Searchable timeline, activity analytics, and device management.">
+  <title>homechronicle — Event Logging for Apple HomeKit &amp; Matter</title>
+  <meta name="description" content="Self-hosted dashboard that captures every state change from your HomeKit and Matter accessories. Searchable timeline, activity analytics, alerts, and device management.">
   <meta property="og:title" content="homechronicle">
-  <meta property="og:description" content="Event Logging for Apple HomeKit — searchable timeline, activity analytics, and device management.">
+  <meta property="og:description" content="Event Logging for Apple HomeKit &amp; Matter — searchable timeline, activity analytics, alerts, and device management.">
   <meta property="og:image" content="https://homechronicle.net/screenshots/dashboard-lite-page.png">
   <meta property="og:type" content="website">
   <link rel="icon" href="assets/icon.png" type="image/png">
@@ -728,13 +728,13 @@
   <!-- ════════ Hero ════════ -->
   <section class="hero">
     <div class="container">
-      <div class="hero-badge">Self-hosted &middot; Open Source &middot; AGPL-3.0 License &middot; Matter Support (Beta)</div>
+      <div class="hero-badge">Self-hosted &middot; Open Source &middot; AGPL-3.0 License &middot; HomeKit + Matter</div>
       <h1><span class="brand-home">home</span><span class="brand-chronicle">chronicle</span></h1>
-      <h2>Event Logging for Apple HomeKit</h2>
+      <h2>Event Logging for Apple HomeKit &amp; Matter</h2>
       <p>
         Apple's Home app shows the current state of your accessories &mdash;
         homechronicle shows you everything that <em>happened</em> and when.
-        A self-hosted dashboard with a searchable timeline, activity analytics, and device management.
+        A self-hosted dashboard with a searchable timeline, activity analytics, alerts, and device management.
       </p>
       <div class="hero-buttons">
         <a href="#getting-started" class="btn btn-primary">Get Started</a>
@@ -744,7 +744,7 @@
         </a>
       </div>
       <div class="hero-screenshot">
-        <img src="screenshots/dashboard-lite-page.png" alt="homechronicle Dashboard — activity analytics, trend charts, heatmaps, and device rankings" class="screenshot">
+        <img src="screenshots/dashboard-lite-page.png" alt="homechronicle Dashboard in the Porcelain palette — house summary, KPI cards, room map, today's rhythm, and activity charts" class="screenshot">
       </div>
     </div>
   </section>
@@ -754,23 +754,23 @@
     <div class="container">
       <div class="section-label">Capabilities</div>
       <div class="section-title">Everything you need to monitor your smart home</div>
-      <div class="section-desc">homechronicle captures every state change from your HomeKit accessories and turns raw events into actionable insights.</div>
+      <div class="section-desc">homechronicle captures every state change from your HomeKit and Matter accessories and turns raw events into actionable insights.</div>
 
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon fi-blue">&#x1F4CB;</div>
           <h3>Real-time Event Timeline</h3>
-          <p>Scrollable, day-grouped event feed with auto-refresh. Filter by room, accessory, characteristic, or date range.</p>
+          <p>Day-grouped event feed that leads with what happened &mdash; &ldquo;motion detected&rdquo;, &ldquo;60% RH&rdquo;. Filter by room, accessory, characteristic, or date range.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon fi-green">&#x1F4CA;</div>
           <h3>Activity Analytics</h3>
-          <p>Daily trends, hourly distribution charts, room breakdowns, weekday and monthly heatmaps at a glance.</p>
+          <p>A one-line house summary, a room map, today&rsquo;s rhythm, daily trends, hourly charts, and weekday and monthly heatmaps.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon fi-purple">&#x1F4F1;</div>
           <h3>Device Inventory</h3>
-          <p>Complete list of paired accessories with room grouping, activity status indicators, bridge info, and event counts.</p>
+          <p>Every paired accessory in per-room tables with status, event count, and heartbeat, plus bridge info and per-device history.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon fi-amber">&#x26A1;</div>
@@ -779,8 +779,8 @@
         </div>
         <div class="feature-card">
           <div class="feature-icon fi-rose">&#x1F3A8;</div>
-          <h3>Themes &amp; Dark Mode</h3>
-          <p>Light and dark modes with six color themes. Customize the look to match your preference.</p>
+          <h3>Twelve Palettes</h3>
+          <p>Twelve colour palettes, each with a designed light and dark version. Charts and room colours follow the palette.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon fi-cyan">&#x1F310;</div>
@@ -789,8 +789,8 @@
         </div>
         <div class="feature-card">
           <div class="feature-icon fi-green">&#x1F9EA;</div>
-          <h3>Matter Support (Beta)</h3>
-          <p>Pair and monitor Matter devices directly from the Setup UI. Built into the listener image with zero extra configuration.</p>
+          <h3>Matter Support</h3>
+          <p>Commission Matter devices from the browser. Live subscriptions report changes as they happen, with the same names and units as HomeKit.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon fi-blue">&#x1F433;</div>
@@ -810,7 +810,12 @@
         <div class="feature-card">
           <div class="feature-icon fi-purple">&#x1F39B;&#xFE0F;</div>
           <h3>Customizable Dashboard</h3>
-          <p>Drag, resize, and hide analytics panels. Choose from 12 default and 12 optional panels; layout is saved per account.</p>
+          <p>Drag, resize, and hide analytics panels. Choose from 15 default and 12 optional panels; layout is saved per account.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon fi-cyan">&#x1F514;</div>
+          <h3>Alert Rules</h3>
+          <p>Get a webhook or email when a device, room, or characteristic matches a rule, with quiet periods to stop repeats.</p>
         </div>
       </div>
     </div>
@@ -828,9 +833,9 @@
             Scene grouping bundles events that fire within seconds of each other.
           </p>
           <ul class="feature-list">
+            <li>Entries lead with what happened, with the device and room underneath</li>
             <li>Filter by room, accessory name, characteristic, or date range</li>
             <li>Activity heatmap with click-to-jump navigation</li>
-            <li>Human-readable service type labels instead of raw HAP UUIDs</li>
             <li>Auto-refreshes every 10 seconds</li>
           </ul>
         </div>
@@ -872,7 +877,7 @@
       <div class="section-label">Dashboard</div>
       <div class="section-title">Activity analytics at a glance</div>
       <div class="section-desc">
-        Trend lines, hourly distributions, room breakdowns, quiet-hours activity, and a fully customizable layout &mdash;
+        A house summary, a room map, today&rsquo;s rhythm, trends, and quiet-hours activity in a layout you arrange &mdash;
         everything you need to understand your smart home's behavior.
       </div>
 
@@ -881,28 +886,35 @@
           <img src="screenshots/dashboard-daily-activity.png" alt="Daily activity trend line chart">
           <div class="detail-caption">
             <h3>Daily Activity</h3>
-            <p>Event-count trend line across the last 7, 30, or 90 days. Spot long-term patterns and busy periods at a glance.</p>
+            <p>Event-count trend across the last 7, 30, or 90 days. Spot long-term patterns and busy periods.</p>
           </div>
         </div>
         <div class="detail-card">
-          <img src="screenshots/dashboard-most-active-devices.png" alt="Events by room ranking">
+          <img src="screenshots/dashboard-room-map.png" alt="Where Things Happen — room blocks sized by each room's share of events">
           <div class="detail-caption">
-            <h3>Events by Room</h3>
-            <p>Per-room event counts ranked highest first, covering 7, 30, or 90 days. Instantly see which areas of your home are busiest.</p>
+            <h3>Where Things Happen</h3>
+            <p>Each room is a block sized by its share of events, coloured from a palette checked for colour-blind readers. Select a room to open its timeline.</p>
           </div>
         </div>
         <div class="detail-card">
-          <img src="screenshots/dashboard-weekly-monthly-heatmaps.png" alt="Events by hour of day">
+          <img src="screenshots/dashboard-rhythm.png" alt="Today's Rhythm — an arc of the day with quiet hours and busiest hours">
+          <div class="detail-caption">
+            <h3>Today&rsquo;s Rhythm</h3>
+            <p>An arc of your day showing quiet hours, the busiest hours, and the current time.</p>
+          </div>
+        </div>
+        <div class="detail-card">
+          <img src="screenshots/dashboard-events-by-hour.png" alt="Events by hour of day">
           <div class="detail-caption">
             <h3>Events by Hour</h3>
-            <p>Hourly event distribution across the full day over the last 30 days (local time). Find your home's natural activity rhythm.</p>
+            <p>Hourly distribution over the last 30 days, in your local time. Find your home&rsquo;s natural rhythm.</p>
           </div>
         </div>
-        <div class="detail-card">
-          <img src="screenshots/dashboard-stale-devices.png" alt="Quiet hours activity">
+        <div class="detail-card wide">
+          <img src="screenshots/dashboard-house-summary.png" alt="House Summary — a one-line summary of today">
           <div class="detail-caption">
-            <h3>Quiet Hours Activity</h3>
-            <p>Accessories that fired events inside your configured quiet-hours window are surfaced here so unexpected activity doesn't go unnoticed.</p>
+            <h3>House Summary</h3>
+            <p>One line for today: the busiest room, the change on yesterday, and whether anything happened during quiet hours.</p>
           </div>
         </div>
       </div>
@@ -976,21 +988,21 @@
     <div class="container">
       <div class="feature-row reverse">
         <div class="feature-text">
-          <div class="section-label">Accessories</div>
+          <div class="section-label">Devices</div>
           <h2>Know every device in your home</h2>
           <p>
-            A live inventory of all paired accessories, organized by room.
-            At a glance, see which devices are active, which are stale, and how many events each has generated.
+            A live inventory of every paired HomeKit and Matter accessory, in a table per room.
+            At a glance, see which devices are active, which have gone quiet, and how many events each has logged.
           </p>
           <ul class="feature-list">
-            <li>Activity dots: green (active &lt; 1h), yellow (&lt; 24h), grey (older)</li>
-            <li>Bridge IP addresses and pairing timestamps</li>
-            <li>Child device attribution showing which bridge each device belongs to</li>
-            <li>Total event counts per accessory</li>
+            <li>Status, event count, and heartbeat for every device</li>
+            <li>Bridge children grouped under the bridge they belong to</li>
+            <li>Per-device detail with history, trends, and connection reliability</li>
+            <li>Room names always shown beside the room colour</li>
           </ul>
         </div>
         <div class="feature-media">
-          <img src="screenshots/accessories-lite-page.png" alt="Accessories — device inventory grouped by room" class="screenshot">
+          <img src="screenshots/devices-browse.png" alt="Devices — inventory in per-room tables" class="screenshot">
         </div>
       </div>
     </div>
@@ -1001,15 +1013,16 @@
     <div class="container">
       <div class="feature-row">
         <div class="feature-text">
-          <div class="section-label">Setup &amp; Manage</div>
+          <div class="section-label">Add Accessories</div>
           <h2>Pair devices right from your browser</h2>
           <p>
-            No command line needed. Discover accessories on your network, enter PINs, and pair
-            directly from the web UI. Homebridge support lets you pair a bridge once and log all
-            child accessories automatically.
+            No command line needed. Open <strong>Devices &rsaquo; Add Accessories</strong>, discover accessories on your
+            network, enter PINs, and pair directly from the web UI. Pair a Homebridge bridge once and every
+            child accessory is logged automatically.
           </p>
           <ul class="feature-list">
-            <li>Network scanning discovers accessories via mDNS</li>
+            <li>Network scanning discovers HomeKit accessories via mDNS</li>
+            <li>Commission Matter devices with their pairing code</li>
             <li>Bulk pairing with shared PIN and progress bar</li>
             <li>PIN vault saves codes after first use</li>
             <li>Room assignment for accessories and bridge children</li>
@@ -1017,7 +1030,7 @@
           </ul>
         </div>
         <div class="feature-media">
-          <img src="screenshots/manage-lite-page.png" alt="Manage — accessory pairing wizard" class="screenshot">
+          <img src="screenshots/devices-add.png" alt="Devices › Add Accessories — discovery and pairing" class="screenshot">
         </div>
       </div>
     </div>
@@ -1029,24 +1042,29 @@
       <div class="feature-row">
         <div class="feature-text">
           <div class="section-label">Appearance</div>
-          <h2>Dark mode &amp; color themes</h2>
+          <h2>Twelve palettes, light and dark</h2>
           <p>
-            Switch between light and dark modes, or let the app follow your system preference.
-            Choose from eight color themes to personalize the interface.
+            Choose a palette in <strong>Settings &rsaquo; Appearance</strong>, then Light, Dark, or System to follow your OS.
+            Every palette has its own designed dark version, and charts, room colours, and status colours all follow it.
+            <a href="screenshots.html#palettes" style="color:inherit;text-decoration:underline;">See all twelve</a>.
           </p>
-          <div class="themes-row">
-            <div class="theme-dot" style="background: #2563eb;" title="Ocean"></div>
-            <div class="theme-dot" style="background: #14b8a6;" title="Graphite"></div>
-            <div class="theme-dot" style="background: #ea580c;" title="Sunrise"></div>
-            <div class="theme-dot" style="background: #dc2626;" title="Red"></div>
-            <div class="theme-dot" style="background: #ca8a04;" title="Yellow"></div>
-            <div class="theme-dot" style="background: #9333ea;" title="Purple"></div>
-            <div class="theme-dot" style="background: #475569;" title="Slate"></div>
-            <div class="theme-dot" style="background: #ec4899;" title="Pink"></div>
+          <div class="themes-row" style="flex-wrap:wrap;">
+            <div class="theme-dot" style="background: #5b88d7;" title="Gallery"></div>
+            <div class="theme-dot" style="background: #e07a63;" title="Ember"></div>
+            <div class="theme-dot" style="background: #d97e5b;" title="Almanac"></div>
+            <div class="theme-dot" style="background: #d1a23c;" title="Harvest"></div>
+            <div class="theme-dot" style="background: #a4bf3d;" title="Ink"></div>
+            <div class="theme-dot" style="background: #55a86e;" title="Fern"></div>
+            <div class="theme-dot" style="background: #149e8d;" title="Porcelain"></div>
+            <div class="theme-dot" style="background: #4aa8cc;" title="Tide"></div>
+            <div class="theme-dot" style="background: #7295d8;" title="Atlas"></div>
+            <div class="theme-dot" style="background: #a08fe0;" title="Iris"></div>
+            <div class="theme-dot" style="background: #c76486;" title="Dusk"></div>
+            <div class="theme-dot" style="background: #9aa6b2;" title="Graphite"></div>
           </div>
         </div>
         <div class="feature-media">
-          <img src="screenshots/dashboard-dark-page.png" alt="Dashboard in dark mode" class="screenshot">
+          <img src="screenshots/dashboard-dark-page.png" alt="Dashboard in the Porcelain palette, dark mode" class="screenshot">
         </div>
       </div>
     </div>
@@ -1062,7 +1080,7 @@
       </div>
       <div class="tech-grid">
         <div class="tech-badge">&#x1F433; Docker Compose</div>
-        <div class="tech-badge">&#x269B;&#xFE0F; React 18</div>
+        <div class="tech-badge">&#x269B;&#xFE0F; React 19</div>
         <div class="tech-badge">&#x26A1; Vite</div>
         <div class="tech-badge">&#x1F418; PostgreSQL 16</div>
         <div class="tech-badge">&#x1F4E1; Express</div>
@@ -1210,7 +1228,7 @@ volumes:
         <div>
           <div class="step-number">2</div>
           <h3>Pair</h3>
-          <p>Open the Manage tab, scan your network, and pair accessories with their PINs.</p>
+          <p>Open <strong>Devices &rsaquo; Add Accessories</strong>, scan your network, and pair accessories with their PINs or Matter codes.</p>
         </div>
         <div>
           <div class="step-number">3</div>

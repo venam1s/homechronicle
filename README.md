@@ -6,15 +6,20 @@
 ![HomeKit](https://img.shields.io/badge/apple-homekit-black?logo=apple)
 
 
-homechronicle is a self-hosted event log for Apple HomeKit.
+homechronicle is a self-hosted event log for Apple HomeKit and Matter devices.
 It shows what happened in your home over time, not just the current state.
+
+![homechronicle dashboard](docs/screenshots/dashboard-lite-page.png)
 
 ## What You Get
 
-- Timeline of HomeKit activity (what changed and when)
+- Timeline of HomeKit and Matter activity (what changed and when)
 - Easy setup from the web app (no terminal pairing flow)
 - Filter by room, device, and date
-- Accessory activity dashboard and trends
+- A customizable dashboard: house summary, room map, today's rhythm, trends, and heatmaps
+- Webhook and email alert rules
+- Twelve colour palettes, each with a light and dark version
+- Optional multi-user sign-in
 - Works with Homebridge bridges and child devices
 - Runs 24/7 with Docker
 
@@ -54,14 +59,13 @@ For a complete list of available settings:
 - Minimal compose example: [docs/docker-compose.example.yml](docs/docker-compose.example.yml)
 - Portainer stack example (`docker-compose.portainer.yml`): [docs/portainer.md](docs/portainer.md)
 
-### 4. Pair your HomeKit devices
+### Pair your HomeKit devices
 
-1. Open **Setup** in the app.
-2. Click **Rescan Network**.
-3. Enter your device PIN(s) (`111-22-333` format).
-4. Click **Pair Selected**.
+1. Open **Devices › Add Accessories** in the app.
+2. Click **Scan Network** in the HomeKit section.
+3. Enter the device PIN (`111-22-333` format) and click **Pair**.
 
-Events will begin showing in the Timeline once pairing succeeds.
+Events will begin showing in the Timeline once pairing succeeds. A device that's already in Apple Home needs an extra step — see [Device Setup](https://homechronicle.net/guide/#/devices).
 
 ## Daily Use
 
@@ -76,50 +80,43 @@ Events will begin showing in the Timeline once pairing succeeds.
 
 ## Matter
 
-Matter works out of the box — the listener uses matter.js (a pure TypeScript Matter implementation) for commissioning, polling, and subscriptions. Just pair devices through the Setup UI.
+Matter works out of the box — the listener uses matter.js to commission devices and subscribe to them, so changes arrive as they happen (with a background re-read every 5 minutes as a safety net). Readings use the same names and units as HomeKit.
 
 ### Adding a Matter Device
 
 If your Matter accessory is already in Apple Home, you can add it to homechronicle:
 
-1. In Apple Home, open the accessory settings.
-2. Open Matter settings and generate a setup code for another controller (wording varies by device/app).
-3. In homechronicle Setup → Matter Devices, choose **Add From Apple Home**.
-4. Enter a label + the setup code from Apple Home.
-5. homechronicle commissions its own Matter controller entry and auto-allocates a `nodeId`.
+1. In Apple Home, open the accessory, tap the gear icon, and choose **Turn On Pairing Mode** to get a setup code.
+2. In homechronicle, open **Devices › Add Accessories** and click **Scan Network** in the Matter section (or use **Add manually…**).
+3. Enter a name and the setup code, then click **Pair**. Commissioning can take a few minutes.
 
 > **VLAN users:** Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your IoT devices are on a separate VLAN, you need a VLAN sub-interface on the host. See the [Networking guide](https://homechronicle.net/guide/#/networking) for VLAN configuration.
 
 ## Alerts
 
-homechronicle can send webhook notifications when device events match rules you define.
-
-### Enabling Alerts
-
-1. Open **Manage > Settings** in the web UI.
-2. Under **Alerts & Quiet Hours**, set the default quiet period if you want one.
-3. Optionally set a **default quiet period** (suppresses duplicate alerts for N minutes after one fires) and a **webhook timeout**.
+homechronicle can send a webhook or an email when device events — HomeKit or Matter — match rules you define.
 
 ### Creating Alert Rules
 
-1. Open the **Manage > Alerts** tab.
-2. Click **New Alert Rule**.
-3. Configure the rule:
+1. Open the **Alerts** page.
+2. Fill in the **Alert Rules** form:
    - **Name** — a label for this rule
-   - **Webhook URL** — the endpoint to call when the rule fires
-   - **Scope** — target all devices, a specific room, a specific accessory, or a specific characteristic
+   - **Webhook** or **Email** — where to deliver it (email needs SMTP configured)
+   - **Scope** — all events, a room, an accessory, or a characteristic
    - **Characteristic filter** — optionally narrow to one characteristic (e.g. `On`, `CurrentTemperature`)
    - **Condition** — equals / not equals / contains + a match value
-   - **Quiet period** — per-rule override for the default quiet period
-4. Save the rule and toggle it enabled or disabled at any time.
+   - **Quiet period** — minutes to suppress repeat alerts after one fires
+3. Click **Create Rule**. Rules are enabled per rule and can be switched off at any time.
 
 ### Delivery History
 
-The **Alerts** tab shows recent deliveries with `sent`, `suppressed`, or `failed` status and supports pagination. Delivery history retention is controlled by the `ALERT_RETENTION_DAYS` environment variable (default 90 days).
+**Recent Deliveries** on the Alerts page shows each delivery with `sent`, `suppressed`, or `failed` status. Delivery history retention is controlled by the `ALERT_RETENTION_DAYS` environment variable (default 90 days). See the [Alerts guide](https://homechronicle.net/guide/#/alerts) for details.
 
 For a full list of alert-related environment variables, see [docs/environment-variables.md](docs/environment-variables.md).
 
 ## Update homechronicle
+
+Back up first, and read the [upgrade notes](https://homechronicle.net/guide/#/upgrading) — database migrations run automatically when the listener starts.
 
 **Standalone:**
 ```bash

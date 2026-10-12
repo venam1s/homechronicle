@@ -21,7 +21,7 @@
 ### Devices discovered but IP addresses are wrong
 
 - The listener runs a background discovery scan every hour to update addresses
-- Force an immediate scan from the **Manage** tab or via `POST /api/setup/scan`
+- Force an immediate scan with **Scan Network** in **Devices › Add Accessories**, or via `POST /api/setup/scan`
 - Check if your router's DHCP is assigning new IPs — consider using static IPs or DHCP reservations
 
 ### `M2: Error: 6` — device already paired to another controller
@@ -46,7 +46,7 @@ Error 6 (`kTLVError_Unavailable`) means the device is already paired to another 
    - Restart Homebridge
    - This allows pair-setup even when already paired to Apple Home
 
-2. **Use Add-Pairing:** If you have another HomeChronicle instance already paired to these devices, use the **Add as Controller** panel in **Manage > Add Devices** to register this instance using the other instance's credentials.
+2. **Use Add-Pairing:** If you have another HomeChronicle instance already paired to these devices, use the **Add as Controller** panel in **Devices › Add Accessories** to register this instance using the other instance's credentials.
 
 3. **Pair HomeChronicle first:** Remove devices from Apple Home, pair with HomeChronicle, then re-add to Apple Home.
 
@@ -87,8 +87,8 @@ This is a similar authentication failure at an earlier step in the pair-verify p
 
 **How to fix — re-pair the affected devices:**
 
-1. Open the HomeChronicle web UI and go to **Manage > Add Devices**
-2. Click **Scan** to discover devices on the network
+1. Open the HomeChronicle web UI and go to **Devices › Add Accessories**
+2. Click **Scan Network** to discover devices on the network
 3. For each affected device, enter its PIN code and click **Pair**
    - The PIN is the 8-digit code (format `111-22-333`) printed on the device label, packaging, or shown in the manufacturer's app
    - For Homebridge, the PIN is in the Homebridge web UI under **Settings**
@@ -116,7 +116,7 @@ Avoid recreating the container with `docker compose up --force-recreate` unless 
 
 ### Events stop arriving
 
-1. Check device health in the **Accessories** tab — look for `stale` or `unreachable` status
+1. Check device status in **Devices › Browse** — look for offline or stale devices and missed heartbeats
 2. Check listener logs: `docker compose logs -f listener`
 3. Look for reconnection messages — the subscriber auto-reconnects with backoff
 4. Verify the device is still powered on and reachable on the network
@@ -127,14 +127,16 @@ Avoid recreating the container with `docker compose up --force-recreate` unless 
 The web container can't reach the listener API.
 
 - Verify `LISTENER_HOST` and `LISTENER_PORT` are correct in `.env`
-- If using `host.docker.internal`, check that it resolves: `docker compose exec web ping host.docker.internal`
-- On Linux Docker without Docker Desktop, `host.docker.internal` may not work — use your server's LAN IP instead
+- If you're on 0.3.2 with the stock compose file (`LISTENER_HOST=host.docker.internal`), every request returns 502 — upgrade to 0.3.3 or later, which resolves `host.docker.internal` once when the web container starts
+- If `LISTENER_HOST` is a name that only exists in `/etc/hosts` (like `host.docker.internal`) and the host's address changes, restart the web container so it picks up the new address. Compose service names are re-resolved on every request and recover on their own.
 - Check that `API_PORT` and `LISTENER_PORT` match (default: `3001`)
+- If login is enabled on the listener, make sure the web container has the same `AUTH_ENABLED` value
 
 ### Web UI loads but shows no data
 
 - Check if the listener is healthy: `curl http://localhost:3001/api/health`
-- If using `API_TOKEN_READS_ENABLED=true`, make sure the web container has the same `API_TOKEN`
+- With login disabled and `API_TOKEN_READS_ENABLED=true`, make sure the web container has the same `API_TOKEN`
+- With login enabled, make sure you're signed in — every API request needs a session
 - Check browser console for CORS errors — you may need to set `CORS_ALLOWED_ORIGINS`
 
 ## Database
@@ -159,7 +161,7 @@ The web container can't reach the listener API.
 ### Listener container keeps restarting
 
 - Check logs: `docker compose logs listener`
-- In production mode (`NODE_ENV=production`), `API_TOKEN` must be set or the listener exits immediately
+- With login disabled (`AUTH_ENABLED=false`), `API_TOKEN` must be set or the listener exits immediately (unless `NODE_ENV` is set to something other than `production`)
 - Verify `DATABASE_URL` is correct and PostgreSQL is reachable
 
 ### D-Bus / avahi errors
@@ -193,27 +195,44 @@ If `docker compose pull` fails:
 - Ensure the device is in commissioning mode
 - Check listener logs for Matter-specific errors
 
-### Matter polling stops
+### Matter device changes not arriving
 
-- After 10 consecutive errors, polling stops for that node
-- Restart the listener to retry: `docker compose restart listener`
-- Check if the device is still powered and reachable
+- Check the runtime: `GET /api/setup/matter/runtime`. `mode` is `subscribe+reconcile` (the default) or `poll` (when `MATTER_SUBSCRIBE_ENABLED=false`). For each node, `subscriptionActive` says whether its live subscription is up and `lastError` shows the most recent failure.
+- If `controllerReady` is `false`, or the endpoint returns 503 "Matter runtime unavailable", the Matter controller hasn't started — check the listener logs for `[matter]` errors.
+- With subscriptions on, a change should appear within seconds. If a subscription has quietly stopped, the background re-read still picks up the current state every 5 minutes (`MATTER_RECONCILE_INTERVAL_MS`), and the subscription is restarted with a back-off of up to 5 minutes.
+- A device that keeps failing is read less often (up to every 10 minutes) but never dropped; it recovers on its own once it's reachable again. Check it's powered and on the network.
+- If you need fixed-interval polling instead, set `MATTER_SUBSCRIBE_ENABLED=false` (polls every `MATTER_POLL_INTERVAL_MS`, default 5 s).
+- Only some Matter clusters produce events — see [Supported Matter clusters](devices.md#supported-matter-clusters).
 
 ## Alerts
 
 ### Webhooks not firing
 
-- Verify the rule itself is enabled (each rule has its own toggle — there is no global alerts switch)
-- Check that your rule is enabled: `GET /api/alerts/rules`
-- Check the delivery log: `GET /api/alerts/deliveries` — look for `failed` or `suppressed` status
+- Check the rule is enabled on the **Alerts** page (each rule has its own toggle — there is no household-wide alerts switch)
+- Check the scope and match value against a real event on the Timeline — **Equals** is case-sensitive and compares the stored value (for example `1` rather than `on`). See [Alerts](alerts.md#match-operator).
+- If the rule's owner has been disabled, the rule no longer fires
+- Check **Recent Deliveries** on the Alerts page (or `GET /api/alerts/deliveries`) — look for `failed` or `suppressed` status
 - If status is `suppressed`, the quiet period hasn't elapsed yet
 - Test your webhook URL independently with curl
 
 ### Webhook delivery fails
 
 - Check the `error` field in the delivery log
-- By default, private IP targets are allowed (`ALERTS_ALLOW_PRIVATE_TARGETS=true`). Set to `false` to block RFC1918 targets. Loopback and link-local are always blocked
-- Timeout defaults to 5 seconds (`ALERTS_WEBHOOK_TIMEOUT_MS`)
+- By default, private IP targets are allowed (`ALERTS_ALLOW_PRIVATE_TARGETS=true`). Set to `false` to block them. `localhost`, loopback and link-local are always blocked — see [Alerts](alerts.md#target-restrictions)
+- A target that keeps failing is retried at most once a minute (`ALERTS_FAILURE_BACKOFF_MS`)
+- Timeout defaults to 5 seconds. Change it in **Settings › Configuration › Data management**, or with `ALERTS_WEBHOOK_TIMEOUT_MS`, which wins when set
+
+## Updates
+
+### Settings › About says "Couldn't check for updates"
+
+The update check runs on the listener, not in your browser. About shows this when the listener couldn't reach GitLab, or its own request failed.
+
+- Check the listener's answer: `curl http://localhost:3001/api/updates/latest`. This endpoint is public, so no token is needed. `"enabled": false` means `UPDATE_CHECK_ENABLED=false` is set; `"upstreamOk": false` means the last fetch from GitLab failed.
+- The listener needs outbound HTTPS access to `gitlab.com`. On a network without internet access, the check can't work — compare your version with the [CHANGELOG](https://gitlab.com/havuq/homechronicle/-/blob/main/CHANGELOG.md) instead.
+- Results are cached for 12 hours (15 minutes after a failure), so a just-published release may take a while to show. Restarting the listener clears the cache.
+- If About says **Up to date** but you expected a release: if you run a stable version, beta releases are not offered.
+- Check this browser hasn't turned the check off: `localStorage.getItem('hc_disable_update_check')` should not be `'true'`.
 
 ## Performance
 

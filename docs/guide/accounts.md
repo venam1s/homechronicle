@@ -23,7 +23,7 @@ See [Security](security.md) for the session auth model and CSRF protection detai
 
 ![User management panel with member list, invite controls, and role settings](../screenshots/settings-users.png)
 
-Only admins can manage users. From **Settings > Admin > Users**:
+Only admins can manage users. From **Settings › Admin › Users**:
 
 | Action | Notes |
 |--------|-------|
@@ -33,7 +33,7 @@ Only admins can manage users. From **Settings > Admin > Users**:
 
 Roles are `admin` and `member`. Email must be configured before invites or password resets work — see [Email (SMTP)](email.md).
 
-Password reset is email-based: a signed-in user can request a reset from **Settings > Account**, and the link is sent to their account email.
+Password reset is email-based: choose **Forgot password?** on the sign-in page and a reset link is sent to the account's email. Signed-in users can change their password in **Settings › Account › Change password**.
 
 ## Members vs. Admins
 
@@ -42,23 +42,24 @@ Password reset is email-based: a signed-in user can request a reset from **Setti
 | View events, timeline, analytics | Yes | Yes |
 | Create/own alert rules (webhook or email) | Yes | Yes |
 | Set email alert recipient | Any address | Own account email only |
-| Settings > Configuration (device, data, timeline) | Yes | Yes |
+| Settings › Configuration (view; personal quiet hours, Timeline grouping, toasts) | Yes | Yes |
+| Change household settings (auto-scan, scheduled repair, retention, alert defaults) | Yes | No |
 | Appearance, toast, per-user preferences | Yes | Yes |
-| SMTP configuration (Settings > Admin) | Yes | No |
-| User management (Settings > Admin) | Yes | No |
-| Danger Zone (delete devices / wipe data) | Yes | No |
-| Log level adjustment | Yes | No |
+| SMTP configuration (Settings › Admin) | Yes | No |
+| User management (Settings › Admin) | Yes | No |
+| Pair, unpair and scan for devices | Yes | No |
+| Settings › Configuration › Advanced (log level, Danger Zone) | Yes | No |
 
-For alert rule behavior and the email recipient constraint see [Settings](settings.md#alerts).
+For alert rule ownership and the email recipient constraint see [Alerts](alerts.md#who-sees-which-rules).
 
 ## Active Sessions
 
 ![Active sessions list showing device user agents, IP addresses, and revoke buttons](../screenshots/settings-account-sessions.png)
 
-Each user can view their own active sessions — including the browser/device user agent and IP address captured at login — under **Settings > Account > Active Sessions**. Sessions can be revoked individually. Revoke is owner-only; admins cannot revoke other users' sessions.
+Each user can view their own active sessions — including the browser/device user agent and IP address captured at login — under **Settings › Account › Active Sessions**. Sessions can be revoked individually. Revoke is owner-only; admins cannot revoke other users' sessions.
 
 ## Household Model
 
 All accounts share the same event data. HomeChronicle is a household system — accounts provide access control and audit, not per-user data isolation. Every user sees the same device list, timeline, and analytics.
 
-**Per-user preferences** (theme, accent, dashboard layout, toast settings, sidebar state, dashboard range, quiet-hours config) are saved per account and synced across your devices when you are signed in. See [Settings](settings.md) for details.
+**Per-user preferences** (theme, palette, dashboard layout and ranges, muted devices, toast settings, Timeline grouping, quiet hours) are saved per account and synced across your devices when you are signed in. See [Settings](settings.md#per-user-preferences) for details.

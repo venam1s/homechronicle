@@ -5,17 +5,18 @@ homechronicle is a self-hosted event log for Apple HomeKit and Matter devices. I
 ## What It Does
 
 - **Records every event** — lights turning on, motion detected, temperature changes, door locks, and more
-- **Searchable timeline** — filter by room, accessory, characteristic, or date range
-- **Activity analytics** — daily trends, hourly distributions, heatmaps, device rankings
-- **Customizable dashboard** — drag, resize, and hide analytics panels; layout saved per account ([details](dashboard.md))
-- **Device management** — discover, pair, and monitor accessories from the web UI
-- **Multi-user accounts** — optional login with invite-only members, admin/member roles, and DB-backed sessions ([details](accounts.md))
+- **Readable timeline** — entries lead with what happened, grouped into scenes and episodes; search and filter by room, accessory, characteristic, or date range ([details](timeline.md))
+- **Customizable dashboard** — a one-line House Summary, a room map, a daily rhythm arc, trends, heatmaps and device rankings; drag, resize, and hide panels ([details](dashboard.md))
+- **Twelve colour palettes** — each with a designed light and dark version, plus Light / Dark / System theme ([details](appearance.md))
+- **Device management** — discover, pair, and monitor HomeKit and Matter accessories from the web UI, grouped by room ([details](devices.md))
+- **Live Matter updates** — Matter devices report changes as they happen through native subscriptions, with a background re-read as a safety net ([details](devices.md#how-matter-devices-report-changes))
+- **Webhook & email alerts** — get notified when specific events occur, with per-rule quiet periods ([details](alerts.md))
+- **Multi-user accounts** — optional login with invite-only members, admin/member roles, and per-user preferences that follow you across devices ([details](accounts.md))
 - **Email** — SMTP for user invitations, password resets, and email alert delivery ([details](email.md))
-- **Webhook & email alerts** — get notified when specific events occur
 - **Scheduled repair** — daily automated repair cycle for stale HomeKit pairings ([details](devices.md#scheduled-repair))
 - **Firmware tracking** — detects and logs firmware version changes on reconnect ([details](devices.md#firmware-tracking))
 - **Quiet hours** — flag unexpected activity during a defined time window
-- **Dark mode & accent themes** — system/light/dark toggle and six color themes ([details](appearance.md))
+- **Update check** — Settings › About tells you when a new release is out, checked through your own server ([details](settings.md#update-check))
 
 ## Quick Start
 
@@ -46,6 +47,7 @@ Open `http://localhost:3000` in your browser. See [Standalone Docker](standalone
 - [Standalone Docker](standalone.md) — one command, everything included (recommended)
 - [Docker Compose](docker-compose.md) — separate containers with full control
 - [Portainer](portainer.md) — deploy from Portainer's stack UI
+- [Upgrading](upgrading.md) — upgrading to 0.4 and between versions
 
 ### Configuration
 - [Environment Variables](environment-variables.md) — complete variable reference
@@ -56,8 +58,11 @@ Open `http://localhost:3000` in your browser. See [Standalone Docker](standalone
 ### Usage
 - [Accounts & Users](accounts.md) — login, invite members, roles, sessions, per-user preferences
 - [Dashboard & Analytics](dashboard.md) — customizable panels, default and optional panel reference
+- [Timeline](timeline.md) — reading entries, scenes and episodes, filters, activity heatmap
+- [Alerts](alerts.md) — webhook and email alert rules, quiet periods, delivery history
 - [Device Setup](devices.md) — discover, pair, and manage HomeKit & Matter accessories
-- [Appearance](appearance.md) — dark mode, color themes
+- [Appearance](appearance.md) — theme and the twelve colour palettes
+- [Settings](settings.md) — About, Admin, Configuration, Appearance, and Account sections
 - [Mobile Install (PWA)](mobile-install.md) — add to your home screen
 
 ### Reference
@@ -108,11 +113,11 @@ The listener must run on the same network segment as your HomeKit accessories. O
 
 **Pairing fails with `M2: Error: 6`**
 
-This means the device is already paired to another controller (such as Apple Home) and is rejecting a new pair-setup. If you use Homebridge, enable insecure mode (`-I` flag) in Homebridge settings — this allows HomeChronicle to register as an additional controller. For native HomeKit devices (TP-Link, Ecobee, etc.), use the **Add as Controller** panel in the Manage tab instead. See [Troubleshooting](troubleshooting.md#m2-error-6--device-already-paired-to-another-controller) for full details.
+This means the device is already paired to another controller (such as Apple Home) and is rejecting a new pair-setup. If you use Homebridge, enable insecure mode (`-I` flag) in Homebridge settings — this allows HomeChronicle to register as an additional controller. For native HomeKit devices (TP-Link, Ecobee, etc.), use the **Add as Controller** panel in **Devices › Add Accessories** instead. See [Troubleshooting](troubleshooting.md#m2-error-6--device-already-paired-to-another-controller) for full details.
 
-**`API_TOKEN` left empty causes write endpoints to be unprotected**
+**`API_TOKEN` and login**
 
-Generate a token with `openssl rand -hex 32` and set `API_TOKEN=<value>` in `.env` before exposing the listener to any network beyond localhost. The listener will accept unauthenticated write requests if `API_TOKEN` is unset.
+With login enabled (`AUTH_ENABLED=true`, the default), every API request except a few public ones needs a signed-in session or the API token. If you set `AUTH_ENABLED=false`, the API token is the only protection, and the listener won't start without one unless `NODE_ENV` is set to a non-production value — in which case anyone who can reach the listener can change settings and devices. Generate a token with `openssl rand -hex 32` and set `API_TOKEN=<value>` in `.env` before exposing the listener beyond localhost. See [Security](security.md).
 
 **Port conflicts on startup**
 

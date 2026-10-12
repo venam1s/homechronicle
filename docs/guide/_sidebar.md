@@ -3,6 +3,7 @@
   - [Standalone Docker](standalone.md)
   - [Docker Compose](docker-compose.md)
   - [Portainer](portainer.md)
+  - [Upgrading](upgrading.md)
 - **Configuration**
   - [Environment Variables](environment-variables.md)
   - [Networking](networking.md)
@@ -11,6 +12,8 @@
 - **Usage**
   - [Accounts & Users](accounts.md)
   - [Dashboard & Analytics](dashboard.md)
+  - [Timeline](timeline.md)
+  - [Alerts](alerts.md)
   - [Device Setup](devices.md)
   - [Settings](settings.md)
   - [Appearance](appearance.md)

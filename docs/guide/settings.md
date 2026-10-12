@@ -1,120 +1,130 @@
 # Settings
 
-The **Settings** tab in **Manage** is organized into three top-level sections: **Admin**, **Configuration**, and **Account**. Admin and Account sections are only shown when `AUTH_ENABLED=true`.
+Open **Settings** from the top navigation bar (or the floating navigation button on phones and tablets). Settings is split into up to five sections, listed down the left side on wider screens and in a drop-down menu on phones:
 
-## Admin (auth-on, admins only)
+| Section | Shown | Contains |
+|---------|-------|----------|
+| **About** | Always | Version, update status, changelog, help links |
+| **Admin** | Login enabled, admins only | Users, Pending invites, Email (SMTP) |
+| **Configuration** | Always (opens by default) | Device Management, Data management, Toast, and Advanced tabs |
+| **Appearance** | Always | Theme and palette |
+| **Account** | Login enabled | Change password, Active Sessions |
 
-The **Admin** section is visible only to admin-role users.
+All settings save automatically unless noted otherwise.
 
-### Users
+## About
 
-Invite members, change roles (admin/member), and disable accounts. The invite link doubles as email verification. A last-admin guard prevents demoting or disabling the only admin. Requires [Email (SMTP)](email.md) to be configured. See [Accounts & Users](accounts.md).
+![Settings › About with version, update status, and links](../screenshots/settings-about.png)
+
+| Item | Description |
+|------|-------------|
+| **Version** | The version of the web UI you're running |
+| **Update** | **Up to date**, a link such as **v0.4.1 available** that opens the release notes, **Couldn't check for updates** if the check failed, or **Update check is off** |
+| **What's new** | Opens the changelog. A dot appears after an upgrade until you've read the new notes (the changelog also opens by itself the first time you load a new version). |
+| **Documentation** | Opens this guide |
+| **Report an issue** | Opens the project's issue tracker on GitLab |
+
+On desktop, a dot on **Settings** in the navigation bar means there are changelog notes you haven't read, and an "*version* available" link appears in the top bar when an update is out.
+
+### Update check
+
+The listener checks the project's GitLab releases (`GET /api/updates/latest`) and caches the answer for 12 hours. Your browser only talks to your own HomeChronicle server — it never contacts GitLab or any other site directly.
+
+- Stable versions only offer stable updates. If you run a beta, newer betas are offered too.
+- If the listener can't reach GitLab, About shows **Couldn't check for updates** rather than claiming you're up to date.
+- To turn the check off for everyone, set `UPDATE_CHECK_ENABLED=false` on the listener (see [Environment Variables](environment-variables.md)).
+- To turn it off in one browser only, run `localStorage.setItem('hc_disable_update_check', 'true')` in the browser console.
+
+## Admin (login enabled, admins only)
+
+### Users and Pending invites
+
+Invite members, change roles (admin/member), and disable accounts. Invitations waiting to be accepted are listed under **Pending invites**, where you can resend or revoke them. A last-admin guard stops you demoting or disabling the only admin. Invites need [Email (SMTP)](email.md) configured. See [Accounts & Users](accounts.md).
 
 ### Email (SMTP)
 
-SMTP settings for outbound email: server hostname, port, username/password, From address, and a **Send test email** button. Environment variable values (`SMTP_HOST`, etc.) override UI-saved settings — see [Email (SMTP)](email.md).
+SMTP settings for outgoing email: host, port, username/password, From address, TLS, and a test-email button. Any field set by an environment variable (`SMTP_HOST` and so on) is shown as "Set via environment variable" and can't be changed here. See [Email (SMTP)](email.md).
 
 ## Configuration
 
-The **Configuration** section is available to all users. It contains four tabs: **Device Management**, **Data**, **Toast**, and **About**. An **Advanced** tab is shown only to admins.
+Configuration has three tabs for everyone — **Device Management**, **Data management** and **Toast** — plus an **Advanced** tab for admins (or for everyone when login is disabled).
 
-All settings auto-save instantly unless noted otherwise.
+Household-wide settings (auto-scan, scheduled repair, retention, alert defaults) need an admin to change them when login is enabled. Personal settings (quiet hours, Timeline grouping, toasts) are saved per user.
+
+![Settings › Configuration › Device Management with HomeKit auto-scan and Scheduled Repair](../screenshots/settings-device-management.png)
 
 ### Device Management
 
-#### HomeKit Auto-Scan
+#### HomeKit auto-scan
 
-Automatically scans for new HomeKit accessories every hour via mDNS. Manual scans from the Add Devices tab still work when this is off.
+Scans for HomeKit accessories on your network every hour in the background. Manual scans from **Devices › Add Accessories** still work when this is off.
 
 #### Scheduled Repair
 
-Automatically re-pairs HomeKit devices that lose their connection overnight. When enabled, the listener identifies devices with reconnection errors or that haven't been seen recently and attempts to re-discover and re-subscribe.
+Automatically re-pairs HomeKit devices that lose their connection overnight. When enabled, the listener looks for devices with reconnection errors or that haven't been seen recently, and re-discovers and re-subscribes to them. Devices with a saved PIN are fully re-paired.
 
 | Setting | Description |
 |---------|-------------|
-| **Enabled** | Toggle the daily repair cycle on/off |
-| **Repair Hour** | Hour of day to run the repair (displayed in local time, stored as UTC) |
+| **Scheduled Repair** | Turns the daily repair on or off |
+| **Repair Hour** | Hour of day to run the repair, shown in your local time |
 
-The last run time and results (repaired/failed counts) are shown below the settings when available.
+The last run time and result (repaired/failed counts) are shown underneath. See also [Device Setup](devices.md#scheduled-repair).
 
-### Data & Retention
+### Data management
 
-#### Retention Cutoff
+The Data management tab has three cards.
 
-How many days to keep events in the main `event_logs` table. Events older than this are swept during the daily retention cycle. Changes apply without restart.
+#### Data Management
 
-#### Archive Before Delete
+| Setting | Description |
+|---------|-------------|
+| **Retention cutoff** | How many days to keep events in the main `event_logs` table. Older events are removed by the daily retention sweep. Changes apply without a restart. |
+| **Archive before delete** | When on, expired events are copied to `event_logs_archive` before removal. When off, they are permanently deleted. If archive data exists, a download button lets you export it. |
+| **Stale accessory threshold** | Hours without events before an accessory is marked "stale" on the dashboard and device list |
 
-When enabled, expired events are copied to the `event_logs_archive` table before removal. When off, expired events are permanently deleted. If archive data exists, a download button appears to export it.
+#### Alerts & Quiet Hours
 
-#### Stale Accessory Threshold
+| Setting | Description |
+|---------|-------------|
+| **Default quiet period** | The quiet period new alert rules start with (0–10080 minutes). The rule form fills it in, and a rule created over the API without `quietMinutes` gets it too. Existing rules keep their own value. |
+| **Webhook timeout** | How long a webhook delivery waits for a response (1000–30000 ms, default 5000). If `ALERTS_WEBHOOK_TIMEOUT_MS` is set on the listener, that value is used instead and the field is locked. |
+| **Quiet hours** | On/off, plus a **From**/**to** window in your local time. Activity in this window is flagged on the dashboard. Accessories you've excluded (from the dashboard's Quiet Hours panel) appear as badges here; click one to include it again. |
 
-Number of hours without events before an accessory is marked as "stale" on the dashboard and device list.
+Alert rules themselves are managed on the [Alerts](alerts.md) page.
 
-### Alerts & Quiet Hours {#alerts}
+When you're signed in, quiet hours are saved per user and follow you across devices. With login disabled, one shared household setting is used.
 
-![Alerts page showing alert rules list with channel, condition, and quiet-period columns](../screenshots/alerts-page.png)
+#### Timeline
 
-#### Alert Rules
+These settings control how the [Timeline](timeline.md#scenes-and-episodes) groups events.
 
-Alert rules notify you when specific device events occur. Each rule is enabled or disabled individually. Two delivery channels are available: **webhook** (HTTP POST to any URL) and **email** (requires SMTP — see [Email (SMTP)](email.md)).
-
-All users can create and manage their own alert rules. For email-channel rules, non-admin users can only send to their own account email address; admins can set any recipient.
-
-#### Quiet Hours
-
-Flags accessory activity during a time window as unexpected on the dashboard. Configure the start and end hours. Accessories can be individually excluded from quiet-hours monitoring — excluded accessories appear as removable badges below the time pickers.
-
-When you are signed in, quiet-hours settings are stored per account and synced across your devices. Without an authenticated session (auth off or service token), the shared household configuration is used instead.
-
-### Timeline
-
-These settings control how the Timeline tab groups raw events into episodes.
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| **Episode capture interval** | 3 min | Events within this window are grouped into timeline episodes |
-| **Scene grouping window** | 5 sec | Events within this many seconds are clustered into a single scene |
-| **Episode minimum events** | 3 | Minimum events for a scene cluster to be promoted to an episode |
+| Setting | Default | Range | Description |
+|---------|---------|-------|-------------|
+| **Episode capture interval** | 3 min | 1–30 min | Scenes that start within this window of each other can be grouped into an episode |
+| **Scene grouping window** | 5 sec | 1–30 sec | Events within this many seconds of each other form one scene |
+| **Episode minimum events** | 3 | 1–20 | A group needs at least this many events to become an episode |
 
 ### Toast
 
-#### Toast Notifications
+| Setting | Description |
+|---------|-------------|
+| **Toast notifications** | Brief pop-up messages for saves, deletes and other actions. When off, the other toast settings are greyed out. |
+| **Live event toasts** | A pop-up when chosen accessories change state (for example, a light turning on). Not shown while you're on the Timeline, which already shows the event. |
+| **Toast position** | Bottom Right (default), Bottom Left, Bottom Center, Top Right, Top Left, or Top Center |
+| **Toast duration** | 2, 3 (default), 5 or 7 seconds |
+| **Max visible toasts** | 1, 2, 3 (default) or 5 |
 
-Toggle brief popup messages for saves, deletes, and other actions. When disabled, all toast-related settings below are grayed out.
+To choose which accessories trigger live toasts, go to **Devices › Manage Accessories** and click the bell icon next to each device. HomeKit and Matter devices are both supported.
 
-#### Live Event Toasts
+### Advanced
 
-Show a popup when selected accessories report state changes (e.g., a light turning on). Only appears when you're **not** on the Timeline tab to avoid duplicating what's already visible.
+![Settings › Configuration › Advanced with the log level selector and the Danger Zone](../screenshots/settings-advanced.png)
 
-To select which accessories trigger live toasts, go to **Manage > My Accessories** and click the bell icon next to each device. Both HomeKit and Matter devices are supported.
+Shown to admins, or to everyone when login is disabled.
 
-#### Toast Position
+#### Log level
 
-Where on screen toast popups appear:
-
-- Bottom Right (default)
-- Bottom Left
-- Bottom Center
-- Top Right
-- Top Left
-- Top Center
-
-#### Toast Duration
-
-How long each toast stays visible before auto-dismissing: 2, 3, 5, or 7 seconds.
-
-#### Max Visible Toasts
-
-Maximum number of toasts that can stack on screen at once: 1, 2, 3, or 5.
-
-### Advanced (admin-only)
-
-![Advanced settings panel showing log level selector and Danger Zone section](../screenshots/settings-advanced.png)
-
-#### Log Level
-
-Controls how much the listener logs to Docker output. Changes apply instantly without a container restart.
+Controls how much the listener writes to its Docker logs. Changes apply instantly, without a restart.
 
 | Level | Description |
 |-------|-------------|
@@ -125,41 +135,37 @@ Controls how much the listener logs to Docker output. Changes apply instantly wi
 
 #### Danger Zone
 
-A collapsible section for destructive operations. Each action requires explicit confirmation. Only admins can see or use these controls.
+A collapsible section for destructive actions. Each one asks for confirmation.
 
-##### Remove Pairings
+- **Remove pairings** — unpair individual HomeKit or Matter accessories. Event history is **not** deleted; only the pairing keys are removed and the subscription stops. **Remove All Pairings** (shown when several devices are paired) asks you to type `DELETE`.
+- **Delete accessory data** — delete stored event history for individual accessories. Filter by all accessories, currently paired, or no longer paired. Deleting history does not unpair the device.
+- **Wipe All Data** — permanently deletes all event data. Asks you to type `DELETE`. This can't be undone.
 
-Unpair individual HomeKit or Matter accessories. Event history is **not** deleted — only the pairing keys are removed and the subscriber/poller is stopped.
+## Appearance
 
-A **Remove All Pairings** button is available when multiple devices are paired. It requires typing `DELETE` to confirm.
+Theme (Light / Dark / System) and palette. See [Appearance](appearance.md).
 
-##### Delete Accessory Data
+## Account (login enabled)
 
-Delete stored event history for individual accessories. A filter lets you view all accessories, only currently paired, or only those no longer paired. Deleting history does not unpair the device.
+### Change password
 
-**Wipe All Data** permanently deletes all event data from the database. Requires typing `DELETE` to confirm. This cannot be undone.
-
-## Account (auth-on only)
-
-The **Account** section is shown when `AUTH_ENABLED=true`. It is personal to the signed-in user.
-
-### Change Password
-
-Update your account password. Requires entering your current password.
+Update your password. You need to enter your current password.
 
 ### Active Sessions
 
-Lists your current login sessions with the device user agent and IP address captured at login. You can revoke any individual session (including your current one). Revoking a session immediately invalidates it.
+Lists your signed-in sessions with the browser/device and IP address recorded at login. You can revoke any of them, including the one you're using; a revoked session stops working immediately. See [Accounts & Users](accounts.md#active-sessions).
 
-## Per-User Preferences
+## Per-user preferences
 
-When signed in, the following preferences are saved per account and synced across all your devices:
+When you're signed in, these are saved to your account and follow you to any browser or device:
 
-- Theme (system, light, dark) and accent color
-- Dashboard layout and visible panels
-- Dashboard date range
-- Toast notification settings
-- Sidebar collapsed/expanded state
-- Quiet-hours configuration
+- Theme and palette
+- Dashboard layout, panel sizes, hidden panels, date ranges and the Sync toggle
+- Muted devices on the Timeline
+- Toast settings
+- Timeline grouping settings
+- Quiet-hours settings
 
-Without an authenticated session, preferences are stored in browser `localStorage` only and are not synced.
+A change made just before you sign out or close the tab is still saved. Signing out removes these preferences from that browser.
+
+With login disabled, preferences are stored in each browser's `localStorage` and aren't synced.

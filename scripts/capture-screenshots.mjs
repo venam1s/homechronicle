@@ -1,33 +1,41 @@
 #!/usr/bin/env node
 /**
- * Capture updated screenshots from the PROD instance for homechronicle.net.
+ * Capture the screenshots used by homechronicle.net (docs/index.html,
+ * docs/screenshots.html and docs/guide/*.md) from a live instance.
  *
- * Targets the current (v0.3.x) authenticated UI:
- *   - Sidebar nav (Dashboard / Devices / Timeline / Alerts / Settings)
- *   - Per-user skin (localStorage hc_accent, legacy hc_ui_skin) + theme (hc_theme_preference)
- *   - Settings sections (Admin / Configuration / Account) with inner tabs
+ * Targets the v0.4 UI:
+ *   - Masthead top navigation (Dashboard / Devices / Timeline / Alerts / Settings)
+ *   - Twelve palettes x light/dark, driven through the per-user `palette` and
+ *     `theme` preferences
+ *   - Settings sections About / Admin / Configuration / Appearance / Account
  *
- * Auth: an admin session cookie token is read from /tmp/hc_shot_cookie.txt and
- * attached as the `hc_session` cookie on every Playwright context BEFORE navigation.
+ * Auth: an admin session token is read from $HC_COOKIE_FILE (default
+ * /tmp/hc_shot_cookie.txt) and attached as the `hc_session` cookie on every
+ * Playwright context before navigation.
  *
- * PII scrub: a route interceptor rewrites real device/place names out of every
- * /api/** JSON response body before the page renders. Zero prod mutation.
+ * Read-only by construction: every non-GET /api/** request is answered locally
+ * with a 200 and never reaches the server, so a capture cannot change the
+ * account's preferences, sign it out, or touch devices. GET responses are
+ * rewritten to scrub personal names (PII_REPLACEMENTS) before the page renders.
  *
- * Usage: node scripts/capture-screenshots.mjs [baseUrl]   (defaults to prod)
+ * Usage:
+ *   HC_COOKIE_FILE=/path/to/token node scripts/capture-screenshots.mjs [baseUrl]
+ *   ONLY=palettes|pages|panels|mobile   capture just one group
+ *   PALETTE_SHOTS=ember-light,tide-dark  limit the palette run to these shots
  */
 import { chromium } from 'playwright';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Resolve a usable Chromium executable. The bundled Playwright build number may
- * not match the locally installed browser (e.g. headless_shell-1217 expected but
- * only chromium-1208 present). Fall back to the full Chrome-for-Testing binary
- * that ships under chromium-<n>, newest first.
+ * not match the locally installed browser. Fall back to whatever Chromium /
+ * headless shell is in the Playwright cache, newest first.
  */
 function resolveChromiumPath() {
   if (process.env.PLAYWRIGHT_CHROMIUM_PATH) return process.env.PLAYWRIGHT_CHROMIUM_PATH;
@@ -35,90 +43,109 @@ function resolveChromiumPath() {
   let dirs = [];
   try {
     dirs = fs.readdirSync(cache)
-      .filter((d) => /^chromium-\d+$/.test(d))
-      .sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]));
+      .filter((d) => /^chromium(_headless_shell)?-\d+$/.test(d))
+      .sort((a, b) => Number(b.split('-').pop()) - Number(a.split('-').pop()));
   } catch { return undefined; }
   for (const d of dirs) {
     const candidates = [
       path.join(cache, d, 'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'),
       path.join(cache, d, 'chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'),
+      path.join(cache, d, 'chrome-headless-shell-mac-arm64/chrome-headless-shell'),
+      path.join(cache, d, 'chrome-headless-shell-mac-x64/chrome-headless-shell'),
       path.join(cache, d, 'chrome-linux/chrome'),
     ];
     for (const c of candidates) if (fs.existsSync(c)) return c;
   }
   return undefined;
 }
+
 const SCREENSHOTS_DIR = path.resolve(__dirname, '../docs/screenshots');
 const BASE_URL = (process.argv[2] || 'https://hc.venamis.net').replace(/\/$/, '');
+const COOKIE_FILE = process.env.HC_COOKIE_FILE || '/tmp/hc_shot_cookie.txt';
+const ONLY = process.env.ONLY || '';
+// The build version the target runs (About shows it). Seeding it as "last seen"
+// hides the what's-new dot; a wrong value would open the changelog modal instead.
+const BUILD_VERSION = process.env.HC_BUILD_VERSION
+  || execSync('git describe --tags --abbrev=0', { cwd: __dirname }).toString().trim();
 
-// Cookie host derived from the base URL (prod = hc.venamis.net).
 const COOKIE_DOMAIN = new URL(BASE_URL).hostname;
 const COOKIE_SECURE = new URL(BASE_URL).protocol === 'https:';
 
-// Desktop viewport matching existing screenshots (~2160px wide at 2x = 1080 logical).
-const DESKTOP = { width: 1080, height: 1220 };
+// Desktop: 1280 logical at 2x — wide enough for the masthead and the dashboard grid.
+const DESKTOP = { width: 1280, height: 900 };
 const DEVICE_SCALE = 2;
+const FEATURE_CLIP = { x: 0, y: 0, width: 1280, height: 800 };
 
-// Standard 3:2 clip for feature-row screenshots.
-const FEATURE_CLIP = { x: 0, y: 0, width: 1080, height: 720 };
-
-// Mobile viewport for PWA screenshots (~603 logical at 2x = 1206px)
 const MOBILE = { width: 393, height: 852 };
 const MOBILE_SCALE = 2;
 
-const SKINS = ['ocean', 'graphite', 'sunrise', 'red', 'yellow', 'purple', 'slate', 'pink'];
+// Picker order from web/src/lib/palettes.js. Porcelain is the default.
+const PALETTES = ['gallery', 'ember', 'almanac', 'harvest', 'ink', 'fern', 'porcelain', 'tide', 'atlas', 'iris', 'dusk', 'graphite'];
+const DEFAULT_PALETTE = 'porcelain';
 
-// Per-skin accent override. accent is a PER-USER SERVER preference (GET /api/me/preferences
-// → UserPreferencesProvider seeds 'accent' → useAccent → applyAccent → [data-accent] CSS).
-// Setting only localStorage hc_accent is INSUFFICIENT: once the server blob is non-empty the
-// reconciliation effect overrides localStorage with the server value, so every skin rendered
-// the admin's saved accent. The fix (skin-capture path only): the route handler rewrites the
-// GET response so prefs.accent = currentAccent on every fetch, and short-circuits the PUT so
-// the capture never mutates the admin's real prefs. null = no override (normal runs).
-let currentAccent = null;
-
-// PII scrub: longest/most-specific substrings first so catch-alls don't pre-empt
-// them. Account emails MUST precede the bare username/domain catch-alls
-// (e.g. smithmarcw@icloud.com → you@example.com BEFORE smithmarcw → you, else
-// the residual yields you@icloud.com). Device-name rules retained from prior run.
+// Longest / most specific first, so a catch-all never pre-empts a longer match.
 const PII_REPLACEMENTS = [
-  // Account emails / domains (longest → shortest)
   ['havuq@venamis.net', 'admin@example.com'],
   ['smithmarcw@icloud.com', 'you@example.com'],
   ['no-reply@venamis.net', 'no-reply@example.com'],
   ['venamis.net', 'example.com'],
   ['havuq', 'admin'],
   ['smithmarcw', 'you'],
-  // Device / place names
   ['Hubitat Smith Hub', 'Smart Home Hub'],
   ['Smith Hub', 'Home Hub'],
   ['Carl T20', 'Robot Vacuum'],
   ['ZVille OWM', 'Weather Station'],
   ['ZVille', 'Home'],
 ];
+const PII_NEEDLES = ['Smith', 'Carl', 'ZVille', 'havuq', 'smithmarcw', 'venamis'];
 
-// Read the admin session token.
 let SESSION_TOKEN;
 try {
-  SESSION_TOKEN = fs.readFileSync('/tmp/hc_shot_cookie.txt', 'utf8').trim();
+  SESSION_TOKEN = fs.readFileSync(COOKIE_FILE, 'utf8').trim();
 } catch (err) {
-  console.error('FATAL: could not read /tmp/hc_shot_cookie.txt —', err.message);
+  console.error(`FATAL: could not read ${COOKIE_FILE} —`, err.message);
   process.exit(1);
 }
 if (!SESSION_TOKEN) {
-  console.error('FATAL: /tmp/hc_shot_cookie.txt is empty');
+  console.error(`FATAL: ${COOKIE_FILE} is empty`);
   process.exit(1);
 }
+
+// LAN addresses (bridge IPs, connection errors) become documentation-range ones.
+// A latitude,longitude pair, plus the "Town, CC" a weather plugin appends to it
+// in its serial number — patterns, so no real place name lives in this script.
+const COORDS = /-?\d{1,3}\.\d{3,},\s?-?\d{1,3}\.\d{3,}(?:\s*[A-Za-z][A-Za-z .'-]*,\s?[A-Z]{2}\b)?/g;
+const PLACEHOLDER_COORDS = '40.00000,-90.00000 Springfield, US';
+
+// Every IPv4 address (LAN bridges, connection errors, session IPs that may be
+// public) becomes one from the 192.0.2.0/24 documentation range.
+const IPV4 = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
+const DOC_IP = /^192\.0\.2\.\d{1,3}$/;
+
+/** Names of anything in a scrubbed body that still looks private. */
+function leaks(body) {
+  const found = PII_NEEDLES.filter((n) => body.includes(n));
+  if ((body.match(IPV4) || []).some((ip) => !DOC_IP.test(ip))) found.push('ipv4');
+  if (/-?\d{1,3}\.\d{3,},\s?-?\d{1,3}\.\d{3,}/.test(body.split(PLACEHOLDER_COORDS).join(''))) found.push('coordinates');
+  return found;
+}
+const leakReport = [];
 
 function scrub(text) {
   let out = text;
   for (const [from, to] of PII_REPLACEMENTS) out = out.split(from).join(to);
-  return out;
+  out = out.replace(COORDS, PLACEHOLDER_COORDS);
+  let n = 0;
+  const seen = new Map();
+  return out.replace(IPV4, (ip) => {
+    if (DOC_IP.test(ip)) return ip;
+    if (!seen.has(ip)) seen.set(ip, `192.0.2.${(n++ % 250) + 2}`);
+    return seen.get(ip);
+  });
 }
 
-const PII_NEEDLES = ['Smith', 'Carl', 'ZVille', 'havuq', 'smithmarcw', 'venamis'];
+const out = (name) => path.join(SCREENSHOTS_DIR, name);
 
-/** Attach the session cookie to a context. */
 async function authenticate(context) {
   await context.addCookies([{
     name: 'hc_session',
@@ -132,448 +159,431 @@ async function authenticate(context) {
 }
 
 /**
- * Install the PII-scrubbing route interceptor on a page. Rewrites every /api/**
- * JSON response body. Optionally captures cleaned bodies for verification.
+ * Route every /api/** request:
+ *   - non-GET: answered locally (200), never forwarded. PUT /api/me/preferences
+ *     echoes its body so the app's preference cache stays consistent.
+ *   - GET /api/me/preferences: real blob with `palette` and `theme` forced to
+ *     the capture's look.
+ *   - other GETs: fetched and PII-scrubbed.
  */
-async function installPiiScrub(page, capture) {
+async function installRoutes(page, look, capture) {
   await page.route('**/api/**', async (route) => {
+    const req = route.request();
+    const url = req.url();
+    const method = req.method();
     try {
-      const url = route.request().url();
-      const method = route.request().method();
-
-      // ── Per-user preferences override (skin-capture path) ──
-      // currentAccent is read at REQUEST time (not install time) so per-skin updates apply.
-      if (/\/api\/me\/preferences(\?|$)/.test(url)) {
-        if (method === 'PUT') {
-          // Echo the sent body as { prefs: <sent> } WITHOUT forwarding to the server, so the
-          // capture never persists anything to the admin's real prefs (no route.fetch()).
+      if (method !== 'GET' && method !== 'HEAD') {
+        let body = '{}';
+        if (/\/api\/me\/preferences(\?|$)/.test(url)) {
           let sent = {};
-          try { sent = JSON.parse(route.request().postData() || '{}').prefs ?? {}; } catch { /* keep {} */ }
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: scrub(JSON.stringify({ prefs: sent })),
-          });
-          return;
+          try { sent = JSON.parse(req.postData() || '{}').prefs ?? {}; } catch { /* keep {} */ }
+          body = JSON.stringify({ prefs: { ...sent, palette: look.palette, theme: look.theme } });
         }
-        // GET: fetch the real response, ensure { prefs: {...} }, inject accent, keep PII scrub.
+        await route.fulfill({ status: 200, contentType: 'application/json', body });
+        return;
+      }
+
+      if (/\/api\/me\/preferences(\?|$)/.test(url)) {
         const resp = await route.fetch();
         let json;
         try { json = JSON.parse(await resp.text()); } catch { json = {}; }
-        if (!json || typeof json !== 'object' || typeof json.prefs !== 'object' || json.prefs == null) {
-          json = { prefs: {} };
-        }
-        if (currentAccent) json.prefs.accent = currentAccent;
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: scrub(JSON.stringify(json)),
-        });
+        if (!json || typeof json.prefs !== 'object' || json.prefs == null) json = { prefs: {} };
+        json.prefs.palette = look.palette;
+        json.prefs.theme = look.theme;
+        const prefsBody = scrub(JSON.stringify(json));
+        const prefsHits = leaks(prefsBody);
+        if (prefsHits.length) leakReport.push(`${new URL(url).pathname}: ${prefsHits.join(', ')}`);
+        await route.fulfill({ status: 200, contentType: 'application/json', body: prefsBody });
         return;
       }
 
       const resp = await route.fetch();
       const ct = resp.headers()['content-type'] || '';
-      // Only rewrite text-ish bodies (JSON). Pass others through untouched.
-      if (!/json|text|javascript/i.test(ct)) {
+      if (!/json|text/i.test(ct)) {
         await route.fulfill({ response: resp });
         return;
       }
-      const original = await resp.text();
-      const body = scrub(original);
+      const body = scrub(await resp.text());
+      const hits = leaks(body);
+      if (hits.length) leakReport.push(`${new URL(url).pathname}: ${hits.join(', ')}`);
       if (capture) {
-        const url = route.request().url();
-        if (capture.events == null && /\/api\/events(\?|$)/.test(url)) capture.events = body;
-        if (capture.accessories == null && /\/api\/accessories(\?|$)/.test(url)) capture.accessories = body;
-        if (capture.me == null && /\/api\/auth\/me(\?|$)/.test(url)) capture.me = body;
-        // Match the users list GET (/api/users) but NOT /api/users/invites etc.
-        if (capture.users == null && /\/api\/users(\/?(\?|$))/.test(url)) capture.users = body;
-        if (capture.smtp == null && /\/api\/setup\/smtp(\?|$)/.test(url)) capture.smtp = body;
+        for (const [key, re] of Object.entries(CAPTURE_PATTERNS)) {
+          if (capture[key] == null && re.test(url)) capture[key] = body;
+        }
       }
       await route.fulfill({ response: resp, body });
     } catch {
-      // Network hiccup — let the request continue unmodified rather than abort.
       try { await route.continue(); } catch { /* already handled */ }
     }
   });
 }
 
-/** Set theme + skin in localStorage before the app boots. */
-async function applyThemeInit(page, { theme, skin }) {
-  await page.addInitScript(({ t, s }) => {
-    localStorage.setItem('hc_theme_preference', t);
-    localStorage.setItem('hc_accent', s);      // current key
-    localStorage.setItem('hc_ui_skin', s);     // legacy fallback
-  }, { t: theme, s: skin });
+const CAPTURE_PATTERNS = {
+  events: /\/api\/events(\?|$)/,
+  accessories: /\/api\/accessories(\?|$)/,
+  me: /\/api\/auth\/me(\?|$)/,
+  users: /\/api\/users\/?(\?|$)/,
+  smtp: /\/api\/setup\/smtp(\?|$)/,
+  rooms: /\/api\/stats\/rooms(\?|$)/,
+  detail: /\/api\/accessories\/[^/]+\/detail(\?|$)/,
+};
+
+/** Seed localStorage so first paint (theme-init.js) already matches the look. */
+async function seedLook(page, look) {
+  await page.addInitScript(({ palette, theme, version }) => {
+    localStorage.setItem('hc_theme_preference', theme);
+    localStorage.setItem('hc_palette', palette);
+    localStorage.setItem('hc_last_seen_version', version);
+  }, { ...look, version: BUILD_VERSION });
 }
 
-/** Wait for Recharts data to actually draw (not just the SVG container). */
+/** New authenticated page with routes + look installed. */
+async function openPage(browser, { look, viewport = DESKTOP, scale = DEVICE_SCALE, mobile = false, capture, auth = true }) {
+  const ctx = await browser.newContext({
+    viewport, deviceScaleFactor: scale, colorScheme: look.theme, isMobile: mobile, hasTouch: mobile,
+  });
+  if (auth) await authenticate(ctx);
+  const page = await ctx.newPage();
+  await installRoutes(page, look, capture);
+  await seedLook(page, look);
+  return { ctx, page };
+}
+
 async function waitForCharts(page) {
   try {
-    await page.waitForSelector('.recharts-bar-rectangle, .recharts-area-area', { timeout: 20000 });
-    await page.waitForTimeout(500);
+    await page.waitForSelector('.recharts-bar-rectangle, .recharts-area-area, .recharts-line-curve', { timeout: 20000 });
   } catch {
-    console.log('    ⚠ chart data elements not detected after 20s, capturing anyway');
+    console.log('    ⚠ chart data not detected after 20s, capturing anyway');
   }
+  await page.waitForTimeout(1200);
+}
+
+/** The app scrolls <main>, not the document. */
+async function scrollMainTop(page) {
+  await page.evaluate(() => { const m = document.querySelector('main'); if (m) m.scrollTop = 0; window.scrollTo(0, 0); });
+  await page.waitForTimeout(300);
 }
 
 /**
- * Element-crop a dashboard panel by its heading text. The customizable grid
- * (react-grid-layout v2) wraps every panel — bare (KPI/Quiet Hours, which carry
- * their own h3 title) and non-bare (chart panels, whose title lives in the
- * `.hc-drag-handle` header span) alike — in a `.react-grid-item` div. We locate
- * the heading, climb to that enclosing grid item, scroll it into view, and
- * screenshot the element so the crop tracks the live layout instead of guessing
- * fixed coords (which came out blank when panels moved/reordered).
- *
- * Returns true if captured, false if the heading wasn't found (caller skips —
- * never writes a blank image).
+ * Element-crop a dashboard panel: find an anchor inside it, climb to the grid
+ * item. `anchor` is a panel title (exact text), or { text } for a substring, or
+ * { css } — the House Summary, room map and rhythm panels have no title.
  */
-async function cropPanelByHeading(page, headingText, outFile) {
-  const heading = page.getByText(headingText, { exact: false }).first();
+async function cropPanel(page, anchor, file) {
+  const grid = page.locator('.react-grid-item');
+  const heading = (typeof anchor === 'string'
+    ? grid.getByText(anchor, { exact: true })
+    : anchor.css ? grid.locator(anchor.css) : grid.getByText(anchor.text, { exact: false })).first();
+  const title = typeof anchor === 'string' ? anchor : (anchor.css ?? anchor.text);
   if (!(await heading.count())) {
-    console.log(`    ⚠ panel heading "${headingText}" not found — skipping ${path.basename(outFile)}`);
-    return false;
+    console.log(`    ⚠ panel "${title}" not found — skipping ${file}`);
+    return;
   }
   await heading.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(500);
-  const gridItem = heading.locator('xpath=ancestor::div[contains(@class,"react-grid-item")][1]');
-  const target = (await gridItem.count()) ? gridItem.first() : heading;
+  await page.waitForTimeout(600);
+  const item = heading.locator('xpath=ancestor::div[contains(@class,"react-grid-item")][1]');
+  const target = (await item.count()) ? item.first() : heading;
   const box = await target.boundingBox();
   if (!box || box.width < 40 || box.height < 40) {
-    console.log(`    ⚠ panel "${headingText}" element has no usable box — skipping ${path.basename(outFile)}`);
-    return false;
+    console.log(`    ⚠ panel "${title}" has no usable box — skipping ${file}`);
+    return;
   }
-  await target.screenshot({ path: outFile });
-  return true;
+  await target.screenshot({ path: out(file) });
 }
 
-/** Click a sidebar nav button by visible label. Returns true on success. */
 async function navTo(page, label) {
-  const btn = page.locator('aside[aria-label="Main navigation"] button', { hasText: label }).first();
-  await btn.click({ timeout: 8000 });
+  await page.locator('nav[aria-label="Main navigation"] button', { hasText: label }).first().click({ timeout: 8000 });
   await page.waitForTimeout(1800);
-  return true;
+  await scrollMainTop(page);
 }
 
-/** Confirm we landed on the authenticated app (not the login page). */
-async function assertAuthenticated(page) {
+async function settingsSection(page, label) {
+  await page.locator('[role="button"]', { hasText: new RegExp(`^${label}$`) }).first().click({ timeout: 6000 });
+  await page.waitForTimeout(1200);
+  await scrollMainTop(page);
+}
+
+async function isAuthenticated(page) {
   const onLogin = await page.locator('input[type="password"]').count();
-  const hasSidebar = await page.locator('aside[aria-label="Main navigation"]').count();
-  return hasSidebar > 0 && onLogin === 0;
+  const hasNav = await page.locator('nav[aria-label="Main navigation"]').count();
+  return hasNav > 0 && onLogin === 0;
 }
 
-/** Wrap a single capture so one failure doesn't abort the run. */
 async function shot(name, fn) {
   try {
     await fn();
     console.log(`  ✓ ${name}`);
   } catch (err) {
-    console.log(`  ⚠ ${name} — ${err.message}`);
+    console.log(`  ⚠ ${name} — ${err.message.split('\n')[0]}`);
+  }
+}
+
+const viewportShot = (page, file) => page.screenshot({ path: out(file), clip: FEATURE_CLIP });
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Anchors are the text each panel actually renders (registry names differ for
+// some: "Quiet Hours", "Weekday Heatmap").
+const PANELS = [
+  [{ text: 'events so far today' }, 'dashboard-house-summary.png'],
+  [{ text: 'Block size follows' }, 'dashboard-room-map.png'],
+  [{ css: '[aria-label^="Daily rhythm"]' }, 'dashboard-rhythm.png'],
+  ['Daily Activity', 'dashboard-daily-activity.png'],
+  ['Events by Hour', 'dashboard-events-by-hour.png'],
+  ['Events by Room', 'dashboard-events-by-room.png'],
+  ['Quiet Hours', 'dashboard-quiet-hours.png'],
+  ['Most Active Devices', 'dashboard-most-active-devices.png'],
+  ['Weekday Heatmap', 'dashboard-weekly-pattern.png'],
+  ['Active Outliers', 'dashboard-outliers.png'],
+  ['Stale Devices', 'dashboard-stale-devices.png'],
+];
+
+async function capturePanels(page) {
+  for (const [anchor, file] of PANELS) await shot(file, () => cropPanel(page, anchor, file));
+}
+
+async function capturePages(browser, verify) {
+  console.log('\n── Login page (unauthenticated) ──');
+  await shot('login-page.png', async () => {
+    const { ctx, page } = await openPage(browser, { look: { palette: DEFAULT_PALETTE, theme: 'light' }, auth: false });
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await page.waitForSelector('input[type="password"]', { timeout: 8000 });
+    await page.waitForTimeout(800);
+    await viewportShot(page, 'login-page.png');
+    await ctx.close();
+  });
+
+  console.log('\n── Desktop, light ──');
+  const { ctx, page } = await openPage(browser, { look: { palette: DEFAULT_PALETTE, theme: 'light' }, capture: verify });
+  await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+  await waitForCharts(page);
+
+  await shot('dashboard-lite-page.png', () => page.screenshot({ path: out('dashboard-lite-page.png'), fullPage: false }));
+  // Full-height dashboard: grow the viewport to the scroll height of <main>.
+  await shot('dashboard-full-page.png', async () => {
+    const h = await page.evaluate(() => (document.querySelector('main')?.scrollHeight ?? 2000) + 80);
+    await page.setViewportSize({ width: DESKTOP.width, height: Math.min(h, 6000) });
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: out('dashboard-full-page.png') });
+    await page.setViewportSize(DESKTOP);
+    await page.waitForTimeout(800);
+  });
+
+  await capturePanels(page);
+  await scrollMainTop(page);
+
+  await shot('timeline-lite-page.png', async () => {
+    await navTo(page, 'Timeline');
+    await viewportShot(page, 'timeline-lite-page.png');
+  });
+  await shot('timeline-search-heatmap.png', async () => {
+    const search = page.getByText('Search & filters', { exact: true }).first();
+    if (await search.count()) { await search.click().catch(() => {}); await page.waitForTimeout(500); }
+    const heat = page.getByText('Activity heatmap', { exact: true }).first();
+    if (await heat.count()) { await heat.click().catch(() => {}); await page.waitForTimeout(1200); }
+    await viewportShot(page, 'timeline-search-heatmap.png');
+  });
+
+  await shot('devices-browse.png', async () => {
+    await navTo(page, 'Devices');
+    await viewportShot(page, 'devices-browse.png');
+  });
+  await shot('device-detail.png', async () => {
+    // An active device makes a better example than whichever row sorts first.
+    const active = page.locator('main button:has(div.rounded-full.w-2)', { hasText: 'Weather Station' });
+    const row = (await active.count()) ? active.first() : page.locator('main button:has(div.rounded-full.w-2)').first();
+    await row.click({ timeout: 6000 });
+    await page.waitForTimeout(2500);
+    await scrollMainTop(page);
+    await viewportShot(page, 'device-detail.png');
+    await page.keyboard.press('Escape').catch(() => {});
+  });
+  await shot('devices-add.png', async () => {
+    await navTo(page, 'Devices');
+    await page.locator('main nav button', { hasText: 'Add Accessories' }).first().click({ timeout: 6000 });
+    await page.waitForTimeout(1500);
+    await viewportShot(page, 'devices-add.png');
+  });
+  await shot('devices-manage.png', async () => {
+    await page.locator('main nav button', { hasText: 'Manage Accessories' }).first().click({ timeout: 6000 });
+    await page.waitForTimeout(1500);
+    await viewportShot(page, 'devices-manage.png');
+  });
+
+  await shot('alerts-page.png', async () => {
+    await navTo(page, 'Alerts');
+    await viewportShot(page, 'alerts-page.png');
+  });
+
+  await navTo(page, 'Settings');
+  await shot('settings-about.png', async () => {
+    await settingsSection(page, 'About');
+    await viewportShot(page, 'settings-about.png');
+  });
+  await shot('settings-users.png', async () => {
+    await settingsSection(page, 'Admin');
+    await viewportShot(page, 'settings-users.png');
+  });
+  await shot('settings-email-smtp.png', async () => {
+    const smtp = page.getByText('Email (SMTP)', { exact: true }).first();
+    await smtp.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    const box = await smtp.boundingBox();
+    if (!box) throw new Error('SMTP card not visible');
+    await page.screenshot({ path: out('settings-email-smtp.png'), clip: { x: 0, y: Math.max(0, box.y - 32), width: DESKTOP.width, height: Math.min(760, DESKTOP.height - Math.max(0, box.y - 32)) } });
+  });
+  await shot('settings-device-management.png', async () => {
+    await settingsSection(page, 'Configuration');
+    await viewportShot(page, 'settings-device-management.png');
+  });
+  await shot('settings-advanced.png', async () => {
+    await page.locator('button[role="tab"]', { hasText: 'Advanced' }).first().click({ timeout: 6000 });
+    await page.waitForTimeout(1000);
+    await viewportShot(page, 'settings-advanced.png');
+  });
+  await shot('settings-appearance.png', async () => {
+    await settingsSection(page, 'Appearance');
+    await viewportShot(page, 'settings-appearance.png');
+  });
+  await shot('settings-account-sessions.png', async () => {
+    await settingsSection(page, 'Account');
+    await viewportShot(page, 'settings-account-sessions.png');
+  });
+  await ctx.close();
+
+  console.log('\n── Desktop, dark ──');
+  {
+    const { ctx: dctx, page: dpage } = await openPage(browser, { look: { palette: DEFAULT_PALETTE, theme: 'dark' } });
+    await dpage.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await waitForCharts(dpage);
+    await shot('dashboard-dark-page.png', () => viewportShot(dpage, 'dashboard-dark-page.png'));
+    await shot('timeline-dark.png', async () => { await navTo(dpage, 'Timeline'); await viewportShot(dpage, 'timeline-dark.png'); });
+    await shot('devices-dark.png', async () => { await navTo(dpage, 'Devices'); await viewportShot(dpage, 'devices-dark.png'); });
+    await shot('settings-appearance-dark.png', async () => {
+      await navTo(dpage, 'Settings');
+      await settingsSection(dpage, 'Appearance');
+      await viewportShot(dpage, 'settings-appearance-dark.png');
+    });
+    await dctx.close();
+  }
+}
+
+async function captureMobile(browser) {
+  console.log('\n── Mobile ──');
+  for (const theme of ['light', 'dark']) {
+    const { ctx, page } = await openPage(browser, {
+      look: { palette: DEFAULT_PALETTE, theme }, viewport: MOBILE, scale: MOBILE_SCALE, mobile: true,
+    });
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await waitForCharts(page);
+    const pwaName = theme === 'light' ? 'pwa-lite.jpeg' : 'pwa-dark.jpeg';
+    await shot(pwaName, () => page.screenshot({ path: out(pwaName), type: 'jpeg', quality: 88 }));
+
+    if (theme === 'light') {
+      const go = async (label) => {
+        await page.getByRole('button', { name: 'Open navigation menu' }).click({ timeout: 6000 });
+        await page.waitForTimeout(500);
+        await page.locator('nav[aria-label="Main navigation"] button', { hasText: label }).first().click({ timeout: 6000 });
+        await page.waitForTimeout(1800);
+      };
+      await shot('mobile-timeline.png', async () => { await go('Timeline'); await page.screenshot({ path: out('mobile-timeline.png') }); });
+      await shot('mobile-devices.png', async () => { await go('Devices'); await page.screenshot({ path: out('mobile-devices.png') }); });
+    }
+    await ctx.close();
   }
 }
 
 /**
- * Capture the 8-skin gallery for one theme mode. Accent is driven via the per-skin
- * /api/me/preferences GET override (currentAccent), NOT localStorage — see installPiiScrub.
- * localStorage hc_accent/hc_ui_skin are still set as belt-and-suspenders for first paint.
+ * True when a dashboard panel rendered its failure state. Each palette shot is a
+ * fresh page load of every panel, which can trip the listener's stats rate
+ * limit; a failed load is retried after a pause rather than captured.
  */
-async function captureSkins(browser, mode) {
-  console.log(`\n── Skin gallery (${mode}) ──`);
-  const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: mode });
-  await authenticate(ctx);
-  const page = await ctx.newPage();
-  await installPiiScrub(page);
-  // Seed an initial skin so the first load already has localStorage set.
-  await applyThemeInit(page, { theme: mode, skin: SKINS[0] });
-  currentAccent = SKINS[0];
-  await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+async function dashboardFailed(page) {
+  return (await page.getByText(/unavailable right now|Failed to load/i).count()) > 0;
+}
 
-  for (let i = 0; i < SKINS.length; i++) {
-    const skin = SKINS[i];
-    if (i > 0) await page.waitForTimeout(2000);
-    // Drive accent via the server-pref GET override (the real fix).
-    currentAccent = skin;
-    await page.evaluate(({ s, m }) => {
-      localStorage.setItem('hc_accent', s);
-      localStorage.setItem('hc_ui_skin', s);
-      localStorage.setItem('hc_theme_preference', m);
-    }, { s: skin, m: mode });
-    await page.reload({ waitUntil: 'networkidle' });
-    await waitForCharts(page);
-    const failed = await page.locator('text=/Failed to load/').count();
-    if (failed > 0) {
-      console.log(`    ⚠ API error for ${skin}-${mode}, retrying after 5s...`);
-      await page.waitForTimeout(5000);
-      await page.reload({ waitUntil: 'networkidle' });
-      await waitForCharts(page);
+async function capturePalettes(browser) {
+  const only = process.env.PALETTE_SHOTS ? process.env.PALETTE_SHOTS.split(',') : null;
+  for (const theme of ['light', 'dark']) {
+    console.log(`\n── Palette gallery (${theme}) ──`);
+    for (const palette of PALETTES) {
+      if (only && !only.includes(`${palette}-${theme}`)) continue;
+      const file = `palette-${palette}-${theme}.png`;
+      await shot(file, async () => {
+        const { ctx, page } = await openPage(browser, { look: { palette, theme } });
+        await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+        await waitForCharts(page);
+        for (let attempt = 1; attempt <= 3 && await dashboardFailed(page); attempt++) {
+          console.log(`    … ${file}: panels failed to load, retrying in 30s (${attempt}/3)`);
+          await page.waitForTimeout(30000);
+          await page.reload({ waitUntil: 'networkidle' });
+          await waitForCharts(page);
+        }
+        if (await dashboardFailed(page)) throw new Error('panels still failing after retries');
+        const applied = await page.evaluate(() => [document.documentElement.dataset.palette, document.documentElement.dataset.theme]);
+        if (applied[0] !== palette || applied[1] !== theme) {
+          throw new Error(`page rendered ${applied.join('/')} instead of ${palette}/${theme}`);
+        }
+        await viewportShot(page, file);
+        await ctx.close();
+      });
+      await new Promise((r) => setTimeout(r, 8000));
     }
-    await shot(`skin-${skin}-${mode}.png`, async () => {
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `skin-${skin}-${mode}.png`), fullPage: true });
-    });
   }
-  currentAccent = null;
-  await ctx.close();
 }
 
 async function main() {
   fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
-  console.log(`Target: ${BASE_URL}  (cookie host: ${COOKIE_DOMAIN})`);
-
+  console.log(`Target: ${BASE_URL}  (build ${BUILD_VERSION})`);
   const executablePath = resolveChromiumPath();
   if (executablePath) console.log(`Using Chromium: ${executablePath}`);
   const browser = await chromium.launch({ headless: true, executablePath });
-  const verifyCapture = { events: null, accessories: null, me: null, users: null, smtp: null };
 
-  // ───────────────────────── AUTH CHECK ─────────────────────────
   {
-    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: 'light' });
-    await authenticate(ctx);
-    const page = await ctx.newPage();
-    await installPiiScrub(page, verifyCapture);
-    await applyThemeInit(page, { theme: 'light', skin: 'ocean' });
+    const { ctx, page } = await openPage(browser, { look: { palette: DEFAULT_PALETTE, theme: 'light' } });
     await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
-    const ok = await assertAuthenticated(page);
-    if (!ok) {
-      console.error('\nFATAL: session cookie did NOT authenticate — landed on login page (token likely expired). Aborting.');
-      await ctx.close();
+    if (!(await isAuthenticated(page))) {
+      console.error('\nFATAL: session did not authenticate (landed on the login page). Aborting.');
       await browser.close();
       process.exit(2);
     }
-    console.log('✓ Authenticated — Dashboard loaded.\n');
-    await ctx.close();
-  }
-
-  // SKINS_ONLY: re-capture ONLY the 16 skin-*-{light,dark}.png shots (the other shots are
-  // already correct). Keeps the auth-check above as a fail-fast; skips login/desktop/pwa.
-  if (process.env.SKINS_ONLY) {
-    console.log('SKINS_ONLY=1 — capturing skin gallery only.');
-    await captureSkins(browser, 'light');
-    await captureSkins(browser, 'dark');
-    await browser.close();
-    console.log('\n✅ Skin-only screenshot run complete.');
-    return;
-  }
-
-  // ───────────────────────── LOGIN PAGE (no cookie) ─────────────────────────
-  console.log('── Login page (unauthenticated) ──');
-  await shot('login-page.png', async () => {
-    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: 'light' });
-    const page = await ctx.newPage();
-    await installPiiScrub(page);
-    await applyThemeInit(page, { theme: 'light', skin: 'ocean' });
-    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1500);
-    await page.waitForSelector('input[type="password"]', { timeout: 8000 });
-    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'login-page.png'), clip: FEATURE_CLIP });
-    await ctx.close();
-  });
-
-  // ───────────────────────── DESKTOP LIGHT ─────────────────────────
-  console.log('\n── Light mode (desktop) ──');
-  {
-    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: 'light' });
-    await authenticate(ctx);
-    const page = await ctx.newPage();
-    await installPiiScrub(page, verifyCapture);
-    await applyThemeInit(page, { theme: 'light', skin: 'ocean' });
-
-    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
-    await waitForCharts(page);
-    await page.waitForTimeout(800);
-
-    // Dashboard (light, full page)
-    await shot('dashboard-lite-page.png', async () => {
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'dashboard-lite-page.png'), fullPage: true });
-    });
-
-    // ── Dashboard feature crops (element-based; keep legacy filenames) ──
-    // The admin's saved layout shows: KPI row, Quiet Hours Activity, Daily
-    // Activity, Events by Hour, Events by Room. The original filenames reference
-    // panels not in this layout, so we map each to the closest present panel.
-    //   dashboard-daily-activity.png        -> "Daily Activity" line chart
-    //   dashboard-most-active-devices.png   -> "Events by Room" (closest "most active")
-    //   dashboard-weekly-monthly-heatmaps.png -> "Events by Hour" bar chart
-    //   dashboard-stale-devices.png         -> "Quiet Hours Activity" (device-health-ish)
-    await shot('dashboard-daily-activity.png', async () => {
-      await cropPanelByHeading(page, 'Daily Activity', path.join(SCREENSHOTS_DIR, 'dashboard-daily-activity.png'));
-    });
-    await shot('dashboard-most-active-devices.png', async () => {
-      await cropPanelByHeading(page, 'Events by Room', path.join(SCREENSHOTS_DIR, 'dashboard-most-active-devices.png'));
-    });
-    await shot('dashboard-weekly-monthly-heatmaps.png', async () => {
-      await cropPanelByHeading(page, 'Events by Hour', path.join(SCREENSHOTS_DIR, 'dashboard-weekly-monthly-heatmaps.png'));
-    });
-    await shot('dashboard-stale-devices.png', async () => {
-      await cropPanelByHeading(page, 'Quiet Hours Activity', path.join(SCREENSHOTS_DIR, 'dashboard-stale-devices.png'));
-    });
-
-    // Timeline (light)
-    await shot('timeline-lite-page.png', async () => {
-      await navTo(page, 'Timeline');
-      await page.waitForTimeout(800);
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'timeline-lite-page.png'), clip: FEATURE_CLIP });
-    });
-
-    // Timeline with Search & filters + Activity heatmap expanded
-    await shot('timeline-search-heatmap.png', async () => {
-      const search = page.getByText('Search & filters', { exact: false }).first();
-      if (await search.count()) { await search.click().catch(() => {}); await page.waitForTimeout(400); }
-      const heat = page.getByText('Activity heatmap', { exact: false }).first();
-      if (await heat.count()) { await heat.click().catch(() => {}); await page.waitForTimeout(900); }
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'timeline-search-heatmap.png'), clip: FEATURE_CLIP });
-    });
-
-    // Devices page (light) — keeps legacy filename accessories-lite-page.png
-    await shot('accessories-lite-page.png', async () => {
-      await navTo(page, 'Devices');
-      await page.waitForTimeout(800);
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'accessories-lite-page.png'), clip: FEATURE_CLIP });
-    });
-
-    // Alerts page (light)
-    await shot('alerts-page.png', async () => {
-      await navTo(page, 'Alerts');
-      await page.waitForTimeout(800);
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'alerts-page.png'), clip: FEATURE_CLIP });
-    });
-
-    // ── Settings shots ──
-    await navTo(page, 'Settings');
-    await page.waitForTimeout(800);
-
-    const settingsRail = (label) =>
-      page.locator('nav [role="button"]', { hasText: label }).first()
-        .or(page.getByRole('button', { name: label, exact: true })).first();
-
-    // Settings > Admin > Users
-    await shot('settings-users.png', async () => {
-      const admin = page.getByText('Admin', { exact: true }).first();
-      await admin.click({ timeout: 6000 });
-      await page.waitForTimeout(1200);
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'settings-users.png'), clip: FEATURE_CLIP });
-    });
-
-    // Settings > Admin > Email (SMTP) card — scroll to it then clip its card
-    await shot('settings-email-smtp.png', async () => {
-      const smtp = page.getByText(/SMTP|Email/i).first();
-      await smtp.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(500);
-      const box = await smtp.boundingBox();
-      if (!box) throw new Error('SMTP heading not visible');
-      await page.screenshot({
-        path: path.join(SCREENSHOTS_DIR, 'settings-email-smtp.png'),
-        clip: { x: 0, y: Math.max(0, box.y - 24), width: 1080, height: 700 },
-      });
-    });
-
-    // Settings > Configuration > Advanced
-    await shot('settings-advanced.png', async () => {
-      const config = page.getByText('Configuration', { exact: true }).first();
-      await config.click({ timeout: 6000 });
-      await page.waitForTimeout(800);
-      const advTab = page.locator('button[role="tab"]', { hasText: 'Advanced' }).first();
-      await advTab.click({ timeout: 6000 });
-      await page.waitForTimeout(900);
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'settings-advanced.png'), clip: FEATURE_CLIP });
-    });
-
-    // Settings > Account (Change password + Active Sessions)
-    await shot('settings-account-sessions.png', async () => {
-      const account = page.getByText('Account', { exact: true }).first();
-      await account.click({ timeout: 6000 });
-      await page.waitForTimeout(1000);
-      await page.getByText('Active Sessions', { exact: false }).first().scrollIntoViewIfNeeded().catch(() => {});
-      await page.waitForTimeout(400);
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'settings-account-sessions.png'), clip: FEATURE_CLIP });
-    });
-
-    await ctx.close();
-  }
-
-  // ───────────────────────── DESKTOP DARK ─────────────────────────
-  console.log('\n── Dark mode (desktop) ──');
-  await shot('dashboard-dark-page.png', async () => {
-    const ctx = await browser.newContext({ viewport: DESKTOP, deviceScaleFactor: DEVICE_SCALE, colorScheme: 'dark' });
-    await authenticate(ctx);
-    const page = await ctx.newPage();
-    await installPiiScrub(page);
-    await applyThemeInit(page, { theme: 'dark', skin: 'ocean' });
-    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
-    await waitForCharts(page);
-    await page.waitForTimeout(800);
-    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'dashboard-dark-page.png'), clip: FEATURE_CLIP });
-    await ctx.close();
-  });
-
-  // ───────────────────────── PWA / MOBILE ─────────────────────────
-  console.log('\n── PWA / mobile ──');
-  for (const mode of ['light', 'dark']) {
-    const ctx = await browser.newContext({
-      viewport: MOBILE, deviceScaleFactor: MOBILE_SCALE, colorScheme: mode, isMobile: true,
-    });
-    await authenticate(ctx);
-    const page = await ctx.newPage();
-    await installPiiScrub(page);
-    await applyThemeInit(page, { theme: mode, skin: 'ocean' });
-    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
-    await waitForCharts(page);
-    await page.waitForTimeout(800);
-
-    const pwaName = mode === 'light' ? 'pwa-lite.jpeg' : 'pwa-dark.jpeg';
-    await shot(pwaName, async () => {
-      await page.screenshot({ path: path.join(SCREENSHOTS_DIR, pwaName), type: 'jpeg', quality: 90 });
-    });
-
-    if (mode === 'light') {
-      // Open the FloatingNav FAB and navigate (labels hidden on mobile sidebar).
-      const openMobileNav = async () => {
-        const fab = page.getByRole('button', { name: 'Open navigation menu' }).first();
-        if (await fab.count()) { await fab.click().catch(() => {}); await page.waitForTimeout(500); }
-      };
-
-      await shot('mobile-timeline.png', async () => {
-        await openMobileNav();
-        await page.getByRole('button', { name: 'Timeline' }).first().click({ timeout: 6000 });
-        await page.waitForTimeout(1600);
-        await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'mobile-timeline.png') });
-      });
-
-      await shot('mobile-accessories.png', async () => {
-        await openMobileNav();
-        await page.getByRole('button', { name: 'Devices' }).first().click({ timeout: 6000 });
-        await page.waitForTimeout(1600);
-        await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'mobile-accessories.png') });
-      });
+    console.log('✓ Authenticated');
+    if (await page.getByRole('dialog').count()) {
+      console.error(`FATAL: a dialog is open on load — HC_BUILD_VERSION (${BUILD_VERSION}) probably doesn't match the target's build.`);
+      await browser.close();
+      process.exit(2);
     }
-
     await ctx.close();
   }
 
-  // ───────────────────────── SKIN GALLERY ─────────────────────────
-  await captureSkins(browser, 'light');
-  await captureSkins(browser, 'dark');
-
+  const verify = Object.fromEntries(Object.keys(CAPTURE_PATTERNS).map((k) => [k, null]));
+  if (!ONLY || ONLY === 'pages') await capturePages(browser, verify);
+  if (ONLY === 'panels') {
+    const { ctx, page } = await openPage(browser, { look: { palette: DEFAULT_PALETTE, theme: 'light' } });
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
+    await waitForCharts(page);
+    await capturePanels(page);
+    await ctx.close();
+  }
+  if (!ONLY || ONLY === 'mobile') await captureMobile(browser);
+  if (!ONLY || ONLY === 'palettes') await capturePalettes(browser);
   await browser.close();
 
-  // ───────────────────────── PII VERIFICATION ─────────────────────────
-  console.log('\n── PII scrub verification ──');
-  // me/users/smtp are dumped IN FULL (task requirement); events/accessories are
-  // large, so a 600-char snippet is enough to prove the device scrub still works.
-  const FULL_DUMP = new Set(['me', 'users', 'smtp']);
-  for (const key of ['events', 'accessories', 'me', 'users', 'smtp']) {
-    const body = verifyCapture[key];
-    const label = key === 'me' ? 'auth/me' : key === 'smtp' ? 'setup/smtp' : key;
-    if (!body) { console.log(`  ⚠ no /api/${label} body captured to verify`); continue; }
-    const dirty = PII_NEEDLES.filter((n) => body.includes(n));
-    const shown = FULL_DUMP.has(key) ? body : body.slice(0, 600).replace(/\s+/g, ' ');
-    console.log(`\n  /api/${label} (scrubbed${FULL_DUMP.has(key) ? ', full body' : ', first 600 chars'}):\n    ${shown}`);
-    if (dirty.length) console.log(`  ⚠⚠ PII STILL PRESENT in /api/${label}: ${dirty.join(', ')}`);
-    else console.log(`  ✓ /api/${label} clean — no ${PII_NEEDLES.join('/')}`);
+  console.log('\n── PII scrub verification (every API response) ──');
+  if (!ONLY || ONLY === 'pages') {
+    for (const [key, body] of Object.entries(verify)) {
+      if (!body) console.log(`  ⚠ no ${key} body captured`);
+    }
   }
-
-  console.log('\n✅ Screenshot run complete.');
+  const unique = [...new Set(leakReport)];
+  if (unique.length) {
+    for (const line of unique) console.log(`  ⚠⚠ LEAK ${line}`);
+    process.exitCode = 3;
+  } else {
+    console.log('  ✓ no needles, non-documentation IPv4 addresses, or coordinates in any response');
+  }
+  console.log('\n✅ Done.');
 }
 
 main().catch((err) => {

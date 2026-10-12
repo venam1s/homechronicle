@@ -1,6 +1,6 @@
 # Environment Variables
 
-This file documents all supported environment variables for homechronicle.
+This file documents the most common environment variables for homechronicle. The maintained reference is [guide/environment-variables.md](guide/environment-variables.md).
 
 Use `.env.example` for a minimal setup, then add only what you need from this reference.
 
@@ -47,8 +47,8 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 | `API_PORT` | `3001` | listener, web proxy | Listener API listen port. |
 | `API_BIND_ADDRESS` | `0.0.0.0` | listener | Bind address for the listener API. Set to `127.0.0.1` to restrict access to localhost. |
 | `NODE_ENV` | `production` | listener | Runtime mode. |
-| `API_TOKEN` | empty | listener + web proxy | Write-route auth token. Required when `NODE_ENV=production` (listener exits if empty). |
-| `API_TOKEN_READS_ENABLED` | `false` | listener | When `true`, `GET`/`HEAD` API routes also require `API_TOKEN`. |
+| `API_TOKEN` | empty | listener + web proxy | Service token for scripts. Required only when `NODE_ENV=production` and `AUTH_ENABLED=false` (listener exits if empty). |
+| `API_TOKEN_READS_ENABLED` | `false` | listener | When `AUTH_ENABLED=false`, `GET`/`HEAD` API routes also require `API_TOKEN`. No effect with login on. |
 | `API_JSON_LIMIT` | `256kb` | listener | Maximum JSON body size accepted by `express.json()`. |
 | `API_WRITE_RATE_LIMIT_WINDOW_MS` | `60000` | listener | Window size for write-route rate limiting (milliseconds). |
 | `API_WRITE_RATE_LIMIT_MAX` | `60` | listener | Max write requests per window per client key. |
@@ -61,14 +61,14 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 | `ALERTS_WRITE_RATE_LIMIT_WINDOW_MS` | `60000` | listener | Window size for `/api/alerts` write-route rate limiting (milliseconds). |
 | `ALERTS_WRITE_RATE_LIMIT_MAX` | `60` | listener | Max `/api/alerts` write requests per window per client key. |
 | `CORS_ALLOWED_ORIGINS` | empty | listener | Comma-separated browser origin allow-list for CORS. |
-| `CORS_ALLOW_LOCALHOST` | `true` | listener | If allow-list is empty, allow localhost/loopback browser origins. |
+| `CORS_ALLOW_LOCALHOST` | `false` when `NODE_ENV` is `production` or unset; `true` otherwise | listener | If allow-list is empty, allow localhost/loopback browser origins. |
 | `PAIRINGS_FILE` | `/app/data/pairings.json` in prod | listener | Pairings JSON storage path. |
 | `ROOMS_FILE` | `/app/data/rooms.json` in prod | listener | Rooms JSON storage path. |
 | `NOTES_FILE` | `/app/data/notes.json` in prod | listener | Device notes JSON storage path. |
 | `RETENTION_FILE` | `/app/data/retention.json` in prod | listener | Retention settings JSON storage path. |
 | `STORE_REFRESH_INTERVAL_MS` | `30000` | listener | Refresh interval for JSON stores. |
 | `DISCOVERY_SCAN_ENABLED` | `true` | listener | Enable periodic HomeKit discovery scans. |
-| `DISCOVER_IFACE` | auto | listener | Interface for mDNS discovery (example: `en0`). If Matter devices are on a separate VLAN, set this to the VLAN sub-interface (e.g. `bond0.20`). See [limitations.md](../limitations.md#platform-note-vlan--segregated-iot-networks). |
+| `DISCOVER_IFACE` | auto | listener | Interface for mDNS discovery (example: `en0`). If Matter devices are on a separate VLAN, set this to the VLAN sub-interface (e.g. `bond0.20`). See [Networking › VLANs](guide/networking.md#vlans). |
 
 ## Listener Retention/Health
 
@@ -83,7 +83,7 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 
 | Variable | Default | Used by | Description |
 |---|---|---|---|
-| `ALERTS_WEBHOOK_TIMEOUT_MS` | `5000` | listener | Timeout for alert webhook delivery. |
+| `ALERTS_WEBHOOK_TIMEOUT_MS` | — | listener | Timeout for alert webhook delivery, in ms. When set, it overrides the timeout saved in Settings; unset, the Settings value (default 5000) applies. |
 | `ALERTS_ALLOW_PRIVATE_TARGETS` | `true` | listener | Allow webhook targets on RFC1918/private ranges. Set to `false` to block private IPs. Loopback/link-local targets are always blocked. |
 | `ALERTS_MAX_RULES_PER_USER` | `25` | listener | Max alert rules a single user may own. `POST /api/alerts/rules` returns 400 once reached. |
 | `ALERTS_MAX_RULES_TOTAL` | `100` | listener | Max alert rules across the whole household. `POST /api/alerts/rules` returns 400 once reached, even for a user under their own cap. |
@@ -100,9 +100,10 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 
 | Variable | Default | Used by | Description |
 |---|---|---|---|
-| `MATTER_POLL_INTERVAL_MS` | `5000` | listener | Poll interval for Matter runtime. |
-| `MATTER_SUBSCRIBE_ENABLED` | `false` | listener | Enable long-lived Matter subscriptions (via matter.js in-process). |
-| `MATTER_SUBSCRIBE_RESTART_DELAY_MS` | `2000` | listener | Delay before restarting a failed Matter subscription. |
+| `MATTER_SUBSCRIBE_ENABLED` | `true` | listener | Use native Matter subscriptions (via matter.js in-process). Set `false` to poll instead. |
+| `MATTER_RECONCILE_INTERVAL_MS` | `300000` | listener | With subscriptions on, how often every attribute is re-read as a safety net (default 5 min; values below `30000` fall back to `30000`). |
+| `MATTER_POLL_INTERVAL_MS` | `5000` | listener | Poll interval, used only when `MATTER_SUBSCRIBE_ENABLED=false`. |
+| `MATTER_SUBSCRIBE_RESTART_DELAY_MS` | `2000` | listener | Starting delay before re-establishing a failed subscription; doubles on each failure, capped at 5 min. |
 | `MATTER_SUBSCRIBE_MIN_INTERVAL_SEC` | `1` | listener | Requested min subscription report interval. |
 | `MATTER_SUBSCRIBE_MAX_INTERVAL_SEC` | `30` | listener | Requested max subscription report interval. |
 | `MATTER_STORAGE_PATH` | `/app/data/matter-storage` (prod) | listener | Persistent storage directory for matter.js controller state. |
@@ -117,6 +118,7 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 
 ## API Authentication (important)
 
+- With login on (`AUTH_ENABLED=true`, the default), every route except the public sign-in routes, `/api/health` and `/api/updates/latest` needs a session cookie or `API_TOKEN`, including reads. The rest of this section describes login off (`AUTH_ENABLED=false`).
 - If `NODE_ENV=production` and `API_TOKEN` is empty: listener startup fails.
 - If `API_TOKEN` is empty in non-production: all routes are open.
 - If `API_TOKEN` is set:

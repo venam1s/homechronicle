@@ -107,9 +107,9 @@ Each concern lives in its own file. There are no barrel files — import directl
 | `db.js` | pg pool, `insertEvent()`, `migrateDb()`, retention sweep |
 | `store.js` | `JsonObjectStore` — atomic JSON file persistence |
 | `subscriber.js` | HAP event subscriptions with reconnect backoff |
-| `matter-runtime.js` / `matter-controller.js` | Matter.js lifecycle and polling |
+| `matter-runtime.js` / `matter-controller.js` | Matter.js lifecycle, subscriptions and reconcile/poll reads |
 | `events-router.js` | GET events, accessories, stats |
-| `alerts-router.js` + `alerts.js` | Webhook alert rules |
+| `alerts-router.js` + `alerts.js` | Webhook and email alert rules |
 | `setup-router.js` | Discovery, pairing, rooms, display names, notes |
 | `retention-router.js` | Retention and settings configuration |
 | `repair-router.js` + `repair-scheduler.js` | Scheduled HomeKit pairing repair |
@@ -155,7 +155,7 @@ No path aliases are configured. Use relative paths only.
 | Symbol | Convention | Example |
 |--------|------------|---------|
 | Functions | camelCase | `insertEvent()`, `parseIntInRange()` |
-| React hooks | `use` prefix | `useEvents()`, `useSkin()` |
+| React hooks | `use` prefix | `useEvents()`, `usePalette()` |
 | Factory functions | `create` prefix | `createEventsRouter()`, `createAlertsRouter()` |
 | Validator helpers | `validate` prefix | `validateWebhookTargetUrl()` |
 | Parser helpers | `parse` prefix | `parseScopeType()`, `parseOperator()` |

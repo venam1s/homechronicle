@@ -115,13 +115,18 @@ cd web && npm test
 
 The published images support both `linux/amd64` and `linux/arm64`. Docker pulls the correct variant automatically for your host architecture — no extra configuration needed.
 
-Images are built with Docker Buildx and pushed to GHCR (`ghcr.io/havuq/homechronicle`) on every GitHub release. Beta releases publish a `vX.Y.Z-beta.N` tag and a rolling `beta` tag. Stable releases also publish `vX.Y`, `vX`, and `latest` tags.
+Images are built with Docker Buildx by GitLab CI on every release tag and pushed to Docker Hub as `havuq/homechronicle-listener` and `havuq/homechronicle-web` (plus `havuq/homechronicle-standalone` for stable releases). Image tags drop the leading `v` of the release tag:
+
+| Release | Image tags |
+|---------|------------|
+| Stable (`v0.4.0`) | `0.4.0`, `0.4`, `0`, `latest` |
+| Beta (`v0.4.1-beta.1`) | `0.4.1-beta.1`, `beta` |
 
 To pin to a specific release rather than `latest`, set the image variables in `.env`:
 
 ```bash
-LISTENER_IMAGE=ghcr.io/havuq/homechronicle/listener:1.0.0
-WEB_IMAGE=ghcr.io/havuq/homechronicle/web:1.0.0
+LISTENER_IMAGE=havuq/homechronicle-listener:0.4.0
+WEB_IMAGE=havuq/homechronicle-web:0.4.0
 ```
 
 ## Resource Limits
@@ -153,17 +158,12 @@ services:
 All persistent state lives in two places: the `postgres-data` volume and the `listener/data/` directory.
 
 ```bash
-# Stop the stack before backing up PostgreSQL to ensure consistency
-docker compose stop
-
-# Dump the PostgreSQL database
-docker compose run --rm postgres \
-  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" > homechronicle-$(date +%Y%m%d).sql
+# Dump the PostgreSQL database (pg_dump takes a consistent snapshot while the stack runs)
+docker compose exec -T postgres \
+  sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > homechronicle-$(date +%Y%m%d).sql
 
 # Archive the listener data directory (pairings, rooms, notes, retention)
 tar -czf homechronicle-data-$(date +%Y%m%d).tar.gz listener/data/
-
-docker compose start
 ```
 
 ### Restoring
@@ -175,10 +175,11 @@ docker compose stop
 # Restore listener data
 tar -xzf homechronicle-data-<date>.tar.gz
 
-# Start only PostgreSQL, then restore the dump
+# Start only PostgreSQL, then restore the dump into it
+# (restore into an empty database — e.g. after removing the postgres-data volume)
 docker compose up -d postgres
-docker compose run --rm -i postgres \
-  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < homechronicle-<date>.sql
+docker compose exec -T postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < homechronicle-<date>.sql
 
 # Start remaining services
 docker compose up -d

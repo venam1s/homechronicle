@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Screenshots — homechronicle</title>
-  <meta name="description" content="Screenshot gallery showcasing homechronicle's features: 8 color themes, dark mode, device details, analytics, mobile views, and more.">
+  <meta name="description" content="Screenshot gallery showcasing homechronicle's features: 12 colour palettes, dark mode, device details, analytics, mobile views, and more.">
   <link rel="icon" href="assets/icon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -667,11 +667,11 @@
     <div class="container">
       <h1>Screenshot Gallery</h1>
       <p>
-        Explore homechronicle's full feature set across 8 color themes, dark mode,
-        device analytics, and mobile views.
+        Explore homechronicle's full feature set across twelve colour palettes, dark mode,
+        device analytics, and mobile views. Screenshots are from v0.4.
       </p>
       <div class="jump-links">
-        <a href="#skins" class="jump-link">Color Themes</a>
+        <a href="#palettes" class="jump-link">Palettes</a>
         <a href="#features" class="jump-link">Feature Details</a>
         <a href="#dark-mode" class="jump-link">Dark Mode</a>
         <a href="#mobile" class="jump-link">Mobile / PWA</a>
@@ -679,25 +679,30 @@
     </div>
   </section>
 
-  <!-- ════════ Theme Skins ════════ -->
-  <section id="skins" class="skins-section">
+  <!-- ════════ Palettes ════════ -->
+  <section id="palettes" class="skins-section">
     <div class="container">
       <div class="section-label">Appearance</div>
-      <div class="section-title">8 color themes, light and dark</div>
+      <div class="section-title">12 palettes, light and dark</div>
       <div class="section-desc">
-        Every theme works in both light and dark mode. Click a color to preview it.
+        Each palette has its own designed light and dark version; charts and room colours follow it.
+        Choose one in Settings &rsaquo; Appearance. Click a colour to preview it.
       </div>
 
       <div class="skin-controls">
-        <div class="skin-dots" role="radiogroup" aria-label="Select color theme">
-          <button type="button" class="skin-dot" aria-pressed="true" data-skin="ocean" title="Ocean" style="background:#2563eb;"></button>
-          <button type="button" class="skin-dot" aria-pressed="false" data-skin="graphite" title="Graphite" style="background:#14b8a6;"></button>
-          <button type="button" class="skin-dot" aria-pressed="false" data-skin="sunrise" title="Sunrise" style="background:#ea580c;"></button>
-          <button type="button" class="skin-dot" aria-pressed="false" data-skin="red" title="Red" style="background:#dc2626;"></button>
-          <button type="button" class="skin-dot" aria-pressed="false" data-skin="yellow" title="Yellow" style="background:#ca8a04;"></button>
-          <button type="button" class="skin-dot" aria-pressed="false" data-skin="purple" title="Purple" style="background:#9333ea;"></button>
-          <button type="button" class="skin-dot" aria-pressed="false" data-skin="slate" title="Slate" style="background:#475569;"></button>
-          <button type="button" class="skin-dot" aria-pressed="false" data-skin="pink" title="Pink" style="background:#ec4899;"></button>
+        <div class="skin-dots" role="radiogroup" aria-label="Select palette" style="flex-wrap:wrap;justify-content:center;">
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="gallery" data-tagline="pure white · vivid" title="Gallery — pure white · vivid" style="background:#1a56c4;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="ember" data-tagline="warm white · scarlet" title="Ember — warm white · scarlet" style="background:#bf3b2b;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="almanac" data-tagline="cream · clay" title="Almanac — cream · clay" style="background:#c05a36;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="harvest" data-tagline="paper · amber" title="Harvest — paper · amber" style="background:#a1720b;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="ink" data-tagline="monochrome · citron" title="Ink — monochrome · citron" style="background:#5f7016;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="fern" data-tagline="green white · forest" title="Fern — green white · forest" style="background:#2e7d46;"></button>
+          <button type="button" class="skin-dot" aria-pressed="true" data-skin="porcelain" data-tagline="cool white · teal" title="Porcelain — cool white · teal" style="background:#078e7e;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="tide" data-tagline="sky white · sea" title="Tide — sky white · sea" style="background:#0e7fa8;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="atlas" data-tagline="light grey · cobalt" title="Atlas — light grey · cobalt" style="background:#2f5fb3;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="iris" data-tagline="lavender white · violet" title="Iris — lavender white · violet" style="background:#6d4fc4;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="dusk" data-tagline="blue-grey · berry" title="Dusk — blue-grey · berry" style="background:#b03a68;"></button>
+          <button type="button" class="skin-dot" aria-pressed="false" data-skin="graphite" data-tagline="grey · slate" title="Graphite — grey · slate" style="background:#47525e;"></button>
         </div>
         <div class="controls-divider"></div>
         <div class="theme-toggle" role="group" aria-label="Toggle light or dark mode">
@@ -705,11 +710,11 @@
           <button type="button" aria-pressed="false" data-theme-show="dark">Dark</button>
         </div>
         <div class="controls-divider"></div>
-        <span class="skin-active-name" id="skin-active-name">Ocean</span>
+        <span class="skin-active-name" id="skin-active-name">Porcelain</span>
       </div>
 
       <div class="skin-preview">
-        <img id="skin-preview-img" src="screenshots/skin-ocean-light.png" alt="Ocean theme, light mode">
+        <img id="skin-preview-img" src="screenshots/palette-porcelain-light.png" alt="Porcelain palette, light mode">
       </div>
     </div>
   </section>
@@ -720,63 +725,103 @@
       <div class="section-label">Feature Details</div>
       <div class="section-title">A closer look at what homechronicle offers</div>
       <div class="section-desc">
-        Deep-dive screenshots showing device analytics, bridge management, connection reliability, and more.
+        The full dashboard, per-device analytics, pairing, alerts, and settings.
       </div>
 
       <div class="feature-gallery">
         <div class="gallery-card wide">
-          <img src="screenshots/feature-device-detail-full.png" alt="Full device detail page with event history and stats" loading="lazy">
+          <img src="screenshots/dashboard-full-page.png" alt="The full default dashboard, top to bottom" loading="lazy">
           <div class="card-caption">
-            <h3>Device Detail Page</h3>
-            <p>Complete view of a single accessory: event history, activity charts, connection stats, and device metadata.</p>
+            <h3>The Whole Dashboard</h3>
+            <p>All 15 default panels, from the house summary and room map down to outliers and stale devices. Drag, resize, or hide any of them, and add 12 more.</p>
           </div>
         </div>
 
         <div class="gallery-card">
-          <img src="screenshots/feature-device-info.png" alt="Device info section showing metadata" loading="lazy">
+          <img src="screenshots/devices-browse.png" alt="Devices page with per-room tables" loading="lazy">
           <div class="card-caption">
-            <h3>Device Info</h3>
-            <p>Accessory metadata at a glance: manufacturer, model, firmware version, bridge attribution, and pairing timestamp.</p>
+            <h3>Devices</h3>
+            <p>Every HomeKit and Matter accessory in a table per room, with status, event count, and heartbeat.</p>
           </div>
         </div>
 
         <div class="gallery-card">
-          <img src="screenshots/feature-connection-reliability.png" alt="Connection reliability metrics" loading="lazy">
+          <img src="screenshots/device-detail.png" alt="Device detail with history and statistics" loading="lazy">
           <div class="card-caption">
-            <h3>Connection Reliability</h3>
-            <p>Track how reliably each device stays connected with uptime percentages and reconnect history.</p>
+            <h3>Device Detail</h3>
+            <p>One accessory up close: recent events, activity charts, connection reliability, and device metadata.</p>
           </div>
         </div>
 
         <div class="gallery-card">
-          <img src="screenshots/feature-stale-devices.png" alt="Stale devices detection panel" loading="lazy">
+          <img src="screenshots/devices-add.png" alt="Add Accessories — discovery and pairing" loading="lazy">
+          <div class="card-caption">
+            <h3>Add Accessories</h3>
+            <p>Discover HomeKit accessories via mDNS and pair with their PINs, or commission Matter devices, from the browser.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/devices-manage.png" alt="Manage Accessories — rooms, names, and pairings" loading="lazy">
+          <div class="card-caption">
+            <h3>Manage Accessories</h3>
+            <p>Assign rooms and display names, expand bridges to their children, and repair or remove pairings.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/dashboard-outliers.png" alt="Active Outliers panel" loading="lazy">
+          <div class="card-caption">
+            <h3>Active Outliers</h3>
+            <p>Accessories behaving unusually compared with their own baseline, with the hours shown in your local time.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/dashboard-stale-devices.png" alt="Stale Devices panel" loading="lazy">
           <div class="card-caption">
             <h3>Stale Device Detection</h3>
-            <p>Accessories that have gone silent are flagged with last-seen timestamps and missed heartbeat counts.</p>
+            <p>Accessories that have gone silent beyond the stale threshold, with when each was last heard from.</p>
           </div>
         </div>
 
         <div class="gallery-card wide">
-          <img src="screenshots/feature-bridge-children.png" alt="Bridge child devices expanded" loading="lazy">
+          <img src="screenshots/alerts-page.png" alt="Alerts page with rules and recent deliveries" loading="lazy">
           <div class="card-caption">
-            <h3>Bridge Child Devices</h3>
-            <p>Expand any HomeKit bridge to see all child accessories it manages, with room assignments and event activity.</p>
+            <h3>Alert Rules</h3>
+            <p>Send a webhook or an email when an event matches a rule, for HomeKit and Matter devices alike. Quiet periods stop repeats, and every delivery is logged.</p>
           </div>
         </div>
 
         <div class="gallery-card">
-          <img src="screenshots/feature-add-devices.png" alt="Add Accessories pairing wizard" loading="lazy">
+          <img src="screenshots/settings-appearance.png" alt="Settings › Appearance with theme and palette choices" loading="lazy">
           <div class="card-caption">
-            <h3>Add Accessories</h3>
-            <p>Discover accessories on your network via mDNS, enter PINs, and pair directly from the browser.</p>
+            <h3>Appearance</h3>
+            <p>Pick Light, Dark, or System and one of twelve palettes. Signed in, your choice follows you to every device.</p>
           </div>
         </div>
 
         <div class="gallery-card">
-          <img src="screenshots/feature-scheduled-repair.png" alt="Scheduled repair settings" loading="lazy">
+          <img src="screenshots/settings-about.png" alt="Settings › About with version and update status" loading="lazy">
+          <div class="card-caption">
+            <h3>About &amp; Updates</h3>
+            <p>Your version and whether a newer release is out. The check runs through the listener, so your browser never contacts a third-party site.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/settings-device-management.png" alt="Settings › Configuration › Device Management" loading="lazy">
           <div class="card-caption">
             <h3>Scheduled Repair</h3>
-            <p>Configure automatic repair cycles for stale pairings. The listener re-pairs disconnected devices on a schedule.</p>
+            <p>Let the listener re-pair disconnected HomeKit devices on a schedule, alongside the other device-management settings.</p>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="screenshots/timeline-search-heatmap.png" alt="Timeline with search filters and activity heatmap" loading="lazy">
+          <div class="card-caption">
+            <h3>Search &amp; Heatmap</h3>
+            <p>Filter the timeline by room, accessory, or characteristic, and click the activity heatmap to jump to a moment.</p>
           </div>
         </div>
       </div>
@@ -787,51 +832,55 @@
   <section id="dark-mode" class="dark-section">
     <div class="container">
       <div class="section-label">Dark Mode</div>
-      <div class="section-title">Every page, beautifully dark</div>
+      <div class="section-title">Every page, designed for dark</div>
       <div class="section-desc">
-        Full dark mode support across all pages. Click a color to see each theme in dark mode.
+        Each palette has a purpose-built dark version, not an inverted light one. Click a colour to see it.
       </div>
 
       <div class="dark-skin-controls">
-        <div class="dark-skin-dots" role="radiogroup" aria-label="Select dark mode color theme">
-          <button type="button" class="dark-skin-dot" aria-pressed="true" data-dark-skin="ocean" title="Ocean" style="background:#2563eb;"></button>
-          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="graphite" title="Graphite" style="background:#14b8a6;"></button>
-          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="sunrise" title="Sunrise" style="background:#ea580c;"></button>
-          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="red" title="Red" style="background:#dc2626;"></button>
-          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="yellow" title="Yellow" style="background:#ca8a04;"></button>
-          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="purple" title="Purple" style="background:#9333ea;"></button>
-          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="slate" title="Slate" style="background:#475569;"></button>
-          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="pink" title="Pink" style="background:#ec4899;"></button>
+        <div class="dark-skin-dots" role="radiogroup" aria-label="Select palette for dark mode" style="flex-wrap:wrap;justify-content:center;">
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="gallery" data-tagline="pure white · vivid" title="Gallery — pure white · vivid" style="background:#5b88d7;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="ember" data-tagline="warm white · scarlet" title="Ember — warm white · scarlet" style="background:#e07a63;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="almanac" data-tagline="cream · clay" title="Almanac — cream · clay" style="background:#d97e5b;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="harvest" data-tagline="paper · amber" title="Harvest — paper · amber" style="background:#d1a23c;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="ink" data-tagline="monochrome · citron" title="Ink — monochrome · citron" style="background:#a4bf3d;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="fern" data-tagline="green white · forest" title="Fern — green white · forest" style="background:#55a86e;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="true" data-dark-skin="porcelain" data-tagline="cool white · teal" title="Porcelain — cool white · teal" style="background:#149e8d;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="tide" data-tagline="sky white · sea" title="Tide — sky white · sea" style="background:#4aa8cc;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="atlas" data-tagline="light grey · cobalt" title="Atlas — light grey · cobalt" style="background:#7295d8;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="iris" data-tagline="lavender white · violet" title="Iris — lavender white · violet" style="background:#a08fe0;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="dusk" data-tagline="blue-grey · berry" title="Dusk — blue-grey · berry" style="background:#c76486;"></button>
+          <button type="button" class="dark-skin-dot" aria-pressed="false" data-dark-skin="graphite" data-tagline="grey · slate" title="Graphite — grey · slate" style="background:#9aa6b2;"></button>
         </div>
-        <span class="dark-skin-name" id="dark-skin-name">Ocean</span>
+        <span class="dark-skin-name" id="dark-skin-name">Porcelain</span>
       </div>
 
       <div class="dark-preview">
-        <img id="dark-preview-img" src="screenshots/skin-ocean-dark.png" alt="Ocean theme, dark mode" loading="lazy">
+        <img id="dark-preview-img" src="screenshots/palette-porcelain-dark.png" alt="Porcelain palette, dark mode" loading="lazy">
       </div>
 
-      <div class="dark-pages-label">Page previews (Ocean theme)</div>
+      <div class="dark-pages-label">Page previews (Porcelain palette)</div>
 
       <div class="dark-grid">
         <div class="dark-card">
-          <img src="screenshots/feature-timeline-dark.png" alt="Timeline in dark mode" loading="lazy">
+          <img src="screenshots/timeline-dark.png" alt="Timeline in dark mode" loading="lazy">
           <div class="card-caption">
             <h3>Timeline</h3>
-            <p>Event feed with dark backgrounds and high-contrast text for comfortable viewing.</p>
+            <p>Entries lead with what happened, with the device and room underneath.</p>
           </div>
         </div>
         <div class="dark-card">
-          <img src="screenshots/feature-accessories-dark.png" alt="Accessories page in dark mode" loading="lazy">
+          <img src="screenshots/devices-dark.png" alt="Devices page in dark mode" loading="lazy">
           <div class="card-caption">
-            <h3>Accessories</h3>
-            <p>Device inventory with dark cards, activity indicators, and room grouping.</p>
+            <h3>Devices</h3>
+            <p>Per-room device tables with status and heartbeat.</p>
           </div>
         </div>
         <div class="dark-card">
-          <img src="screenshots/feature-manage-dark.png" alt="Manage page in dark mode" loading="lazy">
+          <img src="screenshots/settings-appearance-dark.png" alt="Settings › Appearance in dark mode" loading="lazy">
           <div class="card-caption">
-            <h3>Manage</h3>
-            <p>Device management, pairing, and settings all fully themed for dark mode.</p>
+            <h3>Settings</h3>
+            <p>Appearance, configuration, accounts, and email, all themed.</p>
           </div>
         </div>
       </div>
@@ -845,7 +894,7 @@
       <div class="section-title">Works on your phone, too</div>
       <div class="section-desc">
         Install homechronicle as a Progressive Web App on iOS or Android.
-        The responsive layout adapts to any screen size.
+        On phones and tablets a floating button replaces the top navigation bar.
       </div>
 
       <div class="mobile-grid">
@@ -871,9 +920,9 @@
           </div>
         </div>
         <div class="mobile-card">
-          <img src="screenshots/mobile-accessories.png" alt="Mobile accessories view" loading="lazy">
+          <img src="screenshots/mobile-devices.png" alt="Mobile devices view" loading="lazy">
           <div class="card-caption">
-            <h3>Accessories</h3>
+            <h3>Devices</h3>
             <p>Device inventory on the go</p>
           </div>
         </div>
@@ -898,26 +947,26 @@
 
   <script>
     (function () {
-      // ── Skin picker (Color Themes section) ──
+      // ── Palette picker ──
       var skinDots = document.querySelectorAll('.skin-dot[data-skin]');
       var themeButtons = document.querySelectorAll('.theme-toggle button[data-theme-show]');
       var previewImg = document.getElementById('skin-preview-img');
       var activeName = document.getElementById('skin-active-name');
 
-      var currentSkin = 'ocean';
+      var currentPalette = 'porcelain';
       var currentMode = 'light';
 
-      var cacheBust = '?v=' + Date.now();
+      function paletteName(id) {
+        return id.charAt(0).toUpperCase() + id.slice(1);
+      }
 
-      function updateSkinPreview() {
-        var src = 'screenshots/skin-' + currentSkin + '-' + currentMode + '.png' + cacheBust;
-        var alt = currentSkin.charAt(0).toUpperCase() + currentSkin.slice(1) + ' theme, ' + currentMode + ' mode';
-        previewImg.src = src;
-        previewImg.alt = alt;
-        activeName.textContent = currentSkin.charAt(0).toUpperCase() + currentSkin.slice(1);
+      function updatePalettePreview() {
+        previewImg.src = 'screenshots/palette-' + currentPalette + '-' + currentMode + '.png';
+        previewImg.alt = paletteName(currentPalette) + ' palette, ' + currentMode + ' mode';
+        activeName.textContent = paletteName(currentPalette);
 
         skinDots.forEach(function (dot) {
-          dot.setAttribute('aria-pressed', dot.getAttribute('data-skin') === currentSkin ? 'true' : 'false');
+          dot.setAttribute('aria-pressed', dot.getAttribute('data-skin') === currentPalette ? 'true' : 'false');
         });
         themeButtons.forEach(function (btn) {
           btn.setAttribute('aria-pressed', btn.getAttribute('data-theme-show') === currentMode ? 'true' : 'false');
@@ -926,41 +975,36 @@
 
       skinDots.forEach(function (dot) {
         dot.addEventListener('click', function () {
-          currentSkin = dot.getAttribute('data-skin');
-          updateSkinPreview();
+          currentPalette = dot.getAttribute('data-skin');
+          updatePalettePreview();
         });
       });
 
       themeButtons.forEach(function (btn) {
         btn.addEventListener('click', function () {
           currentMode = btn.getAttribute('data-theme-show');
-          updateSkinPreview();
+          updatePalettePreview();
         });
       });
 
-      // ── Dark mode skin picker ──
+      // ── Dark mode palette picker ──
       var darkDots = document.querySelectorAll('.dark-skin-dot[data-dark-skin]');
       var darkPreviewImg = document.getElementById('dark-preview-img');
       var darkName = document.getElementById('dark-skin-name');
 
-      var currentDarkSkin = 'ocean';
-
-      function updateDarkPreview() {
-        var src = 'screenshots/skin-' + currentDarkSkin + '-dark.png' + cacheBust;
-        var alt = currentDarkSkin.charAt(0).toUpperCase() + currentDarkSkin.slice(1) + ' theme, dark mode';
-        darkPreviewImg.src = src;
-        darkPreviewImg.alt = alt;
-        darkName.textContent = currentDarkSkin.charAt(0).toUpperCase() + currentDarkSkin.slice(1);
+      function updateDarkPreview(id) {
+        darkPreviewImg.src = 'screenshots/palette-' + id + '-dark.png';
+        darkPreviewImg.alt = paletteName(id) + ' palette, dark mode';
+        darkName.textContent = paletteName(id);
 
         darkDots.forEach(function (dot) {
-          dot.setAttribute('aria-pressed', dot.getAttribute('data-dark-skin') === currentDarkSkin ? 'true' : 'false');
+          dot.setAttribute('aria-pressed', dot.getAttribute('data-dark-skin') === id ? 'true' : 'false');
         });
       }
 
       darkDots.forEach(function (dot) {
         dot.addEventListener('click', function () {
-          currentDarkSkin = dot.getAttribute('data-dark-skin');
-          updateDarkPreview();
+          updateDarkPreview(dot.getAttribute('data-dark-skin'));
         });
       });
     })();

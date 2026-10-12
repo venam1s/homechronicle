@@ -348,18 +348,19 @@ This produces screenshots named `test-results/theme-audit/dark-dashboard.png`, `
 
 ## CI integration
 
-The CI workflow is defined in `.github/workflows/ci.yml` and runs on all pull requests targeting `main`.
+CI runs on GitLab and is defined in `.gitlab-ci.yml`. (The old GitHub Actions files under `.github/workflows/` are kept in the repository but are no longer used.)
 
-**Trigger:** `pull_request` to `main`  
-**Runner:** `ubuntu-latest`, Node.js 20
+**Runs on:** merge requests, every push to `main`, and version tags (`v*`). Node.js 20 (`node:20-alpine`).
 
-Steps run sequentially:
-
-1. Install listener dependencies — `npm ci --prefix listener`
-2. Run listener tests — `npm test --prefix listener`
-3. Install web dependencies — `npm ci --prefix web`
-4. Run web tests — `npm test --prefix web`
+| Job | Stage | What it does |
+|-----|-------|--------------|
+| `test` | test | `npm ci` + `npm test` in `listener/`, then `npm ci` + `npm test -- --maxWorkers=2` in `web/`. The worker cap keeps vitest from oversubscribing the CPU-limited runner. |
+| `boot-smoke` | test | Starts a PostgreSQL 16 service, runs `node src/index.js` in production mode, and waits up to 60 s for `GET /api/health` to answer. Fails if the listener exits, logs a fatal error, or the Matter controller does not start. |
+| `sast` | test | GitLab's SAST template. |
+| `validate-release` | prepare | Tags only. Checks the tag is `vX.Y.Z` or `vX.Y.Z-beta.N`. |
+| `build-listener`, `build-web`, `build-standalone` | build | Tags only, and only after `test` passes. Multi-arch (`linux/amd64`, `linux/arm64`) builds pushed to Docker Hub, with a Trivy scan. The standalone image is built for stable tags only. |
+| `create-release` | release | Tags only. Creates the GitLab release from the matching `CHANGELOG.md` section. |
 
 E2E tests are **not** included in CI. They require a live application and are run manually.
 
-No coverage thresholds are configured. The CI job passes when all `node --test` and `vitest run` assertions pass with exit code 0.
+No coverage thresholds are configured. The `test` job passes when all `node --test` and `vitest run` assertions pass with exit code 0.

@@ -20,7 +20,15 @@ homechronicle can be added to your home screen so it behaves like a native app.
 
 ## Floating navigation
 
-On screens narrower than 1024 px (phones and tablets), the sidebar collapses and a floating nav button appears in the corner of the screen. Tap it to open the page menu and navigate between tabs. The sidebar is restored automatically on wider displays.
+![Timeline on a phone, with the floating navigation button at the bottom left](../screenshots/mobile-timeline.png ':size=300')
+
+On screens narrower than 1024 px (phones and tablets), the top navigation bar is replaced by a floating navigation button at the bottom-left of the screen. Tap it to open the list of pages — Dashboard, Devices, Timeline, Alerts, Settings — and tap a page to go there. The menu closes when you choose a page, tap outside it, or scroll. The page leaves room at the bottom so the button never covers the end of it.
+
+With sign-in enabled, **Sign out** is at the bottom of the same menu.
+
+The desktop bar's theme switch and account menu aren't in the floating navigation. Change the theme in **Settings › Appearance** (see [Appearance](appearance.md)) and your account in **Settings › Account**.
+
+On phones, Settings uses a drop-down menu at the top instead of the side list, and the dashboard becomes a single column below 768 px.
 
 ## Notes
 
