@@ -2,6 +2,30 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.4.1] — 2026-10-12
+
+Fixes for local time, alert settings that did nothing, signing out on phones, and the update check — plus updated documentation and screenshots for 0.4.
+
+### Upgrade notes
+- **Scheduled Repair runs at the hour Settings shows, whatever the container's `TZ`.** The saved repair hour was always UTC, but the scheduler counted in the container's time zone. If you set `TZ` on the listener, the repair used to run offset by your UTC offset; it now runs at the hour shown in **Settings › Configuration › Device Management**. With the default `TZ=UTC`, nothing changes. `REPAIR_HOUR` is read as a UTC hour.
+- **The Webhook timeout in Settings now applies** — unless `ALERTS_WEBHOOK_TIMEOUT_MS` is set, which still wins and locks the field, so an existing `.env` value keeps working.
+
+### Fixed
+- **Today's Rhythm and the Timeline's activity heatmap showed UTC hours** against local labels, so the busy band and heatmap columns were shifted for anyone not on UTC. Both now use your local time.
+- **"Default quiet period" in Settings › Configuration › Data management did nothing.** New alert rules now start with it (the rule form fills it in, and `POST /api/alerts/rules` without `quietMinutes` uses it).
+- **"Webhook timeout" in the same section did nothing** — deliveries always used `ALERTS_WEBHOOK_TIMEOUT_MS`. See the upgrade note above.
+- **No way to sign out on phones and tablets.** Sign out is now at the bottom of the floating navigation menu.
+- **Settings › About said "Up to date" when the update check failed.** It now says "Couldn't check for updates", and only says "Up to date" after a successful check.
+- **`POST /api/matter/events` always returned 500** — the Matter router was never given its database connection.
+- **Unpairing a Matter device keeps its event history**, as the unpair screen promises and as HomeKit already did. (Code to delete it existed but never ran; it has been removed rather than switched on.)
+- Matter wording: Add Accessories now lists all 15 supported clusters instead of 6, and Manage Accessories shows **Subscribed** rather than "Polling active" for subscribed devices.
+
+### Docs
+- The documentation site and guide are updated for 0.4: new screenshots (including all twelve palettes, light and dark), new Timeline, Alerts and Upgrading pages, and an API reference and environment-variable list checked against the code.
+
+### Internal
+- The e2e theme audit uses the 0.4 navigation.
+
 ## [0.4.0] — 2026-10-11
 
 A redesign of the whole interface — twelve colour palettes, each with its own light and dark version, a new top navigation bar, and a restyled dashboard, timeline and devices view — plus native Matter subscriptions and a batch of fixes.

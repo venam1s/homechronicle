@@ -10,6 +10,18 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.4.1',
+    title: 'Local time everywhere, alert settings that work, and sign out on phones',
+    items: [
+      'Today\'s Rhythm and the Timeline\'s activity heatmap now show your local time instead of UTC.',
+      'The Default quiet period and Webhook timeout in Settings › Configuration › Data management now take effect. New alert rules start with the default quiet period. If ALERTS_WEBHOOK_TIMEOUT_MS is set on the server, it still sets the timeout.',
+      'Scheduled Repair runs at the hour shown in Settings, even if the server\'s time zone is set.',
+      'You can sign out on phones and tablets: it\'s at the bottom of the navigation menu.',
+      'Settings › About now says when it couldn\'t check for updates, instead of claiming you\'re up to date.',
+      'Unpairing a Matter device keeps its event history, as the unpair screen says.',
+    ],
+  },
+  {
     version: 'v0.4.0',
     title: 'A redesigned interface with twelve colour palettes',
     items: [

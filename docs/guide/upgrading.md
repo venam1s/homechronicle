@@ -46,9 +46,9 @@ With sign-in enabled this also applies on a new device or after you sign out and
 - **Update check.** Settings › About now shows whether a newer release is available, checked through your own listener. See [Settings](settings.md#update-check).
 - **What's new.** The first time you open the app after upgrading, the changelog opens so you can see what changed. It's also under **Settings › About › What's new**.
 
-## Changes after 0.4.0
+## Upgrading to 0.4.1
 
-These fixes land in the release after 0.4.0. Most need nothing from you; check the first two if they apply.
+Most of these fixes need nothing from you; check the first two if they apply.
 
 - **Scheduled Repair runs at the hour Settings shows, whatever the container's `TZ`.** The saved hour is UTC, and the scheduler now counts in UTC too. If you set `TZ` on the listener container, the repair used to run offset by your UTC offset and now runs at the hour shown in **Settings › Configuration › Device Management**. With the default `TZ=UTC`, nothing changes. `REPAIR_HOUR` is now read as a UTC hour.
 - **Webhook timeout from Settings now applies.** The **Webhook timeout** field in **Settings › Configuration › Data management** used to be saved and ignored. It's now used for deliveries unless `ALERTS_WEBHOOK_TIMEOUT_MS` is set, which still wins (and locks the field), so an existing `.env` value keeps working.
