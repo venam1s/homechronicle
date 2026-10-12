@@ -10,6 +10,13 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.4.2',
+    title: 'Today\'s Rhythm busy band stays on the dial',
+    items: [
+      'Fixed Today\'s Rhythm drawing the busy band outside the dial when the busiest part of the day lasted more than 12 hours.',
+    ],
+  },
+  {
     version: 'v0.4.1',
     title: 'Local time everywhere, alert settings that work, and sign out on phones',
     items: [

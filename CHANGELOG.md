@@ -2,6 +2,11 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.4.2] — 2026-10-12
+
+### Fixed
+- **Today's Rhythm drew the busy band off the dial** when the busiest stretch of the day lasted more than 12 hours (for example 9 AM–10 PM): the band looped outside the arc instead of following it. It now always follows the dial.
+
 ## [0.4.1] — 2026-10-12
 
 Fixes for local time, alert settings that did nothing, signing out on phones, and the update check — plus updated documentation and screenshots for 0.4.
