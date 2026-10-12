@@ -7,7 +7,7 @@ vi.mock('../hooks/useEvents.js', () => ({
   useQuietHours: () => ({ data: { enabled: true, quietHoursStart: 3, quietHoursEnd: 10 } }),
 }));
 
-const { default: RhythmArcPanel, GEOMETRY } = await import('./RhythmArcPanel.jsx');
+const { default: RhythmArcPanel, GEOMETRY, arcPath } = await import('./RhythmArcPanel.jsx');
 
 /**
  * The dial's labels are positioned by arithmetic, so the arithmetic is what
@@ -70,5 +70,29 @@ describe('rhythm arc hours', () => {
     hourly.mockReturnValue({ data: [{ hour: 12, count: 50 }, { hour: 2, count: 1 }], isLoading: false });
     render(<RhythmArcPanel />);
     expect(screen.getByLabelText('Daily rhythm, busiest around 8 AM')).toBeInTheDocument();
+  });
+});
+
+// The dial is a half circle: no span, however long, may take the large arc.
+// A 13-hour busy band (9 AM–10 PM on prod) set the flag and looped the band
+// off the dial.
+describe('rhythm arc paths', () => {
+  const flags = (d) => d.match(/A \S+ \S+ 0 (\d) (\d)/).slice(1);
+
+  it('never sets the large-arc flag', () => {
+    for (const [from, to] of [[9, 22], [0, 24], [2, 20], [6, 7]]) {
+      expect(flags(arcPath(from, to))[0]).toBe('0');
+    }
+  });
+
+  it('stays on the dial: every point of a long arc is on or above the baseline', () => {
+    const d = arcPath(9, 22);
+    const [, x1, y1, x2, y2] = d.match(/M (\S+) (\S+) A .* (\S+) (\S+)$/).map(Number);
+    // Both ends sit on the upper half circle.
+    expect(y1).toBeLessThanOrEqual(GEOMETRY.CY);
+    expect(y2).toBeLessThanOrEqual(GEOMETRY.CY);
+    expect(x1).toBeLessThan(x2);
+    // Small arc + clockwise sweep from left to right runs over the top.
+    expect(flags(d)).toEqual(['0', '1']);
   });
 });

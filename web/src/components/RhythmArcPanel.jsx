@@ -35,12 +35,18 @@ function pointAt(hour) {
   return [CX + R * Math.cos(angle), CY - R * Math.sin(angle)];
 }
 
-/** SVG arc path between two hours on the dial. */
-function arcPath(fromHour, toHour) {
+/**
+ * SVG arc path between two hours on the dial.
+ *
+ * The whole day spans a half circle, so no arc is ever longer than 180° and
+ * the large-arc flag is always 0. It used to be set for spans over 12 hours,
+ * which told SVG to take the long way round the full circle: a busy band of
+ * 9 AM–10 PM looped off the dial instead of following it.
+ */
+export function arcPath(fromHour, toHour) {
   const [x1, y1] = pointAt(fromHour);
   const [x2, y2] = pointAt(toHour);
-  const large = Math.abs(toHour - fromHour) > 12 ? 1 : 0;
-  return `M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}`;
+  return `M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}`;
 }
 
 /**
