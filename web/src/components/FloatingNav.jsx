@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BarChart2, Monitor, LayoutList, Bell, Settings, LayoutGrid, X } from 'lucide-react';
+import { BarChart2, Monitor, LayoutList, Bell, Settings, LayoutGrid, X, LogOut } from 'lucide-react';
 import clsx from 'clsx';
 
 // -- Constants --
@@ -21,6 +21,9 @@ const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring 
 // sits bottom-left; tapping it expands a vertical stack of page links. The menu
 // auto-collapses on navigation, backdrop tap, Escape, or when the main content
 // scrolls. Expanded/collapsed is transient UI state (not persisted).
+//
+// The masthead's account menu doesn't exist below 1024px, so Sign out lives
+// here too: pass `onSignOut` to show it under the page links.
 /**
  * Bottom padding the scroll container needs so the FAB never permanently covers
  * the end of the page: 16px offset + 56px button (w-14) + 16px breathing room,
@@ -28,7 +31,7 @@ const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring 
  */
 export const FLOATING_NAV_CLEARANCE = 'calc(env(safe-area-inset-bottom) + 88px)';
 
-export default function FloatingNav({ activePage, onNavigate, scrollRef }) {
+export default function FloatingNav({ activePage, onNavigate, scrollRef, onSignOut, signingOut = false }) {
   const [open, setOpen] = useState(false);
   const firstItemRef = useRef(null);
   const fabRef = useRef(null);
@@ -121,6 +124,23 @@ export default function FloatingNav({ activePage, onNavigate, scrollRef }) {
                 </button>
               );
             })}
+            {onSignOut && (
+              <>
+                <div className="my-1 border-t border-hc-panel-border" />
+                <button
+                  type="button"
+                  onClick={() => { setOpen(false); onSignOut(); }}
+                  disabled={signingOut}
+                  className={clsx(
+                    'flex items-center gap-3 w-full rounded-lg px-3 h-[40px] text-sm transition-colors duration-150 text-hc-fg hover:bg-hc-interactive disabled:opacity-50',
+                    FOCUS_RING,
+                  )}
+                >
+                  <LogOut size={20} className="text-hc-muted" />
+                  <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
+                </button>
+              </>
+            )}
           </nav>
         )}
 

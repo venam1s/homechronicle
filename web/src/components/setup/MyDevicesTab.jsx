@@ -518,9 +518,13 @@ export default function MyDevicesTab({ setup }) {
                   )}
                   {nodeStatus && (
                     <div className="text-xs text-hc-muted mt-0.5">
-                      {nodeStatus.active
-                        ? <span className="text-hc-success-text">Polling active</span>
-                        : <span className="text-hc-muted">Polling inactive</span>}
+                      {/* With subscriptions on (the default) changes are pushed and
+                          polling is only a slow safety net, so "Polling" misdescribed it. */}
+                      {!nodeStatus.active
+                        ? <span className="text-hc-muted">Inactive</span>
+                        : nodeStatus.subscriptionActive
+                          ? <span className="text-hc-success-text">Subscribed</span>
+                          : <span className="text-hc-success-text">Polling active</span>}
                     </div>
                   )}
                   {nodeStatus?.lastError && (

@@ -1,5 +1,5 @@
 import { useHourlyStats, useQuietHours } from '../hooks/useEvents.js';
-import { formatHour12, utcHourToLocal, isWithinHourWindow } from '../lib/hours.js';
+import { formatHour12, utcHourToLocal, isWithinHourWindow, rotateUtcHoursToLocal } from '../lib/hours.js';
 import { SkeletonList } from './Skeleton.jsx';
 
 // Semicircle geometry: midnight at the left, noon at the top, midnight again
@@ -57,11 +57,13 @@ export default function RhythmArcPanel() {
 
   if (isLoading) return <SkeletonList rows={2} />;
 
-  const byHour = new Array(24).fill(0);
+  // The API buckets by UTC hour; the dial, "now" and quiet hours are local.
+  const byUtcHour = new Array(24).fill(0);
   for (const row of Array.isArray(hourly) ? hourly : []) {
     const h = Number(row.hour);
-    if (Number.isInteger(h) && h >= 0 && h < 24) byHour[h] = Number(row.count ?? row.event_count ?? 0);
+    if (Number.isInteger(h) && h >= 0 && h < 24) byUtcHour[h] = Number(row.count ?? row.event_count ?? 0);
   }
+  const byHour = rotateUtcHoursToLocal(byUtcHour);
   const peak = byHour.reduce((best, n, h) => (n > byHour[best] ? h : best), 0);
   const hasData = byHour.some((n) => n > 0);
 

@@ -128,7 +128,7 @@ const STEPS = [
     content: () => (
       <div className="space-y-3">
         <p className="text-sm text-hc-fg">
-          Matter devices expose capabilities through clusters. homechronicle polls a fixed set of clusters —
+          Matter devices expose capabilities through clusters. HomeChronicle reads a fixed set of clusters —
           devices using only unsupported clusters will pair but won't produce timeline events.
         </p>
         <div className="border border-hc-panel-border rounded-lg overflow-hidden">

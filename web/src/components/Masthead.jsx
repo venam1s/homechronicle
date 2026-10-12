@@ -3,10 +3,9 @@ import { Sun, Moon, SunMoon, ArrowUpCircle, LogOut, Palette, ChevronDown } from 
 import clsx from 'clsx';
 import BrandLogo from './BrandLogo.jsx';
 import { useTheme } from '../hooks/useTheme.js';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { useAuthConfig } from '../hooks/useAuthConfig.js';
-import { useUserPreferences } from '../hooks/useUserPreferences.js';
+import { useSignOut } from '../hooks/useSignOut.js';
 
 // -- Constants --
 
@@ -79,10 +78,9 @@ export default function Masthead({
   availableUpdate,
 }) {
   const { preference, setPreference } = useTheme();
-  const { user, logoutMutation } = useAuth();
+  const { user } = useAuth();
   const { authEnabled } = useAuthConfig();
-  const { flushNow } = useUserPreferences();
-  const navigate = useNavigate();
+  const { signOut, isPending: signingOut } = useSignOut();
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef(null);
 
@@ -108,19 +106,9 @@ export default function Masthead({
   const accountInitials =
     (accountLabel.split('@')[0].match(/[a-zA-Z0-9]/g)?.slice(0, 2).join('') || 'AC').toUpperCase();
 
-  async function handleLogout() {
-    // Preference writes are debounced; ending the session first would discard a
-    // palette change or a dashboard drag made in the last half second.
-    await flushNow();
+  function handleLogout() {
     setAccountOpen(false);
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => {
-        if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.removeItem('csrfToken');
-        }
-        navigate('/login', { replace: true });
-      },
-    });
+    return signOut();
   }
 
   return (
@@ -259,14 +247,14 @@ export default function Masthead({
                     type="button"
                     role="menuitem"
                     onClick={handleLogout}
-                    disabled={logoutMutation.isPending}
+                    disabled={signingOut}
                     className={clsx(
                       'flex w-full items-center gap-2 px-3 py-2 text-hc-label text-hc-fg hover:bg-hc-interactive transition-colors disabled:opacity-50',
                       FOCUS_RING,
                     )}
                   >
                     <LogOut size={15} className="text-hc-muted" aria-hidden="true" />
-                    {logoutMutation.isPending ? 'Signing out…' : 'Sign out'}
+                    {signingOut ? 'Signing out…' : 'Sign out'}
                   </button>
                 </div>
               )}

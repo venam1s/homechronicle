@@ -254,22 +254,10 @@ export function createMatterRouter({
     }
     await saveNotes(notes);
 
-    // Purge all event history for this node and its endpoints.
-    let deletedEvents = 0;
-    if (pool) {
-      try {
-        const result = await pool.query(
-          'DELETE FROM event_logs WHERE accessory_id = $1 OR accessory_id LIKE $2',
-          [nodeId, `${nodeId}:%`],
-        );
-        deletedEvents = result.rowCount;
-        log.info(`[matter] Purged ${deletedEvents} event(s) for node ${nodeId}`);
-      } catch (err) {
-        log.error(`[matter] Failed to purge events for node ${nodeId}:`, err.message ?? err);
-      }
-    }
-
-    return res.json({ success: true, deletedEvents });
+    // Event history is kept, as it is for HomeKit: the unpair controls promise
+    // "Event data is not deleted". Deleting history is a separate,
+    // deliberate step (Settings › Configuration › Advanced › Danger Zone).
+    return res.json({ success: true });
   });
 
   router.post('/matter/events', matterWriteLimiter, async (req, res) => {

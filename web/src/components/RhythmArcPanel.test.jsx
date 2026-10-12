@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { GEOMETRY } from './RhythmArcPanel.jsx';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+
+const hourly = vi.fn();
+vi.mock('../hooks/useEvents.js', () => ({
+  useHourlyStats: () => hourly(),
+  useQuietHours: () => ({ data: { enabled: true, quietHoursStart: 3, quietHoursEnd: 10 } }),
+}));
+
+const { default: RhythmArcPanel, GEOMETRY } = await import('./RhythmArcPanel.jsx');
 
 /**
  * The dial's labels are positioned by arithmetic, so the arithmetic is what
@@ -48,5 +56,19 @@ describe('rhythm arc geometry', () => {
     expect(arcApexTop).toBeGreaterThanOrEqual(0);
     expect(arcEndsBottom).toBeLessThanOrEqual(VIEWBOX_H);
     expect(CX + R + STROKE / 2).toBeLessThanOrEqual(200);
+  });
+});
+
+// The API buckets by UTC hour. The dial used to plot those slots directly
+// against local labels, "now" and quiet hours, so in EDT 8 AM activity was
+// drawn at noon.
+describe('rhythm arc hours', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('reports the busiest hour in local time', () => {
+    vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(240); // EDT
+    hourly.mockReturnValue({ data: [{ hour: 12, count: 50 }, { hour: 2, count: 1 }], isLoading: false });
+    render(<RhythmArcPanel />);
+    expect(screen.getByLabelText('Daily rhythm, busiest around 8 AM')).toBeInTheDocument();
   });
 });

@@ -50,8 +50,8 @@ function makeMocks(overrides = {}) {
 test('msUntilHour returns positive ms when target hour is ahead today', async () => {
   const { msUntilHour } = await import('../src/repair-scheduler.js');
 
-  // Fix Date to 02:00:00
-  const fakeNow = new Date('2024-01-15T02:00:00.000');
+  // Fix Date to 02:00:00 UTC
+  const fakeNow = new Date('2024-01-15T02:00:00.000Z');
   const origDate = globalThis.Date;
   globalThis.Date = class extends origDate {
     constructor(...args) {
@@ -73,11 +73,22 @@ test('msUntilHour returns positive ms when target hour is ahead today', async ()
   }
 });
 
+test('msUntilHour counts in UTC regardless of the container TZ', async () => {
+  const { msUntilHour } = await import('../src/repair-scheduler.js');
+  const now = Date.now();
+  const ms = msUntilHour(new Date(now).getUTCHours());
+  // The current UTC hour has started, so the next one is tomorrow, at most 24h away.
+  const next = new Date(now + ms);
+  assert.equal(next.getUTCHours(), new Date(now).getUTCHours());
+  assert.equal(next.getUTCMinutes(), 0);
+  assert.ok(ms > 23 * 3_600_000 && ms <= 24 * 3_600_000, `Expected ~24h, got ${ms}`);
+});
+
 test('msUntilHour returns next-day ms when target hour is already past', async () => {
   const { msUntilHour } = await import('../src/repair-scheduler.js');
 
-  // Fix Date to 04:00:00
-  const fakeNow = new Date('2024-01-15T04:00:00.000');
+  // Fix Date to 04:00:00 UTC
+  const fakeNow = new Date('2024-01-15T04:00:00.000Z');
   const origDate = globalThis.Date;
   globalThis.Date = class extends origDate {
     constructor(...args) {

@@ -1,17 +1,13 @@
 const { test, expect } = require('playwright/test');
 
-const TABS = [
-  { name: 'dashboard', selector: 'button:has-text("Dashboard")' },
-  { name: 'timeline', selector: 'button:has-text("Timeline")' },
-  { name: 'accessories', selector: 'button:has-text("Accessories")' },
-  { name: 'manage', selector: 'button:has-text("Manage")' },
-];
+// v0.4 masthead pages (desktop width; below 1024px the floating nav replaces it).
+const PAGES = ['Dashboard', 'Devices', 'Timeline', 'Alerts', 'Settings'];
 
-const MANAGE_SUBTABS = [
-  { name: 'add-accessories', selector: 'button:has-text("Add Accessories")' },
-  { name: 'my-accessories', selector: 'button:has-text("My Accessories")' },
-  { name: 'settings', selector: 'button:has-text("Settings")' },
-];
+const DEVICES_SUBTABS = ['Browse', 'Add Accessories', 'Manage Accessories'];
+
+const slug = (label) => label.toLowerCase().replace(/\s+/g, '-');
+const navButton = (page, label) =>
+  page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: label, exact: true });
 
 for (const theme of ['light', 'dark']) {
   test.describe(`Theme: ${theme}`, () => {
@@ -20,7 +16,7 @@ for (const theme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: theme });
       await page.goto('/');
       // Wait for app to load
-      await page.waitForSelector('button:has-text("Dashboard")', { timeout: 5000 });
+      await navButton(page, 'Dashboard').waitFor({ timeout: 5000 });
       // Set theme preference via localStorage
       await page.evaluate((t) => {
         localStorage.setItem('hc_theme_preference', t);
@@ -34,26 +30,26 @@ for (const theme of ['light', 'dark']) {
       await page.waitForTimeout(300);
     });
 
-    for (const tab of TABS) {
-      test(`${tab.name} tab`, async ({ page }) => {
-        await page.click(tab.selector);
+    for (const label of PAGES) {
+      test(`${slug(label)} page`, async ({ page }) => {
+        await navButton(page, label).click();
         await page.waitForTimeout(500);
         await page.screenshot({
-          path: `test-results/theme-audit/${theme}-${tab.name}.png`,
+          path: `test-results/theme-audit/${theme}-${slug(label)}.png`,
           fullPage: true,
         });
       });
     }
 
-    // Capture manage sub-tabs
-    for (const subtab of MANAGE_SUBTABS) {
-      test(`manage/${subtab.name}`, async ({ page }) => {
-        await page.click('button:has-text("Manage")');
+    // Capture Devices sub-tabs
+    for (const label of DEVICES_SUBTABS) {
+      test(`devices/${slug(label)}`, async ({ page }) => {
+        await navButton(page, 'Devices').click();
         await page.waitForTimeout(300);
-        await page.click(subtab.selector);
+        await page.getByRole('button', { name: label, exact: true }).click();
         await page.waitForTimeout(500);
         await page.screenshot({
-          path: `test-results/theme-audit/${theme}-manage-${subtab.name}.png`,
+          path: `test-results/theme-audit/${theme}-devices-${slug(label)}.png`,
           fullPage: true,
         });
       });

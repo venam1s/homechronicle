@@ -29,7 +29,7 @@ import { performPairSetupAndPersist } from './repair-helpers.js';
 import { createRepairRouter } from './repair-router.js';
 import { createAlertsSettingsRouter } from './alerts-settings-router.js';
 import { setAlertEmailFrom, getAlertEmailFrom } from './subscriber.js';
-import { processAlertsForEvent } from './alerts.js';
+import { processAlertsForEvent, setWebhookTimeoutMs, ALERTS_WEBHOOK_TIMEOUT_MS, WEBHOOK_TIMEOUT_FROM_ENV } from './alerts.js';
 import { createMatterRuntime } from './matter-runtime.js';
 import { initController as initMatterController } from './matter-controller.js';
 import { cached } from './query-cache.js';
@@ -208,6 +208,10 @@ const alertsSettingsStore = new JsonObjectStore(ALERTS_SETTINGS_FILE, {
   defaultQuietMinutes: 0,
   webhookTimeoutMs: 5000,
 });
+// ALERTS_WEBHOOK_TIMEOUT_MS, when set, wins over the saved value (see alerts.js).
+const applySavedWebhookTimeout = (settings) => {
+  if (!WEBHOOK_TIMEOUT_FROM_ENV) setWebhookTimeoutMs(settings?.webhookTimeoutMs);
+};
 // SMTP non-secret config store (password lives only in smtp-secret.json, never here)
 const smtpConfigStore = new JsonObjectStore(SMTP_CONFIG_FILE, {});
 let matterRuntime = null;
@@ -261,6 +265,7 @@ await notesStore.init();
 await retentionStore.init();
 await repairStore.init();
 await alertsSettingsStore.init();
+applySavedWebhookTimeout(alertsSettingsStore.getSnapshot());
 await smtpConfigStore.init();
 const smtpSecret = await readSmtpSecret();
 const smtpConfig = buildSmtpConfig(smtpConfigStore.getSnapshot(), smtpSecret);
@@ -308,7 +313,7 @@ if (Number.isFinite(STORE_REFRESH_INTERVAL_MS) && STORE_REFRESH_INTERVAL_MS >= 5
     void repairStore.refresh().catch((err) => {
       log.warn('[store] repair refresh failed:', err.message ?? err.stack ?? err);
     });
-    void alertsSettingsStore.refresh().catch((err) => {
+    void alertsSettingsStore.refresh().then(applySavedWebhookTimeout).catch((err) => {
       log.warn('[store] alerts-settings refresh failed:', err.message ?? err.stack ?? err);
     });
   }, STORE_REFRESH_INTERVAL_MS);
@@ -651,15 +656,21 @@ app.use('/api', createEventsRouter({
   pool,
   getRooms: loadRooms,
 }));
-app.use('/api/alerts', createAlertsRouter({ pool, isEmailEnabled }));
+app.use('/api/alerts', createAlertsRouter({
+  pool,
+  isEmailEnabled,
+  getDefaultQuietMinutes: () => alertsSettingsStore.getSnapshot().defaultQuietMinutes ?? 0,
+}));
 
 app.use('/api/setup', createAlertsSettingsRouter({
   getSettings: () => alertsSettingsStore.getSnapshot(),
   saveSettings: async (s) => alertsSettingsStore.write(s),
+  webhookTimeoutEnvMs: WEBHOOK_TIMEOUT_FROM_ENV ? ALERTS_WEBHOOK_TIMEOUT_MS : null,
   onSettingsChange: (next) => {
     // Was `Alerts ${next.enabled ? 'enabled' : 'disabled'}` — there is no
     // `enabled` key any more (MALERT-07), so it logged "Alerts disabled" on
     // every single save regardless of state.
+    applySavedWebhookTimeout(next);
     log.info(`[alerts-settings] Updated: quiet=${next.defaultQuietMinutes}m timeout=${next.webhookTimeoutMs}ms`);
   },
 }));
@@ -687,6 +698,8 @@ app.use('/api/users', createUsersRouter({
 app.use('/api/me', createMeRouter({ pool }));
 let matterDiscoveryCache = [];
 app.use('/api', createMatterRouter({
+  // Needed by POST /matter/events, which writes each batch in one transaction.
+  pool,
   insertEvent,
   loadPairings,
   savePairings,

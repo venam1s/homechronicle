@@ -36,6 +36,7 @@ export default function SettingsPage({
   hasNewVersion,
   onOpenChangelog,
   availableUpdate,
+  updateStatus,
   section: controlledSection,
   onSectionChange,
 }) {
@@ -135,6 +136,7 @@ export default function SettingsPage({
               hasNewVersion={hasNewVersion}
               onOpenChangelog={onOpenChangelog}
               availableUpdate={availableUpdate}
+              updateStatus={updateStatus}
             />
           )}
           {activeSection === 'appearance' && <AppearanceSection />}

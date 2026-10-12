@@ -88,7 +88,7 @@ function textCapError(field) {
   return { error: `${field} must be ${MAX_TEXT_LEN} characters or fewer` };
 }
 
-function validateCreate(body = {}) {
+function validateCreate(body = {}, { defaultQuietMinutes = 0 } = {}) {
   const name = String(body.name ?? '').trim();
   if (!name) return { error: 'name is required' };
   if (name.length > MAX_TEXT_LEN) return textCapError('name');
@@ -129,7 +129,9 @@ function validateCreate(body = {}) {
     targetEmail = emailResult.value;
   }
 
-  const quietMinutes = parseQuietMinutes(body.quietMinutes, 0);
+  // A rule created without a quiet period gets the household default from
+  // Settings › Configuration › Data management.
+  const quietMinutes = parseQuietMinutes(body.quietMinutes, defaultQuietMinutes);
   if (quietMinutes === null) return { error: 'quietMinutes must be an integer between 0 and 10080' };
 
   const enabled = body.enabled === undefined ? true : Boolean(body.enabled);
@@ -283,7 +285,7 @@ function isChannelFieldViolation(err) {
 const CHANNEL_FIELD_ERROR =
   'Webhook rules require a target URL and email rules require a recipient email';
 
-export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
+export function createAlertsRouter({ pool, isEmailEnabled = () => true, getDefaultQuietMinutes = () => 0 }) {
   const router = express.Router();
 
   // AUTH-L-2: a caller with no req.hcSession is either an AUTH_ENABLED=false
@@ -389,7 +391,7 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true }) {
     const legacy = isLegacyAdmin(req);
     const ownerId = legacy ? null : req.hcSession.user_id;
 
-    const parsed = validateCreate(req.body);
+    const parsed = validateCreate(req.body, { defaultQuietMinutes: getDefaultQuietMinutes() });
     if (parsed.error) return res.status(400).json({ error: parsed.error });
 
     // SMTP guard (D-09): reject email channel when SMTP is not configured

@@ -253,6 +253,29 @@ test('/api/alerts/rules supports create/list/patch/delete', async () => {
   assert.equal(deleted.jsonBody.success, true);
 });
 
+// Settings › Configuration › Data management › Default quiet period was saved
+// but read by nothing; new rules always started at 0.
+test('/api/alerts/rules POST applies the household default quiet period when none is given', async () => {
+  const router = createAlertsRouter({ pool: createMockPool(), getDefaultQuietMinutes: () => 45 });
+  const post = getRouteHandler(router, 'POST', '/rules');
+  const body = {
+    name: 'Door opened',
+    scopeType: 'all',
+    operator: 'equals',
+    matchValue: 'true',
+    targetUrl: 'https://example.test/hook',
+  };
+
+  const defaulted = await invoke(post, { hcSession: ADMIN_SESSION, body });
+  assert.equal(defaulted.statusCode, 201);
+  assert.equal(defaulted.jsonBody.quietMinutes, 45);
+
+  // An explicit value, including 0, still wins.
+  const explicit = await invoke(post, { hcSession: ADMIN_SESSION, body: { ...body, quietMinutes: 0 } });
+  assert.equal(explicit.statusCode, 201);
+  assert.equal(explicit.jsonBody.quietMinutes, 0);
+});
+
 test('/api/alerts/rules POST and GET list both redact targetUrl (L-1)', async () => {
   const router = createAlertsRouter({ pool: createMockPool() });
   const post = getRouteHandler(router, 'POST', '/rules');

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { localHourToUtc, rotateUtcHoursToLocal, formatHour12 } from '../lib/hours.js';
 
 const CELL  = 16;
 const GAP   = 2;
@@ -14,6 +15,9 @@ const DEFAULT_VISIBLE_ROWS = 20;
 export default function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onClickCell, lockedCell }) {
   const [expanded, setExpanded] = useState(false);
 
+  // Rows arrive bucketed by UTC hour. Columns are drawn in local time; each
+  // cell still reports its UTC hour, which is what the jump API and the
+  // timeline's hover matching use.
   const deviceMap = {};
   for (const row of data) {
     if (!deviceMap[row.accessory_name]) deviceMap[row.accessory_name] = new Array(24).fill(0);
@@ -21,7 +25,7 @@ export default function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onC
   }
 
   const allDevices = Object.entries(deviceMap)
-    .map(([name, hours]) => [name, hours, hours.reduce((s, v) => s + v, 0)])
+    .map(([name, utcHours]) => [name, rotateUtcHoursToLocal(utcHours), utcHours.reduce((s, v) => s + v, 0)])
     .sort(([, , a], [, , b]) => b - a);
   const devices = expanded ? allDevices : allDevices.slice(0, DEFAULT_VISIBLE_ROWS);
   const hasMore = allDevices.length > DEFAULT_VISIBLE_ROWS;
@@ -45,11 +49,12 @@ export default function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onC
                 {name}
               </div>
               {hours.map((count, h) => {
-                const isLocked = lockedCell?.accessoryName === name && lockedCell?.hour === h;
+                const utcHour = localHourToUtc(h);
+                const isLocked = lockedCell?.accessoryName === name && lockedCell?.hour === utcHour;
                 return (
                   <div
                     key={h}
-                    title={count > 0 ? `${name} — ${h}:00 — ${count} event${count !== 1 ? 's' : ''} · click to jump` : undefined}
+                    title={count > 0 ? `${name} — ${formatHour12(h)} — ${count} event${count !== 1 ? 's' : ''} · click to jump` : undefined}
                     style={{
                       width: CELL,
                       height: CELL,
@@ -68,7 +73,7 @@ export default function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onC
                           e.currentTarget.style.transform = 'scale(1.35)';
                           e.currentTarget.style.boxShadow = '0 0 0 1.5px rgb(var(--hc-accent-rgb))';
                         }
-                        onHoverCell(name, h);
+                        onHoverCell(name, utcHour);
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -79,7 +84,7 @@ export default function HeatmapGrid({ data, accent, onHoverCell, onHoverEnd, onC
                       onHoverEnd();
                     }}
                     onClick={() => {
-                      if (count > 0) onClickCell(name, h);
+                      if (count > 0) onClickCell(name, utcHour, h);
                     }}
                   />
                 );

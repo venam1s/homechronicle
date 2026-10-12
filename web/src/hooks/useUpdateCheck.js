@@ -48,57 +48,84 @@ function isNewer(a, b) {
 // Hook
 // ---------------------------------------------------------------------------
 
+/**
+ * Checks the listener for a newer release.
+ *
+ * Returns:
+ *   update  the newer release, or null — null too once the user dismissed that
+ *           exact tag (drives the masthead link)
+ *   latest  the newer release regardless of dismissal (drives Settings › About)
+ *   status  'checking' | 'available' | 'current' | 'unavailable' | 'disabled'.
+ *           'current' only after a successful check; a failed one (listener
+ *           error, or the listener could not reach GitLab) is 'unavailable', so
+ *           About never claims "Up to date" when it doesn't know.
+ *   dismiss hide `update` for this tag
+ */
 export function useUpdateCheck(currentBuild) {
-  const [update, setUpdate] = useState(null);
+  const [latest, setLatest] = useState(null);
+  const [dismissedTag, setDismissedTag] = useState(() => {
+    try { return window.localStorage.getItem(DISMISS_KEY); } catch { return null; }
+  });
+  const [status, setStatus] = useState('checking');
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    if (window.localStorage.getItem('hc_disable_update_check') === 'true') return undefined;
+    if (window.localStorage.getItem('hc_disable_update_check') === 'true') {
+      setStatus('disabled');
+      return undefined;
+    }
 
     const currentVersion = parseVersion(currentBuild);
 
     async function check() {
+      let payload;
       try {
-        const payload = await fetchJson(UPDATES_URL);
-        const releases = payload?.releases;
-        if (!Array.isArray(releases) || releases.length === 0) return;
-
-        // Determine if the current build is a pre-release (beta)
-        const runningBeta = currentVersion?.pre != null;
-
-        // Find the latest release the user should care about:
-        // - If running a beta, consider both stable and beta releases
-        // - If running stable, only consider stable releases
-        let candidate = null;
-        for (const release of releases) {
-          const ver = parseVersion(release.tag);
-          if (!ver) continue;
-          if (!runningBeta && ver.pre) continue; // stable users skip betas
-          if (!candidate || isNewer(ver, candidate.version)) {
-            candidate = { version: ver, release };
-          }
-        }
-
-        if (!candidate) return;
-
-        if (isNewer(candidate.version, currentVersion)) {
-          const tag = candidate.release.tag;
-          // Check if user already dismissed this exact version
-          try {
-            if (window.localStorage.getItem(DISMISS_KEY) === tag) return;
-          } catch { /* ignore */ }
-
-          setUpdate({
-            tag,
-            url: candidate.release.url,
-            isPrerelease: candidate.release.prerelease,
-            publishedAt: candidate.release.publishedAt,
-          });
-        } else {
-          setUpdate(null);
-        }
+        payload = await fetchJson(UPDATES_URL);
       } catch {
-        // Silently fail — update checks are best-effort
+        // Best-effort: keep the last good answer, if there was one.
+        setStatus((s) => (s === 'checking' ? 'unavailable' : s));
+        return;
+      }
+      if (payload?.enabled === false) {
+        setLatest(null);
+        setStatus('disabled');
+        return;
+      }
+      // The listener serves an empty list when it couldn't reach GitLab; an
+      // empty list is not proof that nothing newer exists.
+      if (payload?.upstreamOk === false) {
+        setStatus((s) => (s === 'checking' ? 'unavailable' : s));
+        return;
+      }
+      const releases = Array.isArray(payload?.releases) ? payload.releases : [];
+
+      // Determine if the current build is a pre-release (beta)
+      const runningBeta = currentVersion?.pre != null;
+
+      // Find the latest release the user should care about:
+      // - If running a beta, consider both stable and beta releases
+      // - If running stable, only consider stable releases
+      let candidate = null;
+      for (const release of releases) {
+        const ver = parseVersion(release.tag);
+        if (!ver) continue;
+        if (!runningBeta && ver.pre) continue; // stable users skip betas
+        if (!candidate || isNewer(ver, candidate.version)) {
+          candidate = { version: ver, release };
+        }
+      }
+
+      if (candidate && isNewer(candidate.version, currentVersion)) {
+        setLatest({
+          tag: candidate.release.tag,
+          url: candidate.release.url,
+          isPrerelease: candidate.release.prerelease,
+          publishedAt: candidate.release.publishedAt,
+        });
+        setStatus('available');
+      } else {
+        setLatest(null);
+        setStatus('current');
       }
     }
 
@@ -108,11 +135,12 @@ export function useUpdateCheck(currentBuild) {
   }, [currentBuild]);
 
   function dismiss() {
-    if (update?.tag) {
-      try { window.localStorage.setItem(DISMISS_KEY, update.tag); } catch { /* ignore */ }
+    if (latest?.tag) {
+      try { window.localStorage.setItem(DISMISS_KEY, latest.tag); } catch { /* ignore */ }
+      setDismissedTag(latest.tag);
     }
-    setUpdate(null);
   }
 
-  return { update, dismiss };
+  const update = latest && latest.tag !== dismissedTag ? latest : null;
+  return { update, latest, status, dismiss };
 }

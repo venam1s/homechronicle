@@ -385,11 +385,14 @@ test('DELETE /setup/matter/pairing returns 400 for empty nodeId', async () => {
   assert.equal(response.statusCode, 400);
 });
 
-test('DELETE /setup/matter/pairing purges events when pool is provided', async () => {
-  const deletedRows = [];
+// The UI promises "Event data is not deleted" when unpairing, and HomeKit's
+// unpair keeps history too. The purge here was dead code (index.js never passed
+// `pool`), so wiring the pool in for /matter/events must not switch it on.
+test('DELETE /setup/matter/pairing keeps the node\'s event history', async () => {
+  const queries = [];
   const mockPool = {
     async query(sql, params) {
-      deletedRows.push({ sql, params });
+      queries.push({ sql, params });
       return { rowCount: 5 };
     },
   };
@@ -401,10 +404,8 @@ test('DELETE /setup/matter/pairing purges events when pool is provided', async (
 
   const response = await invoke(handler, { params: { nodeId: '100' } });
   assert.equal(response.statusCode, 200);
-  assert.equal(response.jsonBody.deletedEvents, 5);
-  assert.equal(deletedRows.length, 1);
-  assert.equal(deletedRows[0].params[0], '100');
-  assert.equal(deletedRows[0].params[1], '100:%');
+  assert.deepEqual(response.jsonBody, { success: true });
+  assert.equal(queries.length, 0);
 });
 
 // --- GET pairings tests ---

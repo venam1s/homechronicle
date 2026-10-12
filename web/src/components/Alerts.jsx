@@ -19,7 +19,9 @@ const EMPTY_FORM = {
   channel: 'webhook',
   targetUrl: '',
   targetEmail: '',
-  quietMinutes: 0,
+  // null = not touched: the field shows the household default from Settings,
+  // and the listener applies that default when the rule is created.
+  quietMinutes: null,
 };
 
 function statusClass(status) {
@@ -42,6 +44,12 @@ export default function Alerts() {
     staleTime: 60_000,
   });
   const smtpUnconfigured = !Boolean(smtpStatus?.host && smtpStatus?.passwordConfigured);
+  const { data: alertsSettings } = useQuery({
+    queryKey: ['setup', 'alerts'],
+    queryFn: () => fetchJson('/api/setup/alerts'),
+    staleTime: 60_000,
+  });
+  const defaultQuietMinutes = alertsSettings?.defaultQuietMinutes ?? 0;
 
   const { data: rules = [], isLoading: rulesLoading } = useAlertRules();
   const { data: deliveriesData, isLoading: deliveriesLoading } = useAlertDeliveries(deliveryPage, 15);
@@ -106,6 +114,8 @@ export default function Alerts() {
       ...form,
       quietMinutes: Number.parseInt(String(form.quietMinutes ?? 0), 10) || 0,
     };
+    // Untouched on a new rule: let the listener apply the current default.
+    if (form.quietMinutes == null) delete payload.quietMinutes;
     // GET /api/alerts/rules redacts targetUrl (secret webhook URLs aren't sent
     // over unauthenticated reads), so it is never prefilled when editing. Omit
     // an empty targetUrl on edit so the backend (`if ('targetUrl' in body)`)
@@ -304,14 +314,14 @@ export default function Alerts() {
               className="border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
               required
             />
-            {/* Visible label: the field defaults to 0, so a placeholder never shows. */}
+            {/* Visible label: the field always holds a number, so a placeholder never shows. */}
             <label className="flex items-center gap-2 text-sm text-hc-fg">
               <span className="shrink-0">Quiet period</span>
               <input
                 type="number"
                 min="0"
                 max="10080"
-                value={form.quietMinutes}
+                value={form.quietMinutes ?? defaultQuietMinutes}
                 onChange={(e) => setForm((prev) => ({ ...prev, quietMinutes: e.target.value }))}
                 className="w-24 border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
               />

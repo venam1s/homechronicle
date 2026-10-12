@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePreference } from './hooks/usePreference.js';
 import { useUserPreferences } from './hooks/useUserPreferences.js';
 import { useAuth } from './hooks/useAuth.js';
+import { useSignOut } from './hooks/useSignOut.js';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from './lib/api.js';
 import { useMediaQuery } from './hooks/useMediaQuery.js';
@@ -40,8 +41,9 @@ export default function App() {
 
   const { data: retentionConfig } = useQuery({ queryKey: ['setup', 'retention'], queryFn: () => fetchJson('/api/setup/retention'), staleTime: 30_000 });
   const { configure: configureToasts } = useToast();
-  const { update: availableUpdate } = useUpdateCheck(__BUILD_VERSION__);
+  const { update: availableUpdate, latest: latestRelease, status: updateStatus } = useUpdateCheck(__BUILD_VERSION__);
   const { user } = useAuth();
+  const { signOut, isPending: signingOut, available: canSignOut } = useSignOut();
   const { prefs, seedIfEmpty } = useUserPreferences();
 
   // PREF-10: per-user toast config (authed path reads from blob; anon path reads from retentionConfig below).
@@ -161,7 +163,8 @@ export default function App() {
                   buildVersion={__BUILD_VERSION__}
                   hasNewVersion={hasNewVersion}
                   onOpenChangelog={openChangelog}
-                  availableUpdate={availableUpdate}
+                  availableUpdate={latestRelease}
+                  updateStatus={updateStatus}
                   section={settingsSection}
                   onSectionChange={setSettingsSection}
                 />
@@ -171,7 +174,13 @@ export default function App() {
         </main>
       </div>
       {isFloatingNav && (
-        <FloatingNav activePage={activePage} onNavigate={navigate} scrollRef={mainRef} />
+        <FloatingNav
+          activePage={activePage}
+          onNavigate={navigate}
+          scrollRef={mainRef}
+          onSignOut={canSignOut ? signOut : undefined}
+          signingOut={signingOut}
+        />
       )}
       {showChangelog && <ChangelogModal onClose={closeChangelog} />}
     </>

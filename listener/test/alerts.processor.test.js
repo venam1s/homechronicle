@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { processAlertsForEvent } from '../src/alerts.js';
+import { processAlertsForEvent, setWebhookTimeoutMs, getWebhookTimeoutMs, ALERTS_WEBHOOK_TIMEOUT_MS } from '../src/alerts.js';
 import { initEmail } from '../src/emails.js';
 
 function makeRule(overrides = {}) {
@@ -510,6 +510,50 @@ test('processAlertsForEvent isolates a failing rule and still delivers the rest 
     assert.equal(deliveries.length, 1, 'rule 2 must still be delivered after rule 1 fails');
     assert.equal(deliveries[0].ruleId, 2, 'the surviving delivery must belong to rule 2');
   } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+// Settings › Configuration › Data management › Webhook timeout was saved but
+// deliveries always used the env value. index.js now applies the saved value
+// through setWebhookTimeoutMs().
+test('processAlertsForEvent uses the timeout set at runtime', async () => {
+  const deliveries = [];
+  const pool = {
+    async query(sql, params = []) {
+      if (sql.includes('FROM alert_rules')) return { rows: [makeRule({ id: 77 })] };
+      if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+      if (sql.startsWith('INSERT INTO alert_deliveries')) {
+        deliveries.push({ status: params[2], error: params[7] });
+        return { rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+
+  const originalFetch = global.fetch;
+  // Never answers; only the abort signal ends it.
+  global.fetch = (_url, { signal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener('abort', () => {
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      reject(err);
+    });
+  });
+  try {
+    setWebhookTimeoutMs(600);
+    assert.equal(getWebhookTimeoutMs(), 600);
+    await processAlertsForEvent(pool, makeEvent());
+    assert.equal(deliveries.length, 1);
+    assert.equal(deliveries[0].status, 'failed');
+    assert.equal(deliveries[0].error, 'Webhook timeout after 600ms');
+
+    // Nonsense is ignored rather than disabling the timeout.
+    setWebhookTimeoutMs('abc');
+    setWebhookTimeoutMs(10);
+    assert.equal(getWebhookTimeoutMs(), 600);
+  } finally {
+    setWebhookTimeoutMs(ALERTS_WEBHOOK_TIMEOUT_MS);
     global.fetch = originalFetch;
   }
 });

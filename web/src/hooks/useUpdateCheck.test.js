@@ -109,6 +109,60 @@ describe('useUpdateCheck', () => {
       expect(result.current.update).toBeNull();
     });
 
+  });
+
+  // Settings › About reads `status`; it used to say "Up to date" whenever there
+  // was no update object, including when the check had failed.
+  describe('status', () => {
+    it('is current only after a successful check found nothing newer', async () => {
+      respond([release('v0.3.0')]);
+      const { result } = renderHook(() => useUpdateCheck('v0.3.0'));
+      expect(result.current.status).toBe('checking');
+      await waitFor(() => expect(result.current.status).toBe('current'));
+    });
+
+    it('is available, with the release, when one is newer', async () => {
+      respond([release('v0.4.0')]);
+      const { result } = renderHook(() => useUpdateCheck('v0.3.0'));
+      await waitFor(() => expect(result.current.status).toBe('available'));
+      expect(result.current.latest.tag).toBe('v0.4.0');
+    });
+
+    it('is unavailable when the request fails', async () => {
+      fetchJson.mockRejectedValue(new Error('502'));
+      const { result } = renderHook(() => useUpdateCheck('v0.3.0'));
+      await waitFor(() => expect(result.current.status).toBe('unavailable'));
+    });
+
+    it('is unavailable when the listener could not reach GitLab', async () => {
+      fetchJson.mockResolvedValue({ enabled: true, releases: [], upstreamOk: false });
+      const { result } = renderHook(() => useUpdateCheck('v0.3.0'));
+      await waitFor(() => expect(result.current.status).toBe('unavailable'));
+    });
+
+    it('is disabled when the server has the check turned off', async () => {
+      fetchJson.mockResolvedValue({ enabled: false, releases: [] });
+      const { result } = renderHook(() => useUpdateCheck('v0.3.0'));
+      await waitFor(() => expect(result.current.status).toBe('disabled'));
+    });
+
+    it('is disabled when the user turned the check off', () => {
+      localStorage.setItem('hc_disable_update_check', 'true');
+      const { result } = renderHook(() => useUpdateCheck('v0.3.0'));
+      expect(result.current.status).toBe('disabled');
+    });
+
+    it('keeps reporting a dismissed release as latest', async () => {
+      localStorage.setItem('hc_update_dismissed', 'v0.4.0');
+      respond([release('v0.4.0')]);
+      const { result } = renderHook(() => useUpdateCheck('v0.3.0'));
+      await waitFor(() => expect(result.current.status).toBe('available'));
+      expect(result.current.update).toBeNull();
+      expect(result.current.latest.tag).toBe('v0.4.0');
+    });
+  });
+
+  describe('when turned off', () => {
     it('does not call out at all when the user disabled the check', async () => {
       localStorage.setItem('hc_disable_update_check', 'true');
       renderHook(() => useUpdateCheck('v0.3.0'));

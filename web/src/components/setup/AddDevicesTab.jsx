@@ -758,8 +758,9 @@ function MatterCard({
       </button>
 
       <p className="text-[11px] text-hc-muted italic">
-        Supports on/off, level control, boolean state, temperature, humidity, and occupancy clusters.
-        Accessories using other clusters will pair but won't produce events.{' '}
+        Supports 15 clusters, including on/off, dimming, contact, temperature, humidity, motion,
+        locks, blinds, thermostats and energy. Accessories using other clusters will pair but
+        won't produce events.{' '}
         <button onClick={() => onOpenHelp('clusters')} className="underline hover:text-hc-fg transition-colors">See supported accessories</button>
       </p>
 

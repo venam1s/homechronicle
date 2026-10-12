@@ -25,6 +25,20 @@ describe('AboutSection', () => {
     expect(screen.getByText('Up to date')).toBeInTheDocument();
   });
 
+  it('never claims up to date when the check failed', () => {
+    renderAbout({ updateStatus: 'unavailable' });
+    expect(screen.queryByText('Up to date')).not.toBeInTheDocument();
+    expect(screen.getByText('Couldn’t check for updates')).toBeInTheDocument();
+  });
+
+  it('says when the check is still running or turned off', () => {
+    const { unmount } = renderAbout({ updateStatus: 'checking' });
+    expect(screen.getByText('Checking…')).toBeInTheDocument();
+    unmount();
+    renderAbout({ updateStatus: 'disabled' });
+    expect(screen.getByText('Update check is off')).toBeInTheDocument();
+  });
+
   it('links to an available update', () => {
     renderAbout({ availableUpdate: { tag: 'v0.5.0', url: 'https://example.test/rel' } });
     expect(screen.getByRole('link', { name: /v0\.5\.0 available/ })).toHaveAttribute('href', 'https://example.test/rel');

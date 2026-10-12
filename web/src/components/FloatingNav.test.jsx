@@ -71,4 +71,27 @@ describe('FloatingNav', () => {
     expect(screen.getByRole('button', { name: 'Open navigation menu' })).toBeInTheDocument();
     expect(screen.queryByText('Timeline')).not.toBeInTheDocument();
   });
+
+  it('hides Sign out unless onSignOut is passed (login turned off)', () => {
+    setup();
+    openMenu();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+  });
+
+  // The masthead's account menu doesn't render below 1024px; without this
+  // there was no way to sign out on a phone.
+  it('offers Sign out, closing the menu before calling onSignOut', () => {
+    const onSignOut = vi.fn();
+    setup({ onSignOut });
+    openMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Open navigation menu' })).toBeInTheDocument();
+  });
+
+  it('disables Sign out while signing out', () => {
+    setup({ onSignOut: vi.fn(), signingOut: true });
+    openMenu();
+    expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
+  });
 });

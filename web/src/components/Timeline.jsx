@@ -339,7 +339,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
    * The useEffect above handles the scroll once the page data loads.
    * Clicking the same cell a second time unlocks it.
    */
-  async function handleClickCell(name, hour) {
+  async function handleClickCell(name, hour, localHour) {
     const isAlreadyLocked = lockedCell?.accessoryName === name && lockedCell?.hour === hour;
 
     if (isAlreadyLocked) {
@@ -347,7 +347,10 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
       return;
     }
 
-    setLockedCell({ accessoryName: name, hour });
+    // `hour` is UTC (the jump API and hover matching use it); `localHour` is the
+    // column clicked, kept for the banner — converting the UTC hour back is off
+    // by one in half-hour time zones.
+    setLockedCell({ accessoryName: name, hour, localHour: localHour ?? utcHourToLocal(hour) });
     setHeatmapOpen(false);
     setIsJumping(true);
 
@@ -413,8 +416,8 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
           }
           <span className="text-xs text-hc-warning-text font-medium truncate">
             {isJumping
-              ? `Finding ${lockedCell.accessoryName} at ${lockedCell.hour}:00 UTC…`
-              : `${lockedCell.accessoryName} · ${lockedCell.hour}:00 UTC`
+              ? `Finding ${lockedCell.accessoryName} at ${formatHour12(lockedCell.localHour)}…`
+              : `${lockedCell.accessoryName} · ${formatHour12(lockedCell.localHour)}`
             }
           </span>
           {!isJumping && (

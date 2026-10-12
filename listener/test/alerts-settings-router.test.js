@@ -10,7 +10,7 @@ import { createAlertsSettingsRouter } from '../src/alerts-settings-router.js';
  * `enabled`. An operator who toggled it off was told alerts were disabled
  * while every rule carried on firing.
  */
-function makeApp(initial = { defaultQuietMinutes: 0, webhookTimeoutMs: 5000 }) {
+function makeApp(initial = { defaultQuietMinutes: 0, webhookTimeoutMs: 5000 }, { webhookTimeoutEnvMs = null } = {}) {
   let settings = { ...initial };
   const app = express();
   // No express.json(): requests are driven in-process with `body` already
@@ -19,6 +19,7 @@ function makeApp(initial = { defaultQuietMinutes: 0, webhookTimeoutMs: 5000 }) {
     getSettings: () => ({ ...settings }),
     saveSettings: async (s) => { settings = { ...s }; },
     onSettingsChange: () => {},
+    webhookTimeoutEnvMs,
     // The real router mounts an admin guard and a rate limiter; both are
     // pass-throughs here so these tests exercise the validation itself.
     requireAdminSession: (req, res, next) => next(),
@@ -36,10 +37,10 @@ function makeApp(initial = { defaultQuietMinutes: 0, webhookTimeoutMs: 5000 }) {
  * enough to perturb a timing-sensitive reconnect test in a different file.
  * Express handlers are just functions — there is no reason to involve TCP.
  */
-function patch(app, body) {
+function patch(app, body, method = 'PATCH') {
   return new Promise((resolve, reject) => {
     const req = {
-      method: 'PATCH',
+      method,
       url: '/api/setup/alerts',
       originalUrl: '/api/setup/alerts',
       headers: { 'content-type': 'application/json' },
@@ -100,5 +101,37 @@ describe('alerts settings router', () => {
   test('rejects an empty patch', async () => {
     const { app } = makeApp();
     assert.equal((await patch(app, {})).status, 400);
+  });
+
+  // ALERTS_WEBHOOK_TIMEOUT_MS predates the Settings field. Any install that
+  // ever saved Data management already has webhookTimeoutMs: 5000 on disk, so
+  // letting the saved value win would silently override an existing .env.
+  describe('when ALERTS_WEBHOOK_TIMEOUT_MS is set', () => {
+    test('reports the env timeout, flagged, instead of the saved one', async () => {
+      const { app } = makeApp(undefined, { webhookTimeoutEnvMs: 12000 });
+      const res = await patch(app, undefined, 'GET');
+      assert.equal(res.status, 200);
+      assert.equal(res.body.webhookTimeoutMs, 12000);
+      assert.equal(res.body.webhookTimeoutFromEnv, true);
+    });
+
+    test('refuses to change the timeout but still saves the quiet period', async () => {
+      const { app, read } = makeApp(undefined, { webhookTimeoutEnvMs: 12000 });
+      const locked = await patch(app, { webhookTimeoutMs: 8000 });
+      assert.equal(locked.status, 400);
+      assert.match(locked.body.error, /ALERTS_WEBHOOK_TIMEOUT_MS/);
+      assert.equal(read().webhookTimeoutMs, 5000);
+
+      const quiet = await patch(app, { defaultQuietMinutes: 15 });
+      assert.equal(quiet.status, 200);
+      assert.equal(quiet.body.webhookTimeoutMs, 12000);
+    });
+
+    test('is not flagged when the env var is unset', async () => {
+      const { app } = makeApp();
+      const res = await patch(app, undefined, 'GET');
+      assert.equal(res.body.webhookTimeoutFromEnv, false);
+      assert.equal(res.body.webhookTimeoutMs, 5000);
+    });
   });
 });

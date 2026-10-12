@@ -2,11 +2,27 @@ import { resolveAndValidateWebhookTarget } from './security.js';
 import { sendAlertEmail, isEmailEnabled } from './emails.js';
 import { log } from './logger.js';
 
-const ALERTS_WEBHOOK_TIMEOUT_MS = (() => {
+// Webhook timeout precedence: ALERTS_WEBHOOK_TIMEOUT_MS when it is set (it
+// predates the Settings field, and existing .env configs must keep working);
+// otherwise the value saved in Settings › Configuration › Data management,
+// which index.js applies through setWebhookTimeoutMs().
+export const WEBHOOK_TIMEOUT_FROM_ENV = String(process.env.ALERTS_WEBHOOK_TIMEOUT_MS ?? '').trim() !== '';
+export const ALERTS_WEBHOOK_TIMEOUT_MS = (() => {
   const parsed = Number.parseInt(process.env.ALERTS_WEBHOOK_TIMEOUT_MS ?? '5000', 10);
   if (!Number.isFinite(parsed) || parsed < 500) return 5000;
   return parsed;
 })();
+let webhookTimeoutMs = ALERTS_WEBHOOK_TIMEOUT_MS;
+
+/** Set the timeout for outbound webhook deliveries. Ignores anything under 500ms. */
+export function setWebhookTimeoutMs(ms) {
+  const parsed = Number.parseInt(String(ms ?? ''), 10);
+  if (Number.isFinite(parsed) && parsed >= 500) webhookTimeoutMs = parsed;
+}
+
+export function getWebhookTimeoutMs() {
+  return webhookTimeoutMs;
+}
 const ALERTS_ALLOW_PRIVATE_TARGETS = /^(1|true|yes|on)$/i.test(
   process.env.ALERTS_ALLOW_PRIVATE_TARGETS ?? 'true'
 );
@@ -158,7 +174,8 @@ async function sendWebhook(rule, event) {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ALERTS_WEBHOOK_TIMEOUT_MS);
+  const timeoutMs = webhookTimeoutMs;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const firedAt = new Date().toISOString();
@@ -193,7 +210,7 @@ async function sendWebhook(rule, event) {
     return {
       status: 'failed',
       error: err?.name === 'AbortError'
-        ? `Webhook timeout after ${ALERTS_WEBHOOK_TIMEOUT_MS}ms`
+        ? `Webhook timeout after ${timeoutMs}ms`
         : (err?.message ?? 'Webhook request failed'),
     };
   } finally {

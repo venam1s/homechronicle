@@ -9,16 +9,18 @@
 import { log } from './logger.js';
 
 /**
- * Calculate milliseconds until the next occurrence of the given hour (local time).
+ * Calculate milliseconds until the next occurrence of the given UTC hour.
+ * The stored repair hour is UTC (Settings converts the viewer's local hour on
+ * save), so this must not depend on the container's TZ.
  * If the target hour has already passed today, returns ms until tomorrow's occurrence.
- * @param {number} targetHour - hour in 0–23 range
+ * @param {number} targetHour - UTC hour in 0–23 range
  * @returns {number} milliseconds until next occurrence
  */
 export function msUntilHour(targetHour) {
   const now = new Date();
   const next = new Date(now);
-  next.setHours(targetHour, 0, 0, 0);
-  if (next <= now) next.setDate(next.getDate() + 1);
+  next.setUTCHours(targetHour, 0, 0, 0);
+  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
   return next.getTime() - now.getTime();
 }
 

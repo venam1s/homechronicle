@@ -27,8 +27,13 @@ vi.mock('./components/AccessoryDetail.jsx', () => ({
     </div>
   ),
 }));
-vi.mock('./hooks/useUpdateCheck.js', () => ({ useUpdateCheck: () => ({ update: null, dismiss: () => {} }) }));
+vi.mock('./hooks/useUpdateCheck.js', () => ({ useUpdateCheck: () => ({ update: null, latest: null, status: 'current', dismiss: () => {} }) }));
 vi.mock('./hooks/useLiveEventToasts.js', () => ({ useLiveEventToasts: () => {} }));
+// The real hook needs a router; the smoke test renders App without one.
+const mockSignOut = vi.fn();
+vi.mock('./hooks/useSignOut.js', () => ({
+  useSignOut: () => ({ signOut: mockSignOut, isPending: false, available: true }),
+}));
 const mockUseMediaQuery = vi.fn(() => false);
 vi.mock('./hooks/useMediaQuery.js', () => ({
   useMediaQuery: (...args) => mockUseMediaQuery(...args),
@@ -119,6 +124,11 @@ describe('App smoke', () => {
     fireEvent.click(fab);
     fireEvent.click(screen.getByText('Timeline'));
     expect(screen.getByText('Timeline Page')).toBeInTheDocument();
+
+    // The account menu lives in the masthead, so phones get Sign out here.
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(mockSignOut).toHaveBeenCalledTimes(1);
 
     // Reset mock
     mockUseMediaQuery.mockImplementation(() => false);

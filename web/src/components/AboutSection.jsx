@@ -29,7 +29,14 @@ const LINK_BUTTON = [
  * *actionable* half — "an update is available" — stays visible up there, as a
  * dot on the Settings nav item pointing here.
  */
-export default function AboutSection({ buildVersion, hasNewVersion, onOpenChangelog, availableUpdate }) {
+const UPDATE_STATUS_TEXT = {
+  checking: 'Checking…',
+  current: 'Up to date',
+  unavailable: 'Couldn’t check for updates',
+  disabled: 'Update check is off',
+};
+
+export default function AboutSection({ buildVersion, hasNewVersion, onOpenChangelog, availableUpdate, updateStatus = 'current' }) {
   return (
     <Card>
       <Card.Header title="About" headingLevel={2} />
@@ -50,7 +57,10 @@ export default function AboutSection({ buildVersion, hasNewVersion, onOpenChange
                 {availableUpdate.tag} available
               </a>
             ) : (
-              <span className="text-hc-muted">Up to date</span>
+              // Only a successful check may say "Up to date".
+              <span className="text-hc-muted">
+                {UPDATE_STATUS_TEXT[updateStatus] ?? UPDATE_STATUS_TEXT.unavailable}
+              </span>
             )}
           </dd>
         </dl>

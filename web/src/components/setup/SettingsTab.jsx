@@ -601,7 +601,11 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <p className="text-sm text-hc-fg">Webhook timeout</p>
-              <p className="text-xs text-hc-muted mt-0.5">Max wait time for webhook delivery.</p>
+              <p className="text-xs text-hc-muted mt-0.5">
+                {alertsConfig?.webhookTimeoutFromEnv
+                  ? 'Set by ALERTS_WEBHOOK_TIMEOUT_MS in .env.'
+                  : 'Max wait time for webhook delivery.'}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -609,15 +613,17 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
                 min="1000"
                 max="30000"
                 step="500"
+                aria-label="Webhook timeout"
+                disabled={Boolean(alertsConfig?.webhookTimeoutFromEnv)}
                 value={alertsWebhookTimeoutInput}
                 onChange={(e) => setAlertsWebhookTimeoutInput(Number(e.target.value))}
                 onBlur={() => {
                   const v = Number.parseInt(String(alertsWebhookTimeoutInput), 10);
-                  if (Number.isFinite(v) && v >= 1000 && v <= 30000) {
+                  if (!alertsConfig?.webhookTimeoutFromEnv && Number.isFinite(v) && v >= 1000 && v <= 30000) {
                     saveAlertsMutation.mutate({ webhookTimeoutMs: v });
                   }
                 }}
-                className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
+                className="w-24 text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong disabled:opacity-60"
               />
               <span className="text-xs text-hc-muted">ms</span>
             </div>
