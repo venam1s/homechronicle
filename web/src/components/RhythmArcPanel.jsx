@@ -1,5 +1,5 @@
 import { useHourlyStats, useQuietHours } from '../hooks/useEvents.js';
-import { formatHour12, utcHourToLocal, isWithinHourWindow, rotateUtcHoursToLocal } from '../lib/hours.js';
+import { formatHour12, utcHourToLocal, rotateUtcHoursToLocal } from '../lib/hours.js';
 import { SkeletonList } from './Skeleton.jsx';
 
 // Semicircle geometry: midnight at the left, noon at the top, midnight again
@@ -96,8 +96,11 @@ export default function RhythmArcPanel() {
         {/* Dial */}
         <path d={arcPath(0, 24)} fill="none" stroke="var(--hc-panel-mid)" strokeWidth={STROKE} strokeLinecap="round" />
         {/* Quiet hours */}
+        {/* Split only a window that crosses midnight (start after end). Testing
+            "is midnight inside it" also matched a window that STARTS at
+            midnight, and 12 AM–5 AM then painted the whole dial. */}
         {quietOn && (
-          isWithinHourWindow(0, qStart, qEnd)
+          qStart > qEnd
             ? <>
                 <path d={arcPath(0, qEnd)} fill="none" stroke="var(--hc-room-3)" strokeWidth={STROKE} strokeLinecap="round" />
                 <path d={arcPath(qStart, 24)} fill="none" stroke="var(--hc-room-3)" strokeWidth={STROKE} strokeLinecap="round" />

@@ -2,9 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 const hourly = vi.fn();
+const quiet = vi.fn(() => ({ data: { enabled: true, quietHoursStart: 3, quietHoursEnd: 10 } }));
 vi.mock('../hooks/useEvents.js', () => ({
   useHourlyStats: () => hourly(),
-  useQuietHours: () => ({ data: { enabled: true, quietHoursStart: 3, quietHoursEnd: 10 } }),
+  useQuietHours: () => quiet(),
 }));
 
 const { default: RhythmArcPanel, GEOMETRY, arcPath } = await import('./RhythmArcPanel.jsx');
@@ -94,5 +95,35 @@ describe('rhythm arc paths', () => {
     expect(x1).toBeLessThan(x2);
     // Small arc + clockwise sweep from left to right runs over the top.
     expect(flags(d)).toEqual(['0', '1']);
+  });
+});
+
+// Quiet hours are drawn as one arc, or two when the window crosses midnight.
+// The split used to test "is midnight inside the window", which is also true
+// for a window that STARTS at midnight: 12 AM–5 AM drew 0–5 plus 0–24, and
+// the whole dial turned the quiet-hours colour.
+describe('rhythm quiet-hours arcs', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const quietArcs = (container) =>
+    [...container.querySelectorAll('path')].filter((p) => p.getAttribute('stroke') === 'var(--hc-room-3)');
+
+  function renderWithQuiet(startUtc, endUtc) {
+    vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(240); // EDT
+    hourly.mockReturnValue({ data: [{ hour: 14, count: 5 }], isLoading: false });
+    quiet.mockReturnValue({ data: { enabled: true, quietHoursStart: startUtc, quietHoursEnd: endUtc } });
+    return render(<RhythmArcPanel />);
+  }
+
+  it('draws one arc, 12 AM to 5 AM, for a window starting at midnight', () => {
+    const { container } = renderWithQuiet(4, 9); // 4–9 UTC = 12 AM–5 AM EDT
+    const arcs = quietArcs(container);
+    expect(arcs).toHaveLength(1);
+    expect(arcs[0].getAttribute('d')).toBe(arcPath(0, 5));
+  });
+
+  it('splits a window that crosses midnight into two arcs', () => {
+    const { container } = renderWithQuiet(3, 10); // 11 PM–6 AM EDT
+    expect(quietArcs(container).map((p) => p.getAttribute('d'))).toEqual([arcPath(0, 6), arcPath(23, 24)]);
   });
 });
