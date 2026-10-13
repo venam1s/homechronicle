@@ -498,7 +498,22 @@ async function captureMobile(browser) {
  * fresh page load of every panel, which can trip the listener's stats rate
  * limit; a failed load is retried after a pause rather than captured.
  */
+// A panel whose request fails doesn't always say so: Today's Rhythm quietly
+// falls back to default quiet hours (11 PM–6 AM UTC) when /api/stats/quiet-hours
+// is rate-limited, so a shot can look fine and still be wrong. Count failed
+// API responses too, not just visible error text.
+const apiFailures = new WeakMap();
+function trackApiFailures(page) {
+  apiFailures.set(page, 0);
+  page.on('response', (resp) => {
+    if (resp.url().includes('/api/') && resp.status() >= 400) {
+      apiFailures.set(page, (apiFailures.get(page) ?? 0) + 1);
+    }
+  });
+}
+
 async function dashboardFailed(page) {
+  if ((apiFailures.get(page) ?? 0) > 0) return true;
   return (await page.getByText(/unavailable right now|Failed to load/i).count()) > 0;
 }
 
@@ -511,11 +526,13 @@ async function capturePalettes(browser) {
       const file = `palette-${palette}-${theme}.png`;
       await shot(file, async () => {
         const { ctx, page } = await openPage(browser, { look: { palette, theme } });
+        trackApiFailures(page);
         await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
         await waitForCharts(page);
         for (let attempt = 1; attempt <= 3 && await dashboardFailed(page); attempt++) {
           console.log(`    … ${file}: panels failed to load, retrying in 30s (${attempt}/3)`);
           await page.waitForTimeout(30000);
+          apiFailures.set(page, 0);
           await page.reload({ waitUntil: 'networkidle' });
           await waitForCharts(page);
         }
