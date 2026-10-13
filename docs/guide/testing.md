@@ -210,7 +210,7 @@ Web tests live alongside the source files they test:
 
 | File | Tests |
 |---|---|
-| `web/src/App.smoke.test.jsx` | Top-level tab navigation smoke test |
+| `web/src/App.smoke.test.jsx` | App shell smoke test: masthead and floating-nav navigation, accessory detail with browser back, floating-nav bottom padding, and Sign out on phones |
 | `web/src/components/Toast.test.jsx` | Toast component behaviour |
 | `web/src/components/Timeline.test.jsx` | Timeline rendering |
 | `web/src/components/setup/MyDevicesTab.test.jsx` | Device list tab |
