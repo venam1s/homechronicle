@@ -73,7 +73,9 @@ export default function RhythmArcPanel() {
   const peak = byHour.reduce((best, n, h) => (n > byHour[best] ? h : best), 0);
   const hasData = byHour.some((n) => n > 0);
 
-  const quietOn = quiet?.enabled !== false;
+  // Unknown (still loading, or the request failed) is not the same as the
+  // default window: show no quiet hours rather than an invented 11 PM–6 AM.
+  const quietOn = quiet != null && quiet.enabled !== false;
   const qStart = utcHourToLocal(quiet?.quietHoursStart ?? 23);
   const qEnd = utcHourToLocal(quiet?.quietHoursEnd ?? 6);
   const quietEvents = quiet?.events ?? [];

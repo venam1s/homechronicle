@@ -127,3 +127,18 @@ describe('rhythm quiet-hours arcs', () => {
     expect(quietArcs(container).map((p) => p.getAttribute('d'))).toEqual([arcPath(0, 6), arcPath(23, 24)]);
   });
 });
+
+// A failed or still-loading quiet-hours request used to fall back to the
+// default 11 PM–6 AM (UTC) window and present it as the house's setting.
+describe('rhythm without quiet-hours data', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('draws no quiet arc and states no quiet hours', () => {
+    hourly.mockReturnValue({ data: [{ hour: 14, count: 5 }], isLoading: false });
+    quiet.mockReturnValue({ data: undefined });
+    const { container } = render(<RhythmArcPanel />);
+    const quietArcs = [...container.querySelectorAll('path')].filter((p) => p.getAttribute('stroke') === 'var(--hc-room-3)');
+    expect(quietArcs).toHaveLength(0);
+    expect(screen.queryByText('Quiet hours')).not.toBeInTheDocument();
+  });
+});

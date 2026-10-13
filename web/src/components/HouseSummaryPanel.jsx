@@ -60,7 +60,8 @@ export default function HouseSummaryPanel() {
     : null;
 
   const quietEvents = quiet?.events ?? [];
-  const quietWindow = quiet?.enabled === false
+  // No data (loading or failed) means no quiet-hours clause, not the default window.
+  const quietWindow = quiet == null || quiet.enabled === false
     ? null
     : `${formatHour12(utcHourToLocal(quiet?.quietHoursStart ?? 23))} – ${formatHour12(utcHourToLocal(quiet?.quietHoursEnd ?? 6))}`;
 

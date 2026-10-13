@@ -106,7 +106,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
   // VIEW-03: the quiet-hours window, used only to rule off the quiet stretch of
   // each day. Non-fatal if unavailable — the divider simply is not drawn.
   const { data: quietData } = useQuietHours();
-  const quietOn = quietData?.enabled !== false;
+  const quietOn = quietData != null && quietData.enabled !== false;
   const quietStart = utcHourToLocal(quietData?.quietHoursStart ?? 23);
   const quietEnd = utcHourToLocal(quietData?.quietHoursEnd ?? 6);
 
