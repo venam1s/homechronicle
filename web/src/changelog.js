@@ -10,6 +10,13 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.4.3',
+    title: 'Today\'s Rhythm shows quiet hours correctly',
+    items: [
+      'Fixed Today\'s Rhythm colouring the whole dial as quiet hours when your quiet hours start at midnight.',
+    ],
+  },
+  {
     version: 'v0.4.2',
     title: 'Today\'s Rhythm busy band stays on the dial',
     items: [

@@ -2,6 +2,11 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.4.3] — 2026-10-13
+
+### Fixed
+- **Today's Rhythm painted the whole dial in the quiet-hours colour** when quiet hours start at midnight (for example 12 AM–5 AM). Only the quiet window is coloured now; windows that cross midnight, such as 11 PM–6 AM, are unchanged.
+
 ## [0.4.2] — 2026-10-12
 
 ### Fixed
