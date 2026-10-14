@@ -238,3 +238,33 @@ describe('Advanced tab gating (showAdvanced prop)', () => {
     expect(screen.queryByText('Log level')).not.toBeInTheDocument();
   });
 });
+
+describe('Test toast button', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('pops a test toast at the currently selected position', async () => {
+    renderTab(makeSetup({
+      retentionConfig: { ...makeSetup().retentionConfig, toastPosition: 'top-left' },
+    }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Toast' }));
+    expect(screen.queryByText(/test notification/i)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /show test toast/i }));
+
+    const toastText = await screen.findByText(/test notification/i);
+    const container = toastText.closest('.fixed');
+    expect(container).toHaveClass('top-20');
+    expect(container).toHaveClass('left-0');
+    expect(container).toHaveClass('items-start');
+  });
+
+  it('is disabled when toast notifications are turned off', async () => {
+    renderTab(makeSetup({
+      retentionConfig: { ...makeSetup().retentionConfig, toastsEnabled: false },
+    }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Toast' }));
+    expect(screen.getByRole('button', { name: /show test toast/i })).toBeDisabled();
+  });
+});

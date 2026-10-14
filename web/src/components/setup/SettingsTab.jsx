@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Check, CheckCircle2, Download, Loader2, Save, X } from 'lucide-react';
+import { Bell, Check, CheckCircle2, Download, Loader2, Save, X } from 'lucide-react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import clsx from 'clsx';
@@ -196,6 +196,17 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
   const effectiveToastPosition = user ? blobToastPosition : toastPositionInput;
   const effectiveToastDuration = user ? blobToastDuration : toastDurationInput;
   const effectiveToastMaxVisible = user ? blobToastMaxVisible : toastMaxVisibleInput;
+
+  // Preview the current toast settings. Push them into the provider first:
+  // the anon path only reconfigures after the debounced save round-trips.
+  const showTestToast = () => {
+    configureToasts({
+      position: effectiveToastPosition,
+      duration: effectiveToastDuration,
+      maxVisible: effectiveToastMaxVisible,
+    });
+    addToast('Test notification \u2014 toasts will appear here', 'info', { duration: effectiveToastDuration * 1000 });
+  };
   const effectiveEpisodeWindowMinutes = user ? blobEpisodeWindowMinutes : episodeWindowCurrent;
   const effectiveSceneWindowSeconds = user ? blobSceneWindowSeconds : sceneWindowCurrent;
   const effectiveEpisodeMinEventCount = user ? blobEpisodeMinEventCount : episodeMinEventCurrent;
@@ -927,6 +938,17 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
             <option value="top-left">Top Left</option>
             <option value="top-center">Top Center</option>
           </select>
+        </div>
+        <div className="flex justify-end mt-2">
+          <button
+            type="button"
+            onClick={showTestToast}
+            disabled={!effectiveToastsEnabled}
+            className="inline-flex items-center gap-1.5 text-xs text-hc-accent-strong hover:text-hc-accent-stronger disabled:opacity-50 transition-colors"
+          >
+            <Bell size={12} />
+            Show test toast
+          </button>
         </div>
       </div>
 
