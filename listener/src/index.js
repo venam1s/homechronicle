@@ -383,9 +383,9 @@ const repairScheduler = createRepairScheduler({
   loadPairings: () => pairingsStore.getSnapshot(),
   loadRooms: () => roomsStore.getSnapshot(),
   getPairingForLookup: (id) => pairingsStore.getSnapshot()[id] ?? null,
-  performPairSetupAndPersist: (deviceId, pin, address, port) =>
+  performPairSetupAndPersist: (deviceId, pin, address, port, pairMethod) =>
     performPairSetupAndPersist(
-      { deviceId, pin, address, port },
+      { deviceId, pin, address, port, pairMethod },
       { HttpClient, loadPairings, savePairings, timeoutMs: HAP_PAIR_TIMEOUT_MS },
     ),
 });

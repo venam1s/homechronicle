@@ -7,6 +7,7 @@
  */
 
 import { log } from './logger.js';
+import { resolvePairMethod } from './setup-helpers.js';
 
 /**
  * Calculate milliseconds until the next occurrence of the given UTC hour.
@@ -39,8 +40,8 @@ export function msUntilHour(targetHour) {
  * @param {function(): object} deps.loadPairings — returns pairings map { deviceId: pairing }
  * @param {function(): object} deps.loadRooms — returns rooms map
  * @param {function(string): object|null} deps.getPairingForLookup — get pairing for a device
- * @param {function(string, string, string, number): Promise<{longTermData, pairing}>} deps.performPairSetupAndPersist —
- *   pre-wired closure: (deviceId, pin, address, port) → performs full pairSetup + persist
+ * @param {function(string, string, string, number, number): Promise<{longTermData, pairing}>} deps.performPairSetupAndPersist —
+ *   pre-wired closure: (deviceId, pin, address, port, pairMethod) → performs full pairSetup + persist
  * @returns {{ start: function, stop: function, runRepairCycle: function }}
  */
 export function createRepairScheduler({
@@ -142,7 +143,9 @@ export function createRepairScheduler({
           try {
             const discovered = await discoverDevice(target.deviceId);
             if (discovered) {
-              await performPairSetupAndPersist(target.deviceId, pairing.pin, discovered.address, discovered.port);
+              await performPairSetupAndPersist(
+                target.deviceId, pairing.pin, discovered.address, discovered.port, resolvePairMethod(pairing),
+              );
               resetSubscriberStats(target.deviceId);
               const updatedPairings = loadPairings();
               const updatedPairing = updatedPairings[target.deviceId] ?? null;

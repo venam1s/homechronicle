@@ -20,7 +20,8 @@ import { withTimeout } from './utils.js';
  * subscriber.js lines 604–611.  All collaborators are injected for testability —
  * this module has no hap-controller import of its own.
  *
- * @param {{ deviceId: string, pin: string, address: string, port: number }} device
+ * @param {{ deviceId: string, pin: string, address: string, port: number, pairMethod?: number }} device
+ *   pairMethod — hap-controller PairMethods value; omitted → hap-controller's default.
  * @param {{ HttpClient: Function, loadPairings: Function, savePairings: Function, timeoutMs?: number }} deps
  * @param {number} [deps.timeoutMs=60000] - H-3: bounds the pairSetup handshake so a
  *   device that accepts TCP but never answers can no longer strand the nightly
@@ -29,14 +30,14 @@ import { withTimeout } from './utils.js';
  * @throws On pairSetup rejection, timeout, or savePairings rejection — caller handles.
  */
 export async function performPairSetupAndPersist(
-  { deviceId, pin, address, port },
+  { deviceId, pin, address, port, pairMethod },
   { HttpClient, loadPairings, savePairings, timeoutMs = 60_000 }
 ) {
   const client = new HttpClient(deviceId, address, port);
   let longTermData;
   try {
     await withTimeout(
-      client.pairSetup(pin),
+      client.pairSetup(pin, pairMethod),
       timeoutMs,
       () => { try { client.close?.(); } catch (e) { /* ignore */ } },
       'pairSetup'

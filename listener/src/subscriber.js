@@ -16,6 +16,7 @@ import {
   getAccessoryIdentity,
 } from './accessory-metadata.js';
 import { log } from './logger.js';
+import { resolvePairMethod } from './setup-helpers.js';
 import { withTimeout, parseIntInRange } from './utils.js';
 
 // H-3: bound every HAP round-trip so an accessory that accepts TCP but never
@@ -690,7 +691,7 @@ async function attemptAutoRepair(session, pairing) {
     let longTermData;
     try {
       await withTimeout(
-        repairClient.pairSetup(pairing.pin),
+        repairClient.pairSetup(pairing.pin, resolvePairMethod(pairing)),
         HAP_PAIR_TIMEOUT_MS,
         () => { try { repairClient.close?.(); } catch (e) { /* ignore */ } },
         'pairSetup'

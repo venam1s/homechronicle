@@ -888,3 +888,27 @@ test('attemptAutoRepair DOES schedule a 60s retry when pair-setup fails (failure
 
   __testHooks.resetState();
 });
+
+test('attemptAutoRepair re-pairs with the stored pair method', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+
+  const methods = [];
+  __testHooks.setHttpClientFactory(() => ({
+    pairSetup: async (_pin, method) => { methods.push(method); },
+    getLongTermData: () => ({ ltpk: 'mock-ltpk', ltsk: 'mock-ltsk' }),
+    close: () => {},
+  }));
+
+  const pairing = { name: 'Kasa Plug', address: '10.0.0.2', port: 1234, pin: '111-22-333', pairMethod: 0, longTermData: {} };
+  const { startSubscriber } = await import('../src/subscriber.js');
+  startSubscriber('repair-method-1', pairing, {}, null, {
+    discoverDevice: async () => ({ address: '10.0.0.2', port: 1234 }),
+    savePairing: async () => {},
+  });
+
+  await __testHooks.attemptAutoRepair(__testHooks.getSession('repair-method-1'), pairing);
+
+  assert.deepEqual(methods, [0]);
+  __testHooks.resetState();
+});

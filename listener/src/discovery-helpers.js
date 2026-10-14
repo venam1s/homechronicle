@@ -90,6 +90,7 @@ export function createDiscoveryHelpers({
               address: s.address,
               port: s.port,
               category: s.ci ?? null,
+              ff: s.ff ?? 0,
               paired: s.sf === 0 || !!currentPairings[s.id],
               pairedElsewhere: s.sf === 0 && !currentPairings[s.id],
               alreadyPaired: !!currentPairings[s.id],

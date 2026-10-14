@@ -66,7 +66,8 @@ discovery.on('serviceUp', async (service) => {
   const client = new HttpClient(service.id, service.address, service.port);
 
   try {
-    await client.pairSetup(pin);
+    const pairMethod = await discovery.getPairMethod(service);
+    await client.pairSetup(pin, pairMethod);
     const longTermData = client.getLongTermData();
 
     const pairings = loadPairings();
@@ -78,6 +79,7 @@ discovery.on('serviceUp', async (service) => {
       category: service.ci,
       pairedAt: new Date().toISOString(),
       pin,
+      pairMethod,
       longTermData,
     };
     savePairings(pairings);

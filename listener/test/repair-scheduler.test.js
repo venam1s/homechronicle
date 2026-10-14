@@ -661,3 +661,23 @@ test('runRepairCycle() with a throwing getRepairTargets clears running so the ne
   await scheduler.runRepairCycle();
   assert.equal(callCount, 2, 'second call should actually run getRepairTargets, not be skipped by the running guard');
 });
+
+test('runRepairCycle() re-pairs with the stored pair method (legacy records → PairSetupWithAuth)', async () => {
+  const { createRepairScheduler } = await import('../src/repair-scheduler.js');
+
+  for (const [stored, expected] of [[0, 0], [undefined, 1]]) {
+    const methods = [];
+    const m = makeMocks({
+      getRepairTargets: () => [{ deviceId: 'dev-ok', pairingName: 'Device Ok', needsRepair: true, isStale: false }],
+      discoverDevice: async () => ({ address: '10.0.0.7', port: 51234 }),
+      loadPairings: () => ({ 'dev-ok': { name: 'Device Ok', pin: '111-22-333', pairMethod: stored } }),
+      performPairSetupAndPersist: async (_deviceId, _pin, _address, _port, pairMethod) => {
+        methods.push(pairMethod);
+        return { longTermData: 'NEW', pairing: {} };
+      },
+    });
+
+    await createRepairScheduler(m).runRepairCycle();
+    assert.deepEqual(methods, [expected], `stored pairMethod=${stored}`);
+  }
+});

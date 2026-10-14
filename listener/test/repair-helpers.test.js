@@ -123,3 +123,21 @@ test('performPairSetupAndPersist preserves existing fields on the pairing entry'
   assert.equal(saved.pin, '999-88-777', 'pin updated');
   assert.ok(typeof saved.pairedAt === 'string', 'pairedAt set');
 });
+
+test('performPairSetupAndPersist passes pairMethod through to pairSetup', async () => {
+  const { performPairSetupAndPersist } = await import('../src/repair-helpers.js');
+
+  const pairSetupCalls = [];
+  const MockHttpClient = class {
+    async pairSetup(pin, method) { pairSetupCalls.push({ pin, method }); }
+    getLongTermData() { return {}; }
+    close() {}
+  };
+
+  await performPairSetupAndPersist(
+    { deviceId: 'dev-a', pin: '111-22-333', address: '10.0.0.1', port: 51234, pairMethod: 0 },
+    { HttpClient: MockHttpClient, loadPairings: () => ({}), savePairings: async () => {} },
+  );
+
+  assert.deepEqual(pairSetupCalls, [{ pin: '111-22-333', method: 0 }]);
+});

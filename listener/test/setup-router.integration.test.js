@@ -153,6 +153,64 @@ test('POST /pair — successful pairing returns success', async () => {
   assert.ok(startSubscribersCalled, 'startSubscribers should be called');
 });
 
+// -- POST /pair (pair method from mDNS feature flags) --
+
+function makePairMethodRouter({ ff, pairSetupError = null } = {}) {
+  const pairSetupCalls = [];
+  let saved = null;
+  class RecordingHttpClient extends MockHttpClient {
+    async pairSetup(pin, method) {
+      pairSetupCalls.push({ pin, method });
+      if (pairSetupError) throw new Error(pairSetupError);
+    }
+  }
+  const router = makeRouter({
+    getDiscoveryCache: () => [
+      { id: 'dev1', name: 'Plug', address: '1.2.3.4', port: 80, paired: false, pairedElsewhere: false, category: 7, ff },
+    ],
+    savePairings: async (p) => { saved = p; },
+    HttpClient: RecordingHttpClient,
+  });
+  return { router, pairSetupCalls, getSaved: () => saved };
+}
+
+test('POST /pair — uses PairSetup when the accessory has no auth coprocessor (ff=0)', async () => {
+  const { router, pairSetupCalls, getSaved } = makePairMethodRouter({ ff: 0 });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  const { statusCode } = await invoke(handler, { body: { deviceId: 'dev1', pin: '123-45-678' } });
+
+  assert.equal(statusCode, 200);
+  assert.deepEqual(pairSetupCalls, [{ pin: '123-45-678', method: 0 }]);
+  assert.equal(getSaved().dev1.pairMethod, 0, 'pair method persisted for re-pair');
+});
+
+test('POST /pair — uses PairSetup for software-auth accessories (ff=2)', async () => {
+  const { router, pairSetupCalls } = makePairMethodRouter({ ff: 2 });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  await invoke(handler, { body: { deviceId: 'dev1', pin: '123-45-678' } });
+
+  assert.equal(pairSetupCalls[0].method, 0);
+});
+
+test('POST /pair — uses PairSetupWithAuth when the accessory has an auth coprocessor (ff=1)', async () => {
+  const { router, pairSetupCalls, getSaved } = makePairMethodRouter({ ff: 1 });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  await invoke(handler, { body: { deviceId: 'dev1', pin: '123-45-678' } });
+
+  assert.equal(pairSetupCalls[0].method, 1);
+  assert.equal(getSaved().dev1.pairMethod, 1);
+});
+
+test('POST /pair — M4 empty TLV returns actionable guidance', async () => {
+  const { router } = makePairMethodRouter({ ff: 0, pairSetupError: 'M4: Empty TLV' });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  const { statusCode, jsonBody } = await invoke(handler, { body: { deviceId: 'dev1', pin: '123-45-678' } });
+
+  assert.equal(statusCode, 400);
+  assert.match(jsonBody.error, /setup code/i);
+  assert.doesNotMatch(jsonBody.error, /^Pairing failed: M4/);
+});
+
 test('POST /pair — missing deviceId returns 400', async () => {
   const router = makeRouter();
   const handler = getRouteHandler(router, 'POST', '/pair');
@@ -327,6 +385,27 @@ test('POST /repair/:deviceId — successful repair', async () => {
   assert.ok(resetStatsCalled, 'resetSubscriberStats should be called');
   assert.ok(stopSubscriberCalled, 'stopSubscriber should be called');
   assert.ok(startSubscribersCalled, 'startSubscribers should be called');
+});
+
+test('POST /repair/:deviceId — reuses the stored pair method; legacy records keep PairSetupWithAuth', async () => {
+  for (const [stored, expected] of [[0, 0], [1, 1], [undefined, 1]]) {
+    const methods = [];
+    class RecordingHttpClient extends MockHttpClient {
+      async pairSetup(_pin, method) { methods.push(method); }
+    }
+    const router = makeRouter({
+      loadPairings: () => ({
+        dev1: { protocol: 'homekit', name: 'Light', pin: '123-45-678', address: '1.2.3.4', port: 80, pairMethod: stored },
+      }),
+      discoverDeviceForRepair: async () => ({ address: '1.2.3.4', port: 80 }),
+      HttpClient: RecordingHttpClient,
+    });
+    const handler = getRouteHandler(router, 'POST', '/repair/:deviceId');
+    const { statusCode } = await invoke(handler, { params: { deviceId: 'dev1' } });
+
+    assert.equal(statusCode, 200);
+    assert.deepEqual(methods, [expected], `stored pairMethod=${stored}`);
+  }
 });
 
 test('POST /repair/:deviceId — 404 for unknown device', async () => {

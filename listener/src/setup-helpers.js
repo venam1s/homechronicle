@@ -5,6 +5,8 @@
  * createStoreHelpers: factory for store wrapper functions (closes over injected store instances).
  */
 
+import { PairMethods } from 'hap-controller';
+
 // -- Pairing normalization --
 
 export function normalizeMatterNodeId(value) {
@@ -55,6 +57,33 @@ export function getHomeKitPairings(pairings = {}) {
   return Object.fromEntries(
     Object.entries(pairings).filter(([, pairing]) => isHomeKitPairing(pairing))
   );
+}
+
+// -- HAP pair-setup method --
+
+// mDNS `ff` bit 0x01: accessory has an Apple authentication coprocessor.
+const FF_AUTH_COPROCESSOR = 0x01;
+
+/**
+ * Pick the pair-setup method from the accessory's advertised feature flags,
+ * mirroring hap-controller's IPDiscovery.getPairMethod(). Accessories without
+ * an auth coprocessor (e.g. Kasa, ff=0/2) can reject PairSetupWithAuth with a
+ * malformed M4 response ("M4: Empty TLV").
+ */
+export function pairMethodForFeatureFlags(ff) {
+  return (Number(ff) & FF_AUTH_COPROCESSOR)
+    ? PairMethods.PairSetupWithAuth
+    : PairMethods.PairSetup;
+}
+
+/**
+ * Pair method to reuse when re-pairing a stored HomeKit pairing. Records saved
+ * before pairMethod was persisted keep hap-controller's historical default.
+ */
+export function resolvePairMethod(pairing) {
+  return Number.isInteger(pairing?.pairMethod)
+    ? pairing.pairMethod
+    : PairMethods.PairSetupWithAuth;
 }
 
 // -- Reliability stats mapping --

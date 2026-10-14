@@ -5,7 +5,13 @@ import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { parseIntInRange } from './utils.js';
 import { shortUuid } from './accessory-metadata.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
-import { isHomeKitPairing, getHomeKitPairings, normalizePairingRecord } from './setup-helpers.js';
+import {
+  isHomeKitPairing,
+  getHomeKitPairings,
+  normalizePairingRecord,
+  pairMethodForFeatureFlags,
+  resolvePairMethod,
+} from './setup-helpers.js';
 
 const SETUP_WRITE_RATE_LIMIT_WINDOW_MS = parseIntInRange(
   process.env.API_WRITE_RATE_LIMIT_WINDOW_MS, 60_000, 1_000, 24 * 60 * 60 * 1000
@@ -97,11 +103,13 @@ export function createSetupRouter({
       log.warn(`[setup] ${cached.name} appears paired to another controller (sf=0) — attempting anyway`);
     }
 
+    const pairMethod = pairMethodForFeatureFlags(cached.ff);
     log.info(`[setup] Pairing ${cached.name} (${deviceId})`);
+    log.debug(`[setup] ${cached.name}: ff=${cached.ff ?? 'unknown'} → pair method ${pairMethod}`);
 
     try {
       const client = new HttpClient(deviceId, cached.address, cached.port);
-      await client.pairSetup(pin);
+      await client.pairSetup(pin, pairMethod);
       const longTermData = client.getLongTermData();
 
       const updatedPairings = loadPairings();
@@ -113,6 +121,7 @@ export function createSetupRouter({
         category: cached.category,
         pairedAt: new Date().toISOString(),
         pin,
+        pairMethod,
         longTermData,
       };
       await savePairings(updatedPairings);
@@ -151,6 +160,8 @@ export function createSetupRouter({
         friendly = 'Device returned an unknown error. Try again — if it persists, restart the device.';
       else if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg))
         friendly = 'Could not reach the device. Run a new scan to refresh its address, then try again.';
+      else if (/M4: Empty TLV/.test(msg))
+        friendly = 'The device ended pairing at the setup-code check without giving a reason. Double-check the 8-digit HomeKit setup code, power-cycle the device, then try again.';
       res.status(400).json({ error: friendly });
     }
   });
@@ -260,7 +271,7 @@ export function createSetupRouter({
       }
 
       const client = new HttpClient(deviceId, discovered.address, discovered.port);
-      await client.pairSetup(pin);
+      await client.pairSetup(pin, resolvePairMethod(pairing));
       const longTermData = client.getLongTermData();
 
       // Save updated pairing
