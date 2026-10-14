@@ -557,3 +557,38 @@ test('processAlertsForEvent uses the timeout set at runtime', async () => {
     global.fetch = originalFetch;
   }
 });
+
+// HomeKit events used to be named "<accessory> · <serviceType>" (accidental
+// disambiguation, fixed with the HAP UUID map). Accessory-scoped rules saved
+// with the old name must keep firing now that events carry the plain name.
+test('processAlertsForEvent accessory scope matches plain and legacy "name · service" values', async () => {
+  for (const [scopeValue, shouldFire] of [
+    ['Hallway Motion', true],
+    ['hallway motion · motionsensor', true],
+    ['Hallway Motion · Lightbulb', false],
+  ]) {
+    const deliveries = [];
+    const pool = {
+      async query(sql, params = []) {
+        if (sql.includes('FROM alert_rules')) {
+          return { rows: [makeRule({ scope_type: 'accessory', scope_value: scopeValue })] };
+        }
+        if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+        if (sql.startsWith('INSERT INTO alert_deliveries')) {
+          deliveries.push({ status: params[2] });
+          return { rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({ ok: true, status: 200 });
+    try {
+      await processAlertsForEvent(pool, makeEvent());
+      assert.equal(deliveries.length, shouldFire ? 1 : 0, `scope_value=${scopeValue}`);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  }
+});

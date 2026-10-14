@@ -76,7 +76,14 @@ function eventMatchesScope(rule, event) {
   }
   if (scopeType === 'accessory') {
     const target = normalizeLower(scopeValue);
-    return normalizeLower(event.accessoryName) === target || normalizeLower(event.accessoryId) === target;
+    // Before the HAP UUID map fix, HomeKit events were named "<name> · <service>";
+    // rules saved with that name must keep matching the plain name.
+    const legacyName = event.accessoryName && event.serviceType
+      ? `${event.accessoryName} · ${event.serviceType}`
+      : null;
+    return normalizeLower(event.accessoryName) === target
+      || normalizeLower(event.accessoryId) === target
+      || (legacyName !== null && normalizeLower(legacyName) === target);
   }
   if (scopeType === 'characteristic') {
     return normalizeLower(event.characteristic) === normalizeLower(scopeValue);
