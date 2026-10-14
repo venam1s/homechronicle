@@ -393,6 +393,23 @@
       grid-column: 1 / -1;
     }
 
+    /* A tall, narrow screenshot (the sign-in card) on a full row: image on the
+       left, caption beside it, so it neither shrinks to a third of the row nor
+       towers over the page. */
+    .detail-card.side {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(0, 340px) 1fr;
+      align-items: center;
+    }
+
+    .detail-card.side img {
+      border-bottom: 0;
+      border-right: 1px solid var(--border);
+    }
+
+    .detail-card.side .detail-caption { padding: 24px 32px; }
+
     .detail-card {
       background: var(--bg);
       border-radius: var(--radius-md);
@@ -670,6 +687,8 @@
 
       .screenshot-grid,
       .detail-grid { grid-template-columns: 1fr; }
+      .detail-card.side { grid-template-columns: 1fr; }
+      .detail-card.side img { border-right: 0; border-bottom: 1px solid var(--border); }
 
       .steps { grid-template-columns: 1fr; }
 
@@ -932,21 +951,21 @@
       </div>
 
       <div class="detail-grid">
-        <div class="detail-card">
+        <div class="detail-card side">
           <img src="screenshots/login-page.png" alt="Sign in page with email and password fields">
           <div class="detail-caption">
             <h3>Sign In</h3>
             <p>Auth is opt-in via <code>AUTH_ENABLED</code>. The sign-in screen appears only when login is on; disable it to restore the single-operator mode.</p>
           </div>
         </div>
-        <div class="detail-card">
+        <div class="detail-card wide">
           <img src="screenshots/settings-users.png" alt="User management panel showing member list with invite and role controls">
           <div class="detail-caption">
             <h3>User Management</h3>
             <p>Admins can invite members by email, promote or demote roles, and disable accounts. No public registration — every account comes from an invite.</p>
           </div>
         </div>
-        <div class="detail-card">
+        <div class="detail-card wide">
           <img src="screenshots/settings-account-sessions.png" alt="Active sessions list with device info and revoke buttons">
           <div class="detail-caption">
             <h3>Active Sessions</h3>
@@ -1321,5 +1340,6 @@ volumes:
     })();
   </script>
 
+  <script src="assets/lightbox.js" defer></script>
 </body>
 </html>

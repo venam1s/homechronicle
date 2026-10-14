@@ -291,6 +291,41 @@ async function cropPanel(page, anchor, file) {
   await target.screenshot({ path: out(file) });
 }
 
+// The Settings card (rounded-xl Card) whose header heading is `title`.
+const cardOf = (page, title) => page
+  .getByRole('heading', { name: title, exact: true }).first()
+  .locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]');
+
+/**
+ * Screenshot just the given elements (their union, plus padding) instead of the
+ * whole viewport. The docs show these in cards a third to a full row wide, and a
+ * full 1280px page shrunk to that size is unreadable. Clamped to <main> so the
+ * masthead never creeps into the crop.
+ */
+async function clipShot(page, locators, file, { pad = 24, alignTop = false } = {}) {
+  if (alignTop) {
+    await locators[0].evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  } else {
+    await locators[0].scrollIntoViewIfNeeded();
+  }
+  await page.waitForTimeout(600);
+  const boxes = [];
+  for (const l of locators) {
+    const box = await l.boundingBox();
+    if (!box) throw new Error(`${file}: element not visible`);
+    boxes.push(box);
+  }
+  const vp = page.viewportSize();
+  const main = await page.locator('main').first().boundingBox().catch(() => null);
+  const area = main ?? { x: 0, y: 0, width: vp.width, height: vp.height };
+  const x = Math.max(area.x, Math.min(...boxes.map((b) => b.x)) - pad);
+  const y = Math.max(area.y, Math.min(...boxes.map((b) => b.y)) - pad);
+  const right = Math.min(area.x + area.width, vp.width, Math.max(...boxes.map((b) => b.x + b.width)) + pad);
+  const bottom = Math.min(area.y + area.height, vp.height, Math.max(...boxes.map((b) => b.y + b.height)) + pad);
+  if (right - x < 40 || bottom - y < 40) throw new Error(`${file}: crop too small`);
+  await page.screenshot({ path: out(file), clip: { x, y, width: right - x, height: bottom - y } });
+}
+
 async function navTo(page, label) {
   await page.locator('nav[aria-label="Main navigation"] button', { hasText: label }).first().click({ timeout: 8000 });
   await page.waitForTimeout(1800);
@@ -349,7 +384,7 @@ async function capturePages(browser, verify) {
     await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' });
     await page.waitForSelector('input[type="password"]', { timeout: 8000 });
     await page.waitForTimeout(800);
-    await viewportShot(page, 'login-page.png');
+    await clipShot(page, [page.locator('div.rounded-xl:has(input[type="password"])').first()], 'login-page.png', { pad: 32 });
     await ctx.close();
   });
 
@@ -422,7 +457,7 @@ async function capturePages(browser, verify) {
   });
   await shot('settings-users.png', async () => {
     await settingsSection(page, 'Admin');
-    await viewportShot(page, 'settings-users.png');
+    await clipShot(page, [cardOf(page, 'Users'), cardOf(page, 'Pending invites')], 'settings-users.png');
   });
   await shot('settings-email-smtp.png', async () => {
     const smtp = page.getByText('Email (SMTP)', { exact: true }).first();
@@ -447,7 +482,7 @@ async function capturePages(browser, verify) {
   });
   await shot('settings-account-sessions.png', async () => {
     await settingsSection(page, 'Account');
-    await viewportShot(page, 'settings-account-sessions.png');
+    await clipShot(page, [cardOf(page, 'Active Sessions')], 'settings-account-sessions.png', { alignTop: true });
   });
   await ctx.close();
 

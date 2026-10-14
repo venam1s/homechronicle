@@ -560,69 +560,6 @@
       .dark-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
-    /* ── Lightbox ── */
-    .lightbox-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: rgba(0,0,0,0.85);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s ease;
-      cursor: zoom-out;
-    }
-
-    .lightbox-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .lightbox-overlay img {
-      max-width: 92vw;
-      max-height: 92vh;
-      border-radius: var(--radius-md);
-      box-shadow: 0 25px 80px rgba(0,0,0,0.5);
-      transform: scale(0.92);
-      transition: transform 0.25s ease;
-    }
-
-    .lightbox-overlay.active img {
-      transform: scale(1);
-    }
-
-    .lightbox-close {
-      position: absolute;
-      top: 20px;
-      right: 24px;
-      background: rgba(255,255,255,0.15);
-      border: none;
-      color: white;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      font-size: 22px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-    }
-
-    .lightbox-close:hover { background: rgba(255,255,255,0.3); }
-
-    /* Make gallery/preview images look clickable */
-    .gallery-card img,
-    .dark-card img,
-    .mobile-card img,
-    .skin-preview img,
-    .dark-preview img {
-      cursor: zoom-in;
-    }
   </style>
 </head>
 <body>
@@ -1009,42 +946,8 @@
       });
     })();
 
-    // ── Lightbox ──
-    (function () {
-      var overlay = document.createElement('div');
-      overlay.className = 'lightbox-overlay';
-      overlay.innerHTML = '<button class="lightbox-close" aria-label="Close">&times;</button><img src="" alt="">';
-      document.body.appendChild(overlay);
-
-      var lbImg = overlay.querySelector('img');
-      var lbClose = overlay.querySelector('.lightbox-close');
-
-      function open(src, alt) {
-        lbImg.src = src;
-        lbImg.alt = alt || '';
-        overlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-      }
-
-      function close() {
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-      }
-
-      overlay.addEventListener('click', function (e) {
-        if (e.target !== lbImg) close();
-      });
-      lbClose.addEventListener('click', close);
-      document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') close();
-      });
-
-      document.addEventListener('click', function (e) {
-        var img = e.target.closest('.gallery-card img, .dark-card img, .mobile-card img, .skin-preview img, .dark-preview img');
-        if (img) open(img.src, img.alt);
-      });
-    })();
   </script>
 
+  <script src="assets/lightbox.js" defer></script>
 </body>
 </html>
