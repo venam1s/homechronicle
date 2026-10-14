@@ -369,7 +369,10 @@ test('full flow: auth errors → no PIN → needsRepair', async () => {
     longTermData: {},
   });
 
-  await sleep(200);
+  await waitUntil(
+    () => getSubscriberStats('e2e-1')?.needsRepair === true,
+    { label: 'three auth failures and needsRepair' },
+  );
 
   const stats = getSubscriberStats('e2e-1');
   assert.equal(stats.authFailed, true);
@@ -406,7 +409,9 @@ test('transient errors do NOT trigger auth failure path', async () => {
     longTermData: {},
   });
 
-  await sleep(300);
+  // Wait for the whole reconnect loop (stops itself at 6 attempts) so the
+  // assertions below see every transient failure, not just the first few.
+  await waitUntil(() => connectCount >= 6, { label: 'six transient reconnect attempts' });
 
   const session = __testHooks.getSession('transient-1');
   assert.equal(session.stats.authFailed, false);
