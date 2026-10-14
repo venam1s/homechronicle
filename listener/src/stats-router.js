@@ -202,12 +202,21 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
     try {
       const [deviceRows, roomRows] = await cached('stats:anomalies', () => Promise.all([
         pool.query(`
-          WITH recent AS (
-            SELECT accessory_id, service_type, accessory_name, timestamp
+          WITH buckets AS (
+            SELECT
+              accessory_id,
+              service_type,
+              accessory_name,
+              EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
+              DATE(timestamp AT TIME ZONE 'UTC') AS day_key,
+              (timestamp >= NOW() - INTERVAL '1 day') AS is_current,
+              COUNT(*)::int AS count,
+              MAX(timestamp) AS last_seen
             FROM event_logs
             WHERE timestamp >= NOW() - INTERVAL '31 days'
               AND accessory_name IS NOT NULL
               AND accessory_name <> ''
+            GROUP BY 1, 2, 3, 4, 5, 6
           ),
           -- Scope each component by (accessory_id, service_type), shown under its
           -- most recent name, so a stored-name change doesn't reset its baseline
@@ -215,19 +224,15 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
           latest_name AS (
             SELECT DISTINCT ON (accessory_id, service_type)
               accessory_id, service_type, accessory_name AS scope_name
-            FROM (
-              SELECT accessory_id, service_type, accessory_name, MAX(timestamp) AS last_seen
-              FROM recent
-              GROUP BY 1, 2, 3
-            ) names
+            FROM buckets
             ORDER BY accessory_id, service_type, last_seen DESC
           ),
           named AS (
-            SELECT latest_name.scope_name, recent.timestamp
-            FROM recent
+            SELECT latest_name.scope_name, buckets.hour, buckets.day_key, buckets.is_current, buckets.count
+            FROM buckets
             JOIN latest_name
-              ON latest_name.accessory_id = recent.accessory_id
-             AND latest_name.service_type IS NOT DISTINCT FROM recent.service_type
+              ON latest_name.accessory_id = buckets.accessory_id
+             AND latest_name.service_type IS NOT DISTINCT FROM buckets.service_type
           ),
           scope_set AS (
             SELECT DISTINCT scope_name FROM named
@@ -236,13 +241,9 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
             SELECT generate_series(0, 23)::int AS hour
           ),
           history AS (
-            SELECT
-              scope_name,
-              EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
-              DATE(timestamp AT TIME ZONE 'UTC') AS day_key,
-              COUNT(*)::int AS count
+            SELECT scope_name, hour, day_key, SUM(count)::int AS count
             FROM named
-            WHERE timestamp < NOW() - INTERVAL '1 day'
+            WHERE NOT is_current
             GROUP BY 1, 2, 3
           ),
           baseline AS (
@@ -260,12 +261,9 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
             GROUP BY scopes.scope_name, hours.hour
           ),
           current_window AS (
-            SELECT
-              scope_name,
-              EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
-              COUNT(*)::int AS event_count
+            SELECT scope_name, hour, SUM(count)::int AS event_count
             FROM named
-            WHERE timestamp >= NOW() - INTERVAL '1 day'
+            WHERE is_current
             GROUP BY 1, 2
           )
           SELECT
