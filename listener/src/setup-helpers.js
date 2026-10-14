@@ -6,6 +6,7 @@
  */
 
 import { PairMethods } from 'hap-controller';
+import { log } from './logger.js';
 
 // -- Pairing normalization --
 
@@ -74,6 +75,49 @@ export function pairMethodForFeatureFlags(ff) {
   return (Number(ff) & FF_AUTH_COPROCESSOR)
     ? PairMethods.PairSetupWithAuth
     : PairMethods.PairSetup;
+}
+
+// A malformed or unknown-error pair-setup reply means the accessory may not
+// support the method we chose. Definitive HAP errors (wrong PIN, busy, max
+// peers, already paired) are not retried — the other method won't change them.
+function isPairMethodMismatch(err) {
+  const msg = err?.message ?? '';
+  return /M[2-6]: (Empty TLV|Missing state|Invalid state)/.test(msg) || /M[2-6]: Error: 1\b/.test(msg);
+}
+
+/**
+ * Run pair-setup with the preferred method, retrying once with the other
+ * method if the accessory's reply suggests it didn't understand the first.
+ * A fresh client is used for the retry so no SRP state carries over.
+ *
+ * @returns {Promise<{ client: object, pairMethod: number }>} the paired client
+ *   and the method that worked (persist it for re-pair).
+ * @throws The first attempt's error when both methods fail, or any
+ *   non-mismatch error from the first attempt.
+ */
+export async function pairSetupWithFallback({ HttpClient, deviceId, address, port, pin, pairMethod }) {
+  const client = new HttpClient(deviceId, address, port);
+  try {
+    await client.pairSetup(pin, pairMethod);
+    return { client, pairMethod };
+  } catch (err) {
+    if (!isPairMethodMismatch(err)) throw err;
+    try { client.close?.(); } catch (_e) { /* ignore */ }
+
+    const fallbackMethod = pairMethod === PairMethods.PairSetup
+      ? PairMethods.PairSetupWithAuth
+      : PairMethods.PairSetup;
+    log.info(`[setup] ${deviceId}: pair method ${pairMethod} failed (${err.message}) — retrying with ${fallbackMethod}`);
+    const retryClient = new HttpClient(deviceId, address, port);
+    try {
+      await retryClient.pairSetup(pin, fallbackMethod);
+    } catch (retryErr) {
+      try { retryClient.close?.(); } catch (_e) { /* ignore */ }
+      log.debug(`[setup] ${deviceId}: fallback pair method ${fallbackMethod} also failed: ${retryErr.message}`);
+      throw err;
+    }
+    return { client: retryClient, pairMethod: fallbackMethod };
+  }
 }
 
 /**

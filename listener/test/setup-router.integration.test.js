@@ -155,13 +155,13 @@ test('POST /pair — successful pairing returns success', async () => {
 
 // -- POST /pair (pair method from mDNS feature flags) --
 
-function makePairMethodRouter({ ff, pairSetupError = null } = {}) {
+function makePairMethodRouter({ ff, pairSetupError = null, failMethods = null } = {}) {
   const pairSetupCalls = [];
   let saved = null;
   class RecordingHttpClient extends MockHttpClient {
     async pairSetup(pin, method) {
       pairSetupCalls.push({ pin, method });
-      if (pairSetupError) throw new Error(pairSetupError);
+      if (pairSetupError && (!failMethods || failMethods.includes(method))) throw new Error(pairSetupError);
     }
   }
   const router = makeRouter({
@@ -201,14 +201,37 @@ test('POST /pair — uses PairSetupWithAuth when the accessory has an auth copro
   assert.equal(getSaved().dev1.pairMethod, 1);
 });
 
-test('POST /pair — M4 empty TLV returns actionable guidance', async () => {
-  const { router } = makePairMethodRouter({ ff: 0, pairSetupError: 'M4: Empty TLV' });
+test('POST /pair — M4 empty TLV with both methods returns actionable guidance', async () => {
+  const { router, pairSetupCalls } = makePairMethodRouter({ ff: 0, pairSetupError: 'M4: Empty TLV' });
   const handler = getRouteHandler(router, 'POST', '/pair');
   const { statusCode, jsonBody } = await invoke(handler, { body: { deviceId: 'dev1', pin: '123-45-678' } });
 
   assert.equal(statusCode, 400);
+  assert.deepEqual(pairSetupCalls.map((c) => c.method), [0, 1], 'retried once with the other method');
   assert.match(jsonBody.error, /setup code/i);
   assert.doesNotMatch(jsonBody.error, /^Pairing failed: M4/);
+});
+
+test('POST /pair — falls back to the other pair method when the first is not understood', async () => {
+  const { router, pairSetupCalls, getSaved } = makePairMethodRouter({
+    ff: 2, pairSetupError: 'M4: Empty TLV', failMethods: [0],
+  });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  const { statusCode } = await invoke(handler, { body: { deviceId: 'dev1', pin: '123-45-678' } });
+
+  assert.equal(statusCode, 200);
+  assert.deepEqual(pairSetupCalls.map((c) => c.method), [0, 1]);
+  assert.equal(getSaved().dev1.pairMethod, 1, 'the method that worked is persisted');
+});
+
+test('POST /pair — definitive HAP errors (wrong PIN) are not retried', async () => {
+  const { router, pairSetupCalls } = makePairMethodRouter({ ff: 0, pairSetupError: 'M4: Error: 2' });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  const { statusCode, jsonBody } = await invoke(handler, { body: { deviceId: 'dev1', pin: '123-45-678' } });
+
+  assert.equal(statusCode, 400);
+  assert.equal(pairSetupCalls.length, 1);
+  assert.match(jsonBody.error, /Wrong PIN/);
 });
 
 test('POST /pair — missing deviceId returns 400', async () => {

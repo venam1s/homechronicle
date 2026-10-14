@@ -13,6 +13,7 @@
 import { IPDiscovery, HttpClient } from 'hap-controller';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { log } from './logger.js';
+import { pairSetupWithFallback } from './setup-helpers.js';
 
 // When running locally (outside Docker), save pairings here instead of /app/data
 const PAIRINGS_FILE = process.env.PAIRINGS_FILE
@@ -63,11 +64,11 @@ discovery.on('serviceUp', async (service) => {
   console.log(`Found: ${service.name} at ${service.address}:${service.port}`);
   console.log('Pairing...');
 
-  const client = new HttpClient(service.id, service.address, service.port);
-
   try {
-    const pairMethod = await discovery.getPairMethod(service);
-    await client.pairSetup(pin, pairMethod);
+    const { client, pairMethod } = await pairSetupWithFallback({
+      HttpClient, deviceId: service.id, address: service.address, port: service.port, pin,
+      pairMethod: await discovery.getPairMethod(service),
+    });
     const longTermData = client.getLongTermData();
 
     const pairings = loadPairings();

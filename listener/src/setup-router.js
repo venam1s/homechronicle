@@ -10,6 +10,7 @@ import {
   getHomeKitPairings,
   normalizePairingRecord,
   pairMethodForFeatureFlags,
+  pairSetupWithFallback,
   resolvePairMethod,
 } from './setup-helpers.js';
 
@@ -103,13 +104,14 @@ export function createSetupRouter({
       log.warn(`[setup] ${cached.name} appears paired to another controller (sf=0) — attempting anyway`);
     }
 
-    const pairMethod = pairMethodForFeatureFlags(cached.ff);
+    const preferredMethod = pairMethodForFeatureFlags(cached.ff);
     log.info(`[setup] Pairing ${cached.name} (${deviceId})`);
-    log.debug(`[setup] ${cached.name}: ff=${cached.ff ?? 'unknown'} → pair method ${pairMethod}`);
+    log.debug(`[setup] ${cached.name}: ff=${cached.ff ?? 'unknown'} → pair method ${preferredMethod}`);
 
     try {
-      const client = new HttpClient(deviceId, cached.address, cached.port);
-      await client.pairSetup(pin, pairMethod);
+      const { client, pairMethod } = await pairSetupWithFallback({
+        HttpClient, deviceId, address: cached.address, port: cached.port, pin, pairMethod: preferredMethod,
+      });
       const longTermData = client.getLongTermData();
 
       const updatedPairings = loadPairings();
