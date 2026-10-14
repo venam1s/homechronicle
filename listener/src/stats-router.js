@@ -202,27 +202,47 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
     try {
       const [deviceRows, roomRows] = await cached('stats:anomalies', () => Promise.all([
         pool.query(`
-          WITH scope_set AS (
-            SELECT DISTINCT accessory_name AS scope_name
+          WITH recent AS (
+            SELECT accessory_id, service_type, accessory_name, timestamp
             FROM event_logs
             WHERE timestamp >= NOW() - INTERVAL '31 days'
               AND accessory_name IS NOT NULL
               AND accessory_name <> ''
+          ),
+          -- Scope each component by (accessory_id, service_type), shown under its
+          -- most recent name, so a stored-name change doesn't reset its baseline
+          -- (e.g. legacy HomeKit "Name · Service" names becoming plain "Name").
+          latest_name AS (
+            SELECT DISTINCT ON (accessory_id, service_type)
+              accessory_id, service_type, accessory_name AS scope_name
+            FROM (
+              SELECT accessory_id, service_type, accessory_name, MAX(timestamp) AS last_seen
+              FROM recent
+              GROUP BY 1, 2, 3
+            ) names
+            ORDER BY accessory_id, service_type, last_seen DESC
+          ),
+          named AS (
+            SELECT latest_name.scope_name, recent.timestamp
+            FROM recent
+            JOIN latest_name
+              ON latest_name.accessory_id = recent.accessory_id
+             AND latest_name.service_type IS NOT DISTINCT FROM recent.service_type
+          ),
+          scope_set AS (
+            SELECT DISTINCT scope_name FROM named
           ),
           hours AS (
             SELECT generate_series(0, 23)::int AS hour
           ),
           history AS (
             SELECT
-              accessory_name AS scope_name,
+              scope_name,
               EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
               DATE(timestamp AT TIME ZONE 'UTC') AS day_key,
               COUNT(*)::int AS count
-            FROM event_logs
-            WHERE timestamp >= NOW() - INTERVAL '31 days'
-              AND timestamp < NOW() - INTERVAL '1 day'
-              AND accessory_name IS NOT NULL
-              AND accessory_name <> ''
+            FROM named
+            WHERE timestamp < NOW() - INTERVAL '1 day'
             GROUP BY 1, 2, 3
           ),
           baseline AS (
@@ -241,13 +261,11 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
           ),
           current_window AS (
             SELECT
-              accessory_name AS scope_name,
+              scope_name,
               EXTRACT(HOUR FROM timestamp AT TIME ZONE 'UTC')::int AS hour,
               COUNT(*)::int AS event_count
-            FROM event_logs
+            FROM named
             WHERE timestamp >= NOW() - INTERVAL '1 day'
-              AND accessory_name IS NOT NULL
-              AND accessory_name <> ''
             GROUP BY 1, 2
           )
           SELECT
