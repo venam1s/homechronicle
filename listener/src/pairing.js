@@ -98,6 +98,13 @@ discovery.on('serviceUp', async (service) => {
   process.exit(0);
 });
 
+discovery.on('error', (err) => {
+  if (paired) return;
+  console.error(`\nScan failed: ${err.message}`);
+  console.error('Check DISCOVER_IFACE and that this machine is on the same network as the accessory.');
+  process.exit(1);
+});
+
 discovery.start();
 
 setTimeout(() => {

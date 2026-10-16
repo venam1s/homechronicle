@@ -37,6 +37,12 @@ discovery.on('serviceUp', (service) => {
   console.log('');
 });
 
+discovery.on('error', (err) => {
+  console.error(`\nScan failed: ${err.message}`);
+  console.error('Check DISCOVER_IFACE and that this machine is on the same network as the accessories.');
+  process.exit(1);
+});
+
 discovery.start();
 
 setTimeout(() => {

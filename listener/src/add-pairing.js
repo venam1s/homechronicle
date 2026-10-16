@@ -93,6 +93,13 @@ function discoverDevice(deviceId) {
       resolve(service);
     });
 
+    discovery.on('error', (err) => {
+      clearTimeout(timer);
+      console.error(`  Scan failed: ${err.message}`);
+      try { discovery.stop(); } catch { /* browser already stopped itself */ }
+      resolve(null);
+    });
+
     discovery.start();
   });
 }
