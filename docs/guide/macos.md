@@ -138,7 +138,7 @@ Running `npm start` in Terminal is fine for trying it out, but the listener stop
 
 Press `Ctrl+C` to stop the listener you started by hand, then install it as a **LaunchDaemon**, which macOS starts at boot and restarts if it exits.
 
-> **Use a LaunchDaemon, not a LaunchAgent.** macOS's Local Network privacy lets launchd daemons reach the local network without asking ([Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)). A per-user LaunchAgent is subject to it: mDNS traffic is blocked with `EHOSTUNREACH` and the listener exits before macOS gets a chance to ask for permission.
+> **Use a LaunchDaemon, not a LaunchAgent.** macOS's Local Network privacy lets launchd daemons reach the local network without asking ([Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy)). A per-user LaunchAgent is subject to it: mDNS traffic is blocked with `EHOSTUNREACH`, so scans find nothing, and versions up to v0.4.4-beta.2 exit on that error before macOS gets a chance to ask for permission.
 
 Create the file `/Library/LaunchDaemons/net.homechronicle.listener.plist`:
 
@@ -234,7 +234,7 @@ The Matter controller runs on the same interface as HomeKit discovery (`DISCOVER
 Check the interface with `route -n get default | grep interface` and try again with that name. A VPN can take over the default route; disconnect it or set `DISCOVER_IFACE` to the physical interface. The Mac and the accessories must be on the same network segment (see [Networking](networking.md#vlans)). To see whether the Mac itself sees HomeKit announcements, run `dns-sd -B _hap._tcp` and press `Ctrl+C` after a few seconds.
 
 **Discovery works in Terminal but not when started automatically**
-Local Network privacy is blocking the listener. The log shows `send EHOSTUNREACH 224.0.0.251:5353` and the listener restarts over and over. Run it as the LaunchDaemon above, not as a LaunchAgent. The same applies to starting it from another app's built-in terminal, such as VS Code's: Apple's exemption covers Terminal itself, not other apps.
+Local Network privacy is blocking the listener. The log shows `send EHOSTUNREACH 224.0.0.251:5353`, followed by `[discovery] Scan skipped` or, on versions up to v0.4.4-beta.2, the listener restarting over and over. Run it as the LaunchDaemon above, not as a LaunchAgent. The same applies to starting it from another app's built-in terminal, such as VS Code's: Apple's exemption covers Terminal itself, not other apps.
 
 **The web UI shows `502 Bad Gateway`**
 The web container can't reach the listener. Check that it's running with `curl http://localhost:3001/api/health` (it should print `{"status":"ok"…}`). If `API_PORT` isn't `3001`, set `LISTENER_PORT` to the same value and run `docker compose up -d web`.

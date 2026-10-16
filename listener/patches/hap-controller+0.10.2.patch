@@ -23,3 +23,20 @@ index f40685b..8bfbe43 100644
                      }
                  }
              };
+diff --git a/node_modules/hap-controller/lib/transport/ip/ip-discovery.js b/node_modules/hap-controller/lib/transport/ip/ip-discovery.js
+index fcae57f..5ffba94 100644
+--- a/node_modules/hap-controller/lib/transport/ip/ip-discovery.js
++++ b/node_modules/hap-controller/lib/transport/ip/ip-discovery.js
+@@ -128,6 +128,12 @@ class IPDiscovery extends events_1.EventEmitter {
+              */
+             this.emit('serviceChanged', hapService);
+         });
++        // dnssd stops the Browser and emits 'error' when an mDNS send fails
++        // (EHOSTUNREACH, network down). Unforwarded, that emit has no listener
++        // and throws as an uncaught exception.
++        this.browser.on('error', (err) => {
++            this.emit('error', err);
++        });
+         this.browser.start();
+     }
+     /**
