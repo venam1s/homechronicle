@@ -58,6 +58,7 @@ For a complete list of available settings:
 - Environment variables: [docs/environment-variables.md](docs/environment-variables.md)
 - Minimal compose example: [docs/docker-compose.example.yml](docs/docker-compose.example.yml)
 - Portainer stack example (`docker-compose.portainer.yml`): [docs/portainer.md](docs/portainer.md)
+- **On a Mac?** Docker there can't discover HomeKit accessories; run the listener natively: [docs/guide/macos.md](docs/guide/macos.md)
 
 ### Pair your HomeKit devices
 

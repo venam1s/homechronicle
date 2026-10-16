@@ -9,6 +9,7 @@
 - On Linux, ensure `avahi-daemon` is running on the host: `systemctl status avahi-daemon`
 - Try specifying the network interface: set `DISCOVER_IFACE=eth0` (or your interface name) in `.env`
 - Check listener logs for mDNS errors: `docker compose logs listener | grep -i discover`
+- On macOS, Docker Desktop gives the listener container no access to the Mac's network interfaces, so mDNS announcements don't reach it. Run the listener natively instead: see [macOS Installation](macos.md)
 
 ### Devices show up but pairing fails
 

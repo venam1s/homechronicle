@@ -109,7 +109,7 @@ For the **standalone** single-container setup, see the Quick Start above. No clo
 
 **Devices not discovered after first run**
 
-The listener must run on the same network segment as your HomeKit accessories. On Linux, set `LISTENER_NETWORK_MODE=host` in `.env` so the container can use mDNS. On macOS, use `DISCOVER_IFACE=<interface>` (e.g., `en0`) to specify the network interface. Verify with `docker compose logs listener | grep -i discover`.
+The listener must run on the same network segment as your HomeKit accessories. On Linux, set `LISTENER_NETWORK_MODE=host` in `.env` so the container can use mDNS, and verify with `docker compose logs listener | grep -i discover`. On macOS, Docker can't see HomeKit accessories at all: run the listener natively as described in [macOS Installation](macos.md).
 
 **Pairing fails with `M2: Error: 6`**
 

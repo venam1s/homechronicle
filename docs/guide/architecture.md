@@ -194,7 +194,7 @@ The schema is managed by versioned migrations in `listener/migrations/`. On the 
 
 ## Networking
 
-- **Listener**: Uses `network_mode: host` on Linux for mDNS discovery (Bonjour) and Matter IPv6 link-local. On Docker Desktop (macOS/Windows), host mode works differently — see [Troubleshooting](troubleshooting.md).
+- **Listener**: Uses `network_mode: host` on Linux for mDNS discovery (Bonjour) and Matter IPv6 link-local. Docker Desktop (macOS/Windows) runs containers in a VM whose host mode gives no access to the host's network interfaces, so discovery doesn't work there; on a Mac the listener runs natively instead — see [macOS Installation](macos.md).
 - **Web**: Runs in bridge network. Nginx proxies `/api/*` to the listener. The `LISTENER_HOST` variable controls routing.
 - **PostgreSQL**: Bridge network, port bound to `127.0.0.1` by default.
 - **D-Bus**: The listener container mounts the host's D-Bus socket for avahi-daemon integration.

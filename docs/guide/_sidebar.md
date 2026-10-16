@@ -3,6 +3,7 @@
   - [Standalone Docker](standalone.md)
   - [Docker Compose](docker-compose.md)
   - [Portainer](portainer.md)
+  - [macOS](macos.md)
   - [Upgrading](upgrading.md)
 - **Configuration**
   - [Environment Variables](environment-variables.md)
