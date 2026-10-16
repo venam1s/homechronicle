@@ -233,6 +233,9 @@ The Matter controller runs on the same interface as HomeKit discovery (`DISCOVER
 **`discover.js` finds nothing**
 Check the interface with `route -n get default | grep interface` and try again with that name. A VPN can take over the default route; disconnect it or set `DISCOVER_IFACE` to the physical interface. The Mac and the accessories must be on the same network segment (see [Networking](networking.md#vlans)). To see whether the Mac itself sees HomeKit announcements, run `dns-sd -B _hap._tcp` and press `Ctrl+C` after a few seconds.
 
+**`discover.js` stops with `send EHOSTUNREACH 224.0.0.251:5353`**
+Local Network privacy blocked the scan (older versions print a stack trace, newer ones `Scan failed:`). This happens when you run it from another app's built-in terminal, such as VS Code's. Run it from Terminal or over SSH instead.
+
 **Discovery works in Terminal but not when started automatically**
 Local Network privacy is blocking the listener. The log shows `send EHOSTUNREACH 224.0.0.251:5353`, followed by `[discovery] Scan skipped` or, on versions up to v0.4.4-beta.2, the listener restarting over and over. Run it as the LaunchDaemon above, not as a LaunchAgent. The same applies to starting it from another app's built-in terminal, such as VS Code's: Apple's exemption covers Terminal itself, not other apps.
 
