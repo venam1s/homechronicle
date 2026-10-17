@@ -121,8 +121,8 @@ A native HomeKit device (for example a TP-Link Kasa plug) accepts only one contr
 1. Remove the device from Apple Home (long-press it, open its settings, **Remove Accessory**), so it doesn't show up twice
 2. In Homebridge, install a plugin that controls the device on your local network (search **Plugins** for the brand, e.g. "Kasa")
 3. Run the plugin on the main bridge, not as a child bridge. A child bridge is a separate HomeKit accessory that you'd have to pair with Apple Home and HomeChronicle separately
-4. Restart Homebridge. The device appears in Apple Home under the bridge
-5. Restart the listener so it reads the bridge's new accessory list. The device then appears under the bridge in **Devices › Manage Accessories**
+4. Restart Homebridge. The device appears in Apple Home under the bridge. The listener reconnects when the bridge comes back and picks up the new device on its own, so it appears under the bridge in **Devices › Manage Accessories**
+5. If it isn't there after a minute, restart the listener
 
 This needs the bridge to be paired with both Apple Home and HomeChronicle already (Option 1).
 
