@@ -49,9 +49,9 @@ Error 6 (`kTLVError_Unavailable`) means the device is already paired to another 
 
 2. **Use Add-Pairing:** If you have another HomeChronicle instance already paired to these devices, use the **Add as Controller** panel in **Devices › Add Accessories** to register this instance using the other instance's credentials.
 
-3. **Pair HomeChronicle first:** Remove devices from Apple Home, pair with HomeChronicle, then re-add to Apple Home.
+3. **Native HomeKit devices** (TP-Link, Ecobee, etc.) accept only one controller and have no insecure mode. To keep one in Apple Home and log it in HomeChronicle, remove it from Apple Home and run it through a Homebridge plugin on your main bridge instead. See [Multiple Controllers](devices.md#option-3-put-native-devices-behind-homebridge).
 
-> **Native HomeKit devices** (TP-Link, Ecobee, etc.) do not support insecure mode. For these, use option 2 or 3.
+> Don't pair a native device with HomeChronicle first and then try to re-add it to Apple Home. Once HomeChronicle has it, the device refuses Apple Home with this same error.
 
 ## Connectivity
 

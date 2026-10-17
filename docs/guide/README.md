@@ -113,7 +113,7 @@ The listener must run on the same network segment as your HomeKit accessories. O
 
 **Pairing fails with `M2: Error: 6`**
 
-This means the device is already paired to another controller (such as Apple Home) and is rejecting a new pair-setup. If you use Homebridge, enable insecure mode (`-I` flag) in Homebridge settings — this allows HomeChronicle to register as an additional controller. For native HomeKit devices (TP-Link, Ecobee, etc.), use the **Add as Controller** panel in **Devices › Add Accessories** instead. See [Troubleshooting](troubleshooting.md#m2-error-6--device-already-paired-to-another-controller) for full details.
+This means the device is already paired to another controller (such as Apple Home) and is rejecting a new pair-setup. If you use Homebridge, enable insecure mode (`-I` flag) in Homebridge settings — this allows HomeChronicle to register as an additional controller. Native HomeKit devices (TP-Link, Ecobee, etc.) accept only one controller, so to keep one in Apple Home, run it through a Homebridge plugin instead. See [Troubleshooting](troubleshooting.md#m2-error-6--device-already-paired-to-another-controller) for full details.
 
 **`API_TOKEN` and login**
 

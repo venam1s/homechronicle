@@ -114,13 +114,19 @@ npm run add-pairing -- --source /path/to/source/pairings.json --target /path/to/
 
 The source instance must have admin-level pairings to the target devices. The command registers the target instance's identity on each device and writes the resulting pairing records to the target file.
 
-#### Option 3: Pair HomeChronicle First
+#### Option 3: Put native devices behind Homebridge
 
-For native HomeKit devices without Homebridge insecure mode:
+A native HomeKit device (for example a TP-Link Kasa plug) accepts only one controller and has no insecure mode. Pairing it to HomeChronicle would lock Apple Home out, so to keep it in Apple Home **and** log it in HomeChronicle, run it through Homebridge instead:
 
-1. Remove the device from Apple Home
-2. Pair it with HomeChronicle (pair-setup works because the device is now unpaired)
-3. Add the device back to Apple Home
+1. Remove the device from Apple Home (long-press it, open its settings, **Remove Accessory**), so it doesn't show up twice
+2. In Homebridge, install a plugin that controls the device on your local network (search **Plugins** for the brand, e.g. "Kasa")
+3. Run the plugin on the main bridge, not as a child bridge. A child bridge is a separate HomeKit accessory that you'd have to pair with Apple Home and HomeChronicle separately
+4. Restart Homebridge. The device appears in Apple Home under the bridge
+5. Restart the listener so it reads the bridge's new accessory list. The device then appears under the bridge in **Devices › Manage Accessories**
+
+This needs the bridge to be paired with both Apple Home and HomeChronicle already (Option 1).
+
+> Scenes and automations that used the device directly need to be set up again with the Homebridge version.
 
 ### Bridges (Homebridge, etc.)
 
