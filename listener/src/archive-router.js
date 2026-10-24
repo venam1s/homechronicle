@@ -75,7 +75,7 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="homechronicle-archive.csv"');
       // UTF-8 BOM prefix for Excel compatibility with accented characters
-      res.write('\xEF\xBB\xBF' + columns.join(',') + '\n');
+      res.write('\uFEFF' + columns.join(',') + '\n');
 
       const BATCH = 5000;
       let offset = 0;

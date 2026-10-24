@@ -121,6 +121,11 @@ test('GET /archive/export — happy path with data streams CSV rows', async () =
   assert.ok(headers['Content-Disposition'].includes('homechronicle-archive.csv'), 'Content-Disposition should include filename');
   assert.ok(chunks.length >= 2, `Expected at least 2 chunks (header + data row), got ${chunks.length}`);
   assert.ok(chunks[0].includes('source_id'), 'First chunk should be header row');
+  assert.equal(
+    Buffer.from(chunks[0], 'utf8').subarray(0, 3).toString('hex'),
+    'efbbbf',
+    'CSV must start with the UTF-8 BOM bytes, not the BOM characters re-encoded as mojibake',
+  );
   assert.ok(chunks[1].includes('a1'), 'Second chunk should include accessory data');
 });
 
