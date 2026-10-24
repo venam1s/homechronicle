@@ -54,12 +54,13 @@ The operator is compared against the event's new value, as recorded in the event
 
 ### Goes-quiet rules
 
-**Goes quiet for** alerts when nothing in the rule's scope reports for a number of hours (0.25–720) — a sensor whose battery died, a bridge that dropped off the network, a room where nothing has happened all day. Scope it to an accessory, a room, a characteristic, or all events (alerts if the whole house goes silent); the characteristic filter narrows it further.
+**Goes quiet for** alerts when nothing in the rule's scope records an event for a number of hours (0.25–720) — a sensor whose battery died, a bridge that dropped off the network, a room where nothing has happened all day. Scope it to an accessory, a room, a characteristic, or all events (alerts if the whole house goes silent); the characteristic filter narrows it further.
 
 - The listener checks quiet rules once a minute.
-- A rule alerts **once per quiet stretch**. After the device reports again, the clock restarts and it can alert again the next time it goes quiet.
+- An event is a *change*: HomeChronicle doesn't record a reading that repeats the previous value. A sensor holding a steady value counts as quiet, even while it's online.
+- A rule alerts **once per quiet stretch**. After the next event, the clock restarts and it can alert again the next time it goes quiet.
 - Time the listener was stopped doesn't count: after a restart, a device has to stay quiet for the full window while the listener is running. Editing a rule restarts its clock too.
-- Pick a window longer than the device's normal quiet spells. A motion sensor in a spare room or a contact sensor on a rarely used door can be silent for days while working fine. Sensors that report regularly (temperature, humidity, battery) make the best candidates.
+- Pick a window longer than the device's normal quiet spells. A motion sensor in a spare room, a contact sensor on a rarely used door, or a thermometer in a room that holds its temperature can all be silent for hours or days while working fine. A busy device, or a whole room or the whole house, makes the most reliable scope.
 - The quiet period setting doesn't apply. A failed delivery is retried at most once an hour while the scope stays quiet.
 - If an accessory scope value doesn't match any device (a typo, or a renamed device), the rule alerts after one window.
 

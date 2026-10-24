@@ -349,7 +349,7 @@ export default function Alerts() {
               )}
               {isQuiet && (
                 <p id="alert-quiet-hint" className="text-xs text-hc-muted">
-                  Fires once when nothing in this scope reports for this many hours. Time the listener was stopped doesn't count.
+                  Fires once when nothing in this scope changes for this many hours. Time the listener was stopped doesn't count.
                 </p>
               )}
             </div>

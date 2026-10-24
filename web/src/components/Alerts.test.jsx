@@ -362,7 +362,7 @@ describe('Alerts goes-quiet operator', () => {
     renderAlerts();
     fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'silent_for' } });
     const hours = screen.getByLabelText('Hours without events');
-    expect(hours).toHaveAccessibleDescription(/nothing in this scope reports/);
+    expect(hours).toHaveAccessibleDescription(/nothing in this scope changes/);
     expect(screen.getByLabelText('Characteristic filter')).not.toBeRequired();
     expect(screen.queryByRole('spinbutton', { name: /quiet period/i })).toBeNull();
   });
