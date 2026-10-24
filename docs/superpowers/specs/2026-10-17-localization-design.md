@@ -1,7 +1,7 @@
 # Localization (i18n) — Design
 
 **Date:** 2026-10-17
-**Status:** Approved 2026-10-17
+**Status:** Approved 2026-10-17 — **parked 2026-10-23** (see `docs/project/ideas/localization.md`)
 
 ## Intent
 
