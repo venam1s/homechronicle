@@ -14,8 +14,8 @@ import {
 // Silence is measured from the latest of: the last matching event, the
 // listener's start (events while it was down were never seen, so downtime
 // must not count as device silence) and the rule's last edit. A rule fires
-// once per quiet stretch: a 'sent' delivery newer than the start of the
-// stretch means the user already knows.
+// once per quiet stretch: a 'sent' delivery newer than the last activity (or
+// the rule's last edit) means the user already knows, across restarts too.
 
 export const QUIET_MIN_HOURS = 0.25;
 export const QUIET_MAX_HOURS = 720;
@@ -102,9 +102,13 @@ export function createQuietAlertScheduler({
        ORDER BY sent_at DESC LIMIT 1`,
       [rule.id],
     );
+    // The quiet stretch began at the last activity (or the rule's last edit),
+    // not at the listener start: a device alerted on before a restart that is
+    // still silent afterwards must not alert again.
+    const stretchStart = Math.max(lastActivity ?? 0, toMs(rule.updated_at) ?? 0);
     const lastDelivery = last.rows[0];
     const lastDeliveryMs = toMs(lastDelivery?.sent_at);
-    if (lastDeliveryMs !== null && lastDeliveryMs >= quietSince) {
+    if (lastDeliveryMs !== null && lastDeliveryMs >= stretchStart) {
       if (lastDelivery.status === 'sent') return;
       if (nowMs - lastDeliveryMs < FAILED_RETRY_MS) return;
     }

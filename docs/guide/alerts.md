@@ -59,7 +59,7 @@ The operator is compared against the event's new value, as recorded in the event
 - The listener checks quiet rules once a minute.
 - An event is a *change*: HomeChronicle doesn't record a reading that repeats the previous value. A sensor holding a steady value counts as quiet, even while it's online.
 - A rule alerts **once per quiet stretch**. After the next event, the clock restarts and it can alert again the next time it goes quiet.
-- Time the listener was stopped doesn't count: after a restart, a device has to stay quiet for the full window while the listener is running. Editing a rule restarts its clock too.
+- Time the listener was stopped doesn't count: after a restart, a device has to stay quiet for the full window while the listener is running. A device you were already alerted about before the restart doesn't alert again until it has reported and gone quiet once more. Editing a rule restarts its clock.
 - Pick a window longer than the device's normal quiet spells. A motion sensor in a spare room, a contact sensor on a rarely used door, or a thermometer in a room that holds its temperature can all be silent for hours or days while working fine. A busy device, or a whole room or the whole house, makes the most reliable scope.
 - The quiet period setting doesn't apply. A failed delivery is retried at most once an hour while the scope stays quiet.
 - If an accessory scope value doesn't match any device (a typo, or a renamed device), the rule alerts after one window.
@@ -159,7 +159,7 @@ A goes-quiet rule has no triggering event, so its webhook carries `"kind": "quie
 }
 ```
 
-`lastActivityAt` is `null` when the scope hasn't reported since the listener started; `quietSince` is then the listener start (or the rule's last edit).
+`lastActivityAt` is the scope's last event, looked up in the event log after a restart; it's `null` when none is found (nothing ever reported, or the scope value doesn't exactly match a stored name). `quietSince` is when the silence started counting: the latest of `lastActivityAt`, the listener start and the rule's last edit.
 
 ### Target restrictions
 

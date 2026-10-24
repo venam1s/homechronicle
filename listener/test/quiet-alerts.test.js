@@ -131,6 +131,27 @@ test('quiet rule seeds last activity from the event log so a restart does not fo
   assert.equal(pool.queries.filter((q) => q.sql.includes('FROM event_logs')).length, 1, 'seeded once');
 });
 
+test('a device already alerted on before a restart does not alert again while it stays quiet', async () => {
+  // Last event 20 h before the restart; alerted 14 h before the restart.
+  const pool = makePool({
+    rules: [makeRule({ id: 110 })],
+    lastEventTs: new Date(T0 - 20 * HOUR).toISOString(),
+    deliveries: [{ rule_id: 110, status: 'sent', sent_at: new Date(T0 - 14 * HOUR).toISOString() }],
+  });
+  const s = scheduler(pool);
+  await withFetch(async () => {
+    clock.now = T0 + 7 * HOUR;
+    await s.tick();
+    assert.equal(pool.deliveries.length, 1, 'same quiet stretch as the pre-restart alert');
+
+    // The device speaks after the restart, then goes quiet again: a new stretch.
+    recordQuietRuleActivity(110, T0 + 8 * HOUR);
+    clock.now = T0 + 14 * HOUR + 1000;
+    await s.tick();
+    assert.equal(pool.deliveries.length, 2);
+  });
+});
+
 test('editing a quiet rule restarts its clock', async () => {
   const pool = makePool({ rules: [makeRule({ id: 104, updated_at: new Date(T0 + 4 * HOUR).toISOString() })] });
   const s = scheduler(pool);
