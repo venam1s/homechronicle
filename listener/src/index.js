@@ -25,6 +25,7 @@ import { createUpdatesRouter } from './updates-router.js';
 import { PUBLIC_AUTH_PATHS } from './public-paths.js';
 import { createSetupRouter } from './setup-router.js';
 import { createRepairScheduler } from './repair-scheduler.js';
+import { createQuietAlertScheduler } from './quiet-alerts.js';
 import { performPairSetupAndPersist } from './repair-helpers.js';
 import { createRepairRouter } from './repair-router.js';
 import { createAlertsSettingsRouter } from './alerts-settings-router.js';
@@ -390,6 +391,10 @@ const repairScheduler = createRepairScheduler({
     ),
 });
 repairScheduler.start();
+
+// "Goes quiet" alert rules have no triggering event, so they are checked on a timer.
+const quietAlertScheduler = createQuietAlertScheduler({ pool, getEmailFrom: getAlertEmailFrom });
+quietAlertScheduler.start();
 
 if (DISCOVERY_SCAN_ENABLED) {
   void runScheduledDiscoveryScan();
@@ -798,6 +803,7 @@ const { shutdown: gracefulShutdown } = createGracefulShutdown({
       },
     },
     { name: 'repair scheduler', run: () => repairScheduler.stop() },
+    { name: 'quiet alert scheduler', run: () => quietAlertScheduler.stop() },
     { name: 'HAP subscribers', run: () => stopAllSubscribers() },
     { name: 'matter runtime', run: () => matterRuntime?.stopAll() },
     { name: 'postgres pool', run: async () => { await pool.end(); } },

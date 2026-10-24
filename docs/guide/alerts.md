@@ -48,8 +48,20 @@ The operator is compared against the event's new value, as recorded in the event
 | **Contains** | contains the match value (not case-sensitive) |
 | **Rises above** | is a number greater than the match value, and the previous value wasn't |
 | **Drops below** | is a number less than the match value, and the previous value wasn't |
+| **Goes quiet for** | — (no event needed; see [Goes-quiet rules](#goes-quiet-rules)) |
 
 **Rises above** and **Drops below** fire once each time a reading crosses the threshold, not on every report while it stays past it. A freezer that warms past −10 °C and stays there alerts once; it alerts again only after it cools back down and crosses again. The first reading a device reports after the listener starts counts as a crossing if it's already past the threshold. The match value must be a number (negatives and decimals are fine), and these rules need a characteristic — either the **Characteristic filter** or a **Characteristic** scope — so a temperature threshold isn't compared against brightness or battery levels. Temperatures are recorded in °C for both HomeKit and Matter.
+
+### Goes-quiet rules
+
+**Goes quiet for** alerts when nothing in the rule's scope reports for a number of hours (0.25–720) — a sensor whose battery died, a bridge that dropped off the network, a room where nothing has happened all day. Scope it to an accessory, a room, a characteristic, or all events (alerts if the whole house goes silent); the characteristic filter narrows it further.
+
+- The listener checks quiet rules once a minute.
+- A rule alerts **once per quiet stretch**. After the device reports again, the clock restarts and it can alert again the next time it goes quiet.
+- Time the listener was stopped doesn't count: after a restart, a device has to stay quiet for the full window while the listener is running. Editing a rule restarts its clock too.
+- Pick a window longer than the device's normal quiet spells. A motion sensor in a spare room or a contact sensor on a rarely used door can be silent for days while working fine. Sensors that report regularly (temperature, humidity, battery) make the best candidates.
+- The quiet period setting doesn't apply. A failed delivery is retried at most once an hour while the scope stays quiet.
+- If an accessory scope value doesn't match any device (a typo, or a renamed device), the rule alerts after one window.
 
 Values are stored as the device reports them, for example `1` or `true` for motion and on/off, or `23.5` for a temperature. Check a recent event for the device on the [Timeline](timeline.md) or with `GET /api/events` to see the exact form before writing a rule.
 
@@ -129,6 +141,24 @@ A webhook is a `POST` with a JSON body:
 ```
 
 Any 2xx response counts as sent.
+
+A goes-quiet rule has no triggering event, so its webhook carries `"kind": "quiet"` and a `quiet` block instead of `event`:
+
+```json
+{
+  "type": "homechronicle.alert",
+  "kind": "quiet",
+  "firedAt": "2026-10-24T13:05:00.000Z",
+  "rule": { "id": 4, "name": "Freezer sensor quiet", "scopeType": "accessory", "scopeValue": "Freezer", "characteristic": null, "operator": "silent_for", "matchValue": "6" },
+  "quiet": {
+    "lastActivityAt": "2026-10-24T07:04:12.000Z",
+    "quietSince": "2026-10-24T07:04:12.000Z",
+    "quietMinutes": 360
+  }
+}
+```
+
+`lastActivityAt` is `null` when the scope hasn't reported since the listener started; `quietSince` is then the listener start (or the rule's last edit).
 
 ### Target restrictions
 

@@ -56,6 +56,22 @@ let inFlight = 0;
 // is written per rule per suppression window, so a chatty sensor does not
 // grow alert_deliveries by one row per event while suppressed (M-3).
 const lastSuppressedRowAt = new Map();
+// "Goes quiet" rules (operator silent_for): rule id -> ms timestamp of the
+// last event that matched the rule's scope. Fed by processAlertsForEvent so
+// quiet rules use exactly the same scope matching as every other rule; read
+// by the quiet-alert scheduler (quiet-alerts.js).
+const quietRuleActivity = new Map();
+
+export const QUIET_OPERATOR = 'silent_for';
+
+export function getQuietRuleActivity(ruleId) {
+  return quietRuleActivity.get(ruleId) ?? null;
+}
+
+export function recordQuietRuleActivity(ruleId, atMs) {
+  const prev = quietRuleActivity.get(ruleId) ?? 0;
+  if (atMs > prev) quietRuleActivity.set(ruleId, atMs);
+}
 
 function normalizeString(value) {
   return String(value ?? '').trim();
@@ -189,7 +205,7 @@ async function createDelivery(pool, data) {
   );
 }
 
-async function sendWebhook(rule, event) {
+async function sendWebhook(rule, event, payloadOverride = null) {
   const target = await resolveAndValidateWebhookTarget(rule.target_url, {
     allowPrivateTargets: ALERTS_ALLOW_PRIVATE_TARGETS,
   });
@@ -206,7 +222,7 @@ async function sendWebhook(rule, event) {
 
   try {
     const firedAt = new Date().toISOString();
-    const payload = buildPayload(rule, event, firedAt);
+    const payload = payloadOverride ?? buildPayload(rule, event, firedAt);
     // Pin the resolved IP to prevent DNS rebinding (TOCTOU between validation
     // and fetch). Set the Host header to the original hostname for TLS/SNI.
     const fetchUrl = new URL(target.normalizedUrl);
@@ -269,6 +285,91 @@ async function sendEmailAlertForRule(rule, event, emailFrom) {
   }
 }
 
+function buildQuietPayload(rule, quiet, firedAt) {
+  return {
+    type: 'homechronicle.alert',
+    kind: 'quiet',
+    firedAt,
+    rule: {
+      id: rule.id,
+      name: rule.name,
+      scopeType: rule.scope_type,
+      scopeValue: rule.scope_value,
+      characteristic: rule.characteristic,
+      operator: rule.operator,
+      matchValue: rule.match_value,
+    },
+    quiet: {
+      lastActivityAt: quiet.lastActivityAt,
+      quietSince: quiet.quietSince,
+      quietMinutes: quiet.quietMinutes,
+    },
+  };
+}
+
+function describeQuietScope(rule) {
+  const scopeType = normalizeLower(rule.scope_type || 'all');
+  const what = scopeType === 'all'
+    ? 'any device'
+    : scopeType === 'room'
+      ? `room ${rule.scope_value}`
+      : String(rule.scope_value ?? '');
+  return rule.characteristic ? `${what} (${rule.characteristic})` : what;
+}
+
+export function formatQuietDuration(minutes) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} h`;
+}
+
+/**
+ * Send a "went quiet" alert for a silent_for rule and record the delivery.
+ * There is no triggering event, so the delivery row has event_id NULL.
+ *
+ * @param {object} quiet - { lastActivityAt: ISO|null, quietSince: ISO, quietMinutes: number }
+ * @returns {Promise<'sent'|'failed'>}
+ */
+export async function deliverQuietAlert(pool, rule, quiet, emailFrom) {
+  const firedAt = new Date().toISOString();
+  const scope = describeQuietScope(rule);
+  const duration = formatQuietDuration(quiet.quietMinutes);
+  let delivery;
+  if (rule.channel === 'email') {
+    if (!isEmailEnabled()) {
+      delivery = { status: 'failed', error: 'Email not configured' };
+    } else {
+      try {
+        const subject = `[HomeChronicle] No events from ${scope} for ${duration}`.slice(0, 200);
+        const body = [
+          `Rule:           ${rule.name}`,
+          `Watching:       ${scope}`,
+          `Quiet for:      ${duration}`,
+          `Last activity:  ${quiet.lastActivityAt ?? '(none since the listener started)'}`,
+          `Time:           ${firedAt}`,
+        ].join('\n');
+        await sendAlertEmail(rule.target_email, subject, body, { from: emailFrom });
+        delivery = { status: 'sent' };
+      } catch (err) {
+        delivery = { status: 'failed', error: err?.message ?? 'Email send failed' };
+      }
+    }
+  } else {
+    delivery = await sendWebhook(rule, null, buildQuietPayload(rule, quiet, firedAt));
+  }
+  await createDelivery(pool, {
+    ruleId: rule.id,
+    eventId: null,
+    status: delivery.status,
+    targetUrl: rule.channel === 'webhook' ? rule.target_url : null,
+    channel: rule.channel ?? 'webhook',
+    recipient: rule.channel === 'email' ? rule.target_email : null,
+    responseCode: delivery.responseCode,
+    error: delivery.error,
+  });
+  return delivery.status;
+}
+
 export async function processAlertsForEvent(pool, event, emailFrom) {
   if (!event?.eventId) return;
 
@@ -292,6 +393,16 @@ export async function processAlertsForEvent(pool, event, emailFrom) {
      ORDER BY r.id ASC`
   );
   if (!rulesResult.rows.length) return;
+
+  // Quiet rules never fire on an event; an event in their scope just resets
+  // their silence clock.
+  const eventAtMs = Date.now();
+  for (const rule of rulesResult.rows) {
+    if (normalizeLower(rule.operator) !== QUIET_OPERATOR) continue;
+    if (eventMatchesScope(rule, event) && eventMatchesCharacteristic(rule, event)) {
+      recordQuietRuleActivity(rule.id, eventAtMs);
+    }
+  }
 
   // Filter to matching rules first
   const matchingRules = rulesResult.rows.filter(

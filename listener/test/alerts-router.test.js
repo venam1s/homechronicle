@@ -663,3 +663,29 @@ test('PATCH /rules/:id rejects a non-numeric threshold sent with above/below', a
   assert.equal(result.statusCode, 400);
   assert.match(result.jsonBody.error, /number/);
 });
+
+// -- Goes-quiet rules (silent_for) --
+
+test('POST /rules accepts silent_for with hours in range and no characteristic', async () => {
+  const router = createAlertsRouter({ pool: createMockPool() });
+  const post = getRouteHandler(router, 'POST', '/rules');
+  const result = await invoke(post, {
+    hcSession: ADMIN_SESSION,
+    body: thresholdBody({ operator: 'silent_for', matchValue: '6', characteristic: '' }),
+  });
+  assert.equal(result.statusCode, 201);
+  assert.equal(result.jsonBody.operator, 'silent_for');
+});
+
+test('POST /rules rejects silent_for hours that are non-numeric or out of range', async () => {
+  for (const matchValue of ['soon', '0.1', '721']) {
+    const router = createAlertsRouter({ pool: createMockPool() });
+    const post = getRouteHandler(router, 'POST', '/rules');
+    const result = await invoke(post, {
+      hcSession: ADMIN_SESSION,
+      body: thresholdBody({ operator: 'silent_for', matchValue }),
+    });
+    assert.equal(result.statusCode, 400, `matchValue=${matchValue}`);
+    assert.match(result.jsonBody.error, /hours/);
+  }
+});

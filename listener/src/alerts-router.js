@@ -3,13 +3,20 @@ import rateLimit from 'express-rate-limit';
 import { parseIntInRange } from './utils.js';
 import { log } from './logger.js';
 import { validateWebhookTargetUrl, rateLimitKeyGenerator, requireAdminSession } from './security.js';
-import { parseNumericValue } from './alerts.js';
+import { parseNumericValue, QUIET_OPERATOR } from './alerts.js';
+import { QUIET_MIN_HOURS, QUIET_MAX_HOURS } from './quiet-alerts.js';
 
 const VALID_SCOPE_TYPES = new Set(['all', 'room', 'accessory', 'characteristic']);
-const VALID_OPERATORS = new Set(['equals', 'not_equals', 'contains', 'above', 'below']);
+const VALID_OPERATORS = new Set(['equals', 'not_equals', 'contains', 'above', 'below', 'silent_for']);
 const THRESHOLD_OPERATORS = new Set(['above', 'below']);
-const OPERATOR_ERROR = 'operator must be one of: equals, not_equals, contains, above, below';
+const OPERATOR_ERROR = 'operator must be one of: equals, not_equals, contains, above, below, silent_for';
 const THRESHOLD_NUMBER_ERROR = 'matchValue must be a number for above/below rules';
+const QUIET_HOURS_ERROR = `matchValue must be a number of hours between ${QUIET_MIN_HOURS} and ${QUIET_MAX_HOURS} for silent_for rules`;
+
+function isValidQuietHours(value) {
+  const hours = parseNumericValue(value);
+  return hours !== null && hours >= QUIET_MIN_HOURS && hours <= QUIET_MAX_HOURS;
+}
 const VALID_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseScopeType(value) {
@@ -121,6 +128,9 @@ function validateCreate(body = {}, { defaultQuietMinutes = 0 } = {}) {
       return { error: 'above/below rules need a characteristic to compare (e.g. CurrentTemperature)' };
     }
   }
+  if (operator === QUIET_OPERATOR && !isValidQuietHours(matchValue)) {
+    return { error: QUIET_HOURS_ERROR };
+  }
 
   const channel = String(body.channel ?? 'webhook').trim().toLowerCase();
   if (channel !== 'webhook' && channel !== 'email') {
@@ -208,6 +218,10 @@ function validatePatch(body = {}) {
   if (THRESHOLD_OPERATORS.has(updates.operator) && updates.matchValue !== undefined
     && parseNumericValue(updates.matchValue) === null) {
     return { error: THRESHOLD_NUMBER_ERROR };
+  }
+  if (updates.operator === QUIET_OPERATOR && updates.matchValue !== undefined
+    && !isValidQuietHours(updates.matchValue)) {
+    return { error: QUIET_HOURS_ERROR };
   }
   if ('targetUrl' in body) {
     const target = validateWebhookTargetUrl(body.targetUrl, {

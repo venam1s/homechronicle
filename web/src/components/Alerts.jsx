@@ -32,6 +32,11 @@ const OPERATOR_LABELS = {
   below: 'drops below',
 };
 
+function describeCondition(rule) {
+  if (rule.operator === 'silent_for') return `quiet for ${rule.matchValue} h`;
+  return `${OPERATOR_LABELS[rule.operator] ?? rule.operator} ${rule.matchValue}`;
+}
+
 const THRESHOLD_OPERATORS = new Set(['above', 'below']);
 
 function statusClass(status) {
@@ -66,6 +71,7 @@ export default function Alerts() {
   const deliveries = deliveriesData?.deliveries ?? [];
 
   const isThreshold = THRESHOLD_OPERATORS.has(form.operator);
+  const isQuiet = form.operator === 'silent_for';
 
   const sortedRules = useMemo(
     () => [...rules].sort((a, b) => Number(b.enabled) - Number(a.enabled) || b.id - a.id),
@@ -321,17 +327,18 @@ export default function Alerts() {
               <option value="contains">Contains</option>
               <option value="above">Rises above</option>
               <option value="below">Drops below</option>
+              <option value="silent_for">Goes quiet for</option>
             </select>
             <div className="space-y-1">
               <input
                 type="text"
-                inputMode={isThreshold ? 'decimal' : undefined}
-                pattern={isThreshold ? '-?[0-9]*\\.?[0-9]+' : undefined}
+                inputMode={isThreshold || isQuiet ? 'decimal' : undefined}
+                pattern={isThreshold ? '-?[0-9]*\\.?[0-9]+' : isQuiet ? '[0-9]*\\.?[0-9]+' : undefined}
                 value={form.matchValue}
                 onChange={(e) => setForm((prev) => ({ ...prev, matchValue: e.target.value }))}
-                placeholder={isThreshold ? 'Threshold (number)' : 'Match value'}
-                aria-label={isThreshold ? 'Threshold' : 'Match value'}
-                aria-describedby={isThreshold ? 'alert-threshold-hint' : undefined}
+                placeholder={isThreshold ? 'Threshold (number)' : isQuiet ? 'Hours (0.25–720)' : 'Match value'}
+                aria-label={isThreshold ? 'Threshold' : isQuiet ? 'Hours without events' : 'Match value'}
+                aria-describedby={isThreshold ? 'alert-threshold-hint' : isQuiet ? 'alert-quiet-hint' : undefined}
                 className="w-full border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
                 required
               />
@@ -340,20 +347,28 @@ export default function Alerts() {
                   Fires once each time the reading crosses this number. Temperatures are in °C.
                 </p>
               )}
+              {isQuiet && (
+                <p id="alert-quiet-hint" className="text-xs text-hc-muted">
+                  Fires once when nothing in this scope reports for this many hours. Time the listener was stopped doesn't count.
+                </p>
+              )}
             </div>
-            {/* Visible label: the field always holds a number, so a placeholder never shows. */}
-            <label className="flex items-center gap-2 text-sm text-hc-fg">
-              <span className="shrink-0">Quiet period</span>
-              <input
-                type="number"
-                min="0"
-                max="10080"
-                value={form.quietMinutes ?? defaultQuietMinutes}
-                onChange={(e) => setForm((prev) => ({ ...prev, quietMinutes: e.target.value }))}
-                className="w-24 border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
-              />
-              <span className="text-hc-muted">min between alerts</span>
-            </label>
+            {/* Visible label: the field always holds a number, so a placeholder never shows.
+                Quiet rules fire once per silent stretch, so a quiet period has no meaning there. */}
+            {!isQuiet && (
+              <label className="flex items-center gap-2 text-sm text-hc-fg">
+                <span className="shrink-0">Quiet period</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="10080"
+                  value={form.quietMinutes ?? defaultQuietMinutes}
+                  onChange={(e) => setForm((prev) => ({ ...prev, quietMinutes: e.target.value }))}
+                  className="w-24 border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
+                />
+                <span className="text-hc-muted">min between alerts</span>
+              </label>
+            )}
             <label className="inline-flex items-center gap-2 text-sm text-hc-fg">
               <input
                 type="checkbox"
@@ -424,8 +439,10 @@ export default function Alerts() {
                   </span>
                 )}
                 <span className="text-xs text-hc-muted">{rule.scopeType}{rule.scopeValue ? `: ${rule.scopeValue}` : ''}</span>
-                <span className="text-xs text-hc-muted">{OPERATOR_LABELS[rule.operator] ?? rule.operator} {rule.matchValue}</span>
-                <span className="text-xs text-hc-muted">quiet {rule.quietMinutes}m</span>
+                <span className="text-xs text-hc-muted">{describeCondition(rule)}</span>
+                {rule.operator !== 'silent_for' && (
+                  <span className="text-xs text-hc-muted">quiet {rule.quietMinutes}m</span>
+                )}
                 <div className="ml-auto flex items-center gap-1">
                   <button
                     type="button"

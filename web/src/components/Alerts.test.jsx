@@ -351,3 +351,36 @@ describe('Alerts threshold operators', () => {
     expect(body).toMatchObject({ operator: 'above', matchValue: '-10', characteristic: 'CurrentTemperature' });
   });
 });
+
+describe('Alerts goes-quiet operator', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchJson.mockImplementation(() => Promise.resolve({}));
+  });
+
+  it('turns the value field into hours with a hint and hides the quiet period', () => {
+    renderAlerts();
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'silent_for' } });
+    const hours = screen.getByLabelText('Hours without events');
+    expect(hours).toHaveAccessibleDescription(/nothing in this scope reports/);
+    expect(screen.getByLabelText('Characteristic filter')).not.toBeRequired();
+    expect(screen.queryByRole('spinbutton', { name: /quiet period/i })).toBeNull();
+  });
+
+  it('sends silent_for with the hours on create', async () => {
+    renderAlerts();
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Freezer offline' } });
+    fireEvent.change(screen.getByLabelText('Webhook URL'), { target: { value: 'https://hooks.example.com/x' } });
+    fireEvent.change(screen.getByLabelText('Scope type'), { target: { value: 'accessory' } });
+    fireEvent.change(screen.getByLabelText('Scope value'), { target: { value: 'Freezer' } });
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'silent_for' } });
+    fireEvent.change(screen.getByLabelText('Hours without events'), { target: { value: '6' } });
+    fireEvent.click(screen.getByRole('button', { name: /create rule/i }));
+
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('/api/alerts/rules', expect.objectContaining({ method: 'POST' }));
+    });
+    const [, opts] = fetchJson.mock.calls.find(([url, o]) => url === '/api/alerts/rules' && o?.method === 'POST');
+    expect(JSON.parse(opts.body)).toMatchObject({ operator: 'silent_for', matchValue: '6', scopeValue: 'Freezer' });
+  });
+});
