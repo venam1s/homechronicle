@@ -3,9 +3,13 @@ import rateLimit from 'express-rate-limit';
 import { parseIntInRange } from './utils.js';
 import { log } from './logger.js';
 import { validateWebhookTargetUrl, rateLimitKeyGenerator, requireAdminSession } from './security.js';
+import { parseNumericValue } from './alerts.js';
 
 const VALID_SCOPE_TYPES = new Set(['all', 'room', 'accessory', 'characteristic']);
-const VALID_OPERATORS = new Set(['equals', 'not_equals', 'contains']);
+const VALID_OPERATORS = new Set(['equals', 'not_equals', 'contains', 'above', 'below']);
+const THRESHOLD_OPERATORS = new Set(['above', 'below']);
+const OPERATOR_ERROR = 'operator must be one of: equals, not_equals, contains, above, below';
+const THRESHOLD_NUMBER_ERROR = 'matchValue must be a number for above/below rules';
 const VALID_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseScopeType(value) {
@@ -103,11 +107,20 @@ function validateCreate(body = {}, { defaultQuietMinutes = 0 } = {}) {
   const characteristic = String(body.characteristic ?? '').trim() || null;
   if (characteristic && characteristic.length > MAX_TEXT_LEN) return textCapError('characteristic');
   const operator = parseOperator(body.operator);
-  if (!operator) return { error: 'operator must be one of: equals, not_equals, contains' };
+  if (!operator) return { error: OPERATOR_ERROR };
 
   const matchValue = String(body.matchValue ?? '').trim();
   if (!matchValue) return { error: 'matchValue is required' };
   if (matchValue.length > MAX_TEXT_LEN) return textCapError('matchValue');
+
+  if (THRESHOLD_OPERATORS.has(operator)) {
+    if (parseNumericValue(matchValue) === null) return { error: THRESHOLD_NUMBER_ERROR };
+    // Without a characteristic the rule would compare every numeric reading
+    // (battery %, brightness, light level) against the same threshold.
+    if (!characteristic && scopeType !== 'characteristic') {
+      return { error: 'above/below rules need a characteristic to compare (e.g. CurrentTemperature)' };
+    }
+  }
 
   const channel = String(body.channel ?? 'webhook').trim().toLowerCase();
   if (channel !== 'webhook' && channel !== 'email') {
@@ -180,7 +193,7 @@ function validatePatch(body = {}) {
   }
   if ('operator' in body) {
     const operator = parseOperator(body.operator);
-    if (!operator) return { error: 'operator must be one of: equals, not_equals, contains' };
+    if (!operator) return { error: OPERATOR_ERROR };
     updates.operator = operator;
   }
   if ('matchValue' in body) {
@@ -188,6 +201,13 @@ function validatePatch(body = {}) {
     if (!matchValue) return { error: 'matchValue cannot be empty' };
     if (matchValue.length > MAX_TEXT_LEN) return textCapError('matchValue');
     updates.matchValue = matchValue;
+  }
+  // A partial PATCH cannot see the stored row, so the threshold is checked
+  // only when both fields arrive together (the form always sends both); the
+  // alert engine treats a non-numeric threshold as never matching.
+  if (THRESHOLD_OPERATORS.has(updates.operator) && updates.matchValue !== undefined
+    && parseNumericValue(updates.matchValue) === null) {
+    return { error: THRESHOLD_NUMBER_ERROR };
   }
   if ('targetUrl' in body) {
     const target = validateWebhookTargetUrl(body.targetUrl, {

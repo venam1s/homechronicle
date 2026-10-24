@@ -1063,7 +1063,7 @@ Create an alert rule. Returns `201` with the created rule.
 | `scopeType` | enum | `all`, `room`, `accessory`, or `characteristic` (default `all`) |
 | `scopeValue` | string | Value to match against (required unless `scopeType` is `all`, max 200) |
 | `characteristic` | string | Optional characteristic filter (max 200) |
-| `operator` | enum | `equals`, `not_equals`, `contains` (default `equals`) |
+| `operator` | enum | `equals`, `not_equals`, `contains`, `above`, `below` (default `equals`). `above`/`below` need a numeric `matchValue` and a characteristic (`characteristic`, or `scopeType: characteristic`), and fire when a reading crosses the threshold. |
 | `matchValue` | string | Value to match in `new_value` (required, max 200) |
 | `channel` | enum | `webhook` (default) or `email` |
 | `targetUrl` | string | Webhook URL (required for `webhook`) |

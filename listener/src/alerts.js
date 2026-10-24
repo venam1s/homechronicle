@@ -97,6 +97,15 @@ function eventMatchesCharacteristic(rule, event) {
   return normalizeLower(event.characteristic) === normalizeLower(expected);
 }
 
+// Strict numeric parse: Number('') is 0 and parseFloat('20abc') is 20, so
+// only a non-empty string that Number() reads in full counts as a number.
+export function parseNumericValue(value) {
+  const text = normalizeString(value);
+  if (!text) return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function eventMatchesOperator(rule, event) {
   const op = normalizeLower(rule.operator || 'equals');
   const actual = normalizeString(event.newValue);
@@ -105,6 +114,17 @@ function eventMatchesOperator(rule, event) {
   if (op === 'equals') return actual === expected;
   if (op === 'not_equals') return actual !== expected;
   if (op === 'contains') return normalizeLower(actual).includes(normalizeLower(expected));
+  if (op === 'above' || op === 'below') {
+    // Edge-triggered: fire when the reading crosses the threshold, not on
+    // every report while it stays past it. A missing or non-numeric previous
+    // value (first reading, or after a restart) counts as a crossing.
+    const threshold = parseNumericValue(expected);
+    const next = parseNumericValue(actual);
+    if (threshold === null || next === null) return false;
+    const prev = parseNumericValue(event.oldValue);
+    const isPast = (value) => (op === 'above' ? value > threshold : value < threshold);
+    return isPast(next) && (prev === null || !isPast(prev));
+  }
   return false;
 }
 

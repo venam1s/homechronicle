@@ -592,3 +592,63 @@ test('processAlertsForEvent accessory scope matches plain and legacy "name · se
     }
   }
 });
+
+// Threshold rules fire when a numeric reading crosses the threshold, not on
+// every reading while it stays past it — a freezer at -5 °C reporting every
+// minute must alert once, not once per report.
+test('processAlertsForEvent above/below fire only when the reading crosses the threshold', async () => {
+  const cases = [
+    // [operator, threshold, oldValue, newValue, shouldFire]
+    ['above', '30', '29.5', '30.5', true],
+    ['above', '30', '30.5', '31', false],   // already above: no repeat
+    ['above', '30', '30', '30', false],     // equal is not above
+    ['above', '30', '29', '30', false],
+    ['above', '30', null, '31', true],      // first reading counts as a crossing
+    ['above', '30', 'abc', '31', true],     // non-numeric previous value
+    ['above', '-10', '-12', '-9.5', true],  // negative thresholds
+    ['below', '20', '21', '19', true],
+    ['below', '20', '19', '18', false],
+    ['below', '20', null, '5', true],
+    ['below', '20', '25', '', false],       // empty is not zero
+    ['below', '20', '25', 'true', false],   // booleans never match
+    ['below', '20', '25', '15abc', false],  // strict parse
+    ['above', 'warm', '20', '40', false],   // non-numeric threshold never matches
+  ];
+  for (const [operator, threshold, oldValue, newValue, shouldFire] of cases) {
+    const deliveries = [];
+    const pool = {
+      async query(sql, params = []) {
+        if (sql.includes('FROM alert_rules')) {
+          return {
+            rows: [makeRule({
+              scope_type: 'all',
+              scope_value: null,
+              characteristic: 'CurrentTemperature',
+              operator,
+              match_value: threshold,
+            })],
+          };
+        }
+        if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+        if (sql.startsWith('INSERT INTO alert_deliveries')) {
+          deliveries.push({ status: params[2] });
+          return { rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({ ok: true, status: 200 });
+    try {
+      await processAlertsForEvent(pool, makeEvent({ characteristic: 'CurrentTemperature', oldValue, newValue }));
+      assert.equal(
+        deliveries.length,
+        shouldFire ? 1 : 0,
+        `${operator} ${threshold}: ${oldValue} -> ${newValue}`,
+      );
+    } finally {
+      global.fetch = originalFetch;
+    }
+  }
+});

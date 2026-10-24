@@ -24,6 +24,16 @@ const EMPTY_FORM = {
   quietMinutes: null,
 };
 
+const OPERATOR_LABELS = {
+  equals: 'equals',
+  not_equals: 'not equals',
+  contains: 'contains',
+  above: 'rises above',
+  below: 'drops below',
+};
+
+const THRESHOLD_OPERATORS = new Set(['above', 'below']);
+
 function statusClass(status) {
   if (status === 'sent') return 'text-hc-success-text bg-hc-success-bg border-hc-success-border';
   if (status === 'suppressed') return 'text-hc-warning-text bg-hc-warning-bg border-hc-warning-border';
@@ -54,6 +64,8 @@ export default function Alerts() {
   const { data: rules = [], isLoading: rulesLoading } = useAlertRules();
   const { data: deliveriesData, isLoading: deliveriesLoading } = useAlertDeliveries(deliveryPage, 15);
   const deliveries = deliveriesData?.deliveries ?? [];
+
+  const isThreshold = THRESHOLD_OPERATORS.has(form.operator);
 
   const sortedRules = useMemo(
     () => [...rules].sort((a, b) => Number(b.enabled) - Number(a.enabled) || b.id - a.id),
@@ -291,9 +303,12 @@ export default function Alerts() {
               type="text"
               value={form.characteristic}
               onChange={(e) => setForm((prev) => ({ ...prev, characteristic: e.target.value }))}
-              placeholder="Characteristic filter (optional)"
+              placeholder={isThreshold && form.scopeType !== 'characteristic'
+                ? 'Characteristic (required, e.g. CurrentTemperature)'
+                : 'Characteristic filter (optional)'}
               aria-label="Characteristic filter"
               className="border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
+              required={isThreshold && form.scopeType !== 'characteristic'}
             />
             <select
               value={form.operator}
@@ -304,16 +319,28 @@ export default function Alerts() {
               <option value="equals">Equals</option>
               <option value="not_equals">Not equals</option>
               <option value="contains">Contains</option>
+              <option value="above">Rises above</option>
+              <option value="below">Drops below</option>
             </select>
-            <input
-              type="text"
-              value={form.matchValue}
-              onChange={(e) => setForm((prev) => ({ ...prev, matchValue: e.target.value }))}
-              placeholder="Match value"
-              aria-label="Match value"
-              className="border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
-              required
-            />
+            <div className="space-y-1">
+              <input
+                type="text"
+                inputMode={isThreshold ? 'decimal' : undefined}
+                pattern={isThreshold ? '-?[0-9]*\\.?[0-9]+' : undefined}
+                value={form.matchValue}
+                onChange={(e) => setForm((prev) => ({ ...prev, matchValue: e.target.value }))}
+                placeholder={isThreshold ? 'Threshold (number)' : 'Match value'}
+                aria-label={isThreshold ? 'Threshold' : 'Match value'}
+                aria-describedby={isThreshold ? 'alert-threshold-hint' : undefined}
+                className="w-full border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
+                required
+              />
+              {isThreshold && (
+                <p id="alert-threshold-hint" className="text-xs text-hc-muted">
+                  Fires once each time the reading crosses this number. Temperatures are in °C.
+                </p>
+              )}
+            </div>
             {/* Visible label: the field always holds a number, so a placeholder never shows. */}
             <label className="flex items-center gap-2 text-sm text-hc-fg">
               <span className="shrink-0">Quiet period</span>
@@ -397,7 +424,7 @@ export default function Alerts() {
                   </span>
                 )}
                 <span className="text-xs text-hc-muted">{rule.scopeType}{rule.scopeValue ? `: ${rule.scopeValue}` : ''}</span>
-                <span className="text-xs text-hc-muted">{rule.operator} {rule.matchValue}</span>
+                <span className="text-xs text-hc-muted">{OPERATOR_LABELS[rule.operator] ?? rule.operator} {rule.matchValue}</span>
                 <span className="text-xs text-hc-muted">quiet {rule.quietMinutes}m</span>
                 <div className="ml-auto flex items-center gap-1">
                   <button

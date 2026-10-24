@@ -598,3 +598,68 @@ test('GET /rules does not expose targetUrl for webhook rules either (SC-4 + D-08
   assert.equal(rule.targetUrl, undefined, 'webhook targetUrl must be redacted from GET /rules');
   assert.equal(rule.channel, 'webhook', 'channel must be exposed as webhook');
 });
+
+// -- Threshold operators (above / below) --
+
+function thresholdBody(overrides = {}) {
+  return {
+    name: 'Freezer warm',
+    scopeType: 'accessory',
+    scopeValue: 'Freezer',
+    characteristic: 'CurrentTemperature',
+    operator: 'above',
+    matchValue: '-10',
+    targetUrl: 'https://example.test/hook',
+    ...overrides,
+  };
+}
+
+test('POST /rules accepts above/below with a numeric threshold and a characteristic', async () => {
+  for (const operator of ['above', 'below']) {
+    const router = createAlertsRouter({ pool: createMockPool() });
+    const post = getRouteHandler(router, 'POST', '/rules');
+    const result = await invoke(post, { hcSession: ADMIN_SESSION, body: thresholdBody({ operator }) });
+    assert.equal(result.statusCode, 201, `${operator} must be accepted`);
+    assert.equal(result.jsonBody.operator, operator);
+  }
+});
+
+test('POST /rules accepts a threshold rule scoped by characteristic instead of a filter', async () => {
+  const router = createAlertsRouter({ pool: createMockPool() });
+  const post = getRouteHandler(router, 'POST', '/rules');
+  const result = await invoke(post, {
+    hcSession: ADMIN_SESSION,
+    body: thresholdBody({ scopeType: 'characteristic', scopeValue: 'BatteryLevel', characteristic: '', operator: 'below', matchValue: '20' }),
+  });
+  assert.equal(result.statusCode, 201);
+});
+
+test('POST /rules rejects a non-numeric threshold for above/below', async () => {
+  for (const matchValue of ['warm', '20abc', 'true']) {
+    const router = createAlertsRouter({ pool: createMockPool() });
+    const post = getRouteHandler(router, 'POST', '/rules');
+    const result = await invoke(post, { hcSession: ADMIN_SESSION, body: thresholdBody({ matchValue }) });
+    assert.equal(result.statusCode, 400, `matchValue=${matchValue}`);
+    assert.match(result.jsonBody.error, /number/);
+  }
+});
+
+test('POST /rules rejects above/below without a characteristic to compare', async () => {
+  const router = createAlertsRouter({ pool: createMockPool() });
+  const post = getRouteHandler(router, 'POST', '/rules');
+  const result = await invoke(post, { hcSession: ADMIN_SESSION, body: thresholdBody({ characteristic: '' }) });
+  assert.equal(result.statusCode, 400);
+  assert.match(result.jsonBody.error, /characteristic/);
+});
+
+test('PATCH /rules/:id rejects a non-numeric threshold sent with above/below', async () => {
+  const router = createAlertsRouter({ pool: createMockPool() });
+  const patch = getRouteHandler(router, 'PATCH', '/rules/:id');
+  const result = await invoke(patch, {
+    hcSession: ADMIN_SESSION,
+    params: { id: '1' },
+    body: { operator: 'below', matchValue: 'cold' },
+  });
+  assert.equal(result.statusCode, 400);
+  assert.match(result.jsonBody.error, /number/);
+});

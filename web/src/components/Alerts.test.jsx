@@ -304,3 +304,50 @@ describe('Alerts quiet-period field', () => {
     expect(label.textContent).toMatch(/min/);
   });
 });
+
+describe('Alerts threshold operators', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchJson.mockImplementation(() => Promise.resolve({}));
+  });
+
+  it('offers "Rises above" and "Drops below" operators', () => {
+    renderAlerts();
+    const select = screen.getByLabelText('Match operator');
+    const labels = [...select.options].map((o) => o.textContent);
+    expect(labels).toEqual(expect.arrayContaining(['Rises above', 'Drops below']));
+  });
+
+  it('switches the value field to a threshold with a crossing hint and requires a characteristic', () => {
+    renderAlerts();
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'above' } });
+    const threshold = screen.getByLabelText('Threshold');
+    expect(threshold).toHaveAttribute('inputmode', 'decimal');
+    expect(threshold).toHaveAccessibleDescription(/crosses this number/);
+    expect(screen.getByLabelText('Characteristic filter')).toBeRequired();
+  });
+
+  it('does not require a characteristic filter when scoped by characteristic', () => {
+    renderAlerts();
+    fireEvent.change(screen.getByLabelText('Scope type'), { target: { value: 'characteristic' } });
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'below' } });
+    expect(screen.getByLabelText('Characteristic filter')).not.toBeRequired();
+  });
+
+  it('sends the operator and threshold when creating a rule', async () => {
+    renderAlerts();
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Freezer warm' } });
+    fireEvent.change(screen.getByLabelText('Webhook URL'), { target: { value: 'https://hooks.example.com/x' } });
+    fireEvent.change(screen.getByLabelText('Characteristic filter'), { target: { value: 'CurrentTemperature' } });
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'above' } });
+    fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: '-10' } });
+    fireEvent.click(screen.getByRole('button', { name: /create rule/i }));
+
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('/api/alerts/rules', expect.objectContaining({ method: 'POST' }));
+    });
+    const [, opts] = fetchJson.mock.calls.find(([url, o]) => url === '/api/alerts/rules' && o?.method === 'POST');
+    const body = JSON.parse(opts.body);
+    expect(body).toMatchObject({ operator: 'above', matchValue: '-10', characteristic: 'CurrentTemperature' });
+  });
+});

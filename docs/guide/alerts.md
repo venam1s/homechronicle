@@ -21,7 +21,7 @@ The **Alerts** page has three cards:
 | **Webhook URL** | `http://` or `https://` URL to POST to. When editing, leave it blank to keep the current URL. |
 | **Recipient email address** | Where email alerts go. Members can only send to their own account email (the field is locked); admins can enter any address. |
 | **Scope type** + **Scope value** | Which events the rule looks at — see below |
-| **Characteristic filter** | Optional. Only match events for this characteristic, such as `MotionDetected`. |
+| **Characteristic filter** | Only match events for this characteristic, such as `MotionDetected`. Optional, except for **Rises above** / **Drops below** rules scoped by something other than a characteristic. |
 | **Match operator** + **Match value** | The condition on the event's new value — see below |
 | **Quiet period** | Minutes to wait after an alert before this rule sends again (0–10080; 0 = no wait) |
 | **Enabled** | Whether the rule is active |
@@ -46,6 +46,10 @@ The operator is compared against the event's new value, as recorded in the event
 | **Equals** | is exactly the match value (case-sensitive) |
 | **Not equals** | is anything other than the match value |
 | **Contains** | contains the match value (not case-sensitive) |
+| **Rises above** | is a number greater than the match value, and the previous value wasn't |
+| **Drops below** | is a number less than the match value, and the previous value wasn't |
+
+**Rises above** and **Drops below** fire once each time a reading crosses the threshold, not on every report while it stays past it. A freezer that warms past −10 °C and stays there alerts once; it alerts again only after it cools back down and crosses again. The first reading a device reports after the listener starts counts as a crossing if it's already past the threshold. The match value must be a number (negatives and decimals are fine), and these rules need a characteristic — either the **Characteristic filter** or a **Characteristic** scope — so a temperature threshold isn't compared against brightness or battery levels. Temperatures are recorded in °C for both HomeKit and Matter.
 
 Values are stored as the device reports them, for example `1` or `true` for motion and on/off, or `23.5` for a temperature. Check a recent event for the device on the [Timeline](timeline.md) or with `GET /api/events` to see the exact form before writing a rule.
 
