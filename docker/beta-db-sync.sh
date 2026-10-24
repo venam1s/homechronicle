@@ -154,7 +154,7 @@ log "restore OK — beta event_logs rows: ${beta_rows}"
 
 # -- Copy display config (NEVER pairings / matter-storage) --------------------
 log "copying display config from ${PROD_DATA_DIR} to ${BETA_DATA_DIR}"
-for f in rooms.json display-names.json notes.json retention.json alerts.json; do
+for f in rooms.json display-names.json notes.json categories.json retention.json alerts.json; do
   if [ -f "${PROD_DATA_DIR}/${f}" ]; then
     if cp -p "${PROD_DATA_DIR}/${f}" "${BETA_DATA_DIR}/${f}" 2>/dev/null; then
       log "copied ${f}"

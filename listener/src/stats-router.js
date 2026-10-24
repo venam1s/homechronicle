@@ -5,6 +5,7 @@ import { rateLimitKeyGenerator } from './security.js';
 import { parseIntInRange, parentBridgeId } from './utils.js';
 import { normalizeRetentionSettings } from './retention-router.js';
 import { detectOutliers } from './anomaly-detection.js';
+import { CATEGORIES, resolveCategory } from './categories.js';
 
 const STATS_RATE_LIMIT_WINDOW_MS = parseIntInRange(
   process.env.API_STATS_RATE_LIMIT_WINDOW_MS,
@@ -19,7 +20,7 @@ const STATS_RATE_LIMIT_MAX = parseIntInRange(
   100_000
 );
 
-export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings }) {
+export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings, getCategoryOverrides = () => ({}) }) {
   const router = express.Router();
   const statsReadLimiter = rateLimit({
     windowMs: STATS_RATE_LIMIT_WINDOW_MS,
@@ -612,6 +613,76 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
       res.json(out);
     } catch (err) {
       log.error('[api] /api/stats/characteristic-breakdown error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Events and devices per device category over the last `days`, with the
+  // preceding period of the same length for a trend. The per-device service
+  // types are cached; categories (overrides included) are resolved on every
+  // request so a changed override shows up immediately.
+  router.get('/stats/categories', statsReadLimiter, async (req, res) => {
+    const days = parseIntInRange(req.query.days, 7, 1, 90);
+    try {
+      const rows = await cached(`stats:categories:${days}`, async () => {
+        const result = await pool.query(`
+          SELECT accessory_id, MAX(accessory_name) AS accessory_name, service_type,
+                 COUNT(*) FILTER (WHERE timestamp >= NOW() - ($1::int * INTERVAL '1 day'))::int AS current,
+                 COUNT(*) FILTER (WHERE timestamp < NOW() - ($1::int * INTERVAL '1 day'))::int AS previous
+          FROM event_logs
+          WHERE timestamp >= NOW() - ($1::int * 2 * INTERVAL '1 day')
+          GROUP BY accessory_id, service_type
+        `, [days]);
+        return result.rows;
+      }, 60_000);
+
+      const devices = new Map();
+      for (const row of rows) {
+        const device = devices.get(row.accessory_id) ?? {
+          accessoryId: row.accessory_id,
+          name: row.accessory_name,
+          serviceTypes: new Set(),
+          events: 0,
+          previousEvents: 0,
+        };
+        device.serviceTypes.add(row.service_type);
+        device.events += Number(row.current);
+        device.previousEvents += Number(row.previous);
+        devices.set(row.accessory_id, device);
+      }
+
+      const overrides = getCategoryOverrides();
+      const byCategory = new Map();
+      for (const device of devices.values()) {
+        const { category } = resolveCategory(device.accessoryId, device.serviceTypes, overrides);
+        const bucket = byCategory.get(category) ?? { events: 0, previousEvents: 0, devices: [] };
+        bucket.events += device.events;
+        bucket.previousEvents += device.previousEvents;
+        bucket.devices.push(device);
+        byCategory.set(category, bucket);
+      }
+
+      const categories = CATEGORIES
+        .filter((c) => byCategory.has(c.id))
+        .map((c) => {
+          const bucket = byCategory.get(c.id);
+          return {
+            id: c.id,
+            label: c.label,
+            events: bucket.events,
+            previousEvents: bucket.previousEvents,
+            devices: bucket.devices.length,
+            topDevices: bucket.devices
+              .filter((d) => d.events > 0)
+              .sort((a, b) => b.events - a.events)
+              .slice(0, 3)
+              .map((d) => ({ accessoryId: d.accessoryId, name: d.name, events: d.events })),
+          };
+        })
+        .sort((a, b) => b.events - a.events);
+      res.json({ days, categories });
+    } catch (err) {
+      log.error('[api] /api/stats/categories error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

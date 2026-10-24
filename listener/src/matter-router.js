@@ -30,6 +30,8 @@ export function createMatterRouter({
   saveRooms,
   loadNotes,
   saveNotes,
+  loadCategories = () => ({}),
+  saveCategories = async () => {},
   matterRuntime = null,
   getMatterDiscoveryCache = () => [],
   setMatterDiscoveryCache = () => {},
@@ -253,6 +255,13 @@ export function createMatterRouter({
       if (key === nodeId || key.startsWith(`${nodeId}:`)) delete notes[key];
     }
     await saveNotes(notes);
+
+    const categories = loadCategories();
+    const categoryKeys = Object.keys(categories).filter((key) => key === nodeId || key.startsWith(`${nodeId}:`));
+    if (categoryKeys.length) {
+      for (const key of categoryKeys) delete categories[key];
+      await saveCategories(categories);
+    }
 
     // Event history is kept, as it is for HomeKit: the unpair controls promise
     // "Event data is not deleted". Deleting history is a separate,

@@ -5,6 +5,7 @@ import { rateLimitKeyGenerator } from './security.js';
 import { parseIntInRange as _parseIntInRange, parentBridgeId, withTimeout } from './utils.js';
 import { isHomeKitPairing, mapReliabilityStats } from './setup-helpers.js';
 import { deriveDeviceHealth } from './device-health.js';
+import { resolveCategory } from './categories.js';
 import { cached } from './query-cache.js';
 
 const ACCESSORIES_RATE_LIMIT_WINDOW_MS = _parseIntInRange(
@@ -25,6 +26,7 @@ export function createAccessoriesRouter({
   loadPairings,
   loadRooms,
   getRetentionSettings,
+  getCategoryOverrides = () => ({}),
   getSubscriberStats,
   getAccessoryCapabilities,
   getAccessoryIdentity,
@@ -393,6 +395,19 @@ export function createAccessoriesRouter({
       );
       const latest = latestResult.rows[0] ?? {};
 
+      // Category comes from every service type the device has reported in the
+      // window (the latest event alone may be a battery or firmware reading),
+      // resolved the same way as /api/stats/categories.
+      const serviceTypesResult = await pool.query(
+        `SELECT DISTINCT service_type
+         FROM event_logs
+         WHERE accessory_id = $1 AND timestamp >= NOW() - ($2::int * INTERVAL '1 day')`,
+        [accessoryId, days]
+      );
+      const serviceTypes = new Set(serviceTypesResult.rows.map((r) => r.service_type));
+      if (latest.service_type) serviceTypes.add(latest.service_type);
+      const category = resolveCategory(accessoryId, serviceTypes, getCategoryOverrides());
+
       const pairingProtocol = String(currentPairings[accessoryId]?.protocol ?? '').toLowerCase();
       const protocol = String((latest.protocol ?? pairingProtocol) || 'homekit').toLowerCase();
       const bridgeId = protocol === 'homekit' ? parentBridgeId(accessoryId) : accessoryId;
@@ -492,6 +507,9 @@ export function createAccessoriesRouter({
         accessory_name: latest.accessory_name ?? bridgePairing?.name ?? accessoryId,
         room_name: rooms[accessoryId] ?? latest.room_name ?? null,
         service_type: latest.service_type ?? null,
+        category: category.category,
+        category_auto: category.auto,
+        category_override: category.override,
         protocol,
         first_seen: summary.first_seen ?? null,
         last_seen: summary.last_seen ?? null,

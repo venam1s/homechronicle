@@ -74,6 +74,8 @@ const DISPLAY_NAMES_FILE = process.env.DISPLAY_NAMES_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/display-names.json' : './data/display-names.json');
 const NOTES_FILE = process.env.NOTES_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/notes.json' : './data/notes.json');
+const CATEGORIES_FILE = process.env.CATEGORIES_FILE
+  || (process.env.NODE_ENV === 'production' ? '/app/data/categories.json' : './data/categories.json');
 const RETENTION_FILE = process.env.RETENTION_FILE
   || (process.env.NODE_ENV === 'production' ? '/app/data/retention.json' : './data/retention.json');
 const REPAIR_FILE = process.env.REPAIR_FILE
@@ -184,6 +186,10 @@ const pairingsStore = new JsonObjectStore(PAIRINGS_FILE, {});
 const roomsStore = new JsonObjectStore(ROOMS_FILE, {});
 const displayNamesStore = new JsonObjectStore(DISPLAY_NAMES_FILE, {});
 const notesStore = new JsonObjectStore(NOTES_FILE, {});
+// Device category overrides: accessoryId -> category id (see categories.js).
+const categoriesStore = new JsonObjectStore(CATEGORIES_FILE, {});
+const loadCategories = () => categoriesStore.getSnapshot();
+const saveCategories = async (overrides) => { await categoriesStore.write(overrides); };
 const retentionStore = new JsonObjectStore(RETENTION_FILE, {
   retentionDays: RETENTION_DAYS_DEFAULT,
   archiveBeforeDelete: RETENTION_ARCHIVE_DEFAULT,
@@ -263,6 +269,7 @@ await pairingsStore.init();
 await roomsStore.init();
 await displayNamesStore.init();
 await notesStore.init();
+await categoriesStore.init();
 await retentionStore.init();
 await repairStore.init();
 await alertsSettingsStore.init();
@@ -305,6 +312,9 @@ if (Number.isFinite(STORE_REFRESH_INTERVAL_MS) && STORE_REFRESH_INTERVAL_MS >= 5
     });
     void notesStore.refresh().catch((err) => {
       log.warn('[store] notes refresh failed:', err.message ?? err.stack ?? err);
+    });
+    void categoriesStore.refresh().catch((err) => {
+      log.warn('[store] categories refresh failed:', err.message ?? err.stack ?? err);
     });
     void retentionStore.refresh()
       .then(() => { retentionSettings = loadRetentionSettings(); })
@@ -629,6 +639,8 @@ app.use('/api/setup', createSetupRouter({
   saveDisplayNames,
   loadNotes,
   saveNotes,
+  loadCategories,
+  saveCategories,
   discoverDeviceForRepair,
   savePairingForRepair,
   startSubscribers,
@@ -712,6 +724,8 @@ app.use('/api', createMatterRouter({
   saveRooms,
   loadNotes,
   saveNotes,
+  loadCategories,
+  saveCategories,
   matterRuntime,
   getMatterDiscoveryCache: () => matterDiscoveryCache,
   setMatterDiscoveryCache: (cache) => { matterDiscoveryCache = cache; },
@@ -724,18 +738,22 @@ app.use('/api', createArchiveRouter({
   saveDisplayNames,
   loadNotes,
   saveNotes,
+  loadCategories,
+  saveCategories,
 }));
 app.use('/api', createStatsRouter({
   pool,
   cached,
   getRooms: loadRooms,
   getRetentionSettings: () => retentionSettings,
+  getCategoryOverrides: loadCategories,
 }));
 app.use('/api', createAccessoriesRouter({
   pool,
   loadPairings,
   loadRooms,
   getRetentionSettings: () => retentionSettings,
+  getCategoryOverrides: loadCategories,
   getSubscriberStats,
   getAccessoryCapabilities,
   getAccessoryIdentity,

@@ -12,6 +12,7 @@ import {
 import clsx from 'clsx';
 import { useAccessoryDetail, useAccessoryAnomalies, useCharacteristicTrend, useAccessoryHeatmap, useAccessoryStateDuration, useAccessoryCharSummary } from '../hooks/useEvents.js';
 import { describeChange, getServiceIcon } from '../lib/icons.js';
+import { useCategories, useSetCategory } from '../hooks/useCategories.js';
 import Card from './Card.jsx';
 
 const WINDOWS = [
@@ -386,6 +387,10 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
   const [selectedChar, setSelectedChar] = useState(null);
   const { data, isLoading, isError } = useAccessoryDetail(accessoryId, { days, page, limit: 100 });
   const { data: anomalyData } = useAccessoryAnomalies(accessoryId);
+  const { data: categoryData } = useCategories();
+  const setCategory = useSetCategory();
+  const categoryOptions = categoryData?.categories ?? [];
+  const categoryLabelFor = (id) => categoryOptions.find((c) => c.id === id)?.label ?? id;
 
   const accessory = data?.accessory ?? null;
   const history = data?.history ?? null;
@@ -479,6 +484,25 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                     {accessory.room_name ?? 'No room'} · {accessory.model ?? 'Unknown model'}
                     {accessory.last_seen && ` · last seen ${formatDistanceToNow(new Date(accessory.last_seen), { addSuffix: true })}`}
                   </p>
+                  {categoryOptions.length > 0 && accessory.category_auto && (
+                    <label className="mt-2 inline-flex items-center gap-2 text-xs text-hc-muted">
+                      Category
+                      <select
+                        value={accessory.category_override ?? ''}
+                        onChange={(e) => setCategory.mutate({ accessoryId: accessory.accessory_id, category: e.target.value })}
+                        disabled={setCategory.isPending}
+                        className="border border-hc-panel-border rounded-md px-2 py-1 text-xs bg-hc-panel text-hc-fg disabled:opacity-60"
+                      >
+                        <option value="">Automatic ({categoryLabelFor(accessory.category_auto)})</option>
+                        {categoryOptions.map((c) => (
+                          <option key={c.id} value={c.id}>{c.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {setCategory.isError && (
+                    <p className="text-xs text-hc-danger-text mt-1">Could not save the category.</p>
+                  )}
                 </div>
               </div>
             </Card.Body>

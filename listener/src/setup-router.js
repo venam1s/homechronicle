@@ -4,6 +4,7 @@ import { log, getLevel, setLevel } from './logger.js';
 import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { parseIntInRange } from './utils.js';
 import { shortUuid } from './accessory-metadata.js';
+import { CATEGORIES, isValidCategory } from './categories.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
 import {
   isHomeKitPairing,
@@ -34,6 +35,8 @@ export function createSetupRouter({
   saveDisplayNames,
   loadNotes,
   saveNotes,
+  loadCategories = () => ({}),
+  saveCategories = async () => {},
   discoverDeviceForRepair,
   savePairingForRepair,
   startSubscribers,
@@ -398,6 +401,33 @@ export function createSetupRouter({
 
   router.get('/rooms', (_req, res) => {
     res.json(loadRooms());
+  });
+
+  // -- Device categories --
+
+  // An empty or missing category clears the override, so the device goes back
+  // to the category its service types imply.
+  router.patch('/category', setupWriteLimiter, async (req, res) => {
+    const { accessoryId } = req.body ?? {};
+    const category = String(req.body?.category ?? '').trim();
+    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
+    if (category && !isValidCategory(category)) {
+      return res.status(400).json({ error: `category must be one of: ${CATEGORIES.map((c) => c.id).join(', ')}` });
+    }
+
+    const overrides = loadCategories();
+    if (category) {
+      overrides[accessoryId] = category;
+    } else {
+      delete overrides[accessoryId];
+    }
+    await saveCategories(overrides);
+    log.info(`[setup] Category for ${accessoryId} set to ${category || '(automatic)'}`);
+    res.json({ success: true });
+  });
+
+  router.get('/categories', (_req, res) => {
+    res.json({ categories: CATEGORIES, overrides: loadCategories() });
   });
 
   // -- Display Names --

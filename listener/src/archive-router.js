@@ -29,7 +29,10 @@ const ARCHIVE_WRITE_RATE_LIMIT_MAX = parseIntInRange(
   100_000
 );
 
-export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNames, saveDisplayNames, loadNotes, saveNotes }) {
+export function createArchiveRouter({
+  pool, loadRooms, saveRooms, loadDisplayNames, saveDisplayNames, loadNotes, saveNotes,
+  loadCategories = () => ({}), saveCategories = async () => {},
+}) {
   const router = express.Router();
 
   const archiveReadLimiter = rateLimit({
@@ -124,7 +127,7 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
         'DELETE FROM event_logs WHERE accessory_id = $1', [accessoryId]
       );
       // Best-effort cleanup of JSON stores — log failures but don't fail the response
-      for (const [label, load, save] of [['room', loadRooms, saveRooms], ['display-name', loadDisplayNames, saveDisplayNames], ['note', loadNotes, saveNotes]]) {
+      for (const [label, load, save] of [['room', loadRooms, saveRooms], ['display-name', loadDisplayNames, saveDisplayNames], ['note', loadNotes, saveNotes], ['category', loadCategories, saveCategories]]) {
         try {
           const data = load();
           delete data[accessoryId];
@@ -146,7 +149,7 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
     try {
       const result = await pool.query('DELETE FROM event_logs');
       // Best-effort cleanup of JSON stores
-      for (const [label, save] of [['rooms', saveRooms], ['display-names', saveDisplayNames], ['notes', saveNotes]]) {
+      for (const [label, save] of [['rooms', saveRooms], ['display-names', saveDisplayNames], ['notes', saveNotes], ['categories', saveCategories]]) {
         try { await save({}); } catch (err) { log.warn(`[data] Failed to clear ${label}:`, err.message); }
       }
       log.info(`[data] Wiped all data — ${result.rowCount} event(s) deleted`);

@@ -747,6 +747,33 @@ Event counts per characteristic: the top 8, with the rest combined into an `Othe
 
 **Response:** `[{ "characteristic": "MotionDetected", "count": 812 }, ..., { "characteristic": "Other", "count": 95 }]`
 
+### `GET /api/stats/categories`
+
+Events and devices per [device category](devices.md#device-categories) for the last `days`, with the same-length period before it. Each device is counted in one category: its override, or the category implied by every service type it reported. Categories with no devices in either period are left out; the rest are sorted by events. The event aggregate is cached for 1 minute; overrides apply immediately.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `days` | integer | `7` | Lookback window (1-90) |
+
+**Response:**
+```json
+{
+  "days": 7,
+  "categories": [
+    {
+      "id": "security",
+      "label": "Security",
+      "events": 1204,
+      "previousEvents": 1150,
+      "devices": 6,
+      "topDevices": [{ "accessoryId": "AA:BB:CC:DD:EE:FF:3", "name": "Hall Motion", "events": 512 }]
+    }
+  ]
+}
+```
+
+`topDevices` holds up to three devices with events in the current period.
+
 ---
 
 ## Setup / Discovery
@@ -835,6 +862,28 @@ Send an empty or missing `note` to clear.
 ### `GET /api/setup/notes`
 
 Get all device notes as `{ accessoryId: note }`.
+
+### `PATCH /api/setup/category`
+
+Set or clear a device's [category](devices.md#device-categories) override.
+
+**Body:**
+```json
+{
+  "accessoryId": "AA:BB:CC:DD:EE:FF:4",
+  "category": "cleaning"
+}
+```
+
+`category` is one of `security`, `safety`, `access`, `climate`, `lighting`, `power`, `cleaning`, `other`. Send an empty or missing `category` to go back to automatic. The detail endpoint (`GET /api/accessories/:id/detail`) reports `category`, `category_auto` and `category_override` for the device.
+
+### `GET /api/setup/categories`
+
+The category list (`[{ id, label }]`, in display order) and all overrides as `{ accessoryId: category }`:
+
+```json
+{ "categories": [{ "id": "security", "label": "Security" }, ...], "overrides": { "AA:BB:CC:DD:EE:FF:4": "cleaning" } }
+```
 
 ### `POST /api/setup/repair/:deviceId`
 

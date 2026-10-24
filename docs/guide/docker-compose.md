@@ -88,6 +88,7 @@ docker compose logs --tail=100 listener
 | `listener/data/pairings.json` | Device pairing keys | Never commit this file |
 | `listener/data/rooms.json` | Room assignments | Created via API/UI |
 | `listener/data/notes.json` | Device notes | Created via API/UI |
+| `listener/data/categories.json` | Device category overrides | Created via API/UI |
 | `listener/data/retention.json` | Retention settings | Created via API/UI |
 | PostgreSQL volume | All event data | Named volume `postgres-data` by default |
 

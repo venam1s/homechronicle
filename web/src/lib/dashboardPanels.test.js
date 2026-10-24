@@ -46,8 +46,8 @@ describe('dashboardPanels registry', () => {
     expect(PANEL_IDS).not.toContain('activityClock');
   });
 
-  it('OPTIONAL_PANEL_IDS has exactly 12 ids, all in PANEL_IDS', () => {
-    expect(OPTIONAL_PANEL_IDS).toHaveLength(12);
+  it('OPTIONAL_PANEL_IDS has exactly 13 ids, all in PANEL_IDS', () => {
+    expect(OPTIONAL_PANEL_IDS).toHaveLength(13);
     for (const id of OPTIONAL_PANEL_IDS) {
       expect(PANEL_IDS).toContain(id);
     }
@@ -115,7 +115,7 @@ describe('v0.4 default arrangement', () => {
       'anomalies', 'staleDevices',
       'weekOverWeek', 'healthDonut', 'alertsSummary', 'topMovers', 'dayNight',
       'quietCompliance', 'roomSparklines', 'sensorEnvironment', 'batteryLevels',
-      'recentEpisodes', 'retentionHealth', 'eventTypeBreakdown',
+      'recentEpisodes', 'retentionHealth', 'eventTypeBreakdown', 'categories',
     ]);
   });
 

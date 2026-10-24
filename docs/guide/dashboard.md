@@ -96,6 +96,7 @@ These 12 panels start hidden. Add them from the **Hidden panels** tray in edit m
 | **Recent Episodes** | Recent Timeline episodes (see [Timeline](timeline.md#scenes-and-episodes)) |
 | **Retention Health** | Event table size, archive status, and next sweep estimate |
 | **Event Types** | Events broken down by characteristic (motion, contact, brightness, and so on) |
+| **Device Categories** | Events and devices per category (Security, Climate, Lighting, …) over the last 7 days, with the change from the 7 days before and the busiest devices in each — see [Device categories](devices.md#device-categories) |
 
 ## Upgrading from 0.3
 

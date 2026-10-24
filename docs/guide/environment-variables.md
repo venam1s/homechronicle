@@ -64,6 +64,7 @@ Keep `API_PORT` and `LISTENER_PORT` aligned (default `3001`) or `/api` requests 
 | `DISCOVER_IFACE` | auto | Network interface for mDNS (e.g., `en0`, `eth0`) |
 | `DISCOVERY_SCAN_ENABLED` | `true` | Enable periodic background discovery |
 | `NOTES_FILE` | `/app/data/notes.json` | Device notes JSON storage path |
+| `CATEGORIES_FILE` | `/app/data/categories.json` | Device category overrides JSON storage path |
 | `STORE_REFRESH_INTERVAL_MS` | `30000` | JSON store refresh interval |
 
 ## Multi-User Auth & Sessions
@@ -267,6 +268,7 @@ Runtime configuration is split between environment variables (above) and JSON fi
 | `rooms.json` | Map of accessory ID to room name string |
 | `display-names.json` | Map of accessory ID to user-assigned display name |
 | `notes.json` | Map of accessory ID to free-text note |
+| `categories.json` | Map of accessory ID to device category override |
 | `retention.json` | Persisted overrides for retention days, archive flag, and stale threshold |
 | `repair.json` | Last repair cycle result and next scheduled time |
 | `matter-storage/` | Directory; Matter.js controller state (fabric, session, and node data) |

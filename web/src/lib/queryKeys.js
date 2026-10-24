@@ -21,5 +21,7 @@ export const queryKeys = {
     batteryLevels: () => ['stats', 'battery-levels'],
     retentionHealth: () => ['stats', 'retention-health'],
     characteristicBreakdown: (days) => ['stats', 'characteristic-breakdown', days],
+    categories: (days) => ['stats', 'categories', days],
   },
+  categories: () => ['setup', 'categories'],
 };

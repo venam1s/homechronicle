@@ -39,6 +39,7 @@ import BatteryLevelsPanel from './BatteryLevelsPanel.jsx';
 import RecentEpisodesPanel from './RecentEpisodesPanel.jsx';
 import RetentionHealthPanel from './RetentionHealthPanel.jsx';
 import EventTypeBreakdownPanel from './EventTypeBreakdownPanel.jsx';
+import CategoriesPanel from './CategoriesPanel.jsx';
 
 // Maps a panel id to its content element. Kept here (not in the registry) so the
 // registry stays serializable and this has access to live data/callbacks.
@@ -114,6 +115,8 @@ function renderPanelBody(id, ctx) {
       return <RetentionHealthPanel />;
     case 'eventTypeBreakdown':
       return <EventTypeBreakdownPanel />;
+    case 'categories':
+      return <CategoriesPanel onSelectAccessory={onSelectAccessory} />;
     default:
       return null;
   }

@@ -22,6 +22,7 @@ Select a device to open its detail page.
 
 The detail page shows, where the device has the data:
 
+- **Category** — under the device name; see [Device categories](#device-categories)
 - **Device Info** — manufacturer, model, serial number, firmware and hardware revision, protocol and transport
 - **Connection Reliability** — disconnects, reconnect attempts, subscribe failures, last connected/subscribed, last error
 - **Anomalies (last 24h)** — unusual activity compared with the device's baseline
@@ -177,6 +178,36 @@ curl -X PATCH http://localhost:3001/api/setup/note \
 ```
 
 To clear a note, send an empty string or `null` for `note`. Notes are stored in `listener/data/notes.json`.
+
+### Device categories
+
+Each device belongs to one category, used by the **Device Categories** dashboard panel:
+
+| Category | Picked automatically for |
+|----------|--------------------------|
+| **Security** | Motion, occupancy and contact sensors, security systems, cameras, doorbells |
+| **Safety** | Smoke, carbon monoxide and leak sensors |
+| **Doors & locks** | Locks, garage doors, doors, windows and blinds |
+| **Climate** | Thermostats, heaters and coolers, fans, air purifiers, temperature, humidity, air-quality and light sensors |
+| **Lighting** | Lightbulbs, and Matter devices with dimming or colour |
+| **Switches & outlets** | Switches, outlets and plugs, valves and sprinklers, TVs |
+| **Cleaning** | Nothing — choose it yourself, for example for a robot vacuum that shows up as a switch |
+| **Other** | Anything else |
+
+The category comes from everything the device reports, so a motion sensor's battery readings don't make it **Other**, and a Matter light that also reports on/off counts as **Lighting**, not a switch. When a device does several things, the first match in the table wins.
+
+To change it, open the device's detail page and pick a **Category** under its name. **Automatic** (the first option) shows what it would be on its own and goes back to it. The choice applies to every event from that device. Overrides are stored in `listener/data/categories.json`; deleting a device's data or removing a Matter pairing clears its override.
+
+**From the API:**
+
+```bash
+curl -X PATCH http://localhost:3001/api/setup/category \
+  -H "Content-Type: application/json" \
+  -H "X-API-Token: <token>" \
+  -d '{"accessoryId": "<id>", "category": "cleaning"}'
+```
+
+Send an empty `category` to go back to automatic.
 
 ## Matter Devices
 
