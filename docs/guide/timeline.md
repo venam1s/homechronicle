@@ -67,7 +67,7 @@ Click **Search & filters** above the list to open the filter bar. The button sho
 
 **Export: CSV** or **JSON** in the filter bar downloads every event that matches the current filters — all pages, not just the ones on screen — oldest first. With no filters it exports the whole event log. Muted devices are included; the export follows the filters, not what's hidden on screen. Rooms reflect your current room assignments, as in the list.
 
-The CSV opens in Excel, Numbers or Google Sheets. Device names that start with `=`, `+`, `-` or `@` are prefixed with a `'` so a spreadsheet doesn't treat them as formulas. Exports stop at 500,000 events (`EVENTS_MAX_EXPORT_ROWS`); if a filter matches more, the bar says how many were exported. Narrow the **From** / **To** range to get the rest. Older, archived events are exported separately from **Settings › Configuration › Data management**.
+The CSV opens in Excel, Numbers or Google Sheets. Text that starts with `=`, `+`, `-` or `@` (a device name, say) is prefixed with a `'` so a spreadsheet doesn't treat it as a formula; plain numbers such as `-18.5` are left as numbers. Exports stop at 500,000 events (`EVENTS_MAX_EXPORT_ROWS`); if a filter matches more, the bar says how many were exported. Narrow the **From** / **To** range to get the rest. Older, archived events are exported separately from **Settings › Configuration › Data management**.
 
 ## Activity heatmap
 

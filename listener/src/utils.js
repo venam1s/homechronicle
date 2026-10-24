@@ -72,11 +72,14 @@ export function extractBearerToken(headerValue) {
 /**
  * One CSV cell. Formula-triggering leading characters get a single-quote
  * prefix so a device name like "=HYPERLINK(...)" is not executed when the
- * export is opened in a spreadsheet (CSV injection).
+ * export is opened in a spreadsheet (CSV injection). A plain number such as
+ * a freezer's -18.5 cannot be a formula and is left alone, so spreadsheets
+ * still read it as a number.
  */
 export function csvCell(val) {
   if (val == null) return '';
   const str = val instanceof Date ? val.toISOString() : String(val);
-  const safe = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+  const isPlainNumber = /^[-+]?\d+(\.\d+)?$/.test(str);
+  const safe = !isPlainNumber && /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
   return /[,"\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
