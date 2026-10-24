@@ -44,6 +44,25 @@
 
 BETA_SYNC_EXCLUDED_TABLES="users sessions invites password_reset_tokens user_preferences"
 
+# Migrations beta has run but prod may not have yet, that alter a table the
+# sync overwrites from prod (here alert_rules' operator CHECK). The restore
+# brings that table back in prod's shape, so these must NOT be re-stamped from
+# beta's pgmigrations history after the restore: left un-stamped, the beta
+# listener (which starts only after db-sync completes) replays them. Each one
+# listed here must be idempotent. Once prod has run them, prod's own
+# pgmigrations rows cover them and the entries are harmless.
+BETA_SYNC_REPLAY_MIGRATIONS="0009_alert_threshold_operators 0010_alert_quiet_operator"
+
+# beta_sync_replay_sql_list — BETA_SYNC_REPLAY_MIGRATIONS as a quoted SQL list
+# for `NOT IN (...)`, e.g. '0009_x','0010_y'; '' when the list is empty.
+beta_sync_replay_sql_list() {
+  _list=""
+  for _m in $BETA_SYNC_REPLAY_MIGRATIONS; do
+    _list="${_list:+$_list,}'${_m}'"
+  done
+  printf '%s' "${_list:-''}"
+}
+
 # beta_sync_exclude_flags — prints the concatenated
 # `--exclude-table=public.<table>` flags for BETA_SYNC_EXCLUDED_TABLES on
 # stdout, space-separated, ready to splice into a pg_dump argument list.

@@ -126,8 +126,10 @@ log "prod postgres reachable"
 DUMP_EXCLUDE="$(beta_sync_exclude_flags)"
 
 # Capture beta's migration rows BEFORE the refresh as name-keyed, idempotent inserts.
+# Rows for BETA_SYNC_REPLAY_MIGRATIONS are left out so the listener replays them
+# against the freshly restored (prod-shaped) tables — see beta-sync-tables.sh.
 BETA_MIGRATIONS_SQL="$(PGPASSWORD="$BETA_DB_PASSWORD" psql -h "$BETA_DB_HOST" -p "$BETA_DB_PORT" -U "$BETA_DB_USER" -d "$BETA_DB_NAME" -tAqc \
-  "SELECT string_agg(format('INSERT INTO pgmigrations (name, run_on) SELECT %L, %L WHERE NOT EXISTS (SELECT 1 FROM pgmigrations WHERE name = %L);', name, run_on, name), E'\n') FROM pgmigrations" 2>/dev/null || true)"
+  "SELECT string_agg(format('INSERT INTO pgmigrations (name, run_on) SELECT %L, %L WHERE NOT EXISTS (SELECT 1 FROM pgmigrations WHERE name = %L);', name, run_on, name), E'\n') FROM pgmigrations WHERE name NOT IN ($(beta_sync_replay_sql_list))" 2>/dev/null || true)"
 
 log "dumping prod and restoring into beta (--clean --if-exists, single-transaction; excluding: ${BETA_SYNC_EXCLUDED_TABLES}; alert_rules.user_id FK stripped + owners nulled)"
 # Subshell: dump (with the users FK stripped) followed by the post-restore SQL, all
