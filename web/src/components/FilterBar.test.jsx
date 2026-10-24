@@ -85,3 +85,60 @@ describe('FilterBar', () => {
     expect(screen.getByTestId('heatmap-grid')).toBeInTheDocument();
   });
 });
+
+describe('FilterBar export', () => {
+  let originalFetch;
+  let originalCreate;
+  let originalRevoke;
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    originalCreate = URL.createObjectURL;
+    originalRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => 'blob:x');
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    vi.restoreAllMocks();
+  });
+
+  function mockExportResponse({ ok = true, status = 200, headers = {} } = {}) {
+    global.fetch = vi.fn(async () => ({
+      ok,
+      status,
+      headers: new Headers({ 'Content-Disposition': 'attachment; filename="homechronicle-events-20261024-1300.csv"', ...headers }),
+      blob: async () => new Blob(['id\n']),
+    }));
+  }
+
+  it('exports with the current filters and the chosen format', async () => {
+    mockExportResponse({ headers: { 'X-Export-Total': '3', 'X-Export-Rows': '3' } });
+    setup({ open: true, filters: { room: 'Kitchen', accessory: '', characteristic: 'On' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Export matching events as CSV' }));
+
+    await vi.waitFor(() => expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled());
+    const [url, opts] = global.fetch.mock.calls[0];
+    const parsed = new URL(url, 'http://x');
+    expect(parsed.pathname).toMatch(/\/events\/export$/);
+    expect(Object.fromEntries(parsed.searchParams)).toEqual({ format: 'csv', room: 'Kitchen', characteristic: 'On' });
+    expect(opts.credentials).toBe('include');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('says when the export was cut off at the row cap', async () => {
+    mockExportResponse({ headers: { 'X-Export-Total': '900000', 'X-Export-Rows': '500000', 'X-Export-Truncated': 'true' } });
+    setup({ open: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Export matching events as JSON' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(/oldest 500,000 of 900,000 events/);
+  });
+
+  it('shows an error when the export fails', async () => {
+    mockExportResponse({ ok: false, status: 500 });
+    setup({ open: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Export matching events as CSV' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Export failed');
+  });
+});

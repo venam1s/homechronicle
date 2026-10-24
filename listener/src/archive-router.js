@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
-import { parseIntInRange } from './utils.js';
+import { csvCell, parseIntInRange } from './utils.js';
 
 const ARCHIVE_READ_RATE_LIMIT_WINDOW_MS = parseIntInRange(
   process.env.API_STATS_RATE_LIMIT_WINDOW_MS,
@@ -59,14 +59,6 @@ export function createArchiveRouter({ pool, loadRooms, saveRooms, loadDisplayNam
       'service_type', 'characteristic', 'old_value', 'new_value',
       'protocol', 'transport', 'endpoint_id', 'cluster_id', 'attribute_id', 'archived_at',
     ];
-
-    function csvCell(val) {
-      if (val == null) return '';
-      const str = val instanceof Date ? val.toISOString() : String(val);
-      // Prevent CSV injection: prefix formula-triggering characters with a single quote
-      const safe = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
-      return /[,"\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-    }
 
     function csvRow(row) {
       return columns.map((col) => csvCell(row[col])).join(',');

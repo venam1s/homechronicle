@@ -1,9 +1,16 @@
+import { useState } from 'react';
 import { useAccessories } from '../hooks/useEvents.js';
 import { useHeatmap } from '../hooks/useEvents.js';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
 import { getRoomColor } from '../lib/roomColors.js';
-import { Search, SlidersHorizontal, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
+import { Search, SlidersHorizontal, ChevronDown, ChevronUp, BarChart2, Download, Loader2 } from 'lucide-react';
 import HeatmapGrid from './HeatmapGrid.jsx';
+import { downloadEventsExport } from '../lib/exportEvents.js';
+
+const EXPORT_FORMATS = [
+  { format: 'csv', label: 'CSV' },
+  { format: 'json', label: 'JSON' },
+];
 
 export default function FilterBar({
   filters,
@@ -26,6 +33,27 @@ export default function FilterBar({
 
   function update(key, value) {
     onChange({ ...filters, [key]: value });
+  }
+
+  const [exporting, setExporting] = useState(null);
+  const [exportNote, setExportNote] = useState(null);
+
+  async function handleExport(format) {
+    setExporting(format);
+    setExportNote(null);
+    try {
+      const result = await downloadEventsExport(filters, format);
+      if (result.truncated) {
+        setExportNote({
+          tone: 'warning',
+          text: `Exported the oldest ${result.rows.toLocaleString()} of ${result.total.toLocaleString()} events. Narrow the dates to export the rest.`,
+        });
+      }
+    } catch (err) {
+      setExportNote({ tone: 'danger', text: err.message || 'Export failed' });
+    } finally {
+      setExporting(null);
+    }
   }
 
   const activeRoomColor = filters.room ? getRoomColor(filters.room) : null;
@@ -149,11 +177,30 @@ export default function FilterBar({
               className="border border-hc-border-strong bg-hc-panel text-hc-fg rounded-lg px-3 py-2 sm:py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-hc-focus-ring w-full sm:w-auto"
             />
 
+            {/* Export the events these filters match */}
+            <div role="group" aria-label="Export matching events" className="inline-flex items-center gap-1 sm:ml-auto">
+              <Download size={13} className="text-hc-muted" aria-hidden="true" />
+              <span className="text-xs text-hc-muted mr-1">Export</span>
+              {EXPORT_FORMATS.map(({ format, label }) => (
+                <button
+                  key={format}
+                  type="button"
+                  onClick={() => handleExport(format)}
+                  disabled={exporting !== null}
+                  aria-label={`Export matching events as ${label}`}
+                  className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md border border-hc-border-strong bg-hc-panel text-hc-fg hover:bg-hc-panel-hover disabled:opacity-60"
+                >
+                  {exporting === format && <Loader2 size={11} className="animate-spin" aria-hidden="true" />}
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {/* Clear */}
             {activeCount > 0 && (
               <button
                 onClick={() => onChange({})}
-                className="inline-flex items-center gap-1 text-sm px-2.5 rounded-lg sm:ml-auto"
+                className="inline-flex items-center gap-1 text-sm px-2.5 rounded-lg"
                 style={{
                   color: 'var(--hc-accent-strong)',
                   backgroundColor: 'var(--hc-accent-soft)',
@@ -166,6 +213,14 @@ export default function FilterBar({
               </button>
             )}
           </div>
+          {exportNote && (
+            <p
+              role="status"
+              className={`text-xs mt-2 ${exportNote.tone === 'danger' ? 'text-hc-danger-text' : 'text-hc-warning-text'}`}
+            >
+              {exportNote.text}
+            </p>
+          )}
         </div>
       )}
 

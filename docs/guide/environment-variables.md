@@ -107,6 +107,7 @@ All SMTP variables are optional. If `SMTP_HOST` or `SMTP_PASS` is not set, email
 | `API_STATS_RATE_LIMIT_MAX` | `120` | Max stats requests per window |
 | `EVENTS_RATE_LIMIT_WINDOW_MS` | `60000` | Events rate limit window |
 | `EVENTS_RATE_LIMIT_MAX` | `300` | Max events requests per window |
+| `EVENTS_EXPORT_RATE_LIMIT_MAX` | `10` | Max event exports (`GET /api/events/export`) per events window |
 | `ALERTS_READ_RATE_LIMIT_WINDOW_MS` | `60000` | Alerts read rate limit window |
 | `ALERTS_READ_RATE_LIMIT_MAX` | `180` | Max alerts read requests per window |
 | `ALERTS_WRITE_RATE_LIMIT_WINDOW_MS` | `60000` | Alerts write rate limit window |
@@ -121,6 +122,7 @@ All SMTP variables are optional. If `SMTP_HOST` or `SMTP_PASS` is not set, email
 | `RETENTION_ARCHIVE` | `true` | Archive events before deletion |
 | `STALE_THRESHOLD_HOURS` | `12` | Hours without event before device is flagged stale |
 | `ARCHIVE_MAX_EXPORT_ROWS` | `500000` | Max rows returned by an archive export (`GET /api/archive/export`), 1000–10000000 |
+| `EVENTS_MAX_EXPORT_ROWS` | `500000` | Max rows in a Timeline export (`GET /api/events/export`), 1000–10000000 |
 
 ## Alerts / Subscriber
 

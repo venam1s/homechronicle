@@ -356,6 +356,23 @@ Fetch events with pagination and filtering, newest first.
 
 With no filters, `total` comes from PostgreSQL's table statistics instead of a full count and `estimated` is `true`, which keeps the request fast on large tables. With any filter, `total` is exact and `estimated` is `false`.
 
+### `GET /api/events/export`
+
+Download every event matching the same filters as `GET /api/events` (`room`, `accessory`, `characteristic`, `from`, `to`), oldest first, streamed as a file.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `format` | `csv` \| `json` | `csv` | CSV with a header row (UTF-8 with BOM), or a JSON array of event objects |
+
+Columns / fields: `id`, `timestamp`, `accessory_id`, `accessory_name`, `room_name`, `service_type`, `characteristic`, `old_value`, `new_value`, `protocol`, `transport`, `endpoint_id`, `cluster_id`, `attribute_id`, `raw_iid`. `room_name` reflects current room assignments.
+
+Response headers: `X-Export-Total` (events matching the filters), `X-Export-Rows` (events in the file) and, when the match exceeds `EVENTS_MAX_EXPORT_ROWS` (default 500,000), `X-Export-Truncated: true` — the file then holds the oldest rows. Rate limited separately (`EVENTS_EXPORT_RATE_LIMIT_MAX`, default 10 per events window).
+
+```bash
+curl -o events.csv "http://localhost:3001/api/events/export?format=csv&room=Kitchen" \
+  -H "x-api-token: $API_TOKEN"
+```
+
 ### `GET /api/events/jump`
 
 Find the page containing the most recent event for an accessory in a given hour. Useful for timeline navigation.
@@ -1340,6 +1357,7 @@ Limits are counted per client IP address. Behind a reverse proxy, set `TRUST_PRO
 | Endpoint group | Default | Environment variables |
 |----------------|---------|-----------------------|
 | Events (`/api/events*`) | 300 / 60 s | `EVENTS_RATE_LIMIT_WINDOW_MS`, `EVENTS_RATE_LIMIT_MAX` |
+| Events export (`/api/events/export`) | 10 / 60 s | `EVENTS_RATE_LIMIT_WINDOW_MS`, `EVENTS_EXPORT_RATE_LIMIT_MAX` |
 | Stats (`/api/stats/*`) and archive reads | 120 / 60 s | `API_STATS_RATE_LIMIT_WINDOW_MS`, `API_STATS_RATE_LIMIT_MAX` |
 | Accessories (`/api/accessories*`) | 120 / 60 s | `ACCESSORIES_RATE_LIMIT_WINDOW_MS`, `ACCESSORIES_RATE_LIMIT_MAX` |
 | Alerts reads | 180 / 60 s | `ALERTS_READ_RATE_LIMIT_WINDOW_MS`, `ALERTS_READ_RATE_LIMIT_MAX` |

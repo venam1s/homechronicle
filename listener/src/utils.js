@@ -68,3 +68,15 @@ export function extractBearerToken(headerValue) {
   if (scheme !== 'bearer') return '';
   return auth.slice(spaceIndex + 1).trim();
 }
+
+/**
+ * One CSV cell. Formula-triggering leading characters get a single-quote
+ * prefix so a device name like "=HYPERLINK(...)" is not executed when the
+ * export is opened in a spreadsheet (CSV injection).
+ */
+export function csvCell(val) {
+  if (val == null) return '';
+  const str = val instanceof Date ? val.toISOString() : String(val);
+  const safe = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+  return /[,"\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
