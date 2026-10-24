@@ -119,7 +119,7 @@ export const PANELS = [
   { id: 'recentEpisodes',    title: 'Recent Episodes',    lg: { x: 0, y: 57, w: 6,  h: 5 }, minW: 3, minH: 4, optional: true },
   { id: 'retentionHealth',   title: 'Retention Health',   lg: { x: 6, y: 57, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
   { id: 'eventTypeBreakdown', title: 'Event Types',       lg: { x: 0, y: 62, w: 6,  h: 4 }, minW: 3, minH: 3, optional: true },
-  { id: 'categories',        title: 'Device Categories',  lg: { x: 6, y: 61, w: 6,  h: 5 }, minW: 3, minH: 4, optional: true },
+  { id: 'categories',        title: 'Device Categories',  lg: { x: 6, y: 61, w: 6,  h: 6 }, minW: 3, minH: 4, optional: true },
 ];
 
 export const PANEL_IDS = PANELS.map((p) => p.id);
