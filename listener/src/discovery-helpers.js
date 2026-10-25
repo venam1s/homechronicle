@@ -8,6 +8,7 @@
 import { IPDiscovery } from 'hap-controller';
 import { log } from './logger.js';
 import { getHomeKitPairings, isHomeKitPairing, normalizePairingRecord } from './setup-helpers.js';
+import { advertisedAddresses, reconcileAdvertisedAddress } from './hap-addresses.js';
 
 /**
  * Creates discovery helper functions closed over the provided dependencies.
@@ -88,6 +89,7 @@ export function createDiscoveryHelpers({
               protocol: 'homekit',
               name: s.name,
               address: s.address,
+              addresses: advertisedAddresses(s),
               port: s.port,
               category: s.ci ?? null,
               ff: s.ff ?? 0,
@@ -102,12 +104,18 @@ export function createDiscoveryHelpers({
             for (const [id, pairing] of Object.entries(currentPairings)) {
               const seen = found.get(id);
               if (!seen) continue;
-              if (seen.address !== pairing.address || seen.port !== pairing.port) {
-                log.debug(
-                  `[discovery] ${pairing.name}: address updated ` +
-                  `${pairing.address}:${pairing.port} -> ${seen.address}:${seen.port} — pairing refreshed`
-                );
-                currentPairings[id] = { ...pairing, address: seen.address, port: seen.port };
+              // Keep the in-use address while it is still announced: a scan that
+              // lists a bridge's addresses in a different order must not move a
+              // working connection to one this host may not reach.
+              const next = reconcileAdvertisedAddress(pairing, seen);
+              if (next.changed) {
+                if (next.address !== pairing.address || next.port !== pairing.port) {
+                  log.debug(
+                    `[discovery] ${pairing.name}: address updated ` +
+                    `${pairing.address}:${pairing.port} -> ${next.address}:${next.port} — pairing refreshed`
+                  );
+                }
+                currentPairings[id] = { ...pairing, address: next.address, port: next.port, addresses: next.addresses };
                 pairingsUpdated = true;
               }
             }
@@ -154,7 +162,7 @@ export function createDiscoveryHelpers({
         try { discovery.stop(); } catch (err) {
           log.debug('[discovery] stop error on serviceUp:', err.message);
         }
-        resolve({ address: service.address, port: service.port });
+        resolve({ address: service.address, port: service.port, addresses: advertisedAddresses(service) });
       });
 
       discovery.on('error', () => {

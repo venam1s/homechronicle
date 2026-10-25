@@ -68,3 +68,26 @@ describe('AccessoryDetail category', () => {
     detail.accessory.category_override = null;
   });
 });
+
+describe('AccessoryDetail announced addresses', () => {
+  it('shows the address in use and the other announced addresses', () => {
+    detail.accessory.address = '172.16.25.26';
+    detail.accessory.addresses = ['10.0.0.193', '172.16.25.26'];
+    render(<AccessoryDetail accessoryId="h2" onBack={() => {}} />);
+    expect(screen.getByText('Address')).toBeInTheDocument();
+    expect(screen.getByText('172.16.25.26')).toBeInTheDocument();
+    expect(screen.getByText('Also announced at')).toBeInTheDocument();
+    expect(screen.getByText('10.0.0.193')).toBeInTheDocument();
+    delete detail.accessory.address;
+    delete detail.accessory.addresses;
+  });
+
+  it('omits the extra row when the accessory announces a single address', () => {
+    detail.accessory.address = '10.0.0.5';
+    detail.accessory.addresses = ['10.0.0.5'];
+    render(<AccessoryDetail accessoryId="h2" onBack={() => {}} />);
+    expect(screen.queryByText('Also announced at')).toBeNull();
+    delete detail.accessory.address;
+    delete detail.accessory.addresses;
+  });
+});

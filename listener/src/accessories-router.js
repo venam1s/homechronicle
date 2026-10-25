@@ -516,6 +516,9 @@ export function createAccessoriesRouter({
         last_seen: summary.last_seen ?? null,
         event_count: eventCount,
         address: bridgePairing?.address ?? null,
+        // Every address the accessory announces (e.g. a Homebridge container on
+        // a Docker bridge and a macvlan); `address` is the one in use.
+        addresses: Array.isArray(bridgePairing?.addresses) ? bridgePairing.addresses : [],
         paired_at: bridgePairing?.pairedAt ?? null,
         manufacturer: identity?.manufacturer ?? null,
         model: identity?.model ?? null,

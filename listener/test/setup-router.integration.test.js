@@ -685,3 +685,60 @@ test.after(async () => {
   const { setLevel } = await import('../src/logger.js');
   setLevel('info');
 });
+
+// -- POST /pair: accessories announcing several addresses --
+
+function makeMultiAddressRouter({ unreachable = [], wrongPin = false } = {}) {
+  const attempts = [];
+  let saved = null;
+  class AddressAwareHttpClient extends MockHttpClient {
+    constructor(deviceId, address, port) {
+      super(deviceId, address, port);
+      this.address = address;
+    }
+    async pairSetup() {
+      attempts.push(this.address);
+      if (unreachable.includes(this.address)) throw new Error(`connect EHOSTUNREACH ${this.address}:55203`);
+      if (wrongPin) throw new Error('M4: Error: 2');
+    }
+  }
+  const router = makeRouter({
+    getDiscoveryCache: () => [
+      { id: 'hb', name: 'Homebridge', address: '10.0.0.193', addresses: ['10.0.0.193', '172.16.25.26'], port: 55203, paired: false, pairedElsewhere: false, category: 2, ff: 0 },
+    ],
+    savePairings: async (p) => { saved = p; },
+    HttpClient: AddressAwareHttpClient,
+  });
+  return { router, attempts, getSaved: () => saved };
+}
+
+test('POST /pair — an unreachable announced address fails over to the next one', async () => {
+  const { router, attempts, getSaved } = makeMultiAddressRouter({ unreachable: ['10.0.0.193'] });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  const { statusCode } = await invoke(handler, { body: { deviceId: 'hb', pin: '123-45-678' } });
+
+  assert.equal(statusCode, 200);
+  assert.deepEqual(attempts, ['10.0.0.193', '172.16.25.26']);
+  assert.equal(getSaved().hb.address, '172.16.25.26', 'the address that worked is stored');
+  assert.deepEqual(getSaved().hb.addresses, ['10.0.0.193', '172.16.25.26']);
+});
+
+test('POST /pair — a wrong PIN is not retried on another address', async () => {
+  const { router, attempts } = makeMultiAddressRouter({ wrongPin: true });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  const { statusCode, jsonBody } = await invoke(handler, { body: { deviceId: 'hb', pin: '123-45-678' } });
+
+  assert.equal(statusCode, 400);
+  assert.deepEqual(attempts, ['10.0.0.193']);
+  assert.match(jsonBody.error, /Wrong PIN/);
+});
+
+test('POST /pair — every announced address unreachable reports the device as unreachable', async () => {
+  const { router, attempts } = makeMultiAddressRouter({ unreachable: ['10.0.0.193', '172.16.25.26'] });
+  const handler = getRouteHandler(router, 'POST', '/pair');
+  const { statusCode, jsonBody } = await invoke(handler, { body: { deviceId: 'hb', pin: '123-45-678' } });
+
+  assert.equal(statusCode, 400);
+  assert.equal(attempts.length, 2);
+  assert.match(jsonBody.error, /Could not reach the device/);
+});

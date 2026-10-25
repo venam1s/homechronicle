@@ -10,6 +10,7 @@
 import { HttpClient } from 'hap-controller';
 import { insertEvent, pool } from './db.js';
 import { processAlertsForEvent } from './alerts.js';
+import { advertisedAddresses, nextAddress, isConnectionError as isHapConnectionError } from './hap-addresses.js';
 import {
   cacheAccessoryMetadata,
   clearAccessoryMetadata,
@@ -123,9 +124,10 @@ function isMaxPeersError(err) {
   return /M\d:\s*Error:\s*4\b/.test(msg) || /maxpeers/i.test(msg);
 }
 
+// Includes request timeouts (withTimeout sets err.code = 'ETIMEDOUT' but not the
+// message): an address that silently drops traffic must trigger re-discovery.
 function isConnectionError(err) {
-  const msg = err?.message ?? String(err);
-  return /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EHOSTUNREACH/i.test(msg);
+  return isHapConnectionError(err);
 }
 
 async function processAlertsSafe(eventPayload, insertedRow) {
@@ -318,6 +320,7 @@ function connectAccessory(session, pairing) {
     stats.lastConnectedAt = new Date().toISOString();
     stats.lastHealthyAt = stats.lastConnectedAt;
     stats.authFailures = 0;
+    session.addressRotations = 0;
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
     const watchedKeys = [...iidMeta.keys()];
@@ -481,24 +484,7 @@ function connectAccessory(session, pairing) {
 
         if (isConnectionError(err) && session.discoverDevice) {
           log.info(`[subscriber] ${accessoryName}: resubscribe connection failed, re-discovering…`);
-          session.discoverDevice(deviceId).then((discovered) => {
-            if (!discovered || session.stopped) {
-              scheduleReconnect(session, pairing);
-              return;
-            }
-            if (discovered.address !== pairing.address || discovered.port !== pairing.port) {
-              log.info(`[subscriber] ${accessoryName}: found at ${discovered.address}:${discovered.port}`);
-              if (session.savePairing) {
-                session.savePairing(deviceId, { ...pairing, address: discovered.address, port: discovered.port })
-                  .catch((e) => log.debug(`[subscriber] ${accessoryName}: failed to save updated address: ${e.message}`));
-              }
-              const updatedPairing = { ...pairing, address: discovered.address, port: discovered.port };
-              session.retryDelayMs = reconnectBaseMs;
-              connectAccessoryImpl(session, updatedPairing);
-            } else {
-              scheduleReconnect(session, pairing);
-            }
-          }).catch(() => scheduleReconnect(session, pairing));
+          rediscoverAndReconnect(session, pairing);
           return;
         }
 
@@ -585,29 +571,59 @@ function connectAccessory(session, pairing) {
 
     if (isConnectionError(err) && session.discoverDevice) {
       log.info(`[subscriber] ${accessoryName}: connection failed, re-discovering device…`);
-      session.discoverDevice(deviceId).then((discovered) => {
-        if (!discovered || session.stopped) {
-          scheduleReconnect(session, pairing);
-          return;
-        }
-        if (discovered.address !== pairing.address || discovered.port !== pairing.port) {
-          log.info(`[subscriber] ${accessoryName}: found at ${discovered.address}:${discovered.port} (was ${address}:${port})`);
-          if (session.savePairing) {
-            session.savePairing(deviceId, { ...pairing, address: discovered.address, port: discovered.port })
-              .catch((e) => log.debug(`[subscriber] ${accessoryName}: failed to save updated address: ${e.message}`));
-          }
-          const updatedPairing = { ...pairing, address: discovered.address, port: discovered.port };
-          session.retryDelayMs = reconnectBaseMs;
-          connectAccessoryImpl(session, updatedPairing);
-        } else {
-          scheduleReconnect(session, pairing);
-        }
-      }).catch(() => scheduleReconnect(session, pairing));
+      rediscoverAndReconnect(session, pairing);
       return;
     }
 
     scheduleReconnect(session, pairing);
   });
+}
+
+/**
+ * After a connection failure: re-discover the accessory and move to the NEXT
+ * address it announces, rather than the first one again. An accessory can
+ * announce several addresses (e.g. a Homebridge container on a Docker bridge
+ * and a macvlan) of which only some reach this host, and announcement order is
+ * not stable — retrying the first one could loop on an unreachable address
+ * forever. Each announced address is tried once per failure streak; once all
+ * have failed, the normal backoff applies. Falls back to the addresses stored
+ * with the pairing when discovery finds nothing.
+ */
+function rediscoverAndReconnect(session, pairing) {
+  const { deviceId } = session;
+  const name = pairing.name ?? deviceId;
+  const discover = session.discoverDevice ? session.discoverDevice(deviceId) : Promise.resolve(null);
+  Promise.resolve(discover).then((discovered) => {
+    if (session.stopped) return;
+    const announced = advertisedAddresses(discovered);
+    const candidates = announced.length ? announced : advertisedAddresses(pairing);
+    const address = nextAddress(pairing.address, candidates);
+    const port = discovered?.port ?? pairing.port;
+    if (!address || (address === pairing.address && port === pairing.port)) {
+      scheduleReconnect(session, pairing);
+      return;
+    }
+
+    const updatedPairing = { ...pairing, address, port, addresses: candidates };
+    if (session.savePairing) {
+      session.savePairing(deviceId, updatedPairing)
+        .catch((e) => log.debug(`[subscriber] ${name}: failed to save updated address: ${e.message}`));
+    }
+    const others = candidates.filter((a) => a !== address);
+    log.info(
+      `[subscriber] ${name}: trying ${address}:${port} (was ${pairing.address}:${pairing.port}` +
+      `${others.length ? `; also announced at ${others.join(', ')}` : ''})`
+    );
+
+    session.addressRotations = (session.addressRotations ?? 0) + 1;
+    if (session.addressRotations < candidates.length) {
+      connectAccessoryImpl(session, updatedPairing);
+    } else {
+      // Every announced address has failed in this streak: back off.
+      session.addressRotations = 0;
+      scheduleReconnect(session, updatedPairing);
+    }
+  }).catch(() => scheduleReconnect(session, pairing));
 }
 
 function scheduleReconnect(session, pairing) {
@@ -847,6 +863,7 @@ export const __testHooks = {
   isAuthError,
   isMaxPeersError,
   isConnectionError,
+  rediscoverAndReconnect,
   attemptAutoRepair,
   detectFirmwareChanges,
   getSession(deviceId) {

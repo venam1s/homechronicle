@@ -423,6 +423,13 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
     { label: 'Hardware Rev', value: accessory.hardware_revision },
     { label: 'Protocol', value: accessory.protocol },
     { label: 'Transport', value: accessory.transport },
+    { label: 'Address', value: accessory.address },
+    // Other addresses the accessory announces, e.g. a Homebridge container's
+    // macvlan IP when the listener reaches it over a Docker bridge.
+    {
+      label: 'Also announced at',
+      value: (accessory.addresses ?? []).filter((a) => a !== accessory.address).join(', '),
+    },
   ].filter((f) => f.value != null && f.value !== '') : [];
 
   function handleSetDays(nextDays) {

@@ -2,7 +2,8 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log, getLevel, setLevel } from './logger.js';
 import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
-import { parseIntInRange } from './utils.js';
+import { parseIntInRange, withTimeout } from './utils.js';
+import { advertisedAddresses, isConnectionError } from './hap-addresses.js';
 import { shortUuid } from './accessory-metadata.js';
 import { CATEGORIES, isValidCategory } from './categories.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
@@ -21,6 +22,10 @@ const SETUP_WRITE_RATE_LIMIT_WINDOW_MS = parseIntInRange(
 const SETUP_WRITE_RATE_LIMIT_MAX = parseIntInRange(
   process.env.API_WRITE_RATE_LIMIT_MAX, 60, 1, 100_000
 );
+
+// Per-address deadline when an accessory announces more than one address, so an
+// unreachable one fails over to the next instead of waiting out the OS TCP timeout.
+const HAP_PAIR_ADDRESS_TIMEOUT_MS = parseIntInRange(process.env.HAP_PAIR_TIMEOUT_MS, 60_000, 1_000, 300_000);
 
 export function createSetupRouter({
   pool,
@@ -112,16 +117,37 @@ export function createSetupRouter({
     log.debug(`[setup] ${cached.name}: ff=${cached.ff ?? 'unknown'} → pair method ${preferredMethod}`);
 
     try {
-      const { client, pairMethod } = await pairSetupWithFallback({
-        HttpClient, deviceId, address: cached.address, port: cached.port, pin, pairMethod: preferredMethod,
-      });
+      // An accessory can announce several addresses, not all reachable from this
+      // host (a Homebridge container's macvlan address can't be reached from its
+      // own Docker host). Try each in turn on a connection failure; any other
+      // error (wrong PIN, already paired) is the answer and stops here.
+      const addresses = advertisedAddresses(cached);
+      let paired = null;
+      let pairedAddress = null;
+      for (const [i, candidate] of addresses.entries()) {
+        const attempt = pairSetupWithFallback({
+          HttpClient, deviceId, address: candidate, port: cached.port, pin, pairMethod: preferredMethod,
+        });
+        try {
+          paired = addresses.length > 1
+            ? await withTimeout(attempt, HAP_PAIR_ADDRESS_TIMEOUT_MS, null, `pair-setup via ${candidate}`)
+            : await attempt;
+          pairedAddress = candidate;
+          break;
+        } catch (err) {
+          if (!isConnectionError(err) || i === addresses.length - 1) throw err;
+          log.info(`[setup] ${cached.name}: ${candidate} not reachable (${err.message}) — trying ${addresses[i + 1]}`);
+        }
+      }
+      const { client, pairMethod } = paired;
       const longTermData = client.getLongTermData();
 
       const updatedPairings = loadPairings();
       updatedPairings[deviceId] = {
         protocol: 'homekit',
         name: cached.name,
-        address: cached.address,
+        address: pairedAddress,
+        addresses,
         port: cached.port,
         category: cached.category,
         pairedAt: new Date().toISOString(),
@@ -163,7 +189,7 @@ export function createSetupRouter({
         friendly = 'Device is busy — wait a moment and try again.';
       else if (msg.includes('0x01') || /Error:\s*1\b/.test(msg))
         friendly = 'Device returned an unknown error. Try again — if it persists, restart the device.';
-      else if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(msg))
+      else if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EHOSTUNREACH|ENETUNREACH|timed out/i.test(msg))
         friendly = 'Could not reach the device. Run a new scan to refresh its address, then try again.';
       else if (/M4: Empty TLV/.test(msg))
         friendly = 'The device ended pairing at the setup-code check without giving a reason. Double-check the 8-digit HomeKit setup code, power-cycle the device, then try again.';
