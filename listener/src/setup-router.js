@@ -468,6 +468,7 @@ export function createSetupRouter({
     }
 
     const names = loadDisplayNames();
+    const previousName = names[accessoryId];
     const name = displayName?.trim() ?? '';
     if (name) {
       names[accessoryId] = name;
@@ -482,10 +483,18 @@ export function createSetupRouter({
       log.info(`[setup] Display name for ${accessoryId} set to ${name || '(cleared)'} — ${updated} past event(s) updated`);
       res.json({ success: true, eventsUpdated: updated });
     } catch (err) {
-      // The name is saved and applies to new events; history is reconciled
-      // at the next listener start.
       log.error(`[setup] Display name for ${accessoryId}: renaming past events failed:`, err.message ?? err.stack ?? err);
-      res.json({ success: true, eventsUpdated: null });
+      if (name) {
+        // The name is saved and applies to new events; past live events are
+        // renamed at the next listener start.
+        return res.json({ success: true, eventsUpdated: null });
+      }
+      // A failed clear would leave history on the old name with nothing left
+      // to restore it: keep the name and report the failure.
+      const restored = loadDisplayNames();
+      if (typeof previousName === 'string') restored[accessoryId] = previousName;
+      await saveDisplayNames(restored).catch(() => {});
+      res.status(500).json({ error: 'Could not restore past events — the display name was kept. Try again.' });
     }
   });
 

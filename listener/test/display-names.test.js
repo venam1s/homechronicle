@@ -88,6 +88,24 @@ test('reconcileDisplayNames keeps going past a failing accessory', async () => {
   assert.deepEqual(seen, ['bad', 'good']);
 });
 
+test('reconcileDisplayNames leaves the archive alone (no accessory_id index there)', async () => {
+  const tables = [];
+  const pool = {
+    async connect() {
+      return {
+        async query(sql) {
+          const m = /^\s*UPDATE (event_logs\w*)/.exec(sql);
+          if (m) tables.push(m[1]);
+          return { rows: [], rowCount: 0 };
+        },
+        release() {},
+      };
+    },
+  };
+  await reconcileDisplayNames(pool, { 'AA:BB:2': 'Neakasa' });
+  assert.deepEqual(tables, ['event_logs']);
+});
+
 test('insertEvent stores the display name and keeps the reported name', async () => {
   const { insertEvent, setDisplayNameLookup } = await import('../src/db.js');
   const inserts = [];

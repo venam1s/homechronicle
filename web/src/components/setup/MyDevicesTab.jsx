@@ -145,7 +145,7 @@ export default function MyDevicesTab({ setup }) {
 
 
   const onRoomBlurWithFlash = useCallback((id) => {
-    handleRoomBlur(id);
+    if (handleRoomBlur(id) === false) return;
     flashSave(`room-${id}`);
     if (retentionConfig?.toastsEnabled !== false) {
       addToast('Room saved', 'success');
@@ -153,12 +153,12 @@ export default function MyDevicesTab({ setup }) {
   }, [handleRoomBlur, flashSave, retentionConfig?.toastsEnabled, addToast]);
 
   const onNoteBlurWithFlash = useCallback((id) => {
-    handleNoteBlur(id);
+    if (handleNoteBlur(id) === false) return;
     flashSave(`note-${id}`);
   }, [handleNoteBlur, flashSave]);
 
   const onDisplayNameBlurWithFlash = useCallback((id) => {
-    handleDisplayNameBlur(id);
+    if (handleDisplayNameBlur(id) === false) return;
     flashSave(`name-${id}`);
     if (retentionConfig?.toastsEnabled !== false) {
       addToast('Name saved', 'success');

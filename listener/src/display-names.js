@@ -33,17 +33,27 @@ const RENAMED_EXPR = `
     ELSE $2
   END`;
 
+// A rule scoped to a name another accessory also carries (two plugins each
+// exposing "Occupancy Sensor") covers both; renaming one must not move the
+// rule off the other. Live matching still accepts the reported name.
+const NOT_SHARED = (nameColumn) => `
+            AND NOT EXISTS (
+              SELECT 1 FROM event_logs o
+               WHERE o.accessory_id <> $1 AND lower(o.accessory_name) = lower(${nameColumn})
+            )`;
+
 /**
- * Rewrite one accessory's stored events (live and archived) to `displayName`,
- * or restore the reported names when it is empty. Alert rules scoped to one of
- * the accessory's old names follow the rename so they keep matching. Runs in
- * one transaction; idempotent (rows already carrying the right name are left
- * alone), so it doubles as the startup reconcile.
+ * Rewrite one accessory's stored events (live and, unless `archive` is false,
+ * archived) to `displayName`, or restore the reported names when it is empty.
+ * Alert rules scoped to one of the accessory's old names follow the rename so
+ * they keep matching. Runs in one transaction; idempotent (rows already
+ * carrying the right name are left alone).
  *
  * @returns {Promise<number>} events updated
  */
-export async function renameAccessoryEvents(pool, accessoryId, displayName) {
+export async function renameAccessoryEvents(pool, accessoryId, displayName, { archive = true } = {}) {
   const name = typeof displayName === 'string' ? displayName.trim() : '';
+  const tables = archive ? ['event_logs', 'event_logs_archive'] : ['event_logs'];
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -58,10 +68,11 @@ export async function renameAccessoryEvents(pool, accessoryId, displayName) {
            ) m
           WHERE r.scope_type = 'accessory'
             AND lower(r.scope_value) = lower(m.old_name)
-            AND m.old_name IS DISTINCT FROM m.new_name`,
+            AND m.old_name IS DISTINCT FROM m.new_name
+            ${NOT_SHARED('m.old_name')}`,
         [accessoryId, name]
       );
-      for (const table of ['event_logs', 'event_logs_archive']) {
+      for (const table of tables) {
         // eslint-disable-next-line no-await-in-loop
         const result = await client.query(
           `UPDATE ${table}
@@ -83,10 +94,11 @@ export async function renameAccessoryEvents(pool, accessoryId, displayName) {
            ) m
           WHERE r.scope_type = 'accessory'
             AND lower(r.scope_value) = lower(m.new_name)
-            AND m.old_name IS DISTINCT FROM m.new_name`,
+            AND m.old_name IS DISTINCT FROM m.new_name
+            ${NOT_SHARED('m.new_name')}`,
         [accessoryId]
       );
-      for (const table of ['event_logs', 'event_logs_archive']) {
+      for (const table of tables) {
         // eslint-disable-next-line no-await-in-loop
         const result = await client.query(
           `UPDATE ${table}
@@ -110,15 +122,17 @@ export async function renameAccessoryEvents(pool, accessoryId, displayName) {
 }
 
 /**
- * Bring stored history in line with the display names file — e.g. names set
- * before display names applied to events, or a file edited by hand. Logged,
+ * Bring stored events in line with the display names file at startup — e.g.
+ * names set before display names applied to events, or a file edited by hand.
+ * Live events only: the archive has no accessory_id index, and scanning it on
+ * every boot would grow without bound (renames via the API cover it). Logged,
  * never thrown: a failure here must not stop the listener.
  */
 export async function reconcileDisplayNames(pool, names) {
   for (const [accessoryId, displayName] of Object.entries(names ?? {})) {
     try {
       // eslint-disable-next-line no-await-in-loop
-      const updated = await renameAccessoryEvents(pool, accessoryId, displayName);
+      const updated = await renameAccessoryEvents(pool, accessoryId, displayName, { archive: false });
       if (updated) log.info(`[display-names] ${accessoryId}: ${updated} past event(s) renamed to "${displayName}"`);
     } catch (err) {
       log.warn(`[display-names] ${accessoryId}: could not rename past events:`, err.message ?? err);

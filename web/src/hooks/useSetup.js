@@ -345,31 +345,35 @@ export function useSetup() {
   // ── Room helpers ─────────────────────────────────────────────────────────
 
   // Blur fires on every focus-out; an untouched or unchanged field must not
-  // send '' (which would clear the saved value).
+  // send '' (which would clear the saved value). Handlers return false when
+  // nothing was sent, so callers skip the "saved" feedback.
   function isUnchanged(input, saved) {
     return input === undefined || input.trim() === (saved ?? '').trim();
   }
 
   function handleRoomBlur(deviceId) {
-    if (isUnchanged(roomInputs[deviceId], savedRooms[deviceId])) return;
+    if (isUnchanged(roomInputs[deviceId], savedRooms[deviceId])) return false;
     const roomName = roomInputs[deviceId] ?? '';
     saveRoomMutation.mutate({ accessoryId: deviceId, roomName });
+    return true;
   }
 
   // ── Note helpers ─────────────────────────────────────────────────────────
 
   function handleNoteBlur(deviceId) {
-    if (isUnchanged(noteInputs[deviceId], savedNotes[deviceId])) return;
+    if (isUnchanged(noteInputs[deviceId], savedNotes[deviceId])) return false;
     const note = noteInputs[deviceId] ?? '';
     saveNoteMutation.mutate({ accessoryId: deviceId, note });
+    return true;
   }
 
   // ── Display name helpers ─────────────────────────────────────────────────
 
   function handleDisplayNameBlur(deviceId) {
-    if (isUnchanged(displayNameInputs[deviceId], savedDisplayNames[deviceId])) return;
+    if (isUnchanged(displayNameInputs[deviceId], savedDisplayNames[deviceId])) return false;
     const displayName = displayNameInputs[deviceId] ?? '';
     saveDisplayNameMutation.mutate({ accessoryId: deviceId, displayName });
+    return true;
   }
 
   // ── Pairing helpers ──────────────────────────────────────────────────────
