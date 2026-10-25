@@ -100,7 +100,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
 
   const header = (
     <div className="flex items-center gap-2 mb-3">
-      <Moon size={14} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />
+      <Moon size={14} className="text-hc-quiet-text" />
       <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours</h3>
     </div>
   );
@@ -124,7 +124,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
       <div className={card}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Moon size={14} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />
+            <Moon size={14} className="text-hc-quiet-text" />
             <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours</h3>
           </div>
           {!embedded && (
@@ -160,7 +160,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
     <div className={card}>
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Moon size={14} style={{ color: 'rgb(var(--hc-accent-rgb))' }} />
+          <Moon size={14} className="text-hc-quiet-text" />
           <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours Activity</h3>
         </div>
         <span className="text-xs text-hc-muted">{startLocal} – {endLocal}</span>
@@ -169,17 +169,13 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
         {events.map((row) => (
           <div
             key={`${row.accessoryId ?? row.accessoryName}:${row.lastSeenAt}`}
-            className={`rounded-lg px-3 py-2${onNavigateToAccessory ? ' cursor-pointer hover:brightness-95 transition-[filter]' : ''}`}
-            style={{
-              border: '1px solid rgba(var(--hc-accent-rgb), 0.15)',
-              backgroundColor: 'rgba(var(--hc-accent-rgb), 0.06)',
-            }}
+            className={`rounded-lg border border-hc-quiet-border bg-hc-quiet-bg px-3 py-2${onNavigateToAccessory ? ' cursor-pointer hover:brightness-95 transition-[filter]' : ''}`}
             onClick={onNavigateToAccessory ? () => onNavigateToAccessory(row.accessoryName) : undefined}
           >
-            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--hc-accent-strong)' }}>
+            <div className="flex items-center gap-2 text-xs text-hc-quiet-text">
               <Moon size={12} />
               <span className="font-semibold truncate">{row.accessoryName}</span>
-              {row.room && <span className="truncate" style={{ color: 'rgb(var(--hc-accent-rgb))', opacity: 0.7 }}>{row.room}</span>}
+              {row.room && <span className="truncate opacity-80">{row.room}</span>}
               <span className="ml-auto whitespace-nowrap flex items-center gap-2">
                 {row.count} event{row.count !== 1 ? 's' : ''}
                 {row.accessoryId && (
@@ -195,7 +191,7 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
               </span>
             </div>
             {row.lastSeenAt && (
-              <div className="text-xs mt-0.5" style={{ color: 'var(--hc-accent-strong)' }}>
+              <div className="text-xs text-hc-quiet-text mt-0.5">
                 Last seen {formatLastSeen(row.lastSeenAt)}
               </div>
             )}

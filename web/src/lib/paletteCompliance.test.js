@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { PALETTE_IDS, MODES, STATUS_SOLID, buildTokens } from './palettes.js';
-import { contrastRatio } from './color.js';
+import { contrastRatio, parseHex, toHex } from './color.js';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -111,6 +111,51 @@ describe('foreground-on-solid tokens', () => {
       const t = buildTokens(id, mode);
       for (const key of ['on-accent', 'on-danger', 'on-success', 'on-warning']) {
         expect(t[key], `${id}.${mode} --hc-${key}`).toMatch(/^#[0-9a-f]{6}$/);
+      }
+    }
+  });
+});
+
+// --hc-stale-* / --hc-quiet-* live in index.css (shared across palettes, like
+// the status tokens) and are translucent, so the tint each palette actually
+// shows depends on its panel colour. Read them straight from the stylesheet so
+// this can't drift from what ships.
+describe('signal tints', () => {
+  const css = readFileSync(join(SRC, 'index.css'), 'utf8');
+  const darkAt = css.indexOf('html.theme-dark {');
+
+  function readTokens(block) {
+    const out = {};
+    for (const m of block.matchAll(/--hc-(stale|quiet)-(bg|text):\s*([^;]+);/g)) {
+      out[`${m[1]}-${m[2]}`] = m[3].trim();
+    }
+    return out;
+  }
+
+  const TOKENS = { light: readTokens(css.slice(0, darkAt)), dark: readTokens(css.slice(darkAt)) };
+
+  function composite(base, rgba) {
+    const [r, g, b, a] = rgba.match(/[\d.]+/g).map(Number);
+    return toHex(parseHex(base).map((v, i) => Math.round(v * (1 - a) + [r, g, b][i] * a)));
+  }
+
+  it('defines both tints in light and dark', () => {
+    for (const mode of MODES) {
+      for (const key of ['stale-bg', 'stale-text', 'quiet-bg', 'quiet-text']) {
+        expect(TOKENS[mode][key], `${mode} --hc-${key}`).toBeTruthy();
+      }
+    }
+  });
+
+  it.each(PALETTE_IDS)('%s: stale/quiet text meets AA on its tint over the panel', (id) => {
+    for (const mode of MODES) {
+      const panel = buildTokens(id, mode).panel;
+      for (const signal of ['stale', 'quiet']) {
+        const bg = composite(panel, TOKENS[mode][`${signal}-bg`]);
+        expect(
+          contrastRatio(TOKENS[mode][`${signal}-text`], bg),
+          `${id}.${mode} ${signal}`,
+        ).toBeGreaterThanOrEqual(4.5);
       }
     }
   });

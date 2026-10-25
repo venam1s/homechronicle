@@ -33,6 +33,14 @@
   --color-hc-danger-text: var(--hc-danger-text);
   --color-hc-danger-border: var(--hc-danger-border);
 
+  /* Signal tints (reserved, palette-independent) */
+  --color-hc-stale-bg: var(--hc-stale-bg);
+  --color-hc-stale-text: var(--hc-stale-text);
+  --color-hc-stale-border: var(--hc-stale-border);
+  --color-hc-quiet-bg: var(--hc-quiet-bg);
+  --color-hc-quiet-text: var(--hc-quiet-text);
+  --color-hc-quiet-border: var(--hc-quiet-border);
+
   /* Foreground on solid fills */
   --color-hc-on-accent: var(--hc-on-accent);
   --color-hc-on-danger: var(--hc-on-danger);
@@ -113,6 +121,17 @@
     --hc-danger-text: #b91c1c;
     --hc-danger-border: #fecaca;
 
+    /* Signal tints. Like the status tokens these are shared across palettes:
+       Stale Devices and Quiet Hours each need a hue that no palette accent
+       can land on (Harvest/Almanac/Ember accents sit on top of warning
+       amber). Translucent so they pick up each palette's panel warmth. */
+    --hc-stale-bg: rgba(100, 116, 139, 0.1);
+    --hc-stale-text: #475569;
+    --hc-stale-border: rgba(100, 116, 139, 0.28);
+    --hc-quiet-bg: rgba(99, 102, 241, 0.1);
+    --hc-quiet-text: #4338ca;
+    --hc-quiet-border: rgba(99, 102, 241, 0.28);
+
     /* Interactive tokens */
     --hc-interactive: rgba(var(--hc-accent-rgb), 0.08);
     --hc-interactive-hover: rgba(var(--hc-accent-rgb), 0.14);
@@ -187,6 +206,14 @@
     --hc-danger-bg: rgba(220, 38, 38, 0.15);
     --hc-danger-text: #f87171;
     --hc-danger-border: rgba(220, 38, 38, 0.25);
+
+    /* Signal tints - dark */
+    --hc-stale-bg: rgba(148, 163, 184, 0.12);
+    --hc-stale-text: #cbd5e1;
+    --hc-stale-border: rgba(148, 163, 184, 0.25);
+    --hc-quiet-bg: rgba(129, 140, 248, 0.16);
+    --hc-quiet-text: #a5b4fc;
+    --hc-quiet-border: rgba(129, 140, 248, 0.3);
   }
 
   /* Palette token blocks (12 worlds x light/dark) are generated into
