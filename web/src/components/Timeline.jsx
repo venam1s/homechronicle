@@ -405,6 +405,8 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
         onHoverEnd={() => setHoveredCell(null)}
         onClickCell={handleClickCell}
         lockedCell={lockedCell}
+        matchCount={data?.total ?? null}
+        matchCountEstimated={Boolean(data?.estimated)}
       />
 
       {/* Locked-cell banner — shows when a heatmap cell has been clicked */}

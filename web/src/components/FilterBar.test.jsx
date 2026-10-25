@@ -142,3 +142,30 @@ describe('FilterBar export', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Export failed');
   });
 });
+
+describe('FilterBar export — same-origin download warns from the match count', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('warns before a download that would hit the row cap', async () => {
+    const mod = await import('../lib/exportEvents.js');
+    vi.spyOn(mod, 'downloadEventsExport').mockResolvedValue({ native: true });
+    render(
+      <FilterBar
+        filters={{}}
+        onChange={() => {}}
+        open
+        onToggle={() => {}}
+        heatmapOpen={false}
+        onHeatmapToggle={() => {}}
+        onHoverCell={() => {}}
+        onHoverEnd={() => {}}
+        onClickCell={() => {}}
+        lockedCell={null}
+        matchCount={812345}
+        matchCountEstimated
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Export matching events as CSV' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(/oldest 500,000 of about 812,345 events/);
+  });
+});
