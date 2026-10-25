@@ -5,7 +5,7 @@ import { useAccentRgb } from '../hooks/useAccentRgb.js';
 import { getRoomColor } from '../lib/roomColors.js';
 import { Search, SlidersHorizontal, ChevronDown, ChevronUp, BarChart2, Download, Loader2 } from 'lucide-react';
 import HeatmapGrid from './HeatmapGrid.jsx';
-import { downloadEventsExport, EXPORT_ROW_CAP } from '../lib/exportEvents.js';
+import { downloadEventsExport } from '../lib/exportEvents.js';
 
 const EXPORT_FORMATS = [
   { format: 'csv', label: 'CSV' },
@@ -23,8 +23,6 @@ export default function FilterBar({
   onHoverEnd,
   onClickCell,
   lockedCell,
-  matchCount = null,
-  matchCountEstimated = false,
 }) {
   const { data: accessories = [] } = useAccessories();
   const { data: heatmapData = [], isLoading: heatmapLoading } = useHeatmap();
@@ -45,15 +43,7 @@ export default function FilterBar({
     setExportNote(null);
     try {
       const result = await downloadEventsExport(filters, format);
-      if (result.native) {
-        // The browser handles the download; warn from the Timeline's own count.
-        if (Number.isFinite(matchCount) && matchCount > EXPORT_ROW_CAP) {
-          setExportNote({
-            tone: 'warning',
-            text: `Exporting the oldest ${EXPORT_ROW_CAP.toLocaleString()} of ${matchCountEstimated ? 'about ' : ''}${matchCount.toLocaleString()} events. Narrow the dates to export the rest.`,
-          });
-        }
-      } else if (result.truncated) {
+      if (result.truncated) {
         setExportNote({
           tone: 'warning',
           text: `Exported the oldest ${result.rows.toLocaleString()} of ${result.total.toLocaleString()} events. Narrow the dates to export the rest.`,

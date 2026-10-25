@@ -88,22 +88,56 @@ test('reconcileDisplayNames keeps going past a failing accessory', async () => {
   assert.deepEqual(seen, ['bad', 'good']);
 });
 
-test('reconcileDisplayNames leaves the archive alone (no accessory_id index there)', async () => {
-  const tables = [];
+test('reconcileDisplayNames restores accessories whose name is gone and applies the rest', async () => {
+  const jobs = [];
   const pool = {
+    async query(sql) {
+      assert.match(sql, /reported_name IS NOT NULL/);
+      return { rows: [{ accessory_id: 'kept' }, { accessory_id: 'gone' }] };
+    },
     async connect() {
       return {
-        async query(sql) {
-          const m = /^\s*UPDATE (event_logs\w*)/.exec(sql);
-          if (m) tables.push(m[1]);
+        async query(sql, params = []) {
+          if (/^\s*UPDATE event_logs\b/.test(sql)) {
+            jobs.push([params[0], /SET accessory_name = reported_name/.test(sql) ? 'restore' : 'rename']);
+          }
           return { rows: [], rowCount: 0 };
         },
         release() {},
       };
     },
   };
-  await reconcileDisplayNames(pool, { 'AA:BB:2': 'Neakasa' });
-  assert.deepEqual(tables, ['event_logs']);
+  await reconcileDisplayNames(pool, { kept: 'Neakasa' });
+  assert.deepEqual(jobs, [['kept', 'rename'], ['gone', 'restore']]);
+});
+
+test('scheduleRename runs renames one at a time, in order', async () => {
+  const { scheduleRename } = await import('../src/display-names.js');
+  const order = [];
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const pool = {
+    async connect() {
+      return {
+        async query(sql, params = []) {
+          if (/^\s*UPDATE event_logs\b/.test(sql)) {
+            order.push(`start ${params[0]}`);
+            if (params[0] === 'first') await gate;
+            order.push(`end ${params[0]}`);
+          }
+          return { rows: [], rowCount: 1 };
+        },
+        release() {},
+      };
+    },
+  };
+  const a = scheduleRename(pool, 'first', 'A');
+  const b = scheduleRename(pool, 'second', 'B');
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(order, ['start first']);
+  release();
+  await Promise.all([a, b]);
+  assert.deepEqual(order, ['start first', 'end first', 'start second', 'end second']);
 });
 
 test('insertEvent stores the display name and keeps the reported name', async () => {

@@ -3,10 +3,6 @@ import { saveBlob } from './download.js';
 
 const FILTER_KEYS = ['room', 'accessory', 'characteristic', 'from', 'to'];
 
-// The listener's default EVENTS_MAX_EXPORT_ROWS; used to warn before a download
-// that would be cut off. (An operator can change the server value.)
-export const EXPORT_ROW_CAP = 500_000;
-
 /** True when the API is served from this page's origin (production behind nginx). */
 export function apiIsSameOrigin(apiBase = API_BASE) {
   try {
@@ -16,13 +12,27 @@ export function apiIsSameOrigin(apiBase = API_BASE) {
   }
 }
 
-export function buildExportUrl(filters = {}, format = 'csv') {
-  const qs = new URLSearchParams({ format });
+function filterParams(filters = {}, extra = {}) {
+  const qs = new URLSearchParams(extra);
   for (const key of FILTER_KEYS) {
     const value = filters[key];
     if (value !== undefined && value !== null && value !== '') qs.set(key, String(value));
   }
-  return `${API_BASE}/events/export?${qs.toString()}`;
+  return qs.toString();
+}
+
+export function buildExportUrl(filters = {}, format = 'csv') {
+  return `${API_BASE}/events/export?${filterParams(filters, { format })}`;
+}
+
+export function buildExportCheckUrl(filters = {}) {
+  return `${API_BASE}/events/export/check?${filterParams(filters)}`;
+}
+
+function exportError(status) {
+  if (status === 429) return new Error('Too many exports — try again in a minute');
+  if (status === 401) return new Error('Your session has expired — sign in again to export');
+  return new Error('Export failed');
 }
 
 function filenameFrom(res, format) {
@@ -31,19 +41,24 @@ function filenameFrom(res, format) {
 }
 
 /**
- * Download the events matching the Timeline filters.
+ * Download the events matching the Timeline filters. Resolves with the row
+ * counts the listener reports ({ total, rows, truncated }); rejects with a
+ * user-facing message on a non-2xx response.
  *
  * Same origin (production): a plain link to the export URL, so the browser
  * streams the file straight to disk with the session cookie — no copy of a
- * possibly 500k-row file in page memory. Resolves { native: true }; the
- * caller warns about the row cap beforehand from the Timeline's own count.
+ * possibly 500k-row file in page memory. A link reports nothing back, so a
+ * check request first surfaces auth/rate-limit errors and the row counts.
  *
  * Cross origin (Vite dev, VITE_API_BASE_URL): a link can't carry the API token
- * header, so fetch it, buffer it and save the blob. Resolves with the row
- * counts the listener reports; rejects on a non-2xx response.
+ * header, so fetch it, buffer it and save the blob.
  */
 export async function downloadEventsExport(filters, format) {
   if (apiIsSameOrigin()) {
+    const check = await fetch(buildExportCheckUrl(filters), { credentials: 'include', headers: withApiAuthHeaders() });
+    if (!check.ok) throw exportError(check.status);
+    const counts = await check.json();
+
     const a = document.createElement('a');
     a.href = buildExportUrl(filters, format);
     a.download = '';
@@ -54,14 +69,14 @@ export async function downloadEventsExport(filters, format) {
     } finally {
       a.remove();
     }
-    return { native: true };
+    return { total: counts.total, rows: counts.rows, truncated: Boolean(counts.truncated) };
   }
 
   const res = await fetch(buildExportUrl(filters, format), {
     credentials: 'include',
     headers: withApiAuthHeaders(),
   });
-  if (!res.ok) throw new Error(res.status === 429 ? 'Too many exports — try again in a minute' : 'Export failed');
+  if (!res.ok) throw exportError(res.status);
   saveBlob(await res.blob(), filenameFrom(res, format));
   return {
     total: Number(res.headers.get('X-Export-Total') ?? 0),

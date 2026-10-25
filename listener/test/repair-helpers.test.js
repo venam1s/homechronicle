@@ -141,3 +141,38 @@ test('performPairSetupAndPersist passes pairMethod through to pairSetup', async 
 
   assert.deepEqual(pairSetupCalls, [{ pin: '111-22-333', method: 0 }]);
 });
+
+test('performPairSetupAndPersist fails over to the next address and saves the one that worked', async () => {
+  const { performPairSetupAndPersist } = await import('../src/repair-helpers.js');
+  const tried = [];
+  const MockHttpClient = class {
+    constructor(deviceId, address) { this.address = address; }
+    async pairSetup() {
+      tried.push(this.address);
+      if (this.address === '10.0.0.193') throw new Error('connect EHOSTUNREACH 10.0.0.193:55203');
+    }
+    getLongTermData() { return { ltk: 'x' }; }
+  };
+  let saved = null;
+  await performPairSetupAndPersist(
+    { deviceId: 'hb', pin: '111-22-333', address: '10.0.0.193', port: 55203, addresses: ['10.0.0.193', '172.16.25.26'] },
+    { HttpClient: MockHttpClient, loadPairings: () => ({ hb: { name: 'Homebridge' } }), savePairings: async (p) => { saved = p; } },
+  );
+  assert.deepEqual(tried, ['10.0.0.193', '172.16.25.26']);
+  assert.equal(saved.hb.address, '172.16.25.26');
+  assert.deepEqual(saved.hb.addresses, ['10.0.0.193', '172.16.25.26']);
+});
+
+test('performPairSetupAndPersist aborts a pair-setup that times out', async () => {
+  const { performPairSetupAndPersist } = await import('../src/repair-helpers.js');
+  let aborted = false;
+  const MockHttpClient = class {
+    constructor() { this._pairingConnection = { close() { aborted = true; } }; }
+    pairSetup() { return new Promise(() => {}); }
+  };
+  await assert.rejects(performPairSetupAndPersist(
+    { deviceId: 'hb', pin: '1', address: '10.0.0.193', port: 1 },
+    { HttpClient: MockHttpClient, loadPairings: () => ({}), savePairings: async () => {}, timeoutMs: 20 },
+  ), /timed out/);
+  assert.ok(aborted, 'the pairing socket was closed');
+});

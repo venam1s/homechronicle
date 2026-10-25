@@ -94,13 +94,12 @@ function eventMatchesScope(rule, event) {
     const target = normalizeLower(scopeValue);
     // Before the HAP UUID map fix, HomeKit events were named "<name> · <service>";
     // rules saved with that name must keep matching the plain name.
-    const legacyName = event.accessoryName && event.serviceType
-      ? `${event.accessoryName} · ${event.serviceType}`
-      : null;
-    return normalizeLower(event.accessoryName) === target
-      || (event.reportedName != null && normalizeLower(event.reportedName) === target)
-      || normalizeLower(event.accessoryId) === target
-      || (legacyName !== null && normalizeLower(legacyName) === target);
+    // A display name replaces the stored name; rules may still use the name
+    // the device reports, plain or in the legacy suffixed form.
+    const names = [event.accessoryName, event.reportedName].filter((n) => n != null && n !== '');
+    const legacyNames = event.serviceType ? names.map((n) => `${n} · ${event.serviceType}`) : [];
+    return normalizeLower(event.accessoryId) === target
+      || [...names, ...legacyNames].some((n) => normalizeLower(n) === target);
   }
   if (scopeType === 'characteristic') {
     return normalizeLower(event.characteristic) === normalizeLower(scopeValue);

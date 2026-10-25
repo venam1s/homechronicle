@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, VolumeX, X, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useEvents, useAnomalies } from '../hooks/useEvents.js';
 import { useMutedDevices } from '../hooks/useMutedDevices.js';
+import { isEventMuted } from '../lib/mutedDevices.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useUserPreferences } from '../hooks/useUserPreferences.js';
 import { usePreference } from '../hooks/usePreference.js';
@@ -184,7 +185,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
 
       if (!baseEvents.length) return;
 
-      const baseVisibleCount = baseEvents.filter((e) => !muted.has(e.accessory_name)).length;
+      const baseVisibleCount = baseEvents.filter((e) => !isEventMuted(muted, e)).length;
       const totalPages = data?.pages ?? 1;
       if (baseVisibleCount >= PAGE_SIZE || page >= totalPages) return;
 
@@ -202,7 +203,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
         if (!events.length) break;
 
         extras.push(...events);
-        visibleCount += events.filter((e) => !muted.has(e.accessory_name)).length;
+        visibleCount += events.filter((e) => !isEventMuted(muted, e)).length;
         nextPage += 1;
       }
 
@@ -233,7 +234,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
       return false;
     });
     return {
-      visibleEvents: safeEvents.filter((e) => !muted.has(e.accessory_name)),
+      visibleEvents: safeEvents.filter((e) => !isEventMuted(muted, e)),
       droppedInvalidCount: droppedInvalid,
     };
   }, [data?.events, backfilledEvents, muted]);
@@ -405,8 +406,6 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
         onHoverEnd={() => setHoveredCell(null)}
         onClickCell={handleClickCell}
         lockedCell={lockedCell}
-        matchCount={data?.total ?? null}
-        matchCountEstimated={Boolean(data?.estimated)}
       />
 
       {/* Locked-cell banner — shows when a heatmap cell has been clicked */}

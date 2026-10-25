@@ -13,14 +13,28 @@ describe('downloadEventsExport — same-origin API (production)', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it('hands the URL to the browser instead of buffering it in the page', async () => {
+  it('checks the export, then hands the URL to the browser instead of buffering it in the page', async () => {
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ total: 812345, rows: 500000, truncated: true }) });
     expect(apiIsSameOrigin()).toBe(true);
     const result = await downloadEventsExport({ room: 'Kitchen', accessory: '' }, 'csv');
-    expect(result).toEqual({ native: true });
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result).toEqual({ total: 812345, rows: 500000, truncated: true });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/events/export/check?room=Kitchen');
     expect(clicked).toEqual([{ href: buildExportUrl({ room: 'Kitchen' }, 'csv'), download: true, attached: true }]);
     expect(clicked[0].href).toBe('/api/events/export?format=csv&room=Kitchen');
     expect(document.querySelector('a[download]')).toBeNull();
+  });
+
+  it('reports an expired session instead of saving an error body as the file', async () => {
+    global.fetch.mockResolvedValue({ ok: false, status: 401 });
+    await expect(downloadEventsExport({}, 'csv')).rejects.toThrow(/session has expired/);
+    expect(clicked).toEqual([]);
+  });
+
+  it('reports a rate limit', async () => {
+    global.fetch.mockResolvedValue({ ok: false, status: 429 });
+    await expect(downloadEventsExport({}, 'json')).rejects.toThrow(/Too many exports/);
+    expect(clicked).toEqual([]);
   });
 });
 

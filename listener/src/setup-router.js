@@ -3,8 +3,8 @@ import rateLimit from 'express-rate-limit';
 import { log, getLevel, setLevel } from './logger.js';
 import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { parseIntInRange, withTimeout } from './utils.js';
-import { advertisedAddresses, isConnectionError } from './hap-addresses.js';
-import { renameAccessoryEvents } from './display-names.js';
+import { abortHapClient, advertisedAddresses, tryEachAddress } from './hap-addresses.js';
+import { scheduleRename } from './display-names.js';
 import { shortUuid } from './accessory-metadata.js';
 import { CATEGORIES, isValidCategory } from './categories.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
@@ -23,6 +23,10 @@ const SETUP_WRITE_RATE_LIMIT_WINDOW_MS = parseIntInRange(
 const SETUP_WRITE_RATE_LIMIT_MAX = parseIntInRange(
   process.env.API_WRITE_RATE_LIMIT_MAX, 60, 1, 100_000
 );
+
+// How long PATCH /display-name waits for past events to be renamed before
+// answering (the rename carries on in the background).
+const DISPLAY_NAME_WAIT_MS = 10_000;
 
 // Per-address deadline when an accessory announces more than one address, so an
 // unreachable one fails over to the next instead of waiting out the OS TCP timeout.
@@ -123,23 +127,21 @@ export function createSetupRouter({
       // own Docker host). Try each in turn on a connection failure; any other
       // error (wrong PIN, already paired) is the answer and stops here.
       const addresses = advertisedAddresses(cached);
-      let paired = null;
-      let pairedAddress = null;
-      for (const [i, candidate] of addresses.entries()) {
+      const { result: paired, address: pairedAddress } = await tryEachAddress(addresses, (candidate) => {
+        const clients = [];
         const attempt = pairSetupWithFallback({
           HttpClient, deviceId, address: candidate, port: cached.port, pin, pairMethod: preferredMethod,
+          onClient: (c) => clients.push(c),
         });
-        try {
-          paired = addresses.length > 1
-            ? await withTimeout(attempt, HAP_PAIR_ADDRESS_TIMEOUT_MS, null, `pair-setup via ${candidate}`)
-            : await attempt;
-          pairedAddress = candidate;
-          break;
-        } catch (err) {
-          if (!isConnectionError(err) || i === addresses.length - 1) throw err;
-          log.info(`[setup] ${cached.name}: ${candidate} not reachable (${err.message}) — trying ${addresses[i + 1]}`);
-        }
-      }
+        // A timed-out attempt is aborted before the next address is tried, so
+        // two pair-setups never overlap and a late one can't complete with
+        // keys nobody saved.
+        return addresses.length > 1
+          ? withTimeout(attempt, HAP_PAIR_ADDRESS_TIMEOUT_MS, () => clients.forEach(abortHapClient), `pair-setup via ${candidate}`)
+          : attempt;
+      }, (candidate, err, next) => {
+        log.info(`[setup] ${cached.name}: ${candidate} not reachable (${err.message}) — trying ${next}`);
+      });
       const { client, pairMethod } = paired;
       const longTermData = client.getLongTermData();
 
@@ -462,39 +464,35 @@ export function createSetupRouter({
   router.patch('/display-name', setupWriteLimiter, async (req, res) => {
     const { accessoryId, displayName } = req.body ?? {};
     if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
-
     if (displayName != null && typeof displayName !== 'string') {
       return res.status(400).json({ error: 'displayName must be a string' });
     }
 
-    const names = loadDisplayNames();
-    const previousName = names[accessoryId];
-    const name = displayName?.trim() ?? '';
-    if (name) {
-      names[accessoryId] = name;
-    } else {
-      delete names[accessoryId];
-    }
-    // Store first, then rewrite history: an event inserted in between already
-    // picks up the new name from the store.
-    await saveDisplayNames(names);
     try {
-      const updated = await renameAccessoryEvents(pool, accessoryId, name);
-      log.info(`[setup] Display name for ${accessoryId} set to ${name || '(cleared)'} — ${updated} past event(s) updated`);
-      res.json({ success: true, eventsUpdated: updated });
-    } catch (err) {
-      log.error(`[setup] Display name for ${accessoryId}: renaming past events failed:`, err.message ?? err.stack ?? err);
+      const names = loadDisplayNames();
+      const name = displayName?.trim() ?? '';
       if (name) {
-        // The name is saved and applies to new events; past live events are
-        // renamed at the next listener start.
-        return res.json({ success: true, eventsUpdated: null });
+        names[accessoryId] = name;
+      } else {
+        delete names[accessoryId];
       }
-      // A failed clear would leave history on the old name with nothing left
-      // to restore it: keep the name and report the failure.
-      const restored = loadDisplayNames();
-      if (typeof previousName === 'string') restored[accessoryId] = previousName;
-      await saveDisplayNames(restored).catch(() => {});
-      res.status(500).json({ error: 'Could not restore past events — the display name was kept. Try again.' });
+      // Store first, then rewrite history: an event inserted in between already
+      // picks up the new name from the store.
+      await saveDisplayNames(names);
+      log.info(`[setup] Display name for ${accessoryId} set to ${name || '(cleared)'}`);
+
+      // Renaming a long history can outlast the proxy timeout; wait a little,
+      // then let it finish in the background. A failure is logged and repaired
+      // at the next listener start.
+      const job = scheduleRename(pool, accessoryId, name);
+      const updated = await Promise.race([
+        job.catch(() => null),
+        new Promise((resolve) => { setTimeout(resolve, DISPLAY_NAME_WAIT_MS, undefined).unref?.(); }),
+      ]);
+      res.json({ success: true, eventsUpdated: updated ?? null, pending: updated === undefined });
+    } catch (err) {
+      log.error('[setup] /display-name error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 

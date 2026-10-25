@@ -8,6 +8,7 @@
 
 import { log } from './logger.js';
 import { resolvePairMethod } from './setup-helpers.js';
+import { addressesToTry, advertisedAddresses } from './hap-addresses.js';
 
 /**
  * Calculate milliseconds until the next occurrence of the given UTC hour.
@@ -143,8 +144,11 @@ export function createRepairScheduler({
           try {
             const discovered = await discoverDevice(target.deviceId);
             if (discovered) {
+              // Start from the address that last worked: discovery's first
+              // address may be one this host can't reach (e.g. a macvlan).
+              const addresses = addressesToTry(pairing.address, advertisedAddresses(discovered), advertisedAddresses(pairing));
               await performPairSetupAndPersist(
-                target.deviceId, pairing.pin, discovered.address, discovered.port, resolvePairMethod(pairing),
+                target.deviceId, pairing.pin, addresses[0], discovered.port, resolvePairMethod(pairing), addresses,
               );
               resetSubscriberStats(target.deviceId);
               const updatedPairings = loadPairings();

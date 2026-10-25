@@ -104,7 +104,7 @@ export function createEventsRouter({ pool, getRooms }) {
       const dataResult = await pool.query(
         `SELECT id, timestamp, accessory_id, accessory_name, room_name,
                 service_type, characteristic, old_value, new_value, protocol,
-                transport, endpoint_id, cluster_id, attribute_id, raw_iid
+                transport, endpoint_id, cluster_id, attribute_id, raw_iid, reported_name
          FROM event_logs ${where}
          ORDER BY timestamp DESC, id DESC
          LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -134,6 +134,23 @@ export function createEventsRouter({ pool, getRooms }) {
     validate: false,
     keyGenerator: rateLimitKeyGenerator,
     message: { error: 'Too many requests' },
+  });
+
+  // What an export with these filters would contain, without streaming it.
+  // The web UI calls this before handing the download to the browser (which
+  // can't report errors or the row cap from a plain link).
+  router.get('/events/export/check', eventsReadLimiter, async (req, res) => {
+    const { conditions, params } = buildEventFilters(req.query);
+    try {
+      const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+      const countResult = await pool.query(`SELECT COUNT(*) AS total FROM event_logs ${where}`, params);
+      const total = Number.parseInt(countResult.rows[0]?.total ?? '0', 10);
+      const rows = Math.min(total, EVENTS_MAX_EXPORT_ROWS);
+      res.json({ total, rows, truncated: total > rows });
+    } catch (err) {
+      log.error('[api] /api/events/export/check error:', err.message ?? err.stack ?? err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   });
 
   // Download the events matching the Timeline's server-side filters (muted

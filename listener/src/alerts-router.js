@@ -582,9 +582,22 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true, getDefau
       targetEmail: 'target_email',
       quietMinutes: 'quiet_minutes',
     };
+    const scopeChanges = [];
     for (const [key, value] of Object.entries(parsed.value)) {
       params.push(value);
       fields.push(`${map[key]} = $${params.length}`);
+      if (key === 'scopeValue' || key === 'scopeType') {
+        scopeChanges.push(`${map[key]} IS DISTINCT FROM $${params.length}`);
+      }
+    }
+    // A scope edited by hand is no longer one a display name moved: a later
+    // clear of that name must not put the old scope back.
+    if (scopeChanges.length) {
+      const changed = scopeChanges.join(' OR ');
+      fields.push(
+        `renamed_by_accessory_id = CASE WHEN ${changed} THEN NULL ELSE renamed_by_accessory_id END`,
+        `scope_value_before_rename = CASE WHEN ${changed} THEN NULL ELSE scope_value_before_rename END`,
+      );
     }
     // IDOR-safe WHERE: require both id match AND ownership (D-07). A legacy/
     // service-token caller reaches any rule by id alone (AUTH-L-2).

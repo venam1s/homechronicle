@@ -143,12 +143,12 @@ describe('FilterBar export', () => {
   });
 });
 
-describe('FilterBar export — same-origin download warns from the match count', () => {
+describe('FilterBar export — warns from the counts the listener reports', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('warns before a download that would hit the row cap', async () => {
+  it('warns when the download hits the row cap', async () => {
     const mod = await import('../lib/exportEvents.js');
-    vi.spyOn(mod, 'downloadEventsExport').mockResolvedValue({ native: true });
+    vi.spyOn(mod, 'downloadEventsExport').mockResolvedValue({ total: 812345, rows: 500000, truncated: true });
     render(
       <FilterBar
         filters={{}}
@@ -161,11 +161,9 @@ describe('FilterBar export — same-origin download warns from the match count',
         onHoverEnd={() => {}}
         onClickCell={() => {}}
         lockedCell={null}
-        matchCount={812345}
-        matchCountEstimated
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Export matching events as CSV' }));
-    expect(await screen.findByRole('status')).toHaveTextContent(/oldest 500,000 of about 812,345 events/);
+    expect(await screen.findByRole('status')).toHaveTextContent(/oldest 500,000 of 812,345 events/);
   });
 });

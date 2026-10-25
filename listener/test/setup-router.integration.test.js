@@ -619,21 +619,16 @@ test('PATCH /display-name — a failed history rename still saves the name', asy
   assert.deepEqual(saved, { 'AA:BB:2': 'Neakasa' });
 });
 
-test('PATCH /display-name — a failed clear keeps the name and reports the failure', async () => {
-  let stored = { 'AA:BB:2': 'Neakasa' };
+test('PATCH /display-name — 500 JSON when the name cannot be saved', async () => {
   const router = makeRouter({
-    loadDisplayNames: () => ({ ...stored }),
-    saveDisplayNames: async (names) => { stored = names; },
-    pool: { async connect() { throw new Error('db down'); } },
+    saveDisplayNames: async () => { throw new Error('disk full'); },
   });
   const handler = getRouteHandler(router, 'PATCH', '/display-name');
   const { statusCode, jsonBody } = await invoke(handler, {
-    body: { accessoryId: 'AA:BB:2', displayName: '' },
+    body: { accessoryId: 'AA:BB:2', displayName: 'Neakasa' },
   });
-
   assert.equal(statusCode, 500);
-  assert.match(jsonBody.error, /kept/);
-  assert.deepEqual(stored, { 'AA:BB:2': 'Neakasa' }, 'history still carries the name, so the store keeps it');
+  assert.deepEqual(jsonBody, { error: 'Internal server error' });
 });
 
 test('PATCH /display-name — 400 when displayName is not a string', async () => {

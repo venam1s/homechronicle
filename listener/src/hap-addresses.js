@@ -54,3 +54,65 @@ export function isConnectionError(err) {
   if (!err) return false;
   return CONNECTION_ERROR_RE.test(String(err.code ?? '')) || CONNECTION_ERROR_RE.test(err.message ?? String(err));
 }
+
+/**
+ * Union of address lists, first-seen order. Discovery can report only part of
+ * what an accessory announces (dnssd resolves a service on its first address
+ * and reports the rest later as changes), so a failure path must add what it
+ * sees to what it already knew rather than replace it.
+ */
+export function mergeAddresses(...lists) {
+  return [...new Set(lists.flat().filter((a) => typeof a === 'string' && a.trim()))];
+}
+
+/** `addresses` with `current` (the one that last worked) moved to the front. */
+export function withCurrentFirst(current, addresses) {
+  return current ? mergeAddresses([current], addresses) : [...addresses];
+}
+
+/**
+ * Run `attempt(address)` against each address in turn, moving on only when an
+ * address can't be reached; any other error (wrong PIN, already paired) is the
+ * answer. `onSkip(address, err, next)` is told about each failover.
+ *
+ * @returns {Promise<{ result: *, address: string }>}
+ */
+export async function tryEachAddress(addresses, attempt, onSkip = () => {}) {
+  if (!addresses?.length) throw new Error('No address to connect to');
+  for (const [i, address] of addresses.entries()) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      return { result: await attempt(address), address };
+    } catch (err) {
+      if (!isConnectionError(err) || i === addresses.length - 1) throw err;
+      onSkip(address, err, addresses[i + 1]);
+    }
+  }
+  throw new Error('unreachable');
+}
+
+/**
+ * Abort whatever a hap-controller HttpClient has open. It has no close(): a
+ * pair-setup in progress holds its socket in _pairingConnection, verified
+ * sessions in a persistent connection. Without this a timed-out pair-setup
+ * keeps running and can complete with keys nobody saved.
+ */
+export function abortHapClient(client) {
+  if (!client) return;
+  try { client._pairingConnection?.close(); } catch (_e) { /* already closed */ }
+  try { delete client._pairingConnection; } catch (_e) { /* ignore */ }
+  try { client.closePersistentConnection?.(); } catch (_e) { /* ignore */ }
+}
+
+/**
+ * Order in which to try addresses when (re)connecting or re-pairing: the one
+ * that last worked first while it is still announced, then the other
+ * announced ones, then previously known ones discovery didn't report this
+ * time (it may have caught only part of the announcement). A last-worked
+ * address that is no longer announced is likely stale, so it goes last.
+ */
+export function addressesToTry(current, announced, known = []) {
+  const live = mergeAddresses(announced);
+  const ordered = live.includes(current) ? withCurrentFirst(current, live) : live;
+  return mergeAddresses(ordered, known, current ? [current] : []);
+}

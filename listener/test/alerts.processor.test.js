@@ -659,6 +659,8 @@ test('processAlertsForEvent accessory scope matches the display name and the rep
   for (const [scopeValue, shouldFire] of [
     ['Neakasa', true],
     ['PB01009G24410010060', true],
+    ['PB01009G24410010060 · MotionSensor', true],
+    ['Neakasa · MotionSensor', true],
     ['Something Else', false],
   ]) {
     const deliveries = [];

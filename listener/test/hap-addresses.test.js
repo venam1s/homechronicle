@@ -48,3 +48,39 @@ test('isConnectionError recognises refused, unreachable and timed-out connection
   assert.ok(!isConnectionError(new Error('M4: Error: 2 (authentication)')));
   assert.ok(!isConnectionError(null));
 });
+
+test('addressesToTry puts the last working address first while it is still announced', async () => {
+  const { addressesToTry } = await import('../src/hap-addresses.js');
+  assert.deepEqual(addressesToTry('172.16.25.26', ['10.0.0.193', '172.16.25.26']), ['172.16.25.26', '10.0.0.193']);
+  assert.deepEqual(addressesToTry('172.16.25.26', ['10.0.0.193'], ['10.0.0.193', '172.16.25.26']), ['10.0.0.193', '172.16.25.26'], 'not announced this time: known, after announced');
+  assert.deepEqual(addressesToTry('192.168.1.9', ['10.0.0.5']), ['10.0.0.5', '192.168.1.9'], 'a stale address goes last');
+});
+
+test('tryEachAddress fails over only on connection errors', async () => {
+  const { tryEachAddress } = await import('../src/hap-addresses.js');
+  const tried = [];
+  const skipped = [];
+  const { result, address } = await tryEachAddress(['a', 'b'], async (addr) => {
+    tried.push(addr);
+    if (addr === 'a') throw new Error('connect EHOSTUNREACH a');
+    return 'ok';
+  }, (addr, _err, next) => skipped.push([addr, next]));
+  assert.deepEqual({ result, address, tried, skipped }, { result: 'ok', address: 'b', tried: ['a', 'b'], skipped: [['a', 'b']] });
+
+  const pinTried = [];
+  await assert.rejects(tryEachAddress(['a', 'b'], async (addr) => {
+    pinTried.push(addr);
+    throw new Error('M4: Error: 2');
+  }), /M4/);
+  assert.deepEqual(pinTried, ['a']);
+});
+
+test('abortHapClient closes an in-progress pair-setup socket', async () => {
+  const { abortHapClient } = await import('../src/hap-addresses.js');
+  let closed = 0;
+  const client = { _pairingConnection: { close() { closed += 1; } }, closePersistentConnection() { closed += 1; } };
+  abortHapClient(client);
+  assert.equal(closed, 2);
+  assert.equal(client._pairingConnection, undefined);
+  abortHapClient(null);
+});

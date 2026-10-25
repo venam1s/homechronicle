@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { csvCell, parseIntInRange } from './utils.js';
+import { reconcileDisplayNames, scheduleRename } from './display-names.js';
 
 const ARCHIVE_READ_RATE_LIMIT_WINDOW_MS = parseIntInRange(
   process.env.API_STATS_RATE_LIMIT_WINDOW_MS,
@@ -134,6 +135,9 @@ export function createArchiveRouter({
           await save(data);
         } catch (err) { log.warn(`[data] Failed to clean ${label} for ${accessoryId}:`, err.message); }
       }
+      // Its display name is gone: put archived events (and any alert rules it
+      // moved) back on the reported name. Background; logged on failure.
+      scheduleRename(pool, accessoryId, '').catch(() => {});
       log.info(`[data] Deleted ${result.rowCount} event(s) for accessory ${accessoryId}`);
       res.json({ success: true, deleted: result.rowCount });
     } catch (err) {
@@ -152,6 +156,8 @@ export function createArchiveRouter({
       for (const [label, save] of [['rooms', saveRooms], ['display-names', saveDisplayNames], ['notes', saveNotes], ['categories', saveCategories]]) {
         try { await save({}); } catch (err) { log.warn(`[data] Failed to clear ${label}:`, err.message); }
       }
+      // Display names are gone: restore archived events and moved alert rules.
+      void reconcileDisplayNames(pool, {});
       log.info(`[data] Wiped all data — ${result.rowCount} event(s) deleted`);
       res.json({ success: true, deleted: result.rowCount });
     } catch (err) {

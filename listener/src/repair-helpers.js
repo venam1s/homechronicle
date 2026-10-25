@@ -11,6 +11,7 @@
  */
 
 import { withTimeout } from './utils.js';
+import { abortHapClient, mergeAddresses, tryEachAddress } from './hap-addresses.js';
 
 /**
  * Perform a full HAP pairSetup() handshake using the stored PIN, then persist
@@ -20,8 +21,10 @@ import { withTimeout } from './utils.js';
  * subscriber.js lines 604–611.  All collaborators are injected for testability —
  * this module has no hap-controller import of its own.
  *
- * @param {{ deviceId: string, pin: string, address: string, port: number, pairMethod?: number }} device
+ * @param {{ deviceId: string, pin: string, address: string, port: number, pairMethod?: number, addresses?: string[] }} device
  *   pairMethod — hap-controller PairMethods value; omitted → hap-controller's default.
+ *   addresses — every address the accessory announces; `address` (the one that
+ *   last worked) is tried first and the others only if it can't be reached.
  * @param {{ HttpClient: Function, loadPairings: Function, savePairings: Function, timeoutMs?: number }} deps
  * @param {number} [deps.timeoutMs=60000] - H-3: bounds the pairSetup handshake so a
  *   device that accepts TCP but never answers can no longer strand the nightly
@@ -30,27 +33,31 @@ import { withTimeout } from './utils.js';
  * @throws On pairSetup rejection, timeout, or savePairings rejection — caller handles.
  */
 export async function performPairSetupAndPersist(
-  { deviceId, pin, address, port, pairMethod },
+  { deviceId, pin, address, port, pairMethod, addresses = [] },
   { HttpClient, loadPairings, savePairings, timeoutMs = 60_000 }
 ) {
-  const client = new HttpClient(deviceId, address, port);
-  let longTermData;
-  try {
-    await withTimeout(
-      client.pairSetup(pin, pairMethod),
-      timeoutMs,
-      () => { try { client.close?.(); } catch (e) { /* ignore */ } },
-      'pairSetup'
-    );
-    longTermData = client.getLongTermData();
-  } finally {
-    try { client.close?.(); } catch (_e) { /* ignore */ }
-  }
+  // Callers pass the addresses in the order to try; `address` comes first.
+  const candidates = mergeAddresses([address], addresses);
+  const { result: longTermData, address: pairedAddress } = await tryEachAddress(candidates, async (candidate) => {
+    const client = new HttpClient(deviceId, candidate, port);
+    try {
+      await withTimeout(
+        client.pairSetup(pin, pairMethod),
+        timeoutMs,
+        () => abortHapClient(client),
+        'pairSetup'
+      );
+      return client.getLongTermData();
+    } finally {
+      try { client.close?.(); } catch (_e) { /* ignore */ }
+    }
+  });
 
   const updated = loadPairings();
   updated[deviceId] = {
     ...updated[deviceId],
-    address,
+    address: pairedAddress,
+    ...(candidates.length > 1 ? { addresses: candidates } : {}),
     port,
     longTermData,
     pin,

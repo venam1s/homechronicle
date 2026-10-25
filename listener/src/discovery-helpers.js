@@ -8,7 +8,10 @@
 import { IPDiscovery } from 'hap-controller';
 import { log } from './logger.js';
 import { getHomeKitPairings, isHomeKitPairing, normalizePairingRecord } from './setup-helpers.js';
-import { advertisedAddresses, reconcileAdvertisedAddress } from './hap-addresses.js';
+import { advertisedAddresses, mergeAddresses, reconcileAdvertisedAddress } from './hap-addresses.js';
+
+// How long repair discovery waits after a device appears for its other addresses.
+const REPAIR_DISCOVERY_SETTLE_MS = 1_500;
 
 /**
  * Creates discovery helper functions closed over the provided dependencies.
@@ -65,6 +68,13 @@ export function createDiscoveryHelpers({
 
       discovery.on('serviceUp', (service) => {
         if (!found.has(service.id)) found.set(service.id, service);
+      });
+      // dnssd reports a service once its first address resolves and the rest
+      // as changes; keep them all so a bridge's every address is known.
+      discovery.on('serviceChanged', (service) => {
+        const seen = found.get(service.id);
+        if (!seen) return;
+        found.set(service.id, { ...seen, allAddresses: mergeAddresses(advertisedAddresses(seen), advertisedAddresses(service)) });
       });
       discovery.on('error', (err) => {
         fail(err);
@@ -156,14 +166,29 @@ export function createDiscoveryHelpers({
         return resolve(null);
       }
 
-      discovery.on('serviceUp', (service) => {
-        if (service.id !== deviceId || settled) return;
+      // Resolve shortly after the device appears rather than at once: dnssd
+      // reports its first address in serviceUp and any others as changes.
+      let seen = null;
+      const finish = () => {
+        if (settled) return;
         settled = true;
         try { discovery.stop(); } catch (err) {
           log.debug('[discovery] stop error on serviceUp:', err.message);
         }
-        resolve({ address: service.address, port: service.port, addresses: advertisedAddresses(service) });
-      });
+        resolve({ address: seen.address, port: seen.port, addresses: seen.addresses });
+      };
+      const note = (service) => {
+        if (service.id !== deviceId || settled) return;
+        const first = !seen;
+        seen = {
+          address: seen?.address ?? service.address,
+          port: service.port,
+          addresses: mergeAddresses(seen?.addresses ?? [], advertisedAddresses(service)),
+        };
+        if (first) setTimeout(finish, REPAIR_DISCOVERY_SETTLE_MS);
+      };
+      discovery.on('serviceUp', note);
+      discovery.on('serviceChanged', note);
 
       discovery.on('error', () => {
         if (settled) return;

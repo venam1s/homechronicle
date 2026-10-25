@@ -181,3 +181,25 @@ test('GET /events/export stops querying once the client disconnects', async () =
   await done;
   assert.equal(pool.seen.filter((q) => q.sql.includes('ORDER BY')).length, 1);
 });
+
+test('GET /events/export/check reports the counts an export would have, without streaming', async () => {
+  const pool = makePool([], 812345);
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events/export/check');
+  const { statusCode, jsonBody, body } = await invokeStream(handler, { room: 'Kitchen' });
+
+  assert.equal(statusCode, 200);
+  assert.deepEqual(jsonBody, { total: 812345, rows: 500000, truncated: true });
+  assert.equal(body, '');
+  assert.equal(pool.seen.length, 1);
+  assert.deepEqual(pool.seen[0].params, ['Kitchen']);
+});
+
+test('GET /events/export/check returns JSON 500 when the count fails', async () => {
+  const pool = { async query() { throw new Error('db down'); } };
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events/export/check');
+  const { statusCode, jsonBody } = await invokeStream(handler, {});
+  assert.equal(statusCode, 500);
+  assert.deepEqual(jsonBody, { error: 'Internal server error' });
+});

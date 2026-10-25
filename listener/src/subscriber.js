@@ -10,7 +10,10 @@
 import { HttpClient } from 'hap-controller';
 import { insertEvent, pool } from './db.js';
 import { processAlertsForEvent } from './alerts.js';
-import { advertisedAddresses, nextAddress, isConnectionError as isHapConnectionError } from './hap-addresses.js';
+import {
+  abortHapClient, addressesToTry, advertisedAddresses, mergeAddresses, nextAddress, tryEachAddress,
+  isConnectionError as isHapConnectionError,
+} from './hap-addresses.js';
 import {
   cacheAccessoryMetadata,
   clearAccessoryMetadata,
@@ -324,7 +327,7 @@ function connectAccessory(session, pairing) {
     stats.lastConnectedAt = new Date().toISOString();
     stats.lastHealthyAt = stats.lastConnectedAt;
     stats.authFailures = 0;
-    session.addressRotations = 0;
+    session.lastFailedAddress = null;
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
     const watchedKeys = [...iidMeta.keys()];
@@ -584,14 +587,17 @@ function connectAccessory(session, pairing) {
 }
 
 /**
- * After a connection failure: re-discover the accessory and move to the NEXT
- * address it announces, rather than the first one again. An accessory can
- * announce several addresses (e.g. a Homebridge container on a Docker bridge
- * and a macvlan) of which only some reach this host, and announcement order is
- * not stable — retrying the first one could loop on an unreachable address
- * forever. Each announced address is tried once per failure streak; once all
- * have failed, the normal backoff applies. Falls back to the addresses stored
- * with the pairing when discovery finds nothing.
+ * After a connection failure: re-discover the accessory and decide which
+ * address to try next. An accessory can announce several addresses (e.g. a
+ * Homebridge container on a Docker bridge and a macvlan) of which only some
+ * reach this host, and discovery may report only part of them, so what it
+ * finds is merged into the addresses already known rather than replacing them.
+ *
+ * A working address can fail transiently (device restart, idle reset), so the
+ * first failure on an address retries it after the usual backoff; a second
+ * consecutive failure moves straight to the next known address. Each address
+ * therefore gets a backoff'd retry before the next one is tried — no tight
+ * loop — and an unreachable address is abandoned after two attempts.
  */
 function rediscoverAndReconnect(session, pairing) {
   const { deviceId } = session;
@@ -599,34 +605,35 @@ function rediscoverAndReconnect(session, pairing) {
   const discover = session.discoverDevice ? session.discoverDevice(deviceId) : Promise.resolve(null);
   Promise.resolve(discover).then((discovered) => {
     if (session.stopped) return;
-    const announced = advertisedAddresses(discovered);
-    const candidates = announced.length ? announced : advertisedAddresses(pairing);
-    const address = nextAddress(pairing.address, candidates);
+    // Known = announced now or stored from earlier announcements; the in-use
+    // address alone doesn't count (it may be a stale DHCP lease).
+    const known = Array.isArray(pairing.addresses) ? pairing.addresses : [];
+    const candidates = mergeAddresses(advertisedAddresses(discovered), known);
     const port = discovered?.port ?? pairing.port;
-    if (!address || (address === pairing.address && port === pairing.port)) {
-      scheduleReconnect(session, pairing);
-      return;
-    }
+
+    const failedBefore = session.lastFailedAddress === pairing.address;
+    session.lastFailedAddress = pairing.address;
+    const retryCurrent = !failedBefore && candidates.includes(pairing.address);
+    const address = retryCurrent ? pairing.address : (nextAddress(pairing.address, candidates) ?? pairing.address);
 
     const updatedPairing = { ...pairing, address, port, addresses: candidates };
-    if (session.savePairing) {
+    const changed = address !== pairing.address || port !== pairing.port
+      || candidates.length !== known.length || candidates.some((a, i) => a !== known[i]);
+    if (changed && session.savePairing) {
       session.savePairing(deviceId, updatedPairing)
         .catch((e) => log.debug(`[subscriber] ${name}: failed to save updated address: ${e.message}`));
+    }
+
+    if (address === pairing.address && port === pairing.port) {
+      scheduleReconnect(session, updatedPairing);
+      return;
     }
     const others = candidates.filter((a) => a !== address);
     log.info(
       `[subscriber] ${name}: trying ${address}:${port} (was ${pairing.address}:${pairing.port}` +
       `${others.length ? `; also announced at ${others.join(', ')}` : ''})`
     );
-
-    session.addressRotations = (session.addressRotations ?? 0) + 1;
-    if (session.addressRotations < candidates.length) {
-      connectAccessoryImpl(session, updatedPairing);
-    } else {
-      // Every announced address has failed in this streak: back off.
-      session.addressRotations = 0;
-      scheduleReconnect(session, updatedPairing);
-    }
+    connectAccessoryImpl(session, updatedPairing);
   }).catch(() => scheduleReconnect(session, pairing));
 }
 
@@ -706,25 +713,32 @@ async function attemptAutoRepair(session, pairing) {
       return;
     }
 
-    // Attempt pair-setup with stored PIN (uses httpClientFactory for testability)
-    const repairClient = httpClientFactory(session.deviceId, discovered.address, discovered.port);
-    let longTermData;
-    try {
-      await withTimeout(
-        repairClient.pairSetup(pairing.pin, resolvePairMethod(pairing)),
-        HAP_PAIR_TIMEOUT_MS,
-        () => { try { repairClient.close?.(); } catch (e) { /* ignore */ } },
-        'pairSetup'
-      );
-      longTermData = repairClient.getLongTermData();
-    } finally {
-      try { repairClient.close?.(); } catch (e) { /* ignore */ }
-    }
+    // Attempt pair-setup with stored PIN (uses httpClientFactory for testability),
+    // from the address that last worked: discovery's first address may be one
+    // this host can't reach (e.g. a Homebridge container's macvlan).
+    const addresses = addressesToTry(pairing.address, advertisedAddresses(discovered), advertisedAddresses(pairing));
+    const { result: longTermData, address: pairedAddress } = await tryEachAddress(addresses, async (address) => {
+      const repairClient = httpClientFactory(session.deviceId, address, discovered.port);
+      try {
+        await withTimeout(
+          repairClient.pairSetup(pairing.pin, resolvePairMethod(pairing)),
+          HAP_PAIR_TIMEOUT_MS,
+          () => abortHapClient(repairClient),
+          'pairSetup'
+        );
+        return repairClient.getLongTermData();
+      } finally {
+        try { repairClient.close?.(); } catch (e) { /* ignore */ }
+      }
+    }, (address, err, next) => {
+      log.info(`[subscriber] ${accessoryName}: re-pair via ${address} failed (${err.message}) — trying ${next}`);
+    });
 
     // Save updated pairing
     await savePairing(session.deviceId, {
       ...pairing,
-      address: discovered.address,
+      address: pairedAddress,
+      addresses,
       port: discovered.port,
       longTermData,
       pairedAt: new Date().toISOString(),
