@@ -1,5 +1,45 @@
+diff --git a/node_modules/hap-controller/lib/transport/ip/http-client.js b/node_modules/hap-controller/lib/transport/ip/http-client.js
+index 32c6c40..b4e2062 100644
+--- a/node_modules/hap-controller/lib/transport/ip/http-client.js
++++ b/node_modules/hap-controller/lib/transport/ip/http-client.js
+@@ -75,6 +75,17 @@ class HttpClient extends events_1.EventEmitter {
+             return this._defaultConnection;
+         }
+         const connection = new http_connection_1.default(this.address, this.port);
++        // Track per-request connections until their socket closes, so close()
++        // can abort one still connecting or verifying (it is not stored on the
++        // client otherwise, and would linger until the OS gives up).
++        if (!this._openConnections) {
++            this._openConnections = new Set();
++        }
++        this._openConnections.add(connection);
++        connection.once('disconnect', () => {
++            var _a;
++            (_a = this._openConnections) === null || _a === void 0 ? void 0 : _a.delete(connection);
++        });
+         const keys = await this._pairVerify(connection);
+         connection.setSessionKeys(keys);
+         if (this.usePersistentConnections) {
+@@ -655,6 +666,17 @@ class HttpClient extends events_1.EventEmitter {
+         }
+         delete this.subscriptionConnection;
+         this.subscribedCharacteristics = [];
++        if (this._openConnections) {
++            for (const connection of this._openConnections) {
++                try {
++                    connection.close();
++                }
++                catch (_g) {
++                    // ignore
++                }
++            }
++            this._openConnections.clear();
++        }
+     }
+ }
+ exports.default = HttpClient;
 diff --git a/node_modules/hap-controller/lib/transport/ip/http-connection.js b/node_modules/hap-controller/lib/transport/ip/http-connection.js
-index f40685b..8bfbe43 100644
+index f40685b..3508a57 100644
 --- a/node_modules/hap-controller/lib/transport/ip/http-connection.js
 +++ b/node_modules/hap-controller/lib/transport/ip/http-connection.js
 @@ -287,7 +287,19 @@ class HttpConnection extends events_1.EventEmitter {
@@ -23,6 +63,19 @@ index f40685b..8bfbe43 100644
                      }
                  }
              };
+@@ -355,6 +367,12 @@ class HttpConnection extends events_1.EventEmitter {
+      */
+     close() {
+         var _a;
++        // A socket still connecting (e.g. to an address that silently drops
++        // traffic) ignores end() until the OS gives up; destroy it instead.
++        if (this.socket && this.socket.connecting) {
++            this.socket.destroy();
++            return;
++        }
+         (_a = this.socket) === null || _a === void 0 ? void 0 : _a.end();
+     }
+ }
 diff --git a/node_modules/hap-controller/lib/transport/ip/ip-discovery.js b/node_modules/hap-controller/lib/transport/ip/ip-discovery.js
 index fcae57f..5ffba94 100644
 --- a/node_modules/hap-controller/lib/transport/ip/ip-discovery.js

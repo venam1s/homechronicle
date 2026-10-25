@@ -491,7 +491,7 @@ function connectAccessory(session, pairing) {
 
         if (isConnectionError(err) && session.discoverDevice) {
           log.info(`[subscriber] ${accessoryName}: resubscribe connection failed, re-discovering…`);
-          rediscoverAndReconnect(session, pairing);
+          rediscoverAndReconnect(session, pairing, err);
           return;
         }
 
@@ -578,13 +578,16 @@ function connectAccessory(session, pairing) {
 
     if (isConnectionError(err) && session.discoverDevice) {
       log.info(`[subscriber] ${accessoryName}: connection failed, re-discovering device…`);
-      rediscoverAndReconnect(session, pairing);
+      rediscoverAndReconnect(session, pairing, err);
       return;
     }
 
     scheduleReconnect(session, pairing);
   });
 }
+
+// The address reached the device's host, which refused or dropped the connection.
+const HOST_ANSWERED_RE = /ECONNREFUSED|ECONNRESET/;
 
 /**
  * After a connection failure: re-discover the accessory and decide which
@@ -593,13 +596,14 @@ function connectAccessory(session, pairing) {
  * reach this host, and discovery may report only part of them, so what it
  * finds is merged into the addresses already known rather than replacing them.
  *
- * A working address can fail transiently (device restart, idle reset), so the
- * first failure on an address retries it after the usual backoff; a second
- * consecutive failure moves straight to the next known address. Each address
- * therefore gets a backoff'd retry before the next one is tried — no tight
- * loop — and an unreachable address is abandoned after two attempts.
+ * A refused or reset connection means the address reaches the device's host
+ * (e.g. Homebridge restarting), so that address is retried after the usual
+ * backoff and never abandoned for it. Otherwise (timeout, unreachable) the
+ * first failure on an address retries it after backoff and a second
+ * consecutive one moves straight to the next known address: an unreachable
+ * address is abandoned after two attempts, with no tight loop.
  */
-function rediscoverAndReconnect(session, pairing) {
+function rediscoverAndReconnect(session, pairing, err = null) {
   const { deviceId } = session;
   const name = pairing.name ?? deviceId;
   const discover = session.discoverDevice ? session.discoverDevice(deviceId) : Promise.resolve(null);
@@ -611,9 +615,13 @@ function rediscoverAndReconnect(session, pairing) {
     const candidates = rememberAddresses(known, advertisedAddresses(discovered), pairing.address);
     const port = discovered?.port ?? pairing.port;
 
+    // …unless discovery now announces the device elsewhere: a stale address
+    // can be refused by whatever host took it over.
+    const stillAnnounced = !discovered || advertisedAddresses(discovered).includes(pairing.address);
+    const hostAnswered = stillAnnounced && HOST_ANSWERED_RE.test(`${err?.code ?? ''} ${err?.message ?? ''}`);
     const failedBefore = session.lastFailedAddress === pairing.address;
-    session.lastFailedAddress = pairing.address;
-    const retryCurrent = !failedBefore && candidates.includes(pairing.address);
+    session.lastFailedAddress = hostAnswered ? null : pairing.address;
+    const retryCurrent = (hostAnswered || !failedBefore) && candidates.includes(pairing.address);
     const address = retryCurrent ? pairing.address : (nextAddress(pairing.address, candidates) ?? pairing.address);
 
     const updatedPairing = { ...pairing, address, port, addresses: candidates };

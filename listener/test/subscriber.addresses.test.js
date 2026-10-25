@@ -120,3 +120,26 @@ test('no re-discovery result falls back to the stored addresses', async () => {
   assert.equal(connects[1].address, '172.16.25.26');
   done(session);
 });
+
+test('a refused connection keeps retrying the address it came from (device restarting)', async () => {
+  const { connects, session } = setup();
+  const refused = Object.assign(new Error('connect ECONNREFUSED 172.16.25.26:55203'), { code: 'ECONNREFUSED' });
+  __testHooks.rediscoverAndReconnect(session, { name: 'Homebridge', address: '172.16.25.26', port: 55203 }, refused);
+  await waitUntil(() => connects.length === 1, { label: 'first retry' });
+  __testHooks.rediscoverAndReconnect(session, connects[0], refused);
+  await waitUntil(() => connects.length === 2, { label: 'second retry' });
+  assert.deepEqual(connects.map((p) => p.address), ['172.16.25.26', '172.16.25.26'], 'never switched to the other address');
+  done(session);
+});
+
+test('a refused connection on an address no longer announced still moves on', async () => {
+  const { connects, session } = setup({ discoverDevice: async () => ({ address: '10.0.0.7', port: 55203, addresses: ['10.0.0.7'] }) });
+  const refused = Object.assign(new Error('connect ECONNREFUSED 10.0.0.9:55203'), { code: 'ECONNREFUSED' });
+  // The old address now belongs to another host that refuses the port.
+  __testHooks.rediscoverAndReconnect(session, { name: 'Bridge', address: '10.0.0.9', port: 55203, addresses: ['10.0.0.9'] }, refused);
+  await waitUntil(() => connects.length === 1, { label: 'retry' });
+  __testHooks.rediscoverAndReconnect(session, connects[0], refused);
+  await waitUntil(() => connects.length === 2, { label: 'move' });
+  assert.equal(connects.at(-1).address, '10.0.0.7');
+  done(session);
+});
