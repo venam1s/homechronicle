@@ -33,9 +33,10 @@ function utcHourToLocal(utcHour) {
 // which put the version and the help links two levels down, in the section
 // you go to in order to change something.
 const TABS = [
-  { id: 'device', label: 'Device Management' },
-  { id: 'data', label: 'Data management' },
-  { id: 'toast', label: 'Toast' },
+  // `short` is shown below the sm breakpoint so all tabs fit on one line on a phone.
+  { id: 'device', label: 'Device Management', short: 'Devices' },
+  { id: 'data', label: 'Data management', short: 'Data' },
+  { id: 'toast', label: 'Toast', short: 'Toast' },
 ];
 
 export default function SettingsTab({ setup, showAdvanced = false }) {
@@ -347,30 +348,34 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
     }
   }
 
-  const visibleTabs = showAdvanced ? [...TABS, { id: 'advanced', label: 'Advanced' }] : TABS;
+  const visibleTabs = showAdvanced ? [...TABS, { id: 'advanced', label: 'Advanced', short: 'Advanced' }] : TABS;
   const activeTab = (tab === 'advanced' && !showAdvanced) ? 'device' : tab;
 
   return (
     <div className="space-y-4">
 
       {/* Tab bar */}
-      <div role="tablist" className="flex items-center gap-4 border-b border-hc-panel-border">
-        {visibleTabs.map(({ id, label }) => (
+      {/* Never wraps or clips: short labels on phones, and the row scrolls
+          sideways if a very narrow screen still can't fit it. */}
+      <div role="tablist" className="flex items-center gap-1 sm:gap-4 border-b border-hc-panel-border overflow-x-auto whitespace-nowrap">
+        {visibleTabs.map(({ id, label, short }) => (
           <button
             key={id}
             role="tab"
             aria-selected={activeTab === id}
+            aria-label={label}
             tabIndex={0}
             onClick={() => setTab(id)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTab(id); } }}
             className={clsx(
-              'px-4 py-2 text-sm -mb-px border-b-2 transition-colors',
+              'shrink-0 px-3 sm:px-4 py-2 text-sm -mb-px border-b-2 transition-colors',
               activeTab === id
                 ? 'border-hc-accent-strong text-hc-fg-strong font-semibold'
                 : 'border-transparent text-hc-muted hover:text-hc-fg',
             )}
           >
-            {label}
+            <span className="sm:hidden" aria-hidden="true">{short}</span>
+            <span className="hidden sm:inline" aria-hidden="true">{label}</span>
           </button>
         ))}
       </div>
