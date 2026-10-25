@@ -17,6 +17,27 @@ function isValidQuietHours(value) {
   const hours = parseNumericValue(value);
   return hours !== null && hours >= QUIET_MIN_HOURS && hours <= QUIET_MAX_HOURS;
 }
+
+/**
+ * Rules the operator puts on the rest of the rule — shared by create and by
+ * PATCH, which checks the stored row merged with the patch.
+ * @returns {string|null} error message, or null when the shape is valid
+ */
+function ruleShapeError({ operator, matchValue, characteristic, scopeType }) {
+  if (THRESHOLD_OPERATORS.has(operator)) {
+    if (parseNumericValue(matchValue) === null) return THRESHOLD_NUMBER_ERROR;
+    // Without a characteristic the rule would compare every numeric reading
+    // (battery %, brightness, light level) against the same threshold.
+    if (!characteristic && scopeType !== 'characteristic') {
+      return 'above/below rules need a characteristic to compare (e.g. CurrentTemperature)';
+    }
+  }
+  if (operator === QUIET_OPERATOR && !isValidQuietHours(matchValue)) return QUIET_HOURS_ERROR;
+  return null;
+}
+
+// Fields whose combination ruleShapeError checks.
+const SHAPE_FIELDS = ['operator', 'matchValue', 'characteristic', 'scopeType'];
 const VALID_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseScopeType(value) {
@@ -120,17 +141,8 @@ function validateCreate(body = {}, { defaultQuietMinutes = 0 } = {}) {
   if (!matchValue) return { error: 'matchValue is required' };
   if (matchValue.length > MAX_TEXT_LEN) return textCapError('matchValue');
 
-  if (THRESHOLD_OPERATORS.has(operator)) {
-    if (parseNumericValue(matchValue) === null) return { error: THRESHOLD_NUMBER_ERROR };
-    // Without a characteristic the rule would compare every numeric reading
-    // (battery %, brightness, light level) against the same threshold.
-    if (!characteristic && scopeType !== 'characteristic') {
-      return { error: 'above/below rules need a characteristic to compare (e.g. CurrentTemperature)' };
-    }
-  }
-  if (operator === QUIET_OPERATOR && !isValidQuietHours(matchValue)) {
-    return { error: QUIET_HOURS_ERROR };
-  }
+  const shapeError = ruleShapeError({ operator, matchValue, characteristic, scopeType });
+  if (shapeError) return { error: shapeError };
 
   const channel = String(body.channel ?? 'webhook').trim().toLowerCase();
   if (channel !== 'webhook' && channel !== 'email') {
@@ -212,17 +224,8 @@ function validatePatch(body = {}) {
     if (matchValue.length > MAX_TEXT_LEN) return textCapError('matchValue');
     updates.matchValue = matchValue;
   }
-  // A partial PATCH cannot see the stored row, so the threshold is checked
-  // only when both fields arrive together (the form always sends both); the
-  // alert engine treats a non-numeric threshold as never matching.
-  if (THRESHOLD_OPERATORS.has(updates.operator) && updates.matchValue !== undefined
-    && parseNumericValue(updates.matchValue) === null) {
-    return { error: THRESHOLD_NUMBER_ERROR };
-  }
-  if (updates.operator === QUIET_OPERATOR && updates.matchValue !== undefined
-    && !isValidQuietHours(updates.matchValue)) {
-    return { error: QUIET_HOURS_ERROR };
-  }
+  // The operator/threshold/characteristic combination is checked in the route,
+  // against the stored row merged with this patch (ruleShapeError).
   if ('targetUrl' in body) {
     const target = validateWebhookTargetUrl(body.targetUrl, {
       allowPrivateTargets: ALERTS_ALLOW_PRIVATE_TARGETS,
@@ -511,6 +514,36 @@ export function createAlertsRouter({ pool, isEmailEnabled = () => true, getDefau
 
     const parsed = validatePatch(req.body);
     if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+    // A patch that touches the operator, threshold, characteristic or scope must
+    // leave a valid rule: check the stored row with the patch applied, so e.g.
+    // {operator:'above'} alone can't produce a threshold rule with no
+    // characteristic. Same ownership scope as the UPDATE below.
+    if (SHAPE_FIELDS.some((field) => field in parsed.value)) {
+      try {
+        const current = legacy
+          ? await pool.query(
+              'SELECT operator, match_value, characteristic, scope_type FROM alert_rules WHERE id = $1',
+              [ruleId]
+            )
+          : await pool.query(
+              'SELECT operator, match_value, characteristic, scope_type FROM alert_rules WHERE id = $1 AND user_id = $2',
+              [ruleId, req.hcSession.user_id]
+            );
+        const row = current.rows[0];
+        if (!row) return res.status(404).json({ error: 'Rule not found' });
+        const shapeError = ruleShapeError({
+          operator: parsed.value.operator ?? row.operator,
+          matchValue: parsed.value.matchValue ?? row.match_value,
+          characteristic: 'characteristic' in parsed.value ? parsed.value.characteristic : row.characteristic,
+          scopeType: parsed.value.scopeType ?? row.scope_type,
+        });
+        if (shapeError) return res.status(400).json({ error: shapeError });
+      } catch (err) {
+        log.error('[api] /api/alerts/rules patch error:', err.message ?? err.stack ?? err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
 
     // SMTP guard (D-09): reject email channel when SMTP is not configured
     const effectiveChannel = parsed.value.channel;

@@ -108,6 +108,13 @@ function createMockPool({ initialRules = [] } = {}) {
         rules.push(row);
         return { rows: [row] };
       }
+      // -- PATCH /rules/:id: read the stored rule to validate the merged result --
+      if (sql.startsWith('SELECT operator, match_value, characteristic, scope_type FROM alert_rules')) {
+        const hasUserScope = sql.includes('AND user_id =');
+        const id = params[0];
+        const row = rules.find((r) => r.id === id && (!hasUserScope || r.user_id === params[1]));
+        return { rows: row ? [row] : [] };
+      }
       if (sql.startsWith('UPDATE alert_rules')) {
         const hasUserScope = sql.includes('AND user_id =');
         const id = hasUserScope ? params.at(-2) : params.at(-1);
@@ -653,7 +660,7 @@ test('POST /rules rejects above/below without a characteristic to compare', asyn
 });
 
 test('PATCH /rules/:id rejects a non-numeric threshold sent with above/below', async () => {
-  const router = createAlertsRouter({ pool: createMockPool() });
+  const router = createAlertsRouter({ pool: createMockPool({ initialRules: [seedRule(1, 1, { characteristic: 'CurrentTemperature' })] }) });
   const patch = getRouteHandler(router, 'PATCH', '/rules/:id');
   const result = await invoke(patch, {
     hcSession: ADMIN_SESSION,
@@ -688,4 +695,39 @@ test('POST /rules rejects silent_for hours that are non-numeric or out of range'
     assert.equal(result.statusCode, 400, `matchValue=${matchValue}`);
     assert.match(result.jsonBody.error, /hours/);
   }
+});
+
+
+// -- PATCH must enforce the same rule shape as POST (code review #1) --
+
+test('PATCH /rules/:id rejects switching a rule with no characteristic to above/below', async () => {
+  const pool = createMockPool({ initialRules: [seedRule(5, 1, { scope_type: 'all', characteristic: null, operator: 'equals', match_value: '25' })] });
+  const patch = getRouteHandler(createAlertsRouter({ pool }), 'PATCH', '/rules/:id');
+  const result = await invoke(patch, { hcSession: ADMIN_SESSION, params: { id: '5' }, body: { operator: 'above' } });
+  assert.equal(result.statusCode, 400);
+  assert.match(result.jsonBody.error, /characteristic/);
+});
+
+test('PATCH /rules/:id rejects switching to silent_for when the stored value is not a number of hours', async () => {
+  const pool = createMockPool({ initialRules: [seedRule(6, 1, { operator: 'equals', match_value: 'on' })] });
+  const patch = getRouteHandler(createAlertsRouter({ pool }), 'PATCH', '/rules/:id');
+  const result = await invoke(patch, { hcSession: ADMIN_SESSION, params: { id: '6' }, body: { operator: 'silent_for' } });
+  assert.equal(result.statusCode, 400);
+  assert.match(result.jsonBody.error, /hours/);
+});
+
+test('PATCH /rules/:id rejects removing the characteristic from an above/below rule', async () => {
+  const pool = createMockPool({ initialRules: [seedRule(7, 1, { scope_type: 'accessory', scope_value: 'Freezer', characteristic: 'CurrentTemperature', operator: 'above', match_value: '-10' })] });
+  const patch = getRouteHandler(createAlertsRouter({ pool }), 'PATCH', '/rules/:id');
+  const result = await invoke(patch, { hcSession: ADMIN_SESSION, params: { id: '7' }, body: { characteristic: '' } });
+  assert.equal(result.statusCode, 400);
+});
+
+test('PATCH /rules/:id accepts a valid change to a threshold rule and still 404s a rule the member does not own', async () => {
+  const pool = createMockPool({ initialRules: [seedRule(8, 1, { scope_type: 'accessory', scope_value: 'Freezer', characteristic: 'CurrentTemperature', operator: 'above', match_value: '-10' })] });
+  const patch = getRouteHandler(createAlertsRouter({ pool }), 'PATCH', '/rules/:id');
+  const ok = await invoke(patch, { hcSession: ADMIN_SESSION, params: { id: '8' }, body: { matchValue: '-5' } });
+  assert.equal(ok.statusCode, 200);
+  const notMine = await invoke(patch, { hcSession: { user_id: 2, role: 'member', email: 'm@test.com' }, params: { id: '8' }, body: { operator: 'below' } });
+  assert.equal(notMine.statusCode, 404);
 });
