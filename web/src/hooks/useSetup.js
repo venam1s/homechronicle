@@ -205,9 +205,10 @@ export function useSetup() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessoryId, displayName }),
       }),
+    // A display name rewrites stored event names, so every view (Timeline,
+    // dashboard panels, device pages) needs fresh data.
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['setup', 'display-names'] });
-      queryClient.invalidateQueries({ queryKey: ['accessories'] });
+      queryClient.invalidateQueries();
     },
   });
 
@@ -343,7 +344,14 @@ export function useSetup() {
 
   // ── Room helpers ─────────────────────────────────────────────────────────
 
+  // Blur fires on every focus-out; an untouched or unchanged field must not
+  // send '' (which would clear the saved value).
+  function isUnchanged(input, saved) {
+    return input === undefined || input.trim() === (saved ?? '').trim();
+  }
+
   function handleRoomBlur(deviceId) {
+    if (isUnchanged(roomInputs[deviceId], savedRooms[deviceId])) return;
     const roomName = roomInputs[deviceId] ?? '';
     saveRoomMutation.mutate({ accessoryId: deviceId, roomName });
   }
@@ -351,6 +359,7 @@ export function useSetup() {
   // ── Note helpers ─────────────────────────────────────────────────────────
 
   function handleNoteBlur(deviceId) {
+    if (isUnchanged(noteInputs[deviceId], savedNotes[deviceId])) return;
     const note = noteInputs[deviceId] ?? '';
     saveNoteMutation.mutate({ accessoryId: deviceId, note });
   }
@@ -358,6 +367,7 @@ export function useSetup() {
   // ── Display name helpers ─────────────────────────────────────────────────
 
   function handleDisplayNameBlur(deviceId) {
+    if (isUnchanged(displayNameInputs[deviceId], savedDisplayNames[deviceId])) return;
     const displayName = displayNameInputs[deviceId] ?? '';
     saveDisplayNameMutation.mutate({ accessoryId: deviceId, displayName });
   }

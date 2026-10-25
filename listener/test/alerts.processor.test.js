@@ -652,3 +652,37 @@ test('processAlertsForEvent above/below fire only when the reading crosses the t
     }
   }
 });
+
+// A display name rewrites the stored name; rules saved with the name the
+// device reports must keep firing, and rules using the display name must too.
+test('processAlertsForEvent accessory scope matches the display name and the reported name', async () => {
+  for (const [scopeValue, shouldFire] of [
+    ['Neakasa', true],
+    ['PB01009G24410010060', true],
+    ['Something Else', false],
+  ]) {
+    const deliveries = [];
+    const pool = {
+      async query(sql, params = []) {
+        if (sql.includes('FROM alert_rules')) {
+          return { rows: [makeRule({ scope_type: 'accessory', scope_value: scopeValue })] };
+        }
+        if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+        if (sql.startsWith('INSERT INTO alert_deliveries')) {
+          deliveries.push({ status: params[2] });
+          return { rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({ ok: true, status: 200 });
+    try {
+      await processAlertsForEvent(pool, makeEvent({ accessoryName: 'Neakasa', reportedName: 'PB01009G24410010060' }));
+      assert.equal(deliveries.length, shouldFire ? 1 : 0, `scope_value=${scopeValue}`);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  }
+});

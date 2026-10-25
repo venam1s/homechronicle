@@ -440,6 +440,10 @@ export default function MyDevicesTab({ setup }) {
                   savedNotes={savedNotes}
                   onNoteChange={(id, val) => setNoteInputs((n) => ({ ...n, [id]: val }))}
                   onNoteBlur={handleNoteBlur}
+                  displayNameInputs={displayNameInputs}
+                  savedDisplayNames={savedDisplayNames}
+                  onDisplayNameChange={(id, val) => setDisplayNameInputs((d) => ({ ...d, [id]: val }))}
+                  onDisplayNameBlur={onDisplayNameBlurWithFlash}
                 />
               )}
             </div>

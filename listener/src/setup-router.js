@@ -4,6 +4,7 @@ import { log, getLevel, setLevel } from './logger.js';
 import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { parseIntInRange, withTimeout } from './utils.js';
 import { advertisedAddresses, isConnectionError } from './hap-addresses.js';
+import { renameAccessoryEvents } from './display-names.js';
 import { shortUuid } from './accessory-metadata.js';
 import { CATEGORIES, isValidCategory } from './categories.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
@@ -462,15 +463,30 @@ export function createSetupRouter({
     const { accessoryId, displayName } = req.body ?? {};
     if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
 
+    if (displayName != null && typeof displayName !== 'string') {
+      return res.status(400).json({ error: 'displayName must be a string' });
+    }
+
     const names = loadDisplayNames();
-    if (displayName && displayName.trim()) {
-      names[accessoryId] = displayName.trim();
+    const name = displayName?.trim() ?? '';
+    if (name) {
+      names[accessoryId] = name;
     } else {
       delete names[accessoryId];
     }
+    // Store first, then rewrite history: an event inserted in between already
+    // picks up the new name from the store.
     await saveDisplayNames(names);
-    log.info(`[setup] Display name for ${accessoryId} set to ${displayName?.trim() || '(cleared)'}`);
-    res.json({ success: true });
+    try {
+      const updated = await renameAccessoryEvents(pool, accessoryId, name);
+      log.info(`[setup] Display name for ${accessoryId} set to ${name || '(cleared)'} — ${updated} past event(s) updated`);
+      res.json({ success: true, eventsUpdated: updated });
+    } catch (err) {
+      // The name is saved and applies to new events; history is reconciled
+      // at the next listener start.
+      log.error(`[setup] Display name for ${accessoryId}: renaming past events failed:`, err.message ?? err.stack ?? err);
+      res.json({ success: true, eventsUpdated: null });
+    }
   });
 
   router.get('/display-names', (_req, res) => {

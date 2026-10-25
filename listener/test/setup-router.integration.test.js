@@ -568,6 +568,57 @@ test('PATCH /display-name — clears display name when displayName is empty', as
   assert.equal(jsonBody.success, true);
 });
 
+test('PATCH /display-name — saves the name before renaming past events', async () => {
+  const order = [];
+  const router = makeRouter({
+    saveDisplayNames: async (names) => { order.push(['save', names]); },
+    pool: {
+      async query() { return { rows: [] }; },
+      async connect() {
+        return {
+          async query(sql, params = []) {
+            if (/^\s*UPDATE event_logs\b/.test(sql)) order.push(['rename', params]);
+            return { rows: [], rowCount: /^\s*UPDATE event_logs/.test(sql) ? 3 : 0 };
+          },
+          release() {},
+        };
+      },
+    },
+  });
+  const handler = getRouteHandler(router, 'PATCH', '/display-name');
+  const { statusCode, jsonBody } = await invoke(handler, {
+    body: { accessoryId: 'AA:BB:2', displayName: 'Neakasa' },
+  });
+
+  assert.equal(statusCode, 200);
+  assert.equal(jsonBody.eventsUpdated, 6);
+  assert.deepEqual(order[0], ['save', { 'AA:BB:2': 'Neakasa' }]);
+  assert.deepEqual(order[1], ['rename', ['AA:BB:2', 'Neakasa']]);
+});
+
+test('PATCH /display-name — a failed history rename still saves the name', async () => {
+  let saved = null;
+  const router = makeRouter({
+    saveDisplayNames: async (names) => { saved = names; },
+    pool: { async connect() { throw new Error('db down'); } },
+  });
+  const handler = getRouteHandler(router, 'PATCH', '/display-name');
+  const { statusCode, jsonBody } = await invoke(handler, {
+    body: { accessoryId: 'AA:BB:2', displayName: 'Neakasa' },
+  });
+
+  assert.equal(statusCode, 200);
+  assert.equal(jsonBody.eventsUpdated, null);
+  assert.deepEqual(saved, { 'AA:BB:2': 'Neakasa' });
+});
+
+test('PATCH /display-name — 400 when displayName is not a string', async () => {
+  const router = makeRouter();
+  const handler = getRouteHandler(router, 'PATCH', '/display-name');
+  const { statusCode } = await invoke(handler, { body: { accessoryId: 'a1', displayName: 42 } });
+  assert.equal(statusCode, 400);
+});
+
 test('PATCH /display-name — 400 when accessoryId missing', async () => {
   const router = makeRouter();
   const handler = getRouteHandler(router, 'PATCH', '/display-name');

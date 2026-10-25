@@ -98,6 +98,7 @@ function eventMatchesScope(rule, event) {
       ? `${event.accessoryName} · ${event.serviceType}`
       : null;
     return normalizeLower(event.accessoryName) === target
+      || (event.reportedName != null && normalizeLower(event.reportedName) === target)
       || normalizeLower(event.accessoryId) === target
       || (legacyName !== null && normalizeLower(legacyName) === target);
   }

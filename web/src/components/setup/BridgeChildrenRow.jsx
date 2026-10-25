@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { MapPin, FileText, Loader } from 'lucide-react';
+import { MapPin, FileText, Loader, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { fetchJson } from '../../lib/api.js';
 
-export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, savedRooms = {}, bridgeRoom = '', onRoomChange, onRoomBlur, noteInputs = {}, savedNotes = {}, onNoteChange, onNoteBlur }) {
+export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, savedRooms = {}, bridgeRoom = '', onRoomChange, onRoomBlur, noteInputs = {}, savedNotes = {}, onNoteChange, onNoteBlur, displayNameInputs = {}, savedDisplayNames = {}, onDisplayNameChange, onDisplayNameBlur }) {
   const { data: children = [], isLoading, isError } = useQuery({
     queryKey: ['bridge-children', bridgeId],
     queryFn: () => fetchJson(`/api/setup/bridge-children/${encodeURIComponent(bridgeId)}`),
@@ -56,7 +56,19 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
           <div key={child.childId} className="space-y-1">
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-hc-success-text flex-shrink-0" />
-              <span className="text-xs text-hc-fg flex-1 truncate min-w-0">{child.name}</span>
+              <div className="flex items-center gap-1 flex-1 min-w-0">
+                <Pencil size={9} className="text-hc-muted flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder={child.name}
+                  aria-label={`Display name for ${child.name}`}
+                  value={displayNameInputs[child.childId] ?? savedDisplayNames[child.childId] ?? ''}
+                  onChange={(e) => onDisplayNameChange?.(child.childId, e.target.value)}
+                  onBlur={() => onDisplayNameBlur?.(child.childId)}
+                  onKeyDown={(e) => e.key === 'Enter' && onDisplayNameBlur?.(child.childId)}
+                  className="text-xs text-hc-fg bg-transparent border-0 border-b border-transparent hover:border-hc-panel-border focus:border-hc-accent-strong focus:outline-none px-0 py-0 w-full truncate placeholder-hc-muted"
+                />
+              </div>
             </div>
             <div className="flex flex-col gap-1 ml-3.5">
               <div className="flex items-center gap-1">

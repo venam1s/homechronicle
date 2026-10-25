@@ -7,6 +7,7 @@ import { runner } from 'node-pg-migrate';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { log } from './logger.js';
+import { withDisplayName } from './display-names.js';
 
 const { Pool } = pg;
 
@@ -35,7 +36,17 @@ pool.on('error', (err) => {
  * @param {number|null} event.clusterId
  * @param {number|null} event.attributeId
  * @param {number|null} event.rawIid      - HAP instance ID
+ * @returns {Promise<{id, timestamp, accessory_name}>} accessory_name is the
+ *   stored name: the accessory's display name when one is set.
  */
+// accessoryId → display name, set by index.js from the display names store.
+let getDisplayNames = () => ({});
+
+/** Supply the display names insertEvent applies to new events. */
+export function setDisplayNameLookup(fn) {
+  getDisplayNames = typeof fn === 'function' ? fn : () => ({});
+}
+
 export async function insertEvent(event, executor = pool) {
   const {
     accessoryId,
@@ -53,16 +64,19 @@ export async function insertEvent(event, executor = pool) {
     rawIid = null,
   } = event;
 
+  const storedName = withDisplayName(accessoryName, serviceType, getDisplayNames()?.[accessoryId]);
+  const reportedName = storedName === accessoryName ? null : accessoryName;
+
   const result = await executor.query(
     `INSERT INTO event_logs
        (accessory_id, accessory_name, room_name, service_type,
         characteristic, old_value, new_value, protocol, transport,
-        endpoint_id, cluster_id, attribute_id, raw_iid)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-     RETURNING id, timestamp`,
-    [accessoryId, accessoryName, roomName, serviceType,
+        endpoint_id, cluster_id, attribute_id, raw_iid, reported_name)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+     RETURNING id, timestamp, accessory_name`,
+    [accessoryId, storedName, roomName, serviceType,
       characteristic, oldValue, String(newValue), protocol, transport,
-      endpointId, clusterId, attributeId, rawIid]
+      endpointId, clusterId, attributeId, rawIid, reportedName]
   );
   return result.rows[0];
 }
@@ -151,10 +165,10 @@ export async function runRetentionSweep({
            INSERT INTO event_logs_archive
              (source_id, timestamp, accessory_id, accessory_name, room_name,
               service_type, characteristic, old_value, new_value, protocol,
-              transport, endpoint_id, cluster_id, attribute_id, raw_iid)
+              transport, endpoint_id, cluster_id, attribute_id, raw_iid, reported_name)
            SELECT id, timestamp, accessory_id, accessory_name, room_name,
                   service_type, characteristic, old_value, new_value, protocol,
-                  transport, endpoint_id, cluster_id, attribute_id, raw_iid
+                  transport, endpoint_id, cluster_id, attribute_id, raw_iid, reported_name
            FROM event_logs
            WHERE timestamp < NOW() - ($1::int * INTERVAL '1 day')
            ON CONFLICT (source_id) DO NOTHING

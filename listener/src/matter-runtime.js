@@ -201,6 +201,8 @@ export function createMatterRuntime({
           // eslint-disable-next-line no-await-in-loop
           await processAlerts({
             ...eventPayload,
+            accessoryName: inserted?.accessory_name ?? eventPayload.accessoryName,
+            reportedName: eventPayload.accessoryName,
             eventId: inserted?.id,
             timestamp: inserted?.timestamp ?? nowIso(),
           });

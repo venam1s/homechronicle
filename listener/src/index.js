@@ -9,7 +9,8 @@ import { networkInterfaces } from 'os';
 import express from 'express';
 import cors from 'cors';
 import { HttpClient } from 'hap-controller'; // injected into setup-router and accessories-router for testability
-import { insertEvent, pool, migrateDb, runRetentionSweep, runAlertDeliveriesRetentionSweep, runSessionRetentionSweep, runInviteTokenSweep, runPasswordResetTokenSweep, validateSession } from './db.js';
+import { insertEvent, pool, migrateDb, setDisplayNameLookup, runRetentionSweep, runAlertDeliveriesRetentionSweep, runSessionRetentionSweep, runInviteTokenSweep, runPasswordResetTokenSweep, validateSession } from './db.js';
+import { reconcileDisplayNames } from './display-names.js';
 import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets, stopAllSubscribers } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter } from './events-router.js';
@@ -268,6 +269,9 @@ await migrateDb();
 await pairingsStore.init();
 await roomsStore.init();
 await displayNamesStore.init();
+setDisplayNameLookup(() => displayNamesStore.getSnapshot());
+// Names set before display names applied to stored events; background, logged.
+void reconcileDisplayNames(pool, displayNamesStore.getSnapshot());
 await notesStore.init();
 await categoriesStore.init();
 await retentionStore.init();

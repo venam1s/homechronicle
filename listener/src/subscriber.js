@@ -134,6 +134,10 @@ async function processAlertsSafe(eventPayload, insertedRow) {
   try {
     await processAlertsForEvent(pool, {
       ...eventPayload,
+      // The stored name (display name when set); rules may still name the device
+      // as it reports itself.
+      accessoryName: insertedRow?.accessory_name ?? eventPayload.accessoryName,
+      reportedName: eventPayload.accessoryName,
       eventId: insertedRow?.id,
       timestamp: insertedRow?.timestamp ?? new Date().toISOString(),
     }, alertEmailFrom);
