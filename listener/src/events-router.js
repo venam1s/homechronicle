@@ -39,8 +39,9 @@ const EXPORT_COLUMNS = [
 
 /**
  * WHERE clause for the Timeline's filters (room, accessory, characteristic,
- * from, to). Shared by the paged list and the export so an export always
- * contains exactly the events the Timeline shows for the same filters.
+ * from, to). Shared by the paged list and the export so both apply the same
+ * server-side filters. (The Timeline also hides muted devices client-side;
+ * the export does not.)
  */
 export function buildEventFilters(query = {}) {
   const conditions = [];
@@ -135,9 +136,10 @@ export function createEventsRouter({ pool, getRooms }) {
     message: { error: 'Too many requests' },
   });
 
-  // Download the events matching the Timeline filters, oldest first, as CSV
-  // or JSON. Streams in keyset-paginated batches so a year of events never
-  // sits in memory; capped at EVENTS_MAX_EXPORT_ROWS.
+  // Download the events matching the Timeline's server-side filters (muted
+  // devices, which the Timeline hides client-side, are included), oldest
+  // first, as CSV or JSON. Streams in keyset-paginated batches so a year of
+  // events never sits in memory; capped at EVENTS_MAX_EXPORT_ROWS.
   router.get('/events/export', eventsExportLimiter, async (req, res) => {
     const format = String(req.query.format ?? 'csv').toLowerCase();
     if (format !== 'csv' && format !== 'json') {
@@ -162,12 +164,26 @@ export function createEventsRouter({ pool, getRooms }) {
       // UTF-8 BOM so Excel reads accented device names correctly.
       res.write(format === 'csv' ? `\uFEFF${EXPORT_COLUMNS.join(',')}\n` : '[');
 
+      // Stop when the client goes away, and respect backpressure: without these a closed
+      // tab or a slow link left Node buffering the whole export in memory.
+      let clientGone = false;
+      res.on?.('close', () => { clientGone = true; });
+      const waitForDrain = () => new Promise((resolve) => {
+        const done = () => {
+          res.off?.('drain', done);
+          res.off?.('close', done);
+          resolve();
+        };
+        res.once('drain', done);
+        res.once('close', done);
+      });
+
       const rooms = getRooms();
       let written = 0;
       // Cursor carried as text: Postgres timestamps have microseconds, a JS
       // Date only milliseconds, and a truncated cursor would repeat rows.
       let cursor = null;
-      while (written < exported) {
+      while (written < exported && !clientGone) {
         const batchParams = [...params];
         const batchConditions = [...conditions];
         if (cursor) {
@@ -198,10 +214,12 @@ export function createEventsRouter({ pool, getRooms }) {
           }
           written += 1;
         }
-        res.write(chunk);
         const last = batch.rows[batch.rows.length - 1];
         cursor = { ts: last.cursor_ts, id: last.id };
+        // eslint-disable-next-line no-await-in-loop
+        if (!res.write(chunk) && typeof res.once === 'function' && !clientGone) await waitForDrain();
       }
+      if (clientGone) return;
       if (format === 'json') res.write(written ? '\n]\n' : ']\n');
       res.end();
     } catch (err) {

@@ -135,3 +135,49 @@ test('GET /events/export rejects an unknown format', async () => {
   const res = await invokeStream(getRouteHandler(router, 'GET', '/events/export'), { format: 'xml' });
   assert.equal(res.statusCode, 400);
 });
+
+// -- Streaming hygiene (code review #3): backpressure and client disconnect --
+
+import { EventEmitter } from 'node:events';
+
+function makeEmitterRes({ writeReturns = () => true } = {}) {
+  const res = new EventEmitter();
+  res.headersSent = false;
+  res.chunks = [];
+  res.setHeader = () => {};
+  res.status = () => res;
+  res.json = () => res;
+  res.write = (chunk) => { res.headersSent = true; res.chunks.push(chunk); return writeReturns(res.chunks.length); };
+  res.end = () => { res.ended = true; };
+  return res;
+}
+
+test('GET /events/export waits for drain before querying the next batch', async () => {
+  const rows = Array.from({ length: 10001 }, (_, i) => row(i + 1, '2026-10-01T10:00:00Z'));
+  const pool = makePool(rows);
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  // Header write (1) is fine; the first data chunk (2) reports a full buffer.
+  const res = makeEmitterRes({ writeReturns: (n) => n !== 2 });
+  const done = getRouteHandler(router, 'GET', '/events/export')({ query: { format: 'csv' } }, res);
+
+  await new Promise((r) => setTimeout(r, 20));
+  const batchQueries = () => pool.seen.filter((q) => q.sql.includes('ORDER BY')).length;
+  assert.equal(batchQueries(), 1, 'no second batch while the client buffer is full');
+  res.emit('drain');
+  await done;
+  assert.equal(batchQueries(), 3);
+  assert.ok(res.ended);
+});
+
+test('GET /events/export stops querying once the client disconnects', async () => {
+  const rows = Array.from({ length: 20001 }, (_, i) => row(i + 1, '2026-10-01T10:00:00Z'));
+  const pool = makePool(rows);
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const res = makeEmitterRes({ writeReturns: (n) => n !== 2 });
+  const done = getRouteHandler(router, 'GET', '/events/export')({ query: { format: 'csv' } }, res);
+
+  await new Promise((r) => setTimeout(r, 20));
+  res.emit('close');
+  await done;
+  assert.equal(pool.seen.filter((q) => q.sql.includes('ORDER BY')).length, 1);
+});
