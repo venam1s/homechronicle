@@ -231,10 +231,10 @@ describe('cross-instance debounce (CR-01 regression)', () => {
     expect(body.prefs).toMatchObject({ theme: 'dark', accent: 'purple' });
   });
 
-  it('serializes PUTs across debounce windows — a later PUT waits for the in-flight one and carries all keys', async () => {
-    // Guards the across-window variant of CR-01: an earlier slow whole-blob PUT must not be sent
-    // concurrently with (or land after) a newer one, or the server's last-writer-wins replace
-    // would drop the newer keys.
+  it('serializes PUTs across debounce windows — a later PUT waits for the in-flight one', async () => {
+    // Guards the across-window variant of CR-01: an earlier slow PUT must not be sent
+    // concurrently with (or land after) a newer one, or an older value of a key could be
+    // applied last. Each PUT carries only its own window's keys (the server merges).
     useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
 
     const putBodies = [];
@@ -268,7 +268,8 @@ describe('cross-instance debounce (CR-01 regression)', () => {
     vi.useRealTimers();
 
     await waitFor(() => expect(putBodies).toHaveLength(2));
-    expect(putBodies[1]).toMatchObject({ a: 1, b: 2 }); // superset — no dropped key
+    expect(putBodies).toEqual([{ a: 1 }, { b: 2 }]); // partials, in dispatch order
+    await waitFor(() => expect(result.current.prefs).toMatchObject({ a: 1, b: 2 }));
   });
 });
 
@@ -295,15 +296,17 @@ describe('flush gating (M-7)', () => {
     expect(putCalls).toHaveLength(0);
   });
 
-  it('slow GET: fetched keys + pending key both land in exactly ONE PUT once the GET resolves', async () => {
+  it('slow GET: the pending key is sent in exactly ONE PUT once the GET resolves, and the cache keeps the fetched keys', async () => {
     useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
 
     let resolveGet;
     const gate = new Promise((r) => { resolveGet = r; });
+    // Like the real server: PUT shallow-merges into the stored blob and returns all of it.
+    const serverBlob = { a: 1, b: 2 };
     fetchJson.mockImplementation((url, opts) => {
       if (opts?.method === 'PUT') {
-        const sent = JSON.parse(opts.body).prefs;
-        return Promise.resolve({ prefs: sent });
+        Object.assign(serverBlob, JSON.parse(opts.body).prefs);
+        return Promise.resolve({ prefs: { ...serverBlob } });
       }
       return gate;
     });
@@ -326,7 +329,8 @@ describe('flush gating (M-7)', () => {
     putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
     expect(putCalls).toHaveLength(1);
     const body = JSON.parse(putCalls[0][1].body);
-    expect(body.prefs).toEqual({ a: 1, b: 2, theme: 'dark' });
+    expect(body.prefs).toEqual({ theme: 'dark' });
+    expect(result.current.prefs).toMatchObject({ a: 1, b: 2, theme: 'dark' });
   });
 
   it('the pre-existing coalescing behaviour is unaffected once the query is success', async () => {
@@ -518,5 +522,39 @@ describe('flush on page hide', () => {
     unmount();
     act(() => { hide(); });
     expect(putCall()).toBeUndefined();
+  });
+});
+
+describe('partial writes (cross-tab / cross-device clobber)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sends only the changed keys, never values from this tab\'s cached copy', async () => {
+    // A tab that loaded the account blob while theme was 'dark' must not push 'dark' back
+    // when it saves an unrelated key — another tab or device may have set 'system' since.
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === 'PUT') {
+        // The server merges the partial into what it holds (another tab already wrote 'system').
+        return Promise.resolve({ prefs: { theme: 'system', palette: 'ink', ...JSON.parse(opts.body).prefs } });
+      }
+      return Promise.resolve({ prefs: { theme: 'dark', palette: 'ink' } });
+    });
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toEqual({ theme: 'dark', palette: 'ink' }));
+
+    vi.useFakeTimers();
+    act(() => { result.current.setPrefsBlob({ dashboardHidden: ['kpis'] }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+    vi.useRealTimers();
+
+    const putCalls = fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT');
+    expect(putCalls).toHaveLength(1);
+    expect(JSON.parse(putCalls[0][1].body).prefs).toEqual({ dashboardHidden: ['kpis'] });
+    // The server's merged reply refreshes the stale copy, so this tab learns 'system' too.
+    await waitFor(() => expect(result.current.prefs).toEqual({ theme: 'system', palette: 'ink', dashboardHidden: ['kpis'] }));
   });
 });

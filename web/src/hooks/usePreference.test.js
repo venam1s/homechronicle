@@ -301,3 +301,49 @@ describe('usePreference — malformed blob fallback (D-18)', () => {
     expect(result.current[0]).toBe('system');
   });
 });
+
+describe('usePreference — follows other tabs (storage event)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('localStorage', makeStorage({ hc_theme_preference: 'dark' }));
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  function fireStorage(key, newValue) {
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event('storage'), { key, newValue }));
+    });
+  }
+
+  it('adopts a value another tab wrote to the same key, without saving it again', () => {
+    const setPrefsBlob = vi.fn();
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob });
+
+    const { result } = renderHook(
+      () => usePreference('theme', 'system', { localStorageKey: 'hc_theme_preference', serialize: (v) => v, deserialize: (v) => v }),
+      { wrapper: makeWrapper() },
+    );
+    expect(result.current[0]).toBe('dark');
+
+    fireStorage('hc_theme_preference', 'system');
+    expect(result.current[0]).toBe('system');
+    expect(setPrefsBlob).not.toHaveBeenCalled();
+    expect(localStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('ignores other keys, removals and unparseable values', () => {
+    useAuth.mockReturnValue({ user: null });
+    useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob: vi.fn() });
+    const { result } = renderHook(
+      () => usePreference('dashboardHidden', [], { localStorageKey: 'hc_dashboard_hidden' }),
+      { wrapper: makeWrapper() },
+    );
+    fireStorage('hc_dashboard_hidden', '["kpis"]');
+    expect(result.current[0]).toEqual(['kpis']);
+    fireStorage('hc_theme_preference', 'light');
+    fireStorage('hc_dashboard_hidden', null);
+    fireStorage('hc_dashboard_hidden', '{not json');
+    expect(result.current[0]).toEqual(['kpis']);
+  });
+});

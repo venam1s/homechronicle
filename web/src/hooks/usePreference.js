@@ -122,9 +122,25 @@ export function usePreference(key, defaultValue, {
       instancesByKey.set(localStorageKey, set);
     }
     set.add(setValue_);
+
+    // Other tabs: the in-tab broadcast above cannot reach them, but the browser fires
+    // 'storage' in every OTHER tab when one writes localStorage. Adopt the value without
+    // writing it back or saving it to the account — the tab that changed it already did.
+    // Without this, a second tab kept showing (and re-saving) its old value until reload.
+    const onStorage = (event) => {
+      if (event.key !== localStorageKey || event.newValue == null) return;
+      try {
+        setValue_(deserialize(event.newValue));
+      } catch {
+        // Unparseable value from another tab: keep the current one.
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
     return () => {
       set.delete(setValue_);
       if (set.size === 0) instancesByKey.delete(localStorageKey);
+      window.removeEventListener('storage', onStorage);
     };
   }, [localStorageKey]); // eslint-disable-line react-hooks/exhaustive-deps
 

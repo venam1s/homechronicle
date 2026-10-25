@@ -86,8 +86,8 @@ export function UserPreferencesProvider({ children }) {
   // SHARED once-only seeding guard — survives re-renders; one seed per app session.
   const seedFiredRef = useRef(false);
 
-  // PUT serialization: chain flushes so the server receives whole-blob replaces in dispatch
-  // order (the server does last-writer-wins — an out-of-order stale PUT would drop keys).
+  // PUT serialization: chain flushes so the server applies them in dispatch order — two
+  // writes of the same key must land newest-last.
   const inFlightRef = useRef(Promise.resolve());
   // Monotonic flush sequence — guards the cache echo so a slow earlier PUT cannot clobber a
   // newer flush's value.
@@ -126,12 +126,15 @@ export function UserPreferencesProvider({ children }) {
   }, []);
 
   /**
-   * setPrefsBlob(partial) — debounced merging PUT against the SHARED buffer.
+   * setPrefsBlob(partial) — debounced PUT of the changed keys against the SHARED buffer.
    *
    * Accumulates partial into the single shared buffer. On flush (500ms after the last call
-   * across ALL keys), reads the latest cached blob via getQueryData, merges every pending
-   * partial, and fires ONE PUT. Because the buffer is shared, concurrent writes from
-   * different preference keys/instances are merged — never raced into separate PUTs (CR-01).
+   * across ALL keys), fires ONE PUT carrying every buffered key — and ONLY those keys. The
+   * server shallow-merges (`prefs || new`), so a partial is all it needs. Sending this tab's
+   * cached blob as well used to push stale values back: a tab loaded while the theme was
+   * 'dark' re-sent 'dark' with every unrelated save, undoing a 'system' chosen in another tab
+   * or on another device. Because the buffer is shared, concurrent writes from different
+   * preference keys/instances are merged — never raced into separate PUTs (CR-01).
    *
    * Returns a promise that resolves after the debounced PUT completes.
    */
@@ -142,10 +145,10 @@ export function UserPreferencesProvider({ children }) {
   function flushPending() {
     debounceTimerRef.current = null;
 
-    // M-7 GATE: never build a flush body from getQueryData while the authenticated
-    // ['me','preferences'] GET is still pending or has errored — the cache would be
-    // incomplete/stale, so a merged-and-PUT body could omit keys another device already
-    // wrote. Scoped to user?.id deliberately: with no user the query is permanently
+    // M-7 GATE: never flush while the authenticated ['me','preferences'] GET is still
+    // pending or has errored. The PUT body no longer comes from the cache, but the cache
+    // update below does: a GET that resolved after this write would put the pre-write
+    // account values back into the cache, and every usePreference would reconcile to them. Scoped to user?.id deliberately: with no user the query is permanently
     // disabled (status stays 'pending' forever), and gating on that would re-arm forever;
     // without a user, usePreference never calls setPrefsBlob anyway (D-15 anon path), so
     // today's behaviour is unchanged for that path.
@@ -183,8 +186,9 @@ export function UserPreferencesProvider({ children }) {
     flushWaitsRef.current = 0;
 
     const mySeq = ++flushSeqRef.current;
+    const partial = pendingPartialRef.current;
     const latestCache = queryClient.getQueryData(['me', 'preferences']) ?? {};
-    const merged = { ...latestCache, ...pendingPartialRef.current };
+    const merged = { ...latestCache, ...partial };
 
     pendingPartialRef.current = {};
     const resolvers = pendingResolversRef.current.splice(0);
@@ -192,16 +196,16 @@ export function UserPreferencesProvider({ children }) {
     // Optimistically update the cache before the PUT.
     queryClient.setQueryData(['me', 'preferences'], merged);
 
-    // Serialize: chain after any in-flight PUT so the server receives whole-blob replaces in
-    // dispatch order. Each merged body is a superset of the prior (it reads the optimistic
-    // cache), so ordered delivery converges correctly with no dropped keys (CR-01 across-window).
+    // Serialize: chain after any in-flight PUT so the server applies the partials in dispatch
+    // order (CR-01 across-window).
     inFlightRef.current = inFlightRef.current
       .catch(() => {})
       .then(async () => {
         try {
-          const data = await putMutation.mutateAsync(merged);
-          // Adopt the server echo only if no newer flush has superseded this one — prevents a
-          // slow earlier PUT's response from clobbering a fresher value in the cache.
+          const data = await putMutation.mutateAsync(partial);
+          // The reply is the server's whole merged blob, so a stale tab also picks up what
+          // other tabs and devices saved. Adopt it only if no newer flush has superseded this
+          // one — prevents a slow earlier PUT's response from clobbering a fresher value.
           if (mySeq === flushSeqRef.current) {
             queryClient.setQueryData(['me', 'preferences'], data?.prefs ?? merged);
           }
