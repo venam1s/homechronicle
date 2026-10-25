@@ -25,7 +25,7 @@ export function useTheme() {
   const [preference, setPreference] = usePreference(
     'theme',
     getStoredPreference(),
-    { localStorageKey: STORAGE_KEY, serialize: (v) => v, deserialize: (v) => v },
+    { localStorageKey: STORAGE_KEY, serialize: (v) => v, deserialize: (v) => v, followOtherTabs: true },
   );
 
   const [systemDark, setSystemDark] = useState(() =>

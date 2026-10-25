@@ -558,3 +558,94 @@ describe('partial writes (cross-tab / cross-device clobber)', () => {
     await waitFor(() => expect(result.current.prefs).toEqual({ theme: 'system', palette: 'ink', dashboardHidden: ['kpis'] }));
   });
 });
+
+describe('failed saves are retried (partial writes must not be lost)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('re-sends the keys of a PUT that failed on a transient error', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    const putBodies = [];
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === 'PUT') {
+        const sent = JSON.parse(opts.body).prefs;
+        putBodies.push(sent);
+        if (putBodies.length === 1) return Promise.reject(Object.assign(new Error('Bad Gateway'), { status: 502 }));
+        return Promise.resolve({ prefs: { ...sent } });
+      }
+      return Promise.resolve({ prefs: {} });
+    });
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toEqual({}));
+
+    vi.useFakeTimers();
+    act(() => { result.current.setPrefsBlob({ theme: 'system' }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+    act(() => { result.current.setPrefsBlob({ palette: 'ink' }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    vi.useRealTimers();
+
+    expect(putBodies[0]).toEqual({ theme: 'system' });
+    expect(putBodies.at(-1)).toEqual({ theme: 'system', palette: 'ink' });
+  });
+
+  it('does not retry a PUT the server rejected as invalid', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockImplementation((url, opts) => (opts?.method === 'PUT'
+      ? Promise.reject(Object.assign(new Error('prefs payload too large'), { status: 400 }))
+      : Promise.resolve({ prefs: {} })));
+
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toEqual({}));
+
+    vi.useFakeTimers();
+    act(() => { result.current.setPrefsBlob({ theme: 'system' }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+    vi.useRealTimers();
+
+    expect(fetchJson.mock.calls.filter(([, opts]) => opts?.method === 'PUT')).toHaveLength(1);
+  });
+});
+
+describe('a value adopted from another tab also updates the shared cache', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('localStorage', makeStorage({ hc_theme_preference: 'dark' }));
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('never re-applies the stale cached value after a storage event', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockImplementation((url, opts) => (opts?.method === 'PUT'
+      ? new Promise(() => {}) // in flight forever: no echo can repair the cache
+      : Promise.resolve({ prefs: { theme: 'dark' } })));
+
+    const { wrapper, queryClient } = makeWrapper();
+    const codec = { localStorageKey: 'hc_theme_preference', serialize: (v) => v, deserialize: (v) => v, followOtherTabs: true };
+    const { result } = renderHook(() => ({
+      theme: usePreference('theme', 'system', codec),
+      prefs: useUserPreferences(),
+    }), { wrapper });
+    await waitFor(() => expect(result.current.prefs.prefs).toEqual({ theme: 'dark' }));
+
+    // Another tab switches to System.
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event('storage'), { key: 'hc_theme_preference', newValue: 'system' }));
+    });
+    expect(result.current.theme[0]).toBe('system');
+    expect(queryClient.getQueryData(['me', 'preferences'])).toMatchObject({ theme: 'system' });
+
+    // This tab then saves something unrelated.
+    localStorage.setItem.mockClear();
+    vi.useFakeTimers();
+    act(() => { result.current.prefs.setPrefsBlob({ palette: 'ink' }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+    vi.useRealTimers();
+
+    expect(result.current.theme[0]).toBe('system');
+    expect(localStorage.setItem).not.toHaveBeenCalledWith('hc_theme_preference', 'dark');
+    expect(queryClient.getQueryData(['me', 'preferences'])).toMatchObject({ theme: 'system', palette: 'ink' });
+  });
+});

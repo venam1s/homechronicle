@@ -96,9 +96,14 @@ export function usePreference(key, defaultValue, {
   localStorageKey,
   serialize = defaultSerialize,
   deserialize = defaultDeserialize,
+  followOtherTabs = false,
 } = {}) {
   const { user } = useAuth();
-  const { prefs, setPrefsBlob } = useUserPreferences();
+  const { prefs, setPrefsBlob, patchCache } = useUserPreferences();
+  // The storage listener is registered once per mount; read these through a ref so it always
+  // sees the current user and provider.
+  const latestRef = useRef({ user, patchCache });
+  latestRef.current = { user, patchCache };
 
   // Synchronous first-paint value from localStorage (D-16).
   const [value, setValue_] = useState(() => {
@@ -123,19 +128,29 @@ export function usePreference(key, defaultValue, {
     }
     set.add(setValue_);
 
-    // Other tabs: the in-tab broadcast above cannot reach them, but the browser fires
-    // 'storage' in every OTHER tab when one writes localStorage. Adopt the value without
-    // writing it back or saving it to the account — the tab that changed it already did.
-    // Without this, a second tab kept showing (and re-saving) its old value until reload.
+    // Other tabs (opt-in, followOtherTabs): the in-tab broadcast above cannot reach them, but
+    // the browser fires 'storage' in every OTHER tab when one writes localStorage. Adopt the
+    // value without writing it back or saving it to the account — the tab that changed it
+    // already did. Without this, a second tab kept showing its old theme until reload.
+    //
+    // Opt-in because it is only safe for a key nothing writes back in response to a change.
+    // The linked dashboard ranges do exactly that (adopting one range makes the tab rewrite
+    // the others), and with two tabs open they bounced 7 <-> 30 between them forever.
+    // Signed in, the shared account cache must take the value too, or it would hand the old
+    // one back to every consumer (see patchCache in UserPreferencesProvider).
     const onStorage = (event) => {
       if (event.key !== localStorageKey || event.newValue == null) return;
+      let next;
       try {
-        setValue_(deserialize(event.newValue));
+        next = deserialize(event.newValue);
       } catch {
-        // Unparseable value from another tab: keep the current one.
+        return; // Unparseable value from another tab: keep the current one.
       }
+      setValue_(next);
+      const { user: currentUser, patchCache: patch } = latestRef.current;
+      if (currentUser && typeof patch === 'function') patch({ [key]: next });
     };
-    window.addEventListener('storage', onStorage);
+    if (followOtherTabs) window.addEventListener('storage', onStorage);
 
     return () => {
       set.delete(setValue_);

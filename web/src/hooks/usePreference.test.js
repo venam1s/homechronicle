@@ -321,7 +321,7 @@ describe('usePreference — follows other tabs (storage event)', () => {
     useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob });
 
     const { result } = renderHook(
-      () => usePreference('theme', 'system', { localStorageKey: 'hc_theme_preference', serialize: (v) => v, deserialize: (v) => v }),
+      () => usePreference('theme', 'system', { localStorageKey: 'hc_theme_preference', serialize: (v) => v, deserialize: (v) => v, followOtherTabs: true }),
       { wrapper: makeWrapper() },
     );
     expect(result.current[0]).toBe('dark');
@@ -336,7 +336,7 @@ describe('usePreference — follows other tabs (storage event)', () => {
     useAuth.mockReturnValue({ user: null });
     useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob: vi.fn() });
     const { result } = renderHook(
-      () => usePreference('dashboardHidden', [], { localStorageKey: 'hc_dashboard_hidden' }),
+      () => usePreference('dashboardHidden', [], { localStorageKey: 'hc_dashboard_hidden', followOtherTabs: true }),
       { wrapper: makeWrapper() },
     );
     fireStorage('hc_dashboard_hidden', '["kpis"]');
@@ -345,5 +345,26 @@ describe('usePreference — follows other tabs (storage event)', () => {
     fireStorage('hc_dashboard_hidden', null);
     fireStorage('hc_dashboard_hidden', '{not json');
     expect(result.current[0]).toEqual(['kpis']);
+  });
+});
+
+describe('usePreference — other tabs are ignored unless opted in', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal('localStorage', makeStorage({ hc_dashboard_global_days: '30' }));
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('does not follow storage events by default (linked keys would ping-pong between tabs)', () => {
+    useAuth.mockReturnValue({ user: null });
+    useUserPreferences.mockReturnValue({ prefs: {}, setPrefsBlob: vi.fn() });
+    const { result } = renderHook(
+      () => usePreference('dashboardGlobalDays', 30, { localStorageKey: 'hc_dashboard_global_days' }),
+      { wrapper: makeWrapper() },
+    );
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event('storage'), { key: 'hc_dashboard_global_days', newValue: '7' }));
+    });
+    expect(result.current[0]).toBe(30);
   });
 });

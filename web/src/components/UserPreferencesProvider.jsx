@@ -32,6 +32,12 @@ const DEBOUNCE_MS = 500;
 // (no PUT dispatched). 10s / 500ms = 20 re-arm attempts (T-dfe-03).
 const MAX_FLUSH_WAIT_MS = 10_000;
 const MAX_FLUSH_WAITS = MAX_FLUSH_WAIT_MS / DEBOUNCE_MS;
+// A PUT that fails on a transient error (502 during a listener restart, a network blip) is
+// re-sent: each PUT carries only its own changed keys, so nothing later would carry them.
+const MAX_PUT_RETRIES = 3;
+const PUT_RETRY_BASE_MS = 2_000;
+// The server rejected the request itself (too large, signed out, forbidden): retrying can't help.
+const PERMANENT_PUT_FAILURES = new Set([400, 401, 403]);
 
 // D12_KEYS now lives in ../lib/prefKeys.js (single source of truth, shared with useAuth.js's
 // logout purge without creating an import cycle — see that module's header comment).
@@ -66,6 +72,7 @@ const NO_PROVIDER_DEFAULT = {
   prefs: {},
   isLoading: false,
   setPrefsBlob: () => Promise.resolve(),
+  patchCache: () => {},
   seedIfEmpty: () => {},
   // Outside the provider (anonymous pages, tests) there is nothing buffered to
   // write, so a flush is a no-op that still resolves — callers can always await it.
@@ -98,6 +105,8 @@ export function UserPreferencesProvider({ children }) {
   // this provider instance after seeing the query land in 'error'.
   const flushWaitsRef = useRef(0);
   const refetchKickedRef = useRef(false);
+  // Consecutive failed PUTs, for the retry cap. Reset by any successful PUT.
+  const putFailuresRef = useRef(0);
 
   const { data: prefs, isLoading } = useQuery({
     queryKey: ['me', 'preferences'],
@@ -203,16 +212,28 @@ export function UserPreferencesProvider({ children }) {
       .then(async () => {
         try {
           const data = await putMutation.mutateAsync(partial);
+          putFailuresRef.current = 0;
           // The reply is the server's whole merged blob, so a stale tab also picks up what
-          // other tabs and devices saved. Adopt it only if no newer flush has superseded this
-          // one — prevents a slow earlier PUT's response from clobbering a fresher value.
+          // other tabs and devices saved. Adopt it only if no newer flush (or a value adopted
+          // from another tab, see patchCache) has superseded this one — prevents a slow
+          // earlier PUT's response from clobbering a fresher value.
           if (mySeq === flushSeqRef.current) {
             queryClient.setQueryData(['me', 'preferences'], data?.prefs ?? merged);
           }
-        } catch {
-          // Swallow — the write failed server-side but localStorage already mirrors it; surfacing
-          // a rejection on a fire-and-forget promise would be an unhandledrejection. Last value
-          // re-syncs on the next successful PUT or page reload.
+        } catch (err) {
+          // Never reject — callers are fire-and-forget, and an unawaited rejection would be an
+          // unhandledrejection. A transient failure puts the keys back underneath anything set
+          // since and tries again: nothing else will ever send them, and the next GET would
+          // otherwise reconcile the old server value back over them.
+          if (!PERMANENT_PUT_FAILURES.has(err?.status) && putFailuresRef.current < MAX_PUT_RETRIES) {
+            putFailuresRef.current += 1;
+            pendingPartialRef.current = { ...partial, ...pendingPartialRef.current };
+            if (debounceTimerRef.current == null) {
+              debounceTimerRef.current = setTimeout(flushPending, PUT_RETRY_BASE_MS * putFailuresRef.current);
+            }
+          } else {
+            putFailuresRef.current = 0;
+          }
         } finally {
           resolvers.forEach(({ resolve }) => resolve());
         }
@@ -235,6 +256,23 @@ export function UserPreferencesProvider({ children }) {
     debounceTimerRef.current = setTimeout(flushPending, DEBOUNCE_MS);
 
     return promise;
+  }
+
+  /**
+   * patchCache(partial) — adopt values another tab already saved, without a PUT.
+   *
+   * usePreference calls this when a 'storage' event brings a value from another tab. Its own
+   * state is not enough: this tab's cached account blob would still hold the old value, and
+   * the next optimistic merge, flushOnHide or newly mounted usePreference would reconcile
+   * every consumer back to it — and write it to localStorage, flipping the other tab too.
+   * Bumping the flush sequence also stops an in-flight PUT's reply (which may predate the
+   * other tab's save) from overwriting the patched value.
+   */
+  function patchCache(partial) {
+    const current = queryClient.getQueryData(['me', 'preferences']);
+    if (!current || typeof current !== 'object') return; // not loaded: the GET brings server truth
+    flushSeqRef.current += 1;
+    queryClient.setQueryData(['me', 'preferences'], { ...current, ...partial });
   }
 
   /**
@@ -366,6 +404,7 @@ export function UserPreferencesProvider({ children }) {
     prefs: prefs ?? (user?.id ? undefined : {}),
     isLoading,
     setPrefsBlob,
+    patchCache,
     seedIfEmpty,
     flushNow,
   };

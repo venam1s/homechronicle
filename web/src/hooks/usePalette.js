@@ -78,7 +78,7 @@ export function usePalette() {
   const [stored, setPalette] = usePreference(
     'palette',
     getStoredPalette(),
-    { localStorageKey: STORAGE_KEY, serialize: (v) => v, deserialize: (v) => v },
+    { localStorageKey: STORAGE_KEY, serialize: (v) => v, deserialize: (v) => v, followOtherTabs: true },
   );
 
   // Guard the value on the way out too: a synced blob written by a newer or
