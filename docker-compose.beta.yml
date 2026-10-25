@@ -99,6 +99,10 @@ services:
       API_PORT: ${API_PORT:-3002}
       API_TOKEN: ${API_TOKEN}
       NODE_ENV: production
+      # The nightly prod->beta sync leaves BETA_SYNC_REPLAY_MIGRATIONS un-stamped so
+      # this listener replays them; once a later migration has also run on beta,
+      # that replay is out of order, which node-pg-migrate refuses by default.
+      MIGRATIONS_CHECK_ORDER: "false"
       # -- Phase 20/21 auth (multi-user, invites, password reset) --
       AUTH_ENABLED: ${AUTH_ENABLED:-true}
       # Session cookie Secure flag. Kept OFF by default: with it on, the new

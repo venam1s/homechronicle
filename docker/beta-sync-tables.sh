@@ -50,7 +50,9 @@ BETA_SYNC_EXCLUDED_TABLES="users sessions invites password_reset_tokens user_pre
 # beta's pgmigrations history after the restore: left un-stamped, the beta
 # listener (which starts only after db-sync completes) replays them. Each one
 # listed here must be idempotent. Once prod has run them, prod's own
-# pgmigrations rows cover them and the entries are harmless.
+# pgmigrations rows cover them and the entries are harmless. Replaying them
+# after a LATER migration has run is out of order, so the beta listener runs
+# with MIGRATIONS_CHECK_ORDER=false (docker-compose.beta.yml).
 BETA_SYNC_REPLAY_MIGRATIONS="0009_alert_threshold_operators 0010_alert_quiet_operator"
 
 # beta_sync_replay_sql_list — BETA_SYNC_REPLAY_MIGRATIONS as a quoted SQL list
