@@ -11,7 +11,7 @@
  */
 
 import { withTimeout } from './utils.js';
-import { abortHapClient, mergeAddresses, tryEachAddress } from './hap-addresses.js';
+import { abortHapClient, mergeAddresses, rememberAddresses, tryEachAddress } from './hap-addresses.js';
 
 /**
  * Perform a full HAP pairSetup() handshake using the stored PIN, then persist
@@ -57,7 +57,9 @@ export async function performPairSetupAndPersist(
   updated[deviceId] = {
     ...updated[deviceId],
     address: pairedAddress,
-    ...(candidates.length > 1 ? { addresses: candidates } : {}),
+    ...(candidates.length > 1
+      ? { addresses: rememberAddresses(updated[deviceId]?.addresses, addresses, pairedAddress) }
+      : {}),
     port,
     longTermData,
     pin,

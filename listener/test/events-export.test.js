@@ -203,3 +203,28 @@ test('GET /events/export/check returns JSON 500 when the count fails', async () 
   assert.equal(statusCode, 500);
   assert.deepEqual(jsonBody, { error: 'Internal server error' });
 });
+
+test('GET /events/export/check reports 429 once the export limit is used up, without spending it', async () => {
+  const prev = process.env.EVENTS_EXPORT_RATE_LIMIT_MAX;
+  const pool = makePool([], 3);
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const exportLayer = router.stack.find((l) => l.route?.path === '/events/export');
+  const limiter = exportLayer.route.stack[0].handle;
+  const check = getRouteHandler(router, 'GET', '/events/export/check');
+  const req = { query: {}, ip: '10.9.9.9', headers: {}, app: { get: () => false } };
+  const res = () => ({ statusCode: 200, setHeader() {}, getHeader() {}, status(c) { this.statusCode = c; return this; }, json(b) { this.body = b; return this; }, send() { return this; }, on() {} });
+
+  const first = res();
+  await check(req, first);
+  assert.equal(first.statusCode, 200, 'a check alone spends nothing');
+
+  // Spend the whole export allowance (default 10) through the export limiter.
+  for (let i = 0; i < 10; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => limiter(req, res(), resolve));
+  }
+  const blocked = res();
+  await check(req, blocked);
+  assert.equal(blocked.statusCode, 429);
+  assert.equal(prev, process.env.EVENTS_EXPORT_RATE_LIMIT_MAX);
+});

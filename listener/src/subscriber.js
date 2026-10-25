@@ -11,7 +11,7 @@ import { HttpClient } from 'hap-controller';
 import { insertEvent, pool } from './db.js';
 import { processAlertsForEvent } from './alerts.js';
 import {
-  abortHapClient, addressesToTry, advertisedAddresses, mergeAddresses, nextAddress, tryEachAddress,
+  abortHapClient, addressesToTry, advertisedAddresses, nextAddress, rememberAddresses, tryEachAddress,
   isConnectionError as isHapConnectionError,
 } from './hap-addresses.js';
 import {
@@ -608,7 +608,7 @@ function rediscoverAndReconnect(session, pairing) {
     // Known = announced now or stored from earlier announcements; the in-use
     // address alone doesn't count (it may be a stale DHCP lease).
     const known = Array.isArray(pairing.addresses) ? pairing.addresses : [];
-    const candidates = mergeAddresses(advertisedAddresses(discovered), known);
+    const candidates = rememberAddresses(known, advertisedAddresses(discovered), pairing.address);
     const port = discovered?.port ?? pairing.port;
 
     const failedBefore = session.lastFailedAddress === pairing.address;
@@ -738,7 +738,7 @@ async function attemptAutoRepair(session, pairing) {
     await savePairing(session.deviceId, {
       ...pairing,
       address: pairedAddress,
-      addresses,
+      addresses: rememberAddresses(pairing.addresses, advertisedAddresses(discovered), pairedAddress),
       port: discovered.port,
       longTermData,
       pairedAt: new Date().toISOString(),

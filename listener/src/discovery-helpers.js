@@ -192,6 +192,7 @@ export function createDiscoveryHelpers({
 
       discovery.on('error', () => {
         if (settled) return;
+        if (seen) return finish(); // found already; keep it
         settled = true;
         try { discovery.stop(); } catch (err) {
           log.debug('[discovery] stop error on discovery error:', err.message);
@@ -208,6 +209,7 @@ export function createDiscoveryHelpers({
 
       setTimeout(() => {
         if (settled) return;
+        if (seen) return finish(); // appeared late, inside its settle window
         settled = true;
         try { discovery.stop(); } catch (err) {
           log.debug('[discovery] stop error on timeout:', err.message);

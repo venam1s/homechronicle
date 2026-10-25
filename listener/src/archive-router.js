@@ -137,7 +137,7 @@ export function createArchiveRouter({
       }
       // Its display name is gone: put archived events (and any alert rules it
       // moved) back on the reported name. Background; logged on failure.
-      scheduleRename(pool, accessoryId, '').catch(() => {});
+      scheduleRename(pool, accessoryId, () => loadDisplayNames()[accessoryId] ?? '').catch(() => {});
       log.info(`[data] Deleted ${result.rowCount} event(s) for accessory ${accessoryId}`);
       res.json({ success: true, deleted: result.rowCount });
     } catch (err) {
@@ -157,7 +157,7 @@ export function createArchiveRouter({
         try { await save({}); } catch (err) { log.warn(`[data] Failed to clear ${label}:`, err.message); }
       }
       // Display names are gone: restore archived events and moved alert rules.
-      void reconcileDisplayNames(pool, {});
+      void reconcileDisplayNames(pool, loadDisplayNames);
       log.info(`[data] Wiped all data — ${result.rowCount} event(s) deleted`);
       res.json({ success: true, deleted: result.rowCount });
     } catch (err) {

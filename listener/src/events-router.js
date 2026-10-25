@@ -142,6 +142,12 @@ export function createEventsRouter({ pool, getRooms }) {
   router.get('/events/export/check', eventsReadLimiter, async (req, res) => {
     const { conditions, params } = buildEventFilters(req.query);
     try {
+      // Report the export limit without spending it: the download that
+      // follows is what counts against it.
+      const used = await eventsExportLimiter.getKey?.(rateLimitKeyGenerator(req));
+      if (used && used.totalHits >= EVENTS_EXPORT_RATE_LIMIT_MAX) {
+        return res.status(429).json({ error: 'Too many requests' });
+      }
       const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
       const countResult = await pool.query(`SELECT COUNT(*) AS total FROM event_logs ${where}`, params);
       const total = Number.parseInt(countResult.rows[0]?.total ?? '0', 10);

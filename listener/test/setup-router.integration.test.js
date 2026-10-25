@@ -539,11 +539,35 @@ test('GET /rooms — returns rooms object', async () => {
 
 // -- PATCH /display-name --
 
+// Fake pool whose transactions succeed; records rename UPDATE params.
+function renamePool(order = []) {
+  return {
+    async query() { return { rows: [] }; },
+    async connect() {
+      return {
+        async query(sql, params = []) {
+          if (/^\s*UPDATE event_logs\b/.test(sql)) order.push(['rename', params]);
+          return { rows: [], rowCount: /^\s*UPDATE event_logs/.test(sql) ? 3 : 0 };
+        },
+        release() {},
+      };
+    },
+  };
+}
+
+// Display-name store backed by a variable, as the real store is.
+function nameStore(initial = {}) {
+  let names = { ...initial };
+  return {
+    loadDisplayNames: () => ({ ...names }),
+    saveDisplayNames: async (next) => { names = { ...next }; },
+    get: () => names,
+  };
+}
+
 test('PATCH /display-name — sets display name for accessory', async () => {
-  let saveDisplayNamesCalled = false;
-  const router = makeRouter({
-    saveDisplayNames: async () => { saveDisplayNamesCalled = true; },
-  });
+  const store = nameStore();
+  const router = makeRouter({ ...store, pool: renamePool() });
   const handler = getRouteHandler(router, 'PATCH', '/display-name');
   const { statusCode, jsonBody } = await invoke(handler, {
     body: { accessoryId: 'a1', displayName: 'My Light' },
@@ -551,20 +575,13 @@ test('PATCH /display-name — sets display name for accessory', async () => {
 
   assert.equal(statusCode, 200);
   assert.equal(jsonBody.success, true);
-  assert.ok(saveDisplayNamesCalled, 'saveDisplayNames should be called');
+  assert.deepEqual(store.get(), { a1: 'My Light' });
 });
 
 test('PATCH /display-name — clears display name when displayName is empty', async () => {
-  let saved = null;
-  const router = makeRouter({
-    loadDisplayNames: () => ({ a1: 'My Light' }),
-    saveDisplayNames: async (names) => { saved = names; },
-    pool: {
-      async connect() {
-        return { async query() { return { rows: [], rowCount: 0 }; }, release() {} };
-      },
-    },
-  });
+  const store = nameStore({ a1: 'My Light' });
+  const order = [];
+  const router = makeRouter({ ...store, pool: renamePool(order) });
   const handler = getRouteHandler(router, 'PATCH', '/display-name');
   const { statusCode, jsonBody } = await invoke(handler, {
     body: { accessoryId: 'a1', displayName: '' },
@@ -572,25 +589,17 @@ test('PATCH /display-name — clears display name when displayName is empty', as
 
   assert.equal(statusCode, 200);
   assert.equal(jsonBody.success, true);
-  assert.deepEqual(saved, {});
+  assert.deepEqual(store.get(), {});
+  assert.deepEqual(order[0], ['rename', ['a1']], 'past events restored');
 });
 
-test('PATCH /display-name — saves the name before renaming past events', async () => {
+test('PATCH /display-name — saves the name, then renames past events with it', async () => {
+  const store = nameStore();
   const order = [];
   const router = makeRouter({
-    saveDisplayNames: async (names) => { order.push(['save', names]); },
-    pool: {
-      async query() { return { rows: [] }; },
-      async connect() {
-        return {
-          async query(sql, params = []) {
-            if (/^\s*UPDATE event_logs\b/.test(sql)) order.push(['rename', params]);
-            return { rows: [], rowCount: /^\s*UPDATE event_logs/.test(sql) ? 3 : 0 };
-          },
-          release() {},
-        };
-      },
-    },
+    ...store,
+    saveDisplayNames: async (names) => { order.push(['save', names]); await store.saveDisplayNames(names); },
+    pool: renamePool(order),
   });
   const handler = getRouteHandler(router, 'PATCH', '/display-name');
   const { statusCode, jsonBody } = await invoke(handler, {
@@ -599,24 +608,22 @@ test('PATCH /display-name — saves the name before renaming past events', async
 
   assert.equal(statusCode, 200);
   assert.equal(jsonBody.eventsUpdated, 6);
+  assert.equal(jsonBody.pending, false);
   assert.deepEqual(order[0], ['save', { 'AA:BB:2': 'Neakasa' }]);
   assert.deepEqual(order[1], ['rename', ['AA:BB:2', 'Neakasa']]);
 });
 
-test('PATCH /display-name — a failed history rename still saves the name', async () => {
-  let saved = null;
-  const router = makeRouter({
-    saveDisplayNames: async (names) => { saved = names; },
-    pool: { async connect() { throw new Error('db down'); } },
-  });
+test('PATCH /display-name — a failed rename keeps the saved name and says it will retry', async () => {
+  const store = nameStore();
+  const router = makeRouter({ ...store, pool: { async connect() { throw new Error('db down'); } } });
   const handler = getRouteHandler(router, 'PATCH', '/display-name');
   const { statusCode, jsonBody } = await invoke(handler, {
     body: { accessoryId: 'AA:BB:2', displayName: 'Neakasa' },
   });
 
-  assert.equal(statusCode, 200);
-  assert.equal(jsonBody.eventsUpdated, null);
-  assert.deepEqual(saved, { 'AA:BB:2': 'Neakasa' });
+  assert.equal(statusCode, 500);
+  assert.match(jsonBody.error, /saved.*retries/);
+  assert.deepEqual(store.get(), { 'AA:BB:2': 'Neakasa' });
 });
 
 test('PATCH /display-name — 500 JSON when the name cannot be saved', async () => {

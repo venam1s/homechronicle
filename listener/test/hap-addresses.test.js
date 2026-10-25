@@ -85,3 +85,14 @@ test('abortHapClient closes the client and never throws', async () => {
   await new Promise((r) => setImmediate(r));
   assert.equal(closed, 1);
 });
+
+test('rememberAddresses keeps the known order, adds new ones and drops old stale ones over the limit', async () => {
+  const { rememberAddresses } = await import('../src/hap-addresses.js');
+  assert.deepEqual(rememberAddresses(['a', 'b'], ['b', 'a']), ['a', 'b'], 'a reshuffled announcement is not a change');
+  assert.deepEqual(rememberAddresses(['a'], ['b']), ['a', 'b']);
+  assert.deepEqual(
+    rememberAddresses(['old1', 'old2', 'cur', 'old3'], ['new1'], 'cur'),
+    ['old2', 'cur', 'old3', 'new1'],
+    'over four: the oldest address not announced and not in use goes',
+  );
+});

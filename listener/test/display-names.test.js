@@ -34,31 +34,36 @@ function recordingPool({ failOn = null, rowCount = 2 } = {}) {
     },
     release() { released = true; },
   };
-  return { pool: { connect: async () => client }, calls, isReleased: () => released };
+  const find = (re) => calls.find((c) => re.test(c.sql));
+  return { pool: { connect: async () => client }, calls, find, isReleased: () => released };
 }
 
-test('renameAccessoryEvents renames live and archived events and the rules that named the device, in one transaction', async () => {
-  const { pool, calls, isReleased } = recordingPool();
+test('renameAccessoryEvents renames events, the rules and mutes that named the device, and records it, in one transaction', async () => {
+  const { pool, calls, find, isReleased } = recordingPool();
   const updated = await renameAccessoryEvents(pool, 'AA:BB:2', ' Neakasa ');
 
   assert.equal(updated, 4, 'live + archive row counts');
   assert.equal(calls[0].sql, 'BEGIN');
-  assert.match(calls[1].sql, /^UPDATE alert_rules/);
-  assert.match(calls[2].sql, /^UPDATE event_logs SET reported_name = COALESCE\(reported_name, accessory_name\)/);
-  assert.match(calls[3].sql, /^UPDATE event_logs_archive /);
-  assert.deepEqual(calls[2].params, ['AA:BB:2', 'Neakasa'], 'exact accessory id, trimmed name');
+  assert.ok(find(/UPDATE alert_rules r SET scope_value = m\.new_name, renamed_by_accessory_id/), 'rules follow, remembering who moved them');
+  assert.ok(find(/UPDATE user_preferences up SET prefs = jsonb_set\(up\.prefs, '\{mutedDevices\}'/), 'mutes follow');
+  assert.deepEqual(find(/^UPDATE event_logs SET reported_name = COALESCE/).params, ['AA:BB:2', 'Neakasa']);
+  assert.ok(find(/^UPDATE event_logs_archive SET reported_name/));
+  assert.deepEqual(find(/^INSERT INTO display_name_applied/).params, ['AA:BB:2', 'Neakasa']);
   assert.equal(calls.at(-1).sql, 'COMMIT');
   assert.ok(isReleased());
 });
 
-test('renameAccessoryEvents with an empty name restores the reported names', async () => {
-  const { pool, calls } = recordingPool();
+test('renameAccessoryEvents with an empty name restores events, moved rules, display-name rules and mutes', async () => {
+  const { pool, calls, find } = recordingPool();
   await renameAccessoryEvents(pool, 'AA:BB:2', '');
 
-  assert.match(calls[1].sql, /^UPDATE alert_rules/);
-  assert.match(calls[2].sql, /^UPDATE event_logs SET accessory_name = reported_name, reported_name = NULL/);
-  assert.match(calls[3].sql, /^UPDATE event_logs_archive SET accessory_name = reported_name/);
-  assert.deepEqual(calls[2].params, ['AA:BB:2']);
+  assert.ok(find(/SET scope_value = scope_value_before_rename/), 'rules a rename moved go back exactly');
+  assert.ok(find(/UPDATE alert_rules r SET scope_value = m\.new_name, updated_at = NOW\(\) FROM mapping m WHERE r\.scope_type = 'accessory' AND r\.renamed_by_accessory_id IS NULL/), 'rules made against the display name move to the reported name');
+  assert.ok(find(/UPDATE user_preferences/));
+  assert.deepEqual(find(/^UPDATE event_logs SET accessory_name = reported_name, reported_name = NULL/).params, ['AA:BB:2']);
+  assert.ok(find(/^UPDATE event_logs_archive SET accessory_name = reported_name/));
+  assert.deepEqual(find(/^DELETE FROM display_name_applied/).params, ['AA:BB:2']);
+  assert.equal(calls.at(-1).sql, 'COMMIT');
 });
 
 test('renameAccessoryEvents rolls back and rethrows on failure', async () => {
@@ -68,15 +73,22 @@ test('renameAccessoryEvents rolls back and rethrows on failure', async () => {
   assert.ok(isReleased());
 });
 
-test('reconcileDisplayNames keeps going past a failing accessory', async () => {
-  const seen = [];
-  const pool = {
+// Pool for reconcile tests: `applied` rows from display_name_applied; records
+// each rename job as [id, name] (name '' = restore).
+function reconcilePool(applied, { failFor = null } = {}) {
+  const jobs = [];
+  return {
+    jobs,
+    async query(sql) {
+      assert.match(sql, /FROM display_name_applied/);
+      return { rows: Object.entries(applied).map(([accessory_id, display_name]) => ({ accessory_id, display_name })) };
+    },
     async connect() {
       return {
         async query(sql, params = []) {
           if (/^\s*UPDATE event_logs\b/.test(sql)) {
-            seen.push(params[0]);
-            if (params[0] === 'bad') throw new Error('boom');
+            jobs.push([params[0], params[1] ?? '']);
+            if (params[0] === failFor) throw new Error('boom');
           }
           return { rows: [], rowCount: 0 };
         },
@@ -84,31 +96,28 @@ test('reconcileDisplayNames keeps going past a failing accessory', async () => {
       };
     },
   };
-  await reconcileDisplayNames(pool, { bad: 'X', good: 'Y' });
-  assert.deepEqual(seen, ['bad', 'good']);
+}
+
+test('reconcileDisplayNames renames what differs, restores what is gone, skips what matches', async () => {
+  const pool = reconcilePool({ same: 'Lamp', changed: 'Old', gone: 'Neakasa', unknown: '' });
+  const names = { same: 'Lamp', changed: 'New', added: 'Plug', unknown: 'Fan' };
+  await reconcileDisplayNames(pool, () => names);
+  assert.deepEqual(pool.jobs.sort(), [['added', 'Plug'], ['changed', 'New'], ['gone', ''], ['unknown', 'Fan']]);
 });
 
-test('reconcileDisplayNames restores accessories whose name is gone and applies the rest', async () => {
-  const jobs = [];
-  const pool = {
-    async query(sql) {
-      assert.match(sql, /reported_name IS NOT NULL/);
-      return { rows: [{ accessory_id: 'kept' }, { accessory_id: 'gone' }] };
-    },
-    async connect() {
-      return {
-        async query(sql, params = []) {
-          if (/^\s*UPDATE event_logs\b/.test(sql)) {
-            jobs.push([params[0], /SET accessory_name = reported_name/.test(sql) ? 'restore' : 'rename']);
-          }
-          return { rows: [], rowCount: 0 };
-        },
-        release() {},
-      };
-    },
-  };
-  await reconcileDisplayNames(pool, { kept: 'Neakasa' });
-  assert.deepEqual(jobs, [['kept', 'rename'], ['gone', 'restore']]);
+test('reconcileDisplayNames applies the name current when each job runs, not its snapshot', async () => {
+  const pool = reconcilePool({});
+  const names = { a: 'Old' };
+  const done = reconcileDisplayNames(pool, () => names);
+  names.a = 'New'; // a PATCH lands while reconcile is queued
+  await done;
+  assert.deepEqual(pool.jobs, [['a', 'New']]);
+});
+
+test('reconcileDisplayNames keeps going past a failing accessory', async () => {
+  const pool = reconcilePool({}, { failFor: 'bad' });
+  await reconcileDisplayNames(pool, () => ({ bad: 'X', good: 'Y' }));
+  assert.deepEqual(pool.jobs, [['bad', 'X'], ['good', 'Y']]);
 });
 
 test('scheduleRename runs renames one at a time, in order', async () => {

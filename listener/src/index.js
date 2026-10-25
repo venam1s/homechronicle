@@ -270,8 +270,12 @@ await pairingsStore.init();
 await roomsStore.init();
 await displayNamesStore.init();
 setDisplayNameLookup(() => displayNamesStore.getSnapshot());
-// Names set before display names applied to stored events; background, logged.
-void reconcileDisplayNames(pool, displayNamesStore.getSnapshot());
+// Keep stored history in line with display-names.json: at startup and every
+// 10 minutes (picks up hand edits and retries a rename that failed). Cheap —
+// it compares two small lists and only renames what differs. Background, logged.
+const reconcileNames = () => reconcileDisplayNames(pool, () => displayNamesStore.getSnapshot());
+void reconcileNames();
+setInterval(() => { void reconcileNames(); }, 10 * 60_000).unref?.();
 await notesStore.init();
 await categoriesStore.init();
 await retentionStore.init();

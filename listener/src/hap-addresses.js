@@ -114,3 +114,24 @@ export function addressesToTry(current, announced, known = []) {
   const ordered = live.includes(current) ? withCurrentFirst(current, live) : live;
   return mergeAddresses(ordered, known, current ? [current] : []);
 }
+
+// Most addresses remembered per accessory. Old DHCP leases would otherwise
+// pile up and each cost a timed-out attempt per failure streak.
+const MAX_KNOWN_ADDRESSES = 4;
+
+/**
+ * The address list to store for an accessory: what it was known at, in the
+ * same order (so a reshuffled announcement isn't a change), plus anything newly
+ * announced. Over the limit, the oldest addresses that are neither announced
+ * now nor in use are dropped first.
+ */
+export function rememberAddresses(known, announced, current) {
+  const live = mergeAddresses(announced);
+  const list = mergeAddresses(known ?? [], live);
+  while (list.length > MAX_KNOWN_ADDRESSES) {
+    const stale = list.findIndex((a) => !live.includes(a) && a !== current);
+    if (stale < 0) break;
+    list.splice(stale, 1);
+  }
+  return list;
+}

@@ -484,11 +484,19 @@ export function createSetupRouter({
       // Renaming a long history can outlast the proxy timeout; wait a little,
       // then let it finish in the background. A failure is logged and repaired
       // at the next listener start.
-      const job = scheduleRename(pool, accessoryId, name);
+      // The job applies whatever name is current when it runs, so rapid edits
+      // can't leave history on a stale one.
+      const job = scheduleRename(pool, accessoryId, () => (loadDisplayNames()[accessoryId] ?? '').trim());
+      const failed = Symbol('failed');
       const updated = await Promise.race([
-        job.catch(() => null),
+        job.catch(() => failed),
         new Promise((resolve) => { setTimeout(resolve, DISPLAY_NAME_WAIT_MS, undefined).unref?.(); }),
       ]);
+      if (updated === failed) {
+        return res.status(500).json({
+          error: 'The name was saved, but past events could not be renamed yet. HomeChronicle retries within 10 minutes.',
+        });
+      }
       res.json({ success: true, eventsUpdated: updated ?? null, pending: updated === undefined });
     } catch (err) {
       log.error('[setup] /display-name error:', err.message ?? err.stack ?? err);
