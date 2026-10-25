@@ -513,7 +513,7 @@ app.use(cors({
       callback(null, false);
     }
   },
-  methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PATCH', 'DELETE'],
+  methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Token', 'X-CSRF-Token'],
   // The Timeline export reads its filename and row counts from these when the
   // web UI is on another origin (Vite dev server, VITE_API_BASE_URL).
