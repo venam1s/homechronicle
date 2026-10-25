@@ -134,6 +134,25 @@ export function UserPreferencesProvider({ children }) {
     if (debounceTimerRef.current != null) clearTimeout(debounceTimerRef.current);
   }, []);
 
+  // Buffered writes belong to the account that made them. The provider sits above the router
+  // and does not unmount on sign-out, so when the user changes, drop whatever is still buffered
+  // (e.g. a failed PUT waiting for its retry) — otherwise it would be sent under the next
+  // session and land in someone else's account.
+  const userIdRef = useRef(user?.id);
+  userIdRef.current = user?.id;
+  const ownerIdRef = useRef(user?.id);
+  useEffect(() => {
+    if (ownerIdRef.current === user?.id) return;
+    ownerIdRef.current = user?.id;
+    if (debounceTimerRef.current != null) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = null;
+    pendingPartialRef.current = {};
+    putFailuresRef.current = 0;
+    flushWaitsRef.current = 0;
+    flushSeqRef.current += 1; // ignore replies to PUTs from the previous session
+    pendingResolversRef.current.splice(0).forEach(({ resolve }) => resolve());
+  }, [user?.id]);
+
   /**
    * setPrefsBlob(partial) — debounced PUT of the changed keys against the SHARED buffer.
    *
@@ -195,6 +214,7 @@ export function UserPreferencesProvider({ children }) {
     flushWaitsRef.current = 0;
 
     const mySeq = ++flushSeqRef.current;
+    const flushOwner = user?.id;
     const partial = pendingPartialRef.current;
     const latestCache = queryClient.getQueryData(['me', 'preferences']) ?? {};
     const merged = { ...latestCache, ...partial };
@@ -225,7 +245,8 @@ export function UserPreferencesProvider({ children }) {
           // unhandledrejection. A transient failure puts the keys back underneath anything set
           // since and tries again: nothing else will ever send them, and the next GET would
           // otherwise reconcile the old server value back over them.
-          if (!PERMANENT_PUT_FAILURES.has(err?.status) && putFailuresRef.current < MAX_PUT_RETRIES) {
+          if (userIdRef.current === flushOwner
+            && !PERMANENT_PUT_FAILURES.has(err?.status) && putFailuresRef.current < MAX_PUT_RETRIES) {
             putFailuresRef.current += 1;
             pendingPartialRef.current = { ...partial, ...pendingPartialRef.current };
             if (debounceTimerRef.current == null) {

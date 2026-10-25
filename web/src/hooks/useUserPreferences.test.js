@@ -649,3 +649,75 @@ describe('a value adopted from another tab also updates the shared cache', () =>
     expect(queryClient.getQueryData(['me', 'preferences'])).toMatchObject({ theme: 'system', palette: 'ink' });
   });
 });
+
+describe('pending saves never cross into another account (code review #2)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('drops a failed, re-queued save when the user signs out and someone else signs in', async () => {
+    let currentUser = { id: 42, role: 'member', email: 'a@example.com' };
+    useAuth.mockImplementation(() => ({ user: currentUser }));
+    const putBodies = [];
+    fetchJson.mockImplementation((url, opts) => {
+      if (opts?.method === 'PUT') {
+        putBodies.push({ user: currentUser?.id, prefs: JSON.parse(opts.body).prefs });
+        if (putBodies.length === 1) return Promise.reject(Object.assign(new Error('Bad Gateway'), { status: 502 }));
+        return Promise.resolve({ prefs: JSON.parse(opts.body).prefs });
+      }
+      return Promise.resolve({ prefs: {} });
+    });
+
+    const { wrapper } = makeWrapper();
+    const { result, rerender } = renderHook(() => useUserPreferences(), { wrapper });
+    await waitFor(() => expect(result.current.prefs).toEqual({}));
+
+    vi.useFakeTimers();
+    act(() => { result.current.setPrefsBlob({ theme: 'system' }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(600); }); // PUT fails, re-queued
+
+    // A signs out, B signs in before the retry fires.
+    currentUser = { id: 7, role: 'member', email: 'b@example.com' };
+    rerender();
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    vi.useRealTimers();
+
+    expect(putBodies.filter((p) => p.user === 7)).toEqual([]);
+  });
+});
+
+describe('a theme change from another tab leaves other keys alone (code review #7)', () => {
+  let storage;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    storage = makeStorage({ hc_theme_preference: 'dark', hc_dashboard_global_days: '7' });
+    vi.stubGlobal('localStorage', storage);
+  });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('does not rewrite a non-followed key from this tab\'s cached copy', async () => {
+    useAuth.mockReturnValue({ user: { id: 42, role: 'member', email: 'u@example.com' } });
+    fetchJson.mockResolvedValue({ prefs: { theme: 'dark', dashboardGlobalDays: 7 } });
+
+    const { wrapper, queryClient } = makeWrapper();
+    const { result } = renderHook(() => ({
+      theme: usePreference('theme', 'system', { localStorageKey: 'hc_theme_preference', serialize: (v) => v, deserialize: (v) => v, followOtherTabs: true }),
+      days: usePreference('dashboardGlobalDays', 30, { localStorageKey: 'hc_dashboard_global_days' }),
+      prefs: useUserPreferences(),
+    }), { wrapper });
+    await waitFor(() => expect(result.current.prefs.prefs).toEqual({ theme: 'dark', dashboardGlobalDays: 7 }));
+
+    // Another tab changed the range to 30 (this tab does not follow ranges) …
+    storage.setItem('hc_dashboard_global_days', '30');
+    storage.setItem.mockClear();
+    // … and then the theme, which this tab does follow.
+    await act(async () => {
+      window.dispatchEvent(Object.assign(new Event('storage'), { key: 'hc_theme_preference', newValue: 'system' }));
+    });
+    // Let the patched cache reach every consumer (React Query notifies on a later tick).
+    await waitFor(() => expect(result.current.prefs.prefs.theme).toBe('system'));
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+    expect(result.current.theme[0]).toBe('system');
+    expect(storage.getItem('hc_dashboard_global_days')).toBe('30');
+    expect(storage.setItem).not.toHaveBeenCalledWith('hc_dashboard_global_days', expect.anything());
+  });
+});

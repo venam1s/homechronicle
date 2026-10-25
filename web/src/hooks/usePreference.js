@@ -168,6 +168,12 @@ export function usePreference(key, defaultValue, {
   // RECONCILIATION (D-10):
   // When the server blob resolves (or updates), reconcile the local state to the blob value.
   // Only accept the value when it is type-compatible with defaultValue (D-18 malformed guard).
+  //
+  // Only when THIS key's value in the blob changed: the blob object is replaced whenever any
+  // key changes (a save, a value adopted from another tab via patchCache), and re-applying an
+  // unchanged — possibly stale — value would overwrite what another tab has since written to
+  // the shared localStorage for a key this tab doesn't follow.
+  const lastReconciledRef = useRef(undefined);
   useEffect(() => {
     if (!user || !prefs || typeof prefs !== 'object') return;
     if (!(key in prefs)) return;
@@ -177,6 +183,15 @@ export function usePreference(key, defaultValue, {
     // D-18 malformed guard: accept blob value only when it has the same JS type as defaultValue.
     // This prevents a number in the blob from being used for a string preference.
     if (typeof serverVal !== typeof defaultValue) return;
+
+    let marker;
+    try {
+      marker = serialize(serverVal);
+    } catch {
+      return;
+    }
+    if (marker === lastReconciledRef.current) return;
+    lastReconciledRef.current = marker;
 
     // Reconcile state and write-through to localStorage.
     setValue_(serverVal);
