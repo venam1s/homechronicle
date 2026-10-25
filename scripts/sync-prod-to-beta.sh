@@ -12,11 +12,12 @@
 # Safety:
 #   - Beta listener is stopped during sync, restarted at the end
 #   - Prod is read-only (pg_dump only)
-#   - Beta DB is replaced via --clean --if-exists; a beta dump is taken first
+#   - Beta's tables are reloaded with prod's DATA only (beta keeps its own
+#     schema and pgmigrations — see docker/beta-sync-tables.sh); a beta dump is
+#     taken first
 #   - Account tables (users, sessions, invites, password_reset_tokens,
-#     user_preferences — see docker/beta-sync-tables.sh) are excluded from the
-#     dump; alert_rules/alert_deliveries ARE synced with their users FK stripped
-#     and owners nulled. The restore runs --single-transaction so it is atomic
+#     user_preferences) and pgmigrations are never touched; alert_rules owners
+#     are nulled. The reload runs --single-transaction so it is atomic
 #   - Existing beta pairings.json / matter-storage/ are moved to .bak.<ts>
 #     (NOT deleted) before sync — beta will boot pairing-free
 
@@ -125,9 +126,13 @@ run "docker stop '${BETA_LISTENER}'"
 # -- Step 3: pg_dump prod -> beta ---------------------------------------------
 
 DUMP_EXCLUDE="$(beta_sync_exclude_flags)"
-log "step 3: dumping prod -> restoring into beta (streaming, no temp file, single-transaction; excluding: ${BETA_SYNC_EXCLUDED_TABLES})"
-run "( docker exec '${PROD_PG}' sh -c 'pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --clean --if-exists --no-owner${DUMP_EXCLUDE}' \
-    | beta_sync_strip_user_fks; beta_sync_post_restore_sql ) \
+PROD_TABLES="$(docker exec "$PROD_PG" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAqc "SELECT string_agg(tablename, '"' '"' ORDER BY tablename) FROM pg_tables WHERE schemaname = '"'public'"'"')"
+[[ -n "$PROD_TABLES" ]] || die "could not list prod's tables"
+SYNC_TABLES="$(beta_sync_tables_to_copy "$PROD_TABLES")"
+log "step 3: reloading beta from prod data (streaming, single-transaction; tables: ${SYNC_TABLES}; untouched: ${BETA_SYNC_EXCLUDED_TABLES} ${BETA_SYNC_BETA_OWNED_TABLES})"
+run "( beta_sync_pre_restore_sql '${SYNC_TABLES}'
+    docker exec '${PROD_PG}' sh -c 'pg_dump -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" --data-only --no-owner${DUMP_EXCLUDE}'
+    beta_sync_post_restore_sql ) \
   | docker exec -i '${BETA_PG}' sh -c 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -v ON_ERROR_STOP=1 --single-transaction -q' \
   >/dev/null"
 

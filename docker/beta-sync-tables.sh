@@ -44,72 +44,70 @@
 
 BETA_SYNC_EXCLUDED_TABLES="users sessions invites password_reset_tokens user_preferences"
 
-# Migrations beta has run but prod may not have yet, that alter a table the
-# sync overwrites from prod (here alert_rules' operator CHECK). The restore
-# brings that table back in prod's shape, so these must NOT be re-stamped from
-# beta's pgmigrations history after the restore: left un-stamped, the beta
-# listener (which starts only after db-sync completes) replays them. Each one
-# listed here must be idempotent. Once prod has run them, prod's own
-# pgmigrations rows cover them and the entries are harmless. Replaying them
-# after a LATER migration has run is out of order, so the beta listener runs
-# with MIGRATIONS_CHECK_ORDER=false (docker-compose.beta.yml).
-BETA_SYNC_REPLAY_MIGRATIONS="0009_alert_threshold_operators 0010_alert_quiet_operator"
+# Tables beta owns outright and the sync never touches, on top of the excluded
+# ones: beta's migration history must describe beta's own schema. (_migrations
+# is the pre-node-pg-migrate history table; nothing reads it any more.)
+BETA_SYNC_BETA_OWNED_TABLES="pgmigrations _migrations"
 
-# beta_sync_replay_sql_list — BETA_SYNC_REPLAY_MIGRATIONS as a quoted SQL list
-# for `NOT IN (...)`, e.g. '0009_x','0010_y'; '' when the list is empty.
-beta_sync_replay_sql_list() {
-  _list=""
-  for _m in $BETA_SYNC_REPLAY_MIGRATIONS; do
-    _list="${_list:+$_list,}'${_m}'"
-  done
-  printf '%s' "${_list:-''}"
-}
+# DATA-ONLY SYNC (2026-10-25). The sync copies prod's ROWS into beta's own
+# tables; it never copies prod's schema. Beta's tables, constraints and
+# pgmigrations always come from beta's own migrations, so beta can run a newer
+# schema than prod (new columns get their defaults, widened CHECKs accept prod's
+# rows) with no migration replay and no out-of-order migration runs. A future
+# migration that renames or drops a column, or tightens a constraint prod's rows
+# break, makes the restore fail inside its single transaction: beta is left as
+# it was and the failure is logged (fail_or_skip / SYNC_REQUIRED).
 
 # beta_sync_exclude_flags — prints the concatenated
-# `--exclude-table=public.<table>` flags for BETA_SYNC_EXCLUDED_TABLES on
-# stdout, space-separated, ready to splice into a pg_dump argument list.
-# No `local` (not POSIX) — uses `_t` / `_flags` prefixed temporaries instead.
+# `--exclude-table=public.<table>` flags for the excluded and beta-owned
+# tables on stdout, space-separated, ready to splice into a pg_dump argument
+# list. Each table's `<t>_id_seq` is excluded too, so its setval() is not
+# dumped over beta's own sequence. A pattern that matches nothing (e.g.
+# user_preferences has no sequence) is ignored by pg_dump unless
+# --strict-names is given. No `local` (not POSIX) — `_t` / `_flags` temporaries.
 beta_sync_exclude_flags() {
   _flags=""
-  for _t in $BETA_SYNC_EXCLUDED_TABLES; do
-    # Exclude the table AND its BIGSERIAL sequence. `--exclude-table` matches the
-    # exact name only, so the sequence would otherwise still be dumped and the
-    # `--clean` restore would emit `DROP SEQUENCE public.<t>_id_seq`, which fails
-    # with "cannot drop sequence ... because other objects depend on it" (beta's
-    # own <t>.id default depends on it) and aborts the whole single-transaction
-    # restore. Seen nightly on beta 2026-08-26 → 08-29 (users_id_seq). A pattern
-    # that matches nothing (user_preferences has no sequence) is ignored by
-    # pg_dump unless --strict-names is given.
+  for _t in $BETA_SYNC_EXCLUDED_TABLES $BETA_SYNC_BETA_OWNED_TABLES; do
     _flags="$_flags --exclude-table=public.${_t} --exclude-table=public.${_t}_id_seq"
   done
   printf '%s' "$_flags"
 }
 
-# alert_rules / alert_deliveries are deliberately NOT excluded: they are real data
-# beta should show, and excluding alert_deliveries leaves beta's copy holding an
-# FK onto event_logs so `--clean` cannot drop event_logs_pkey (seen 2026-08-30).
-# The only problem they carry is alert_rules.user_id -> users(id) (migration 0008):
-# users is excluded, so prod owner ids would not exist in beta and the dump's
-# post-data `ADD CONSTRAINT alert_rules_user_id_fkey` would fail validation.
-# Strip that one FK from the dump stream, then null the owners and re-add the
-# constraint inside the same restore transaction.
+# beta_sync_tables_to_copy PROD_TABLES — from a whitespace-separated list of
+# prod's public tables, print the ones the sync copies (everything except the
+# excluded and beta-owned tables), space-separated.
+beta_sync_tables_to_copy() {
+  _out=""
+  for _t in $1; do
+    case " $BETA_SYNC_EXCLUDED_TABLES $BETA_SYNC_BETA_OWNED_TABLES " in
+      *" $_t "*) ;;
+      *) _out="${_out:+$_out }$_t" ;;
+    esac
+  done
+  printf '%s' "$_out"
+}
 
-# Filter for the pg_dump stream: drop any `ALTER TABLE ONLY public.<t>` +
-# `ADD CONSTRAINT ... REFERENCES public.users(` pair (pg_dump emits FKs on two
-# lines) and, defensively, any single-line form. POSIX/BusyBox sed compatible.
-beta_sync_strip_user_fks() {
-  sed -E \
-    -e '/^ALTER TABLE ONLY public\.[a-z_]+$/{N;/REFERENCES public\.users\(/d;}' \
-    -e '/ADD CONSTRAINT .*REFERENCES public\.users\(/d'
+# SQL to run in the restore transaction BEFORE the data-only dump. Everything
+# MUST be schema-qualified: pg_dump's stream sets `search_path = ''`.
+#   - alert_rules.user_id -> users(id) (migration 0008): users is beta's own, so
+#     prod's owner ids would fail the FK as each row is copied. Drop it here and
+#     re-add it after (beta_sync_post_restore_sql) with owners nulled.
+#   - TRUNCATE the tables about to be reloaded. Deliberately NO CASCADE: if a
+#     table the sync must not touch references one of these, the TRUNCATE fails
+#     and the whole restore rolls back instead of silently emptying it.
+beta_sync_pre_restore_sql() {
+  _tables=""
+  for _t in $1; do
+    _tables="${_tables:+$_tables, }public.${_t}"
+  done
+  printf '%s\n' 'ALTER TABLE public.alert_rules DROP CONSTRAINT IF EXISTS alert_rules_user_id_fkey;'
+  [ -n "$_tables" ] && printf 'TRUNCATE TABLE %s;\n' "$_tables"
+  return 0
 }
 
 # SQL to append to the restore stream (same --single-transaction) after the dump.
-# Everything MUST be schema-qualified: pg_dump starts its stream with
-# `SET search_path = ''`, so an unqualified `alert_rules` fails with
-# 'relation "alert_rules" does not exist' (seen 2026-08-30 16:09Z).
 beta_sync_post_restore_sql() {
   printf '%s\n' \
     'UPDATE public.alert_rules SET user_id = NULL WHERE user_id IS NOT NULL;' \
-    'ALTER TABLE public.alert_rules DROP CONSTRAINT IF EXISTS alert_rules_user_id_fkey;' \
     'ALTER TABLE public.alert_rules ADD CONSTRAINT alert_rules_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;'
 }

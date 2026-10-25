@@ -120,17 +120,13 @@ export async function migrateDb() {
     log.info('[db] Existing install detected — baseline migration marked as applied.');
   }
 
-  // Run all pending migrations. node-pg-migrate refuses to run a migration that
-  // precedes one already run; MIGRATIONS_CHECK_ORDER=false lifts that for the beta
-  // stack, whose prod->beta sync deliberately leaves earlier migrations un-stamped
-  // for replay (docker/beta-sync-tables.sh BETA_SYNC_REPLAY_MIGRATIONS).
+  // Run all pending migrations
   await runner({
     databaseUrl: process.env.DATABASE_URL,
     dir: migrationsDir,
     direction: 'up',
     migrationsTable: 'pgmigrations',
     singleTransaction: true,
-    checkOrder: process.env.MIGRATIONS_CHECK_ORDER !== 'false',
     log: (msg) => log.debug('[migrate]', msg),
   });
 
