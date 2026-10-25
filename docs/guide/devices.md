@@ -194,7 +194,7 @@ Each device belongs to one category, used by the **Device Categories** dashboard
 | **Cleaning** | Nothing — choose it yourself, for example for a robot vacuum that shows up as a switch |
 | **Other** | Anything else |
 
-The category comes from everything the device reports, so a motion sensor's battery readings don't make it **Other**, and a Matter light that also reports on/off counts as **Lighting**, not a switch. When a device does several things, the first match in the table wins.
+The category comes from everything the device reported in the last 14 days, so a motion sensor's battery readings don't make it **Other**, and a Matter light that also reports on/off counts as **Lighting**, not a switch. When a device does several things, the first match in the table wins.
 
 To change it, open the device's detail page and pick a **Category** under its name. **Automatic** (the first option) shows what it would be on its own and goes back to it. The choice applies to every event from that device. Overrides are stored in `listener/data/categories.json`; deleting a device's data or removing a Matter pairing clears its override.
 

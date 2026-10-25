@@ -5,7 +5,7 @@ import { rateLimitKeyGenerator } from './security.js';
 import { parseIntInRange as _parseIntInRange, parentBridgeId, withTimeout } from './utils.js';
 import { isHomeKitPairing, mapReliabilityStats } from './setup-helpers.js';
 import { deriveDeviceHealth } from './device-health.js';
-import { resolveCategory } from './categories.js';
+import { CATEGORY_WINDOW_DAYS, resolveCategory } from './categories.js';
 import { cached } from './query-cache.js';
 
 const ACCESSORIES_RATE_LIMIT_WINDOW_MS = _parseIntInRange(
@@ -395,14 +395,15 @@ export function createAccessoriesRouter({
       );
       const latest = latestResult.rows[0] ?? {};
 
-      // Category comes from every service type the device has reported in the
-      // window (the latest event alone may be a battery or firmware reading),
-      // resolved the same way as /api/stats/categories.
+      // Category comes from every service type the device has reported (the latest
+      // event alone may be a battery or firmware reading), over the same fixed window
+      // the Device Categories panel uses by default — not this page's `days`, or the
+      // two could show different automatic categories for one device.
       const serviceTypesResult = await pool.query(
         `SELECT DISTINCT service_type
          FROM event_logs
          WHERE accessory_id = $1 AND timestamp >= NOW() - ($2::int * INTERVAL '1 day')`,
-        [accessoryId, days]
+        [accessoryId, CATEGORY_WINDOW_DAYS]
       );
       const serviceTypes = new Set(serviceTypesResult.rows.map((r) => r.service_type));
       if (latest.service_type) serviceTypes.add(latest.service_type);

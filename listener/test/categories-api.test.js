@@ -150,14 +150,18 @@ test('GET /setup/categories lists the categories and current overrides', async (
 // -- GET /accessories/:id/detail --
 
 test('GET /accessories/:id/detail resolves the category from all recent service types, not the latest event', async () => {
+  const seenWindows = [];
   for (const [overrides, expected] of [
     [{}, { category: 'security', category_auto: 'security', category_override: null }],
     [{ h1: 'safety' }, { category: 'safety', category_auto: 'security', category_override: 'safety' }],
   ]) {
     const router = createAccessoriesRouter({
       pool: {
-        async query(sql) {
-          if (sql.includes('SELECT DISTINCT service_type')) return { rows: [{ service_type: 'MotionSensor' }, { service_type: 'Battery' }] };
+        async query(sql, params = []) {
+          if (sql.includes('SELECT DISTINCT service_type')) {
+            seenWindows.push(params[1]);
+            return { rows: [{ service_type: 'MotionSensor' }, { service_type: 'Battery' }] };
+          }
           if (sql.includes('COUNT(*)::int AS event_count')) return { rows: [{ event_count: 5, first_seen: null, last_seen: null }] };
           if (sql.includes('SELECT accessory_name, room_name, service_type, protocol')) {
             return { rows: [{ accessory_name: 'Hall Motion', room_name: null, service_type: 'Battery', protocol: 'homekit' }] };
@@ -178,12 +182,14 @@ test('GET /accessories/:id/detail resolves the category from all recent service 
     });
     const { statusCode, jsonBody } = await invoke(
       getRouteHandler(router, 'GET', '/accessories/:accessoryId/detail'),
-      { params: { accessoryId: 'h1' } },
+      { params: { accessoryId: 'h1' }, query: { days: '90' } },
     );
     assert.equal(statusCode, 200);
     const { category, category_auto, category_override } = jsonBody.accessory;
     assert.deepEqual({ category, category_auto, category_override }, expected);
   }
+  // The page's 90-day view must not change which window the category comes from.
+  assert.deepEqual(seenWindows, [14, 14]);
 });
 
 // -- Cleanup alongside rooms --

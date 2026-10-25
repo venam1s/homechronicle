@@ -3,6 +3,11 @@
 // every service type it has reported, with a per-device manual override
 // stored in categories.json (accessoryId -> category id).
 
+// Days of activity a device's automatic category is resolved from on its detail
+// page: the Device Categories panel's default window (7 days) plus the 7 before,
+// so both show the same category for the same device.
+export const CATEGORY_WINDOW_DAYS = 14;
+
 // Display order, and the order the UI offers them in.
 export const CATEGORIES = [
   { id: 'security', label: 'Security' },
