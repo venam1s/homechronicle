@@ -75,12 +75,13 @@ test('tryEachAddress fails over only on connection errors', async () => {
   assert.deepEqual(pinTried, ['a']);
 });
 
-test('abortHapClient closes an in-progress pair-setup socket', async () => {
+test('abortHapClient closes the client and never throws', async () => {
   const { abortHapClient } = await import('../src/hap-addresses.js');
   let closed = 0;
-  const client = { _pairingConnection: { close() { closed += 1; } }, closePersistentConnection() { closed += 1; } };
-  abortHapClient(client);
-  assert.equal(closed, 2);
-  assert.equal(client._pairingConnection, undefined);
+  abortHapClient({ async close() { closed += 1; } });
+  abortHapClient({ close() { throw new Error('boom'); } });
+  abortHapClient({ async close() { throw new Error('boom'); } });
   abortHapClient(null);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(closed, 1);
 });

@@ -167,12 +167,12 @@ test('performPairSetupAndPersist aborts a pair-setup that times out', async () =
   const { performPairSetupAndPersist } = await import('../src/repair-helpers.js');
   let aborted = false;
   const MockHttpClient = class {
-    constructor() { this._pairingConnection = { close() { aborted = true; } }; }
     pairSetup() { return new Promise(() => {}); }
+    close() { aborted = true; }
   };
   await assert.rejects(performPairSetupAndPersist(
     { deviceId: 'hb', pin: '1', address: '10.0.0.193', port: 1 },
     { HttpClient: MockHttpClient, loadPairings: () => ({}), savePairings: async () => {}, timeoutMs: 20 },
   ), /timed out/);
-  assert.ok(aborted, 'the pairing socket was closed');
+  assert.ok(aborted, 'the client was closed');
 });

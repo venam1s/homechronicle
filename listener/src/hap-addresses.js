@@ -92,16 +92,14 @@ export async function tryEachAddress(addresses, attempt, onSkip = () => {}) {
 }
 
 /**
- * Abort whatever a hap-controller HttpClient has open. It has no close(): a
- * pair-setup in progress holds its socket in _pairingConnection, verified
- * sessions in a persistent connection. Without this a timed-out pair-setup
- * keeps running and can complete with keys nobody saved.
+ * Close everything a hap-controller HttpClient has open, including a
+ * pair-setup in progress, so a timed-out attempt can't carry on and complete
+ * with keys nobody saved. Never throws.
  */
 export function abortHapClient(client) {
-  if (!client) return;
-  try { client._pairingConnection?.close(); } catch (_e) { /* already closed */ }
-  try { delete client._pairingConnection; } catch (_e) { /* ignore */ }
-  try { client.closePersistentConnection?.(); } catch (_e) { /* ignore */ }
+  try {
+    Promise.resolve(client?.close?.()).catch(() => {});
+  } catch (_e) { /* ignore */ }
 }
 
 /**
