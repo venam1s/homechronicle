@@ -1,4 +1,5 @@
 import { API_BASE, withApiAuthHeaders } from './api.js';
+import { saveBlob } from './download.js';
 
 const FILTER_KEYS = ['room', 'accessory', 'characteristic', 'from', 'to'];
 
@@ -27,13 +28,7 @@ export async function downloadEventsExport(filters, format) {
     headers: withApiAuthHeaders(),
   });
   if (!res.ok) throw new Error(res.status === 429 ? 'Too many exports — try again in a minute' : 'Export failed');
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filenameFrom(res, format);
-  a.click();
-  URL.revokeObjectURL(url);
+  saveBlob(await res.blob(), filenameFrom(res, format));
   return {
     total: Number(res.headers.get('X-Export-Total') ?? 0),
     rows: Number(res.headers.get('X-Export-Rows') ?? 0),

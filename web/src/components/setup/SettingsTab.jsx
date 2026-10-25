@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Bell, Check, CheckCircle2, Download, Loader2, Save, X } from 'lucide-react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
+import { saveBlob } from '../../lib/download.js';
 import clsx from 'clsx';
 import Card from '../Card.jsx';
 import { useToast } from '../Toast.jsx';
@@ -95,15 +96,9 @@ export default function SettingsTab({ setup, showAdvanced = false }) {
   async function handleDownloadArchive() {
     setArchiveDownloading(true);
     try {
-      const res = await fetch(`${API_BASE}/archive/export`, { headers: withApiAuthHeaders() });
+      const res = await fetch(`${API_BASE}/archive/export`, { credentials: 'include', headers: withApiAuthHeaders() });
       if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'homechronicle-archive.csv';
-      a.click();
-      URL.revokeObjectURL(url);
+      saveBlob(await res.blob(), 'homechronicle-archive.csv');
     } catch {
       // silently fail — user can retry
     } finally {

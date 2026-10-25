@@ -178,7 +178,12 @@ export default function FilterBar({
             />
 
             {/* Export the events these filters match */}
-            <div role="group" aria-label="Export matching events" className="inline-flex items-center gap-1 sm:ml-auto">
+            <div
+              role="group"
+              aria-label="Export matching events"
+              title="Exports every event matching these filters, including muted devices"
+              className="inline-flex items-center gap-1 sm:ml-auto"
+            >
               <Download size={13} className="text-hc-muted" aria-hidden="true" />
               <span className="text-xs text-hc-muted mr-1">Export</span>
               {EXPORT_FORMATS.map(({ format, label }) => (
