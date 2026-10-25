@@ -12,6 +12,7 @@
     "add-pairing": "node src/add-pairing.js",
     "seed": "node src/seed.js",
     "test": "node --test",
+    "check:hap-addresses": "node scripts/hap-address-check/run.mjs",
     "postinstall": "patch-package"
   },
   "overrides": {
@@ -35,6 +36,7 @@
     "pg": "^8.20.0"
   },
   "devDependencies": {
+    "hap-nodejs": "^1.2.0",
     "supertest": "^7.2.2"
   }
 }

@@ -162,6 +162,35 @@ function makeRule(overrides = {}) {
 
 Define these above the first `test()` call in each file.
 
+### HomeKit address check (real accessory)
+
+Some code can only be trusted against a real HomeKit accessory. Unit tests mock it, so they can't show what happens to real sockets. This check covers what the listener does when an accessory announces several addresses and only some of them are reachable. A Homebridge container on both a Docker bridge network and a macvlan is a common example: its Docker host can't reach the macvlan address.
+
+The check runs a simulated HomeKit sensor ([HAP-NodeJS](https://github.com/homebridge/HAP-NodeJS), a dev dependency) on your machine. It tells the listener the sensor is at two addresses:
+
+- `192.0.2.1`, a reserved test address that silently drops traffic
+- `127.0.0.1`, where the sensor really is
+
+It then drives the listener's real code, with 3-second timeouts, through four scenarios:
+
+| | Scenario | Passes when |
+|---|---|---|
+| A | Pairing a new accessory | Pairing moves on to the second address after the timeout and saves the address that worked. |
+| B | A saved pairing on the dead address | The subscriber retries the dead address once, moves to the live one, and logs events. |
+| C | The accessory restarts | The subscriber waits for it on the working address and does not switch away. |
+| D | Scheduled re-pair | Re-pairing moves on to the second address and saves it. |
+
+After each scenario it also checks, with `lsof`, that no connection to the dead address was left open.
+
+**Run it** (from `listener/`). It needs a dev or throwaway Postgres database: it inserts events for its own test accessory IDs and deletes them at the end.
+
+```bash
+cd listener
+DATABASE_URL=postgresql://homekit:changeme@localhost:5432/homekit_events npm run check:hap-addresses
+```
+
+It prints `PASS`/`FAIL` for each step, takes about 40 seconds, and exits with code 1 if anything fails. It is not part of CI, because it needs a real network stack and binds HAP ports 51826–51827 (change them with `HAP_CHECK_PORT`). Run it before a release that changes pairing, reconnect, discovery or the hap-controller patch.
+
 ---
 
 ## web tests
@@ -361,6 +390,6 @@ CI runs on GitLab and is defined in `.gitlab-ci.yml`. (The old GitHub Actions fi
 | `build-listener`, `build-web`, `build-standalone` | build | Tags only, and only after `test` passes. Multi-arch (`linux/amd64`, `linux/arm64`) builds pushed to Docker Hub, with a Trivy scan. The standalone image is built for stable tags only. |
 | `create-release` | release | Tags only. Creates the GitLab release from the matching `CHANGELOG.md` section. |
 
-E2E tests are **not** included in CI. They require a live application and are run manually.
+E2E tests and the [HomeKit address check](#homekit-address-check-real-accessory) are **not** included in CI. They need a live application or a real network stack and are run manually.
 
 No coverage thresholds are configured. The `test` job passes when all `node --test` and `vitest run` assertions pass with exit code 0.
