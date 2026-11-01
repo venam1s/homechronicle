@@ -18,6 +18,7 @@ import {
   cacheAccessoryMetadata,
   clearAccessoryMetadata,
   getAccessoryIdentity,
+  shortUuid,
 } from './accessory-metadata.js';
 import { log } from './logger.js';
 import { resolvePairMethod } from './setup-helpers.js';
@@ -244,12 +245,7 @@ export function stopSubscriber(deviceId) {
     session.reconnectTimeout = null;
   }
 
-  if (session.client) {
-    if (session.eventHandler) session.client.off('event', session.eventHandler);
-    if (session.disconnectHandler) session.client.off('event-disconnect', session.disconnectHandler);
-    try { session.client.close?.(); } catch (e) { log.debug('[subscriber] client close error:', e.message); }
-    session.client = null;
-  }
+  releaseClient(session);
 
   for (const [timerKey, timeoutId] of delayedOffTimers.entries()) {
     if (timerKey.startsWith(`${deviceId}:`)) {
@@ -288,14 +284,7 @@ function connectAccessory(session, pairing) {
   stopLivenessProbe(session);
   // Close any existing client to prevent duplicate event handlers and
   // leaked TCP connections (CR-02).
-  if (session.client) {
-    if (session.eventHandler) session.client.off('event', session.eventHandler);
-    if (session.disconnectHandler) session.client.off('event-disconnect', session.disconnectHandler);
-    try { session.client.close?.(); } catch (e) { log.debug('[subscriber] previous client close error:', e.message); }
-    session.client = null;
-    session.eventHandler = null;
-    session.disconnectHandler = null;
-  }
+  releaseClient(session);
 
   const { deviceId, rooms, getPairing, stats } = session;
   const { name: accessoryName, address, port, longTermData } = pairing;
@@ -322,6 +311,8 @@ function connectAccessory(session, pairing) {
         oldFirmwareByAccessoryId.set(effId, String(prev.firmware_revision).trim());
       }
     }
+
+    session.probeKey = findProbeKey(accessories);
 
     const { iidMetaMap: iidMeta, identitiesByAccessoryId } = cacheAccessoryMetadata({
       deviceId,
@@ -358,7 +349,7 @@ function connectAccessory(session, pairing) {
       // paired as their own child bridges): healthy, just idle — not stale.
       stats.nothingToWatch = true;
       log.info(`[subscriber] ${accessoryName}: no watched characteristics found`);
-      startLivenessProbe(session, client, pairing, accessoryName, null);
+      startLivenessProbe(session, client, pairing, accessoryName);
       return;
     }
     stats.nothingToWatch = false;
@@ -495,9 +486,12 @@ function connectAccessory(session, pairing) {
         stats.lastSubscribedAt = new Date().toISOString();
         stats.lastHealthyAt = stats.lastSubscribedAt;
         stats.subscribed = true;
-        startLivenessProbe(session, client, pairing, accessoryName, formerSubscribes[0] ?? null);
+        startLivenessProbe(session, client, pairing, accessoryName);
         log.info(`[subscriber] ${accessoryName}: resubscribed to ${formerSubscribes.length} characteristic(s)`);
       } catch (err) {
+        // The client may have been replaced meanwhile (a failed liveness probe
+        // or a reconnect already took over): leave recovery to that path.
+        if (session.stopped || session.client !== client) return;
         stats.resubscribeFailures += 1;
         // stats.subscribed already false (set at handler entry)
         stats.lastError = err.message ?? String(err);
@@ -539,7 +533,7 @@ function connectAccessory(session, pairing) {
       stats.lastSubscribedAt = new Date().toISOString();
       stats.lastHealthyAt = stats.lastSubscribedAt;
       stats.subscribed = true; // M-01: enter the live state
-      startLivenessProbe(session, client, pairing, accessoryName, watchedKeys[0]);
+      startLivenessProbe(session, client, pairing, accessoryName);
       log.info(`[subscriber] ${accessoryName}: subscribed to ${watchedKeys.length} characteristic(s)`);
     } catch (err) {
       stats.subscribeFailures += 1;
@@ -619,23 +613,48 @@ function connectAccessory(session, pairing) {
 // -- Liveness probe --
 // Event age alone can't tell a quiet sensor from a wedged accessory, and an
 // open TCP socket can't either (the kernel answers keepalives for a hung
-// process). So a device idle for LIVENESS_PROBE_IDLE_MS is asked for one
-// value; the answer refreshes lastHealthyAt, a failure reconnects it.
+// process). So LIVENESS_PROBE_IDLE_MS after the last sign of life the device
+// is asked for its own name (aid 1 AccessoryInformation.Name: answered by the
+// HAP server itself, no plugin or cloud call). Any answer, even an HTTP error
+// status or a refused extra connection, proves the host is alive and refreshes
+// lastHealthyAt; only a timeout or an unreachable host reconnects it.
+//
+// Limit: the probe runs on its own connection, so it proves the accessory is
+// alive, not that it still sends events on the subscription socket.
 
 let livenessIdleMs = LIVENESS_PROBE_IDLE_MS;
 
+/** aid.iid of the accessory's own Name characteristic, if it has one. */
+function findProbeKey(accessories) {
+  const acc = (accessories?.accessories ?? []).find((a) => a.aid === 1);
+  for (const service of acc?.services ?? []) {
+    if (shortUuid(service.type) !== '3E') continue; // AccessoryInformation
+    const name = (service.characteristics ?? []).find((c) => shortUuid(c.type) === '23');
+    if (name?.iid != null) return `1.${name.iid}`;
+  }
+  return null;
+}
+
 function stopLivenessProbe(session) {
   if (session.livenessTimer) {
-    clearInterval(session.livenessTimer);
+    clearTimeout(session.livenessTimer);
     session.livenessTimer = null;
   }
 }
 
-function startLivenessProbe(session, client, pairing, name, probeKey) {
+/** Arm the probe for LIVENESS_PROBE_IDLE_MS after the last sign of life. */
+function startLivenessProbe(session, client, pairing, name) {
   stopLivenessProbe(session);
-  session.livenessTimer = setInterval(() => {
-    void probeLiveness(session, client, pairing, name, probeKey);
-  }, livenessIdleMs);
+  if (session.stopped || session.client !== client) return;
+  const last = session.stats.lastHealthyAt ? Date.parse(session.stats.lastHealthyAt) : Date.now();
+  const delay = Math.max(1_000, last + livenessIdleMs - Date.now());
+  session.livenessTimer = setTimeout(async () => {
+    session.livenessTimer = null;
+    const recent = Date.now() - (Date.parse(session.stats.lastHealthyAt ?? 0) || 0) < livenessIdleMs;
+    // An event arrived since this was armed: just re-arm from it.
+    const alive = recent ? true : await probeLiveness(session, client, pairing, name);
+    if (alive) startLivenessProbe(session, client, pairing, name);
+  }, delay);
   session.livenessTimer.unref?.();
 }
 
@@ -643,38 +662,51 @@ function startLivenessProbe(session, client, pairing, name, probeKey) {
 function releaseClient(session) {
   const { client } = session;
   if (!client) return;
-  if (session.eventHandler) client.off('event', session.eventHandler);
-  if (session.disconnectHandler) client.off('event-disconnect', session.disconnectHandler);
+  if (session.eventHandler) client.off?.('event', session.eventHandler);
+  if (session.disconnectHandler) client.off?.('event-disconnect', session.disconnectHandler);
   abortHapClient(client);
   session.client = null;
   session.eventHandler = null;
   session.disconnectHandler = null;
 }
 
-async function probeLiveness(session, client, pairing, name, probeKey) {
+// No answer at all: the request timed out or the host can't be reached.
+function isNoAnswer(err) {
+  return isConnectionError(err) && !HOST_ANSWERED_RE.test(`${err?.code ?? ''} ${err?.message ?? ''}`);
+}
+
+/** Probe once; true when the device answered (or the probe no longer applies). */
+async function probeLiveness(session, client, pairing, name, probeKey = session.probeKey) {
   const { stats } = session;
-  if (session.stopped || session.client !== client || session.probing) return;
-  if (!stats.subscribed && !stats.nothingToWatch) return;
-  const last = stats.lastHealthyAt ? Date.parse(stats.lastHealthyAt) : 0;
-  if (Date.now() - last < livenessIdleMs) return; // an event arrived recently
-  session.probing = true;
+  if (session.stopped || session.client !== client) return false;
+  if (!stats.subscribed && !stats.nothingToWatch) return false;
+  if (session.probingClient === client) return true;
+  session.probingClient = client;
   try {
     const read = probeKey ? client.getCharacteristics([probeKey]) : client.getAccessories();
     await withTimeout(read, HAP_REQUEST_TIMEOUT_MS, null, 'liveness probe');
     if (session.client === client) stats.lastHealthyAt = new Date().toISOString();
+    return true;
   } catch (err) {
-    if (session.stopped || session.client !== client) return;
+    if (session.stopped || session.client !== client) return false;
+    if (!isNoAnswer(err)) {
+      // It answered, just not with a value (HTTP error status, refused extra
+      // connection on a slot-limited device): alive.
+      stats.lastHealthyAt = new Date().toISOString();
+      log.debug(`[subscriber] ${name}: liveness probe answered with an error (${err.message ?? err})`);
+      return true;
+    }
     stats.lastError = err.message ?? String(err);
     stats.lastErrorAt = new Date().toISOString();
     log.warn(`[subscriber] ${name}: not answering (${err.message ?? err}) — reconnecting`);
-    stopLivenessProbe(session);
     stats.subscribed = false;
     stats.nothingToWatch = false;
     releaseClient(session);
-    if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, pairing, err);
+    if (session.discoverDevice) rediscoverAndReconnect(session, pairing, err);
     else scheduleReconnect(session, pairing);
+    return false;
   } finally {
-    session.probing = false;
+    if (session.probingClient === client) session.probingClient = null;
   }
 }
 
@@ -792,6 +824,8 @@ function scheduleReconnect(session, pairing) {
     : Math.min(session.retryDelayMs * 2, reconnectMaxMs);
   session.retryDelayMs = nextDelay;
   log.debug(`[subscriber] ${pairing.name}: retrying in ${nextDelay / 1000}s`);
+  // One pending reconnect per session: two would each replace the other's client.
+  if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
   session.reconnectTimeout = setTimeout(() => {
     if (session.stopped) return;
     if (session.repairing) {
@@ -992,7 +1026,8 @@ export function getSubscriberHealth() {
     // M-01: mirror the strict liveness used by getSubscriberStats.connected.
     if (isLive(session, stats)) {
       connected += 1;
-      if (stats.nothingToWatch) idle += 1; // connected, nothing to subscribe to
+      // idle is a subset of connected: answering, but nothing to subscribe to.
+      if (stats.nothingToWatch) idle += 1;
     } else if (!stats.unreachable) {
       // Stale = not connected for a while; unreachable devices have their own count.
       const lastHealthy = stats.lastHealthyAt;
@@ -1076,6 +1111,7 @@ export const __testHooks = {
     livenessIdleMs = ms;
   },
   probeLiveness,
+  findProbeKey,
   resetState() {
     for (const [deviceId] of subscriberSessions) {
       stopSubscriber(deviceId);

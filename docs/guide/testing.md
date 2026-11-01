@@ -171,7 +171,7 @@ The check runs a simulated HomeKit sensor ([HAP-NodeJS](https://github.com/homeb
 - `192.0.2.1`, a reserved test address that silently drops traffic
 - `127.0.0.1`, where the sensor really is
 
-It then drives the listener's real code, with 3-second timeouts, through four scenarios:
+It then drives the listener's real code, with 3-second timeouts, through five scenarios:
 
 | | Scenario | Passes when |
 |---|---|---|
@@ -179,6 +179,7 @@ It then drives the listener's real code, with 3-second timeouts, through four sc
 | B | A saved pairing on the dead address | The subscriber retries the dead address once, moves to the live one, and logs events. |
 | C | The accessory restarts | The subscriber waits for it on the working address and does not switch away. |
 | D | Scheduled re-pair | Re-pairing moves on to the second address and saves it. |
+| E | A quiet accessory, then a frozen one | The liveness probe gets an answer from the quiet sensor, so it stays connected. When the sensor's process is frozen (`SIGSTOP`), the probe times out, the device stops counting as connected and is reconnected once it resumes. |
 
 After each scenario it also checks, with `lsof`, that no connection to the dead address was left open.
 
@@ -189,7 +190,7 @@ cd listener
 DATABASE_URL=postgresql://homekit:changeme@localhost:5432/homekit_events npm run check:hap-addresses
 ```
 
-It prints `PASS`/`FAIL` for each step, takes about 40 seconds, and exits with code 1 if anything fails. It is not part of CI, because it needs a real network stack and binds HAP ports 51826–51827 (change them with `HAP_CHECK_PORT`). Run it before a release that changes pairing, reconnect, discovery or the hap-controller patch.
+It prints `PASS`/`FAIL` for each step, takes about 45 seconds, and exits with code 1 if anything fails. It is not part of CI, because it needs a real network stack and binds HAP ports 51826–51827 (change them with `HAP_CHECK_PORT`). Run it before a release that changes pairing, reconnect, discovery or the hap-controller patch.
 
 ---
 

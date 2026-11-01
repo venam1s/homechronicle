@@ -179,3 +179,56 @@ test('a device that is announced but failing is never marked unreachable', async
   if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
   __testHooks.resetState();
 });
+
+test('a probe that gets any answer — an HTTP error status or a refused extra connection — counts as alive', async () => {
+  for (const err of [
+    Object.assign(new Error('Get failed with status 422'), { statusCode: 422 }),
+    Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:51000'), { code: 'ECONNREFUSED' }),
+  ]) {
+    __testHooks.resetState();
+    __testHooks.setConnectAccessoryImpl(() => {});
+    const session = started('answers-with-error');
+    const client = { async getCharacteristics() { throw err; }, off() {}, async close() {} };
+    session.client = client;
+    session.stats.subscribed = true;
+    session.stats.lastHealthyAt = HOURS_AGO(1);
+
+    // eslint-disable-next-line no-await-in-loop
+    const alive = await __testHooks.probeLiveness(session, client, { name: 'x' }, 'x', '1.2');
+    assert.equal(alive, true, err.message);
+    assert.equal(session.client, client, `not torn down: ${err.message}`);
+    assert.equal(getSubscriberStats('answers-with-error').connected, true);
+  }
+  __testHooks.resetState();
+});
+
+test('the probe reads the accessory\'s own Name characteristic', () => {
+  const accessories = { accessories: [
+    { aid: 2, services: [{ type: '0000003E-0000-1000-8000-0026BB765291', characteristics: [{ iid: 9, type: '00000023-0000-1000-8000-0026BB765291' }] }] },
+    { aid: 1, services: [
+      { type: '000000A2-0000-1000-8000-0026BB765291', characteristics: [{ iid: 3, type: '00000037-0000-1000-8000-0026BB765291' }] },
+      { type: '0000003E-0000-1000-8000-0026BB765291', characteristics: [
+        { iid: 2, type: '00000014-0000-1000-8000-0026BB765291' },
+        { iid: 4, type: '00000023-0000-1000-8000-0026BB765291' },
+      ] },
+    ] },
+  ] };
+  assert.equal(__testHooks.findProbeKey(accessories), '1.4');
+  assert.equal(__testHooks.findProbeKey({ accessories: [] }), null);
+});
+
+test('a second reconnect replaces a pending one instead of running alongside it', async () => {
+  __testHooks.resetState();
+  __testHooks.setReconnectWindow(30, 60);
+  const connects = [];
+  __testHooks.setConnectAccessoryImpl((_s, pairing) => { connects.push(pairing); });
+  const session = started('one-timer');
+  connects.length = 0;
+  __testHooks.scheduleReconnect(session, { name: 'one-timer', address: '10.0.0.1', port: 1 });
+  __testHooks.scheduleReconnect(session, { name: 'one-timer', address: '10.0.0.1', port: 1 });
+  await sleep(200);
+  assert.equal(connects.length, 1);
+  session.stopped = true;
+  if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
+  __testHooks.resetState();
+});
