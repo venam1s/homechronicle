@@ -211,16 +211,16 @@ const session = subscriber.__testHooks.getSession(ID_A);
 check('D1 the probe target is the accessory\'s own Name characteristic', /^1\.\d+$/.test(session.probeKey ?? ''), `probeKey=${session.probeKey}`);
 session.stats.lastHealthyAt = new Date(Date.now() - 2 * 3_600_000).toISOString(); // pretend quiet for 2 h
 const answered = await subscriber.__testHooks.probeLiveness(session, session.client, stored, 'Addr Check Sensor');
-check('D2 a quiet accessory answers and stays connected', answered === true && subscriber.getSubscriberStats(ID_A)?.connected === true);
+check('D2 a quiet accessory answers and stays connected', answered === subscriber.__testHooks.PROBE.ALIVE && subscriber.getSubscriberStats(ID_A)?.connected === true);
 const reconnectsBefore = subscriber.getSubscriberStats(ID_A).connectAttempts;
 accA2.child.kill('SIGSTOP'); // wedged: TCP stays open, nothing answers
 session.stats.lastHealthyAt = new Date(Date.now() - 2 * 3_600_000).toISOString();
 const frozen = await subscriber.__testHooks.probeLiveness(session, session.client, stored, 'Addr Check Sensor');
-check('D3 a frozen accessory fails the probe and is no longer reported connected', frozen === false && subscriber.getSubscriberStats(ID_A)?.connected === false);
+check('D3 a frozen accessory fails the probe and is no longer reported connected', frozen === subscriber.__testHooks.PROBE.DEAD && subscriber.getSubscriberStats(ID_A)?.connected === false);
 accA2.child.kill('SIGCONT');
 const recovered = await waitFor(() => subscriber.getSubscriberStats(ID_A)?.connected && subscriber.getSubscriberStats(ID_A).connectAttempts > reconnectsBefore, TIMEOUT_MS * 10, 'reconnect after resume');
 check('D4 it reconnects once the accessory answers again', recovered);
-await sleep(300);
+await waitFor(() => deadSockets() === 0, TIMEOUT_MS, 'dead-address sockets closed');
 check('D5 no socket left open to the dead address', deadSockets() === 0, `${deadSockets()} open`);
 
 subscriber.stopSubscriber(ID_A);

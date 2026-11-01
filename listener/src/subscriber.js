@@ -346,7 +346,10 @@ function connectAccessory(session, pairing) {
     stats.lastHealthyAt = stats.lastConnectedAt;
     stats.authFailures = 0;
     session.lastFailedAddress = null;
-    clearRepairRetry(session); // the device answers with valid keys again
+    // The device answers with valid keys again: any re-pair episode is over.
+    clearRepairRetry(session);
+    stats.authFailed = false;
+    stats.autoRepairAttempts = 0;
     markReachable(session, accessoryName);
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
@@ -356,6 +359,7 @@ function connectAccessory(session, pairing) {
       // Nothing to subscribe to (e.g. a Homebridge main bridge whose devices are
       // paired as their own child bridges): healthy, just idle — not stale.
       stats.nothingToWatch = true;
+      session.retryDelayMs = reconnectBaseMs; // connected: start the backoff over
       log.info(`[subscriber] ${accessoryName}: no watched characteristics found`);
       startLivenessProbe(session, client, pairing, accessoryName);
       return;
@@ -643,6 +647,17 @@ function connectAccessory(session, pairing) {
 
 let livenessIdleMs = LIVENESS_PROBE_IDLE_MS;
 
+// Inconclusive probes in a row before the subscription is reconnected anyway
+// (e.g. a pairing revoked while the old event socket stays open).
+const MAX_INCONCLUSIVE_PROBES = 3;
+
+const PROBE = Object.freeze({
+  ALIVE: 'alive', // answered: proof of life recorded
+  INCONCLUSIVE: 'inconclusive', // ambiguous error: subscription kept, no proof recorded
+  DEAD: 'dead', // reconnect started (or the probe no longer applies)
+  BUSY: 'busy', // a probe on this client was already running
+});
+
 function lastHealthyMs(stats) {
   const ms = stats.lastHealthyAt ? Date.parse(stats.lastHealthyAt) : NaN;
   return Number.isFinite(ms) ? ms : null;
@@ -673,10 +688,14 @@ function startLivenessProbe(session, client, pairing, name, delayMs = null) {
       return;
     }
     const result = await probeLiveness(session, client, pairing, name);
-    if (result === true) startLivenessProbe(session, client, pairing, name);
-    // Another probe was already running: check again after a full interval.
-    else if (result === null) startLivenessProbe(session, client, pairing, name, livenessIdleMs);
+    if (result === PROBE.ALIVE) startLivenessProbe(session, client, pairing, name);
+    // No new proof of life to arm from: check again a full interval later
+    // (re-arming from the stale lastHealthyAt would fire every second).
+    else if (result === PROBE.INCONCLUSIVE || result === PROBE.BUSY) {
+      startLivenessProbe(session, client, pairing, name, livenessIdleMs);
+    }
   }, delay);
+  session.livenessDelayMs = delay;
   session.livenessTimer.unref?.();
 }
 
@@ -705,49 +724,58 @@ function isHttpStatusError(err) {
   return Number(err?.statusCode) >= 100;
 }
 
-/**
- * Probe once. true: the device answered. false: it didn't, and a reconnect
- * was started (or the probe no longer applies). null: a probe on this client
- * was already running.
- */
+/** Probe once; returns a PROBE result. */
 async function probeLiveness(session, client, pairing, name, probeKey = session.probeKey) {
   const { stats } = session;
-  if (session.stopped || session.client !== client) return false;
-  if (!stats.subscribed && !stats.nothingToWatch) return false;
-  if (session.probingClient === client) return null;
+  if (session.stopped || session.client !== client) return PROBE.DEAD;
+  if (!stats.subscribed && !stats.nothingToWatch) return PROBE.DEAD;
+  if (session.probingClient === client) return PROBE.BUSY;
   session.probingClient = client;
   try {
     const read = probeKey ? client.getCharacteristics([probeKey]) : client.getAccessories();
     await withTimeout(read, HAP_REQUEST_TIMEOUT_MS, null, 'liveness probe');
-    if (session.client === client) stats.lastHealthyAt = new Date().toISOString();
-    return true;
+    return recordAlive(session, client);
   } catch (err) {
-    if (session.stopped || session.client !== client) return false;
+    if (session.stopped || session.client !== client) return PROBE.DEAD;
     if (isHttpStatusError(err)) {
-      stats.lastHealthyAt = new Date().toISOString();
       log.debug(`[subscriber] ${name}: liveness probe answered with an error status (${err.message ?? err})`);
-      return true;
+      return recordAlive(session, client);
     }
     stats.lastError = err.message ?? String(err);
     stats.lastErrorAt = new Date().toISOString();
     const noAnswer = isConnectionError(err) && !hostAnswered(err);
     if (stats.subscribed && !noAnswer) {
-      log.debug(`[subscriber] ${name}: liveness probe inconclusive (${err.message ?? err}) — keeping the subscription`);
-      return true; // keep probing; no proof of life recorded
+      session.inconclusiveProbes = (session.inconclusiveProbes ?? 0) + 1;
+      if (session.inconclusiveProbes < MAX_INCONCLUSIVE_PROBES) {
+        log.debug(`[subscriber] ${name}: liveness probe inconclusive (${err.message ?? err}) — keeping the subscription`);
+        return PROBE.INCONCLUSIVE;
+      }
+      log.warn(`[subscriber] ${name}: no proof of life for ${session.inconclusiveProbes} probes (${err.message ?? err}) — reconnecting`);
+    } else {
+      log.warn(`[subscriber] ${name}: not answering (${err.message ?? err}) — reconnecting`);
     }
-    log.warn(`[subscriber] ${name}: not answering (${err.message ?? err}) — reconnecting`);
+    session.inconclusiveProbes = 0;
     stats.subscribed = false;
     stats.nothingToWatch = false;
     releaseClient(session);
-    // Reconnect with the stored pairing (an address or keys may have changed
-    // since this probe was armed), through re-discovery for connection errors.
-    const latest = (session.getPairing && session.getPairing(session.deviceId)) ?? pairing;
+    // Reconnect on the address in use, with the latest stored keys (a manual
+    // re-pair may have replaced them since this probe was armed).
+    const stored = session.getPairing?.(session.deviceId);
+    const latest = stored?.longTermData ? { ...pairing, longTermData: stored.longTermData } : pairing;
     if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, latest, err);
     else scheduleReconnect(session, latest);
-    return false;
+    return PROBE.DEAD;
   } finally {
     if (session.probingClient === client) session.probingClient = null;
   }
+}
+
+function recordAlive(session, client) {
+  if (session.client === client) {
+    session.stats.lastHealthyAt = new Date().toISOString();
+    session.inconclusiveProbes = 0;
+  }
+  return PROBE.ALIVE;
 }
 
 // -- Unreachable devices --
@@ -960,25 +988,7 @@ async function attemptAutoRepair(session, pairing) {
       log.info(`[subscriber] ${accessoryName}: re-pair via ${address} failed (${err.message}) — trying ${next}`);
     });
 
-    // Save updated pairing
-    await savePairing(session.deviceId, {
-      ...pairing,
-      address: pairedAddress,
-      addresses: rememberAddresses(pairing.addresses, advertisedAddresses(discovered), pairedAddress),
-      port: discovered.port,
-      longTermData,
-      pairedAt: new Date().toISOString(),
-    });
-
-    log.info(`[subscriber] ${accessoryName}: auto re-paired successfully`);
-    stats.autoRepairedAt = new Date().toISOString();
-    stats.autoRepairAttempts = 0;
-    stats.authFailures = 0;
-    stats.authFailed = false;
-
-    // Resume normal connection with new keys, on the address the re-pair
-    // worked on. Clear the repairing flag first: connectAccessory skips
-    // while a re-pair is in progress, which left the device unsubscribed.
+    // The new keys, on the address the re-pair worked on.
     const updatedPairing = {
       ...pairing,
       address: pairedAddress,
@@ -986,9 +996,26 @@ async function attemptAutoRepair(session, pairing) {
       port: discovered.port,
       longTermData,
     };
-    session.repairing = false;
-    connectAccessoryImpl(session, updatedPairing);
+    await savePairing(session.deviceId, { ...updatedPairing, pairedAt: new Date().toISOString() });
+
+    log.info(`[subscriber] ${accessoryName}: auto re-paired successfully`);
+    stats.autoRepairedAt = new Date().toISOString();
+    stats.autoRepairAttempts = 0;
+    stats.authFailures = 0;
+    stats.authFailed = false;
     succeeded = true;
+
+    // Resume the normal connection. Clear the repairing flag first:
+    // connectAccessory skips while a re-pair is in progress, which left the
+    // device unsubscribed. A failure here is a connect failure, not a failed
+    // re-pair (the new keys are saved), so it goes through the reconnect path.
+    session.repairing = false;
+    try {
+      connectAccessoryImpl(session, updatedPairing);
+    } catch (connectErr) {
+      log.error(`[subscriber] ${accessoryName}: reconnect after re-pair failed:`, connectErr.message ?? connectErr);
+      scheduleReconnect(session, updatedPairing);
+    }
   } catch (err) {
     stats.autoRepairLastError = err.message ?? String(err);
     log.error(`[subscriber] ${accessoryName}: auto re-pair failed:`, err.message ?? err.stack ?? err);
@@ -1160,6 +1187,8 @@ export const __testHooks = {
     livenessIdleMs = ms;
   },
   probeLiveness,
+  startLivenessProbe,
+  PROBE,
   resetState() {
     for (const [deviceId] of subscriberSessions) {
       stopSubscriber(deviceId);

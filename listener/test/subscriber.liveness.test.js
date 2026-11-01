@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { __testHooks, startSubscriber, getSubscriberStats, getSubscriberHealth, getRepairTargets } from '../src/subscriber.js';
 
+const { PROBE } = __testHooks;
+
 const HOURS_AGO = (h) => new Date(Date.now() - h * 3_600_000).toISOString();
 
 function sleep(ms) {
@@ -43,7 +45,7 @@ test('a quiet device stays connected because the liveness probe keeps answering'
   session.stats.lastHealthyAt = HOURS_AGO(6); // nothing for hours
 
   assert.equal(getSubscriberStats('live-quiet').connected, false, 'no recent proof yet');
-  await __testHooks.probeLiveness(session, client, { name: 'q' }, 'q', '2.10');
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'q' }, 'q', '2.10'), PROBE.ALIVE);
   assert.deepEqual(reads, [['2.10']]);
   assert.equal(getSubscriberStats('live-quiet').connected, true, 'the answer is proof of life');
   assert.equal(getSubscriberHealth().stale, 0);
@@ -190,7 +192,7 @@ test('a probe answered with an HTTP error status counts as alive', async () => {
   session.stats.subscribed = true;
   session.stats.lastHealthyAt = HOURS_AGO(1);
 
-  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'x' }, 'x', '1.2'), true);
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'x' }, 'x', '1.2'), PROBE.ALIVE);
   assert.equal(session.client, client, 'not torn down');
   assert.equal(getSubscriberStats('answers-with-error').connected, true);
   __testHooks.resetState();
@@ -211,7 +213,7 @@ test('with a live subscription, an ambiguous probe error keeps it (no proof of l
     session.stats.lastHealthyAt = before;
 
     // eslint-disable-next-line no-await-in-loop
-    assert.equal(await __testHooks.probeLiveness(session, client, { name: 'a' }, 'a', '1.2'), true, err.message);
+    assert.equal(await __testHooks.probeLiveness(session, client, { name: 'a' }, 'a', '1.2'), PROBE.INCONCLUSIVE, err.message);
     assert.equal(session.client, client, `subscription kept: ${err.message}`);
     assert.equal(session.stats.lastHealthyAt, before, `no proof of life recorded: ${err.message}`);
     assert.equal(getSubscriberStats('ambiguous').connected, false, 'reported not connected once proof is too old');
@@ -232,7 +234,7 @@ test('a bridge with nothing subscribed is reconnected on any probe failure', asy
   session.stats.nothingToWatch = true;
   session.stats.lastHealthyAt = HOURS_AGO(1);
 
-  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'i', address: '10.0.0.5', port: 51000 }, 'i', null), false);
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'i', address: '10.0.0.5', port: 51000 }, 'i', null), PROBE.DEAD);
   assert.equal(session.client, null);
   assert.equal(session.stats.nothingToWatch, false);
   await waitUntil(() => connects.length >= 1, { label: 'reconnect' });
@@ -267,7 +269,7 @@ test('a successful auto re-pair reconnects (not blocked by the re-pair flag) on 
   __testHooks.resetState();
 });
 
-test('a probe already running on the client reports unknown, not alive', async () => {
+test('a probe already running on the client reports busy, not alive', async () => {
   __testHooks.resetState();
   __testHooks.setConnectAccessoryImpl(() => {});
   const session = started('in-flight');
@@ -276,9 +278,9 @@ test('a probe already running on the client reports unknown, not alive', async (
   session.client = client;
   session.stats.subscribed = true;
   const first = __testHooks.probeLiveness(session, client, { name: 'f' }, 'f', '1.2');
-  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'f' }, 'f', '1.2'), null);
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'f' }, 'f', '1.2'), PROBE.BUSY);
   release({ characteristics: [] });
-  assert.equal(await first, true);
+  assert.equal(await first, PROBE.ALIVE);
   __testHooks.resetState();
 });
 
@@ -309,6 +311,37 @@ test('a second reconnect replaces a pending one instead of running alongside it'
   __testHooks.scheduleReconnect(session, { name: 'one-timer', address: '10.0.0.1', port: 1 });
   await sleep(200);
   assert.equal(connects.length, 1);
+  session.stopped = true;
+  if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
+  __testHooks.resetState();
+});
+
+test('inconclusive probes re-arm a full interval later, and three in a row reconnect', async () => {
+  __testHooks.resetState();
+  __testHooks.setReconnectWindow(5, 20);
+  __testHooks.setLivenessIdleMs(60_000);
+  const connects = [];
+  __testHooks.setConnectAccessoryImpl((_s, pairing) => { connects.push(pairing); });
+  const session = started('revoked', { discoverDevice: async () => null, savePairing: async () => {} });
+  connects.length = 0;
+  const err = Object.assign(new Error('M4: Error: 2'), { statusCode: 2 });
+  const client = { async getCharacteristics() { throw err; }, off() {}, async close() {} };
+  session.client = client;
+  session.stats.subscribed = true;
+  session.stats.lastHealthyAt = HOURS_AGO(1); // stale: arming from it would give a 1 s timer
+
+  // The timer path: an inconclusive result must re-arm at the full interval.
+  __testHooks.startLivenessProbe(session, client, { name: 'r' }, 'r', 0);
+  await waitUntil(() => session.inconclusiveProbes === 1, { label: 'first probe' });
+  await waitUntil(() => session.livenessTimer, { label: 're-armed' });
+  assert.equal(session.livenessDelayMs, 60_000, 'not a one-second loop');
+  clearTimeout(session.livenessTimer);
+  session.livenessTimer = null;
+
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'r' }, 'r', '1.2'), PROBE.INCONCLUSIVE);
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'r', address: '10.0.0.5', port: 1 }, 'r', '1.2'), PROBE.DEAD, 'third in a row escalates');
+  assert.equal(session.client, null);
+  await waitUntil(() => connects.length >= 1, { label: 'reconnect (auth handling takes over)' });
   session.stopped = true;
   if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
   __testHooks.resetState();
