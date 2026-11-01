@@ -90,9 +90,12 @@ function getInfoCharacteristicValue(infoService, shortType) {
  */
 export function nameCharacteristicKey(accessories) {
   const acc = (accessories?.accessories ?? []).find((a) => a.aid === 1);
-  const infoService = acc?.services?.find((s) => shortUuid(s.type) === '3E');
-  const name = infoService?.characteristics?.find((c) => shortUuid(c.type) === '23');
-  return name?.iid != null ? `1.${name.iid}` : null;
+  for (const service of acc?.services ?? []) {
+    if (shortUuid(service.type) !== '3E') continue; // AccessoryInformation
+    const name = service.characteristics?.find((c) => shortUuid(c.type) === '23');
+    if (name?.iid != null) return `1.${name.iid}`;
+  }
+  return null;
 }
 
 export function shortUuid(uuid = '') {

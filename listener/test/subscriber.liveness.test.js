@@ -196,30 +196,74 @@ test('a probe answered with an HTTP error status counts as alive', async () => {
   __testHooks.resetState();
 });
 
-test('a refused probe or a failed pair-verify reconnects instead of counting as alive', async () => {
+test('with a live subscription, an ambiguous probe error keeps it (no proof of life, no teardown)', async () => {
   for (const err of [
-    Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:51000'), { code: 'ECONNREFUSED' }), // nothing listening
-    Object.assign(new Error('M4: Error: 2'), { statusCode: 2 }), // pairing revoked (TLV code, not HTTP)
+    Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:51000'), { code: 'ECONNREFUSED' }), // slot-limited device
+    Object.assign(new Error('M4: Error: 2'), { statusCode: 2 }), // pair-verify error (TLV code, not HTTP)
   ]) {
     __testHooks.resetState();
-    __testHooks.setReconnectWindow(5, 20);
-    const connects = [];
-    __testHooks.setConnectAccessoryImpl((_s, pairing) => { connects.push(pairing); });
-    const session = started('not-alive', { discoverDevice: async () => null, savePairing: async () => {} });
-    connects.length = 0;
+    __testHooks.setConnectAccessoryImpl(() => {});
+    const session = started('ambiguous');
     const client = { async getCharacteristics() { throw err; }, off() {}, async close() {} };
     session.client = client;
     session.stats.subscribed = true;
-    session.stats.lastHealthyAt = HOURS_AGO(1);
+    const before = HOURS_AGO(1);
+    session.stats.lastHealthyAt = before;
 
     // eslint-disable-next-line no-await-in-loop
-    assert.equal(await __testHooks.probeLiveness(session, client, { name: 'n', address: '10.0.0.5', port: 51000 }, 'n', '1.2'), false, err.message);
-    assert.equal(session.client, null, `released: ${err.message}`);
-    // eslint-disable-next-line no-await-in-loop
-    await waitUntil(() => connects.length >= 1, { label: `reconnect after ${err.message}` });
-    session.stopped = true;
-    if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
+    assert.equal(await __testHooks.probeLiveness(session, client, { name: 'a' }, 'a', '1.2'), true, err.message);
+    assert.equal(session.client, client, `subscription kept: ${err.message}`);
+    assert.equal(session.stats.lastHealthyAt, before, `no proof of life recorded: ${err.message}`);
+    assert.equal(getSubscriberStats('ambiguous').connected, false, 'reported not connected once proof is too old');
   }
+  __testHooks.resetState();
+});
+
+test('a bridge with nothing subscribed is reconnected on any probe failure', async () => {
+  __testHooks.resetState();
+  __testHooks.setReconnectWindow(5, 20);
+  const connects = [];
+  __testHooks.setConnectAccessoryImpl((_s, pairing) => { connects.push(pairing); });
+  const session = started('idle-dead', { discoverDevice: async () => null, savePairing: async () => {} });
+  connects.length = 0;
+  const err = Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:51000'), { code: 'ECONNREFUSED' });
+  const client = { async getAccessories() { throw err; }, off() {}, async close() {} };
+  session.client = client;
+  session.stats.nothingToWatch = true;
+  session.stats.lastHealthyAt = HOURS_AGO(1);
+
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'i', address: '10.0.0.5', port: 51000 }, 'i', null), false);
+  assert.equal(session.client, null);
+  assert.equal(session.stats.nothingToWatch, false);
+  await waitUntil(() => connects.length >= 1, { label: 'reconnect' });
+  session.stopped = true;
+  if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
+  __testHooks.resetState();
+});
+
+test('a successful auto re-pair reconnects (not blocked by the re-pair flag) on the address that worked', async () => {
+  __testHooks.resetState();
+  const connects = [];
+  __testHooks.setConnectAccessoryImpl((s, pairing) => { connects.push({ repairing: s.repairing, pairing }); });
+  __testHooks.setHttpClientFactory((_id, address) => ({
+    async pairSetup() { if (address === '10.0.0.193') throw new Error('connect EHOSTUNREACH 10.0.0.193:55203'); },
+    getLongTermData() { return { ltk: 'new' }; },
+    async close() {},
+  }));
+  const saved = [];
+  const session = started('repair-ok', {
+    discoverDevice: async () => ({ address: '10.0.0.193', port: 55203, addresses: ['10.0.0.193', '172.16.25.26'] }),
+    savePairing: async (_id, p) => { saved.push(p); },
+  });
+  connects.length = 0;
+  const pairing = { name: 'Homebridge', address: '10.0.0.193', port: 55203, pin: '031-45-154', longTermData: {} };
+
+  await __testHooks.attemptAutoRepair(session, pairing);
+  assert.equal(connects.length, 1, 'reconnected after the re-pair');
+  assert.equal(connects[0].repairing, false, 'not skipped as "re-pair in progress"');
+  assert.equal(connects[0].pairing.address, '172.16.25.26', 'on the address the re-pair worked on');
+  assert.equal(saved.at(-1).address, '172.16.25.26');
+  assert.equal(session.repairRetryTimeout ?? null, null, 'no retry left behind');
   __testHooks.resetState();
 });
 

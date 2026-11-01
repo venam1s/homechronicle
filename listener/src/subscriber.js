@@ -244,10 +244,7 @@ export function stopSubscriber(deviceId) {
     clearTimeout(session.reconnectTimeout);
     session.reconnectTimeout = null;
   }
-  if (session.repairRetryTimeout) {
-    clearTimeout(session.repairRetryTimeout);
-    session.repairRetryTimeout = null;
-  }
+  clearRepairRetry(session);
 
   releaseClient(session);
 
@@ -349,6 +346,7 @@ function connectAccessory(session, pairing) {
     stats.lastHealthyAt = stats.lastConnectedAt;
     stats.authFailures = 0;
     session.lastFailedAddress = null;
+    clearRepairRetry(session); // the device answers with valid keys again
     markReachable(session, accessoryName);
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
@@ -629,9 +627,16 @@ function connectAccessory(session, pairing) {
 // is asked for its own name (aid 1 AccessoryInformation.Name: answered by the
 // HAP server itself, no plugin or cloud call). A value, or an HTTP error
 // status (the HAP server responded), proves it is alive and refreshes
-// lastHealthyAt. Anything else — timeout, unreachable, refused (nothing
-// listening on the HAP port), a pair-verify/auth failure — reconnects through
-// the normal path, which handles moved, dead and unpaired devices.
+// lastHealthyAt.
+//
+// What a failure means depends on what there is to lose. With a live event
+// subscription, only "no answer at all" (timeout, unreachable) tears it down:
+// a dead HAP process closes the subscription socket by itself (handled by the
+// disconnect path), while a refused extra connection (slot-limited devices) or
+// a transient pair-verify error is ambiguous — it just doesn't count as proof
+// of life, so the device shows as not connected after HUNG_SOCKET_THRESHOLD_MS
+// without losing its subscription. A bridge with nothing subscribed has
+// nothing to lose, so any failure reconnects it.
 //
 // Limit: the probe runs on its own connection, so it proves the accessory is
 // alive, not that it still sends events on the subscription socket.
@@ -673,6 +678,13 @@ function startLivenessProbe(session, client, pairing, name, delayMs = null) {
     else if (result === null) startLivenessProbe(session, client, pairing, name, livenessIdleMs);
   }, delay);
   session.livenessTimer.unref?.();
+}
+
+function clearRepairRetry(session) {
+  if (session.repairRetryTimeout) {
+    clearTimeout(session.repairRetryTimeout);
+    session.repairRetryTimeout = null;
+  }
 }
 
 /** Detach and close the session's client without stopping the session. */
@@ -718,15 +730,20 @@ async function probeLiveness(session, client, pairing, name, probeKey = session.
     }
     stats.lastError = err.message ?? String(err);
     stats.lastErrorAt = new Date().toISOString();
+    const noAnswer = isConnectionError(err) && !hostAnswered(err);
+    if (stats.subscribed && !noAnswer) {
+      log.debug(`[subscriber] ${name}: liveness probe inconclusive (${err.message ?? err}) — keeping the subscription`);
+      return true; // keep probing; no proof of life recorded
+    }
     log.warn(`[subscriber] ${name}: not answering (${err.message ?? err}) — reconnecting`);
     stats.subscribed = false;
     stats.nothingToWatch = false;
     releaseClient(session);
-    // A connection error goes through re-discovery (moved / gone devices);
-    // anything else (e.g. a revoked pairing) reconnects, and the connect's
-    // own error handling takes it from there (auth failures → auto re-pair).
-    if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, pairing, err);
-    else connectAccessoryImpl(session, pairing);
+    // Reconnect with the stored pairing (an address or keys may have changed
+    // since this probe was armed), through re-discovery for connection errors.
+    const latest = (session.getPairing && session.getPairing(session.deviceId)) ?? pairing;
+    if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, latest, err);
+    else scheduleReconnect(session, latest);
     return false;
   } finally {
     if (session.probingClient === client) session.probingClient = null;
@@ -900,6 +917,7 @@ async function attemptAutoRepair(session, pairing) {
   if (session.repairing) return;
   session.repairing = true;
   stats.autoRepairAttempts += 1;
+  clearRepairRetry(session);
 
   // Track whether repair succeeded so the finally block can skip scheduling
   // a retry on the success path. Without this flag, resetting autoRepairAttempts
@@ -958,13 +976,17 @@ async function attemptAutoRepair(session, pairing) {
     stats.authFailures = 0;
     stats.authFailed = false;
 
-    // Resume normal connection with new keys
+    // Resume normal connection with new keys, on the address the re-pair
+    // worked on. Clear the repairing flag first: connectAccessory skips
+    // while a re-pair is in progress, which left the device unsubscribed.
     const updatedPairing = {
       ...pairing,
-      address: discovered.address,
+      address: pairedAddress,
+      addresses: rememberAddresses(pairing.addresses, advertisedAddresses(discovered), pairedAddress),
       port: discovered.port,
       longTermData,
     };
+    session.repairing = false;
     connectAccessoryImpl(session, updatedPairing);
     succeeded = true;
   } catch (err) {

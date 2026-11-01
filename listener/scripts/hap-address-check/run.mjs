@@ -220,6 +220,7 @@ check('D3 a frozen accessory fails the probe and is no longer reported connected
 accA2.child.kill('SIGCONT');
 const recovered = await waitFor(() => subscriber.getSubscriberStats(ID_A)?.connected && subscriber.getSubscriberStats(ID_A).connectAttempts > reconnectsBefore, TIMEOUT_MS * 10, 'reconnect after resume');
 check('D4 it reconnects once the accessory answers again', recovered);
+await sleep(300);
 check('D5 no socket left open to the dead address', deadSockets() === 0, `${deadSockets()} open`);
 
 subscriber.stopSubscriber(ID_A);
