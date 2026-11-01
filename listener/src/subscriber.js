@@ -226,7 +226,7 @@ export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null
     eventHandler: null,
     disconnectHandler: null,
     stats,
-    inconclusiveProbes: 0,
+    authFailedProbes: 0,
     discoverDevice: options.discoverDevice ?? defaultSubscriberOptions.discoverDevice ?? null,
     savePairing: options.savePairing ?? defaultSubscriberOptions.savePairing ?? null,
   };
@@ -284,7 +284,7 @@ function connectAccessory(session, pairing) {
   }
 
   stopLivenessProbe(session);
-  session.inconclusiveProbes = 0; // a new connection starts with a clean slate
+  session.authFailedProbes = 0; // a new connection starts with a clean slate
   // This connect supersedes any pending one: a stale timer firing later would
   // tear down the client this call is about to set up.
   if (session.reconnectTimeout) {
@@ -381,7 +381,7 @@ function connectAccessory(session, pairing) {
       // Refresh the heartbeat once per event batch (not per change in the loop).
       // This is the canonical signal that the HAP subscription is actively producing data.
       stats.lastHealthyAt = new Date().toISOString();
-      session.inconclusiveProbes = 0; // an event is proof of life
+      session.authFailedProbes = 0; // an event is proof of life
       const changes = event?.characteristics ?? (Array.isArray(event) ? event : [event]);
       for (const change of changes) {
         const key  = `${change.aid}.${change.iid}`;
@@ -649,7 +649,7 @@ function connectAccessory(session, pairing) {
 // of life, so the device shows as not connected after HUNG_SOCKET_THRESHOLD_MS
 // without losing its subscription. Only an authentication failure (a revoked
 // pairing failing pair-verify) escalates: it reconnects after
-// MAX_INCONCLUSIVE_PROBES in a row, and the connect's auth handling takes
+// MAX_AUTH_FAILED_PROBES in a row, and the connect's auth handling takes
 // over. Everything else where the host answered keeps the subscription. A bridge with nothing subscribed has nothing to lose, so any failure
 // reconnects it.
 //
@@ -658,9 +658,9 @@ function connectAccessory(session, pairing) {
 
 let livenessIdleMs = LIVENESS_PROBE_IDLE_MS;
 
-// Inconclusive probes in a row before the subscription is reconnected anyway
-// (e.g. a pairing revoked while the old event socket stays open).
-const MAX_INCONCLUSIVE_PROBES = 3;
+// Probes in a row that fail pair-verify with an authentication error (a
+// revoked pairing while the old event socket stays open) before reconnecting.
+const MAX_AUTH_FAILED_PROBES = 3;
 
 const PROBE = Object.freeze({
   ALIVE: 'alive', // answered: proof of life recorded
@@ -762,29 +762,27 @@ async function probeLiveness(session, client, pairing, name, probeKey = session.
       // pairing) counts toward escalation, in a row; anything else — busy,
       // unavailable, refused or reset extra connection, broken pipe — is
       // what a healthy slot-limited device can do, and never escalates.
-      session.inconclusiveProbes = isAuthError(err) ? session.inconclusiveProbes + 1 : 0;
-      if (session.inconclusiveProbes < MAX_INCONCLUSIVE_PROBES) {
-        log.debug(`[subscriber] ${name}: liveness probe inconclusive (${err.message ?? err}) — keeping the subscription`);
+      session.authFailedProbes = isAuthError(err) ? session.authFailedProbes + 1 : 0;
+      if (session.authFailedProbes < MAX_AUTH_FAILED_PROBES) {
+        if (session.authFailedProbes > 0) {
+          log.warn(`[subscriber] ${name}: liveness probe failed pair-verify (${session.authFailedProbes}/${MAX_AUTH_FAILED_PROBES}): ${err.message ?? err} — was the pairing removed?`);
+        } else {
+          log.debug(`[subscriber] ${name}: liveness probe inconclusive (${err.message ?? err}) — keeping the subscription`);
+        }
         return PROBE.INCONCLUSIVE;
       }
-      log.warn(`[subscriber] ${name}: pair-verify failed on ${session.inconclusiveProbes} probes in a row (${err.message ?? err}) — reconnecting`);
+      log.warn(`[subscriber] ${name}: pair-verify failed on ${session.authFailedProbes} probes in a row (${err.message ?? err}) — reconnecting`);
     } else {
       log.warn(`[subscriber] ${name}: not answering (${err.message ?? err}) — reconnecting`);
     }
+    session.authFailedProbes = 0;
     stats.subscribed = false;
     stats.nothingToWatch = false;
     releaseClient(session);
-    // The pairing in use, with the latest stored keys and PIN when present (a
-    // manual re-pair may have replaced them). Re-discovery starts from the
-    // address in use; a scheduled reconnect re-reads the stored pairing.
-    const stored = session.getPairing?.(session.deviceId);
-    const latest = {
-      ...pairing,
-      ...(stored?.longTermData ? { longTermData: stored.longTermData } : {}),
-      ...(stored?.pin ? { pin: stored.pin } : {}),
-    };
-    if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, latest, err);
-    else scheduleReconnect(session, latest);
+    // Both paths re-read the stored pairing themselves (one place decides
+    // stored versus in-use fields).
+    if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, pairing, err);
+    else scheduleReconnect(session, pairing);
     return PROBE.DEAD;
   } finally {
     if (session.probingClient === client) session.probingClient = null;
@@ -794,7 +792,7 @@ async function probeLiveness(session, client, pairing, name, probeKey = session.
 function recordAlive(session, client) {
   if (session.client === client) {
     session.stats.lastHealthyAt = new Date().toISOString();
-    session.inconclusiveProbes = 0;
+    session.authFailedProbes = 0;
   }
   return PROBE.ALIVE;
 }
@@ -863,8 +861,21 @@ function hostAnswered(err) {
  * consecutive one moves straight to the next known address: an unreachable
  * address is abandoned after two attempts, with no tight loop.
  */
-function rediscoverAndReconnect(session, pairing, err = null) {
+function rediscoverAndReconnect(session, inUse, err = null) {
   const { deviceId } = session;
+  // The stored pairing has the latest keys, PIN, name and address list (a
+  // scan or manual re-pair may have updated them); the address and port in
+  // use are this session's own (the store can lag if a save failed). A stored
+  // record without keys is ignored.
+  const stored = session.getPairing?.(deviceId);
+  const pairing = stored?.longTermData
+    ? {
+      ...stored,
+      address: inUse.address,
+      port: inUse.port,
+      addresses: rememberAddresses(stored.addresses, inUse.addresses ?? [], inUse.address),
+    }
+    : inUse;
   const name = pairing.name ?? deviceId;
   const discover = session.discoverDevice ? session.discoverDevice(deviceId) : Promise.resolve(null);
   Promise.resolve(discover).then((discovered) => {

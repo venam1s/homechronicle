@@ -214,7 +214,7 @@ const answered = await subscriber.__testHooks.probeLiveness(session, session.cli
 check('D2 a quiet accessory answers and stays connected', answered === subscriber.__testHooks.PROBE.ALIVE && subscriber.getSubscriberStats(ID_A)?.connected === true);
 const reconnectsBefore = subscriber.getSubscriberStats(ID_A).connectAttempts;
 session.stats.needsRepair = true; // as if an earlier re-pair episode had given up
-session.inconclusiveProbes = 2; // and earlier doubt had built up
+session.authFailedProbes = 2; // and earlier doubt had built up
 accA2.child.kill('SIGSTOP'); // wedged: TCP stays open, nothing answers
 session.stats.lastHealthyAt = new Date(Date.now() - 2 * 3_600_000).toISOString();
 const frozen = await subscriber.__testHooks.probeLiveness(session, session.client, stored, 'Addr Check Sensor');
@@ -222,8 +222,8 @@ check('D3 a frozen accessory fails the probe and is no longer reported connected
 accA2.child.kill('SIGCONT');
 const recovered = await waitFor(() => subscriber.getSubscriberStats(ID_A)?.connected && subscriber.getSubscriberStats(ID_A).connectAttempts > reconnectsBefore, TIMEOUT_MS * 10, 'reconnect after resume');
 check('D4 it reconnects once the accessory answers again', recovered);
-check('D5 the healthy reconnect clears needs-repair and earlier doubt', session.stats.needsRepair === false && (session.inconclusiveProbes ?? 0) === 0,
-  `needsRepair=${session.stats.needsRepair} inconclusiveProbes=${session.inconclusiveProbes}`);
+check('D5 the healthy reconnect clears needs-repair and earlier doubt', session.stats.needsRepair === false && (session.authFailedProbes ?? 0) === 0,
+  `needsRepair=${session.stats.needsRepair} authFailedProbes=${session.authFailedProbes}`);
 await waitFor(() => deadSockets() === 0, TIMEOUT_MS, 'dead-address sockets closed');
 check('D6 no socket left open to the dead address', deadSockets() === 0, `${deadSockets()} open`);
 

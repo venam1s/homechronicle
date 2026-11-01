@@ -333,7 +333,7 @@ test('inconclusive probes re-arm a full interval later, and three in a row recon
 
   // The timer path: an inconclusive result must re-arm at the full interval.
   __testHooks.startLivenessProbe(session, client, { name: 'r' }, 'r', 0);
-  await waitUntil(() => session.inconclusiveProbes === 1, { label: 'first probe' });
+  await waitUntil(() => session.authFailedProbes === 1, { label: 'first probe' });
   await waitUntil(() => session.livenessTimer, { label: 're-armed' });
   assert.equal(session.livenessDelayMs, 60_000, 'not a one-second loop');
   clearTimeout(session.livenessTimer);
@@ -362,7 +362,7 @@ test('refused probes never escalate', async () => {
     assert.equal(await __testHooks.probeLiveness(session, client, { name: 's' }, 's', '1.2'), PROBE.INCONCLUSIVE);
   }
   assert.equal(session.client, client, 'subscription kept through repeated refusals');
-  assert.equal(session.inconclusiveProbes ?? 0, 0, 'refusals are not counted toward escalation');
+  assert.equal(session.authFailedProbes ?? 0, 0, 'refusals are not counted toward escalation');
   __testHooks.resetState();
 });
 
@@ -384,7 +384,7 @@ test('only authentication failures in a row escalate; other answers reset the co
     next = err;
     // eslint-disable-next-line no-await-in-loop
     assert.equal(await probe(), PROBE.INCONCLUSIVE, err.message);
-    assert.equal(session.inconclusiveProbes, count, `after ${err.message}`);
+    assert.equal(session.authFailedProbes, count, `after ${err.message}`);
   }
   assert.equal(session.client, client, 'never torn down: no three auth failures in a row');
   __testHooks.resetState();
