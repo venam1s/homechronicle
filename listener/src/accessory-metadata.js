@@ -83,6 +83,18 @@ function getInfoCharacteristicValue(infoService, shortType) {
   return copyOrNull(match?.value);
 }
 
+/**
+ * aid.iid of the top-level accessory's own Name characteristic (aid 1
+ * AccessoryInformation.Name), or null. Answered by the HAP server itself, so
+ * it is a cheap liveness probe.
+ */
+export function nameCharacteristicKey(accessories) {
+  const acc = (accessories?.accessories ?? []).find((a) => a.aid === 1);
+  const infoService = acc?.services?.find((s) => shortUuid(s.type) === '3E');
+  const name = infoService?.characteristics?.find((c) => shortUuid(c.type) === '23');
+  return name?.iid != null ? `1.${name.iid}` : null;
+}
+
 export function shortUuid(uuid = '') {
   const match = uuid.match(/^0*([0-9A-Fa-f]+)-/);
   return match ? match[1].toUpperCase() : uuid.toUpperCase();

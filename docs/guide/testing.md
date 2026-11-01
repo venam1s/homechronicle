@@ -178,8 +178,8 @@ It then drives the listener's real code, with 3-second timeouts, through five sc
 | A | Pairing a new accessory | Pairing moves on to the second address after the timeout and saves the address that worked. |
 | B | A saved pairing on the dead address | The subscriber retries the dead address once, moves to the live one, and logs events. |
 | C | The accessory restarts | The subscriber waits for it on the working address and does not switch away. |
-| D | Scheduled re-pair | Re-pairing moves on to the second address and saves it. |
-| E | A quiet accessory, then a frozen one | The liveness probe gets an answer from the quiet sensor, so it stays connected. When the sensor's process is frozen (`SIGSTOP`), the probe times out, the device stops counting as connected and is reconnected once it resumes. |
+| D | A quiet accessory, then a frozen one | The liveness probe gets an answer from the quiet sensor, so it stays connected. When the sensor's process is frozen (`SIGSTOP`), the probe times out, the device stops counting as connected and is reconnected once it resumes. |
+| E | Scheduled re-pair | Re-pairing moves on to the second address and saves it. |
 
 After each scenario it also checks, with `lsof`, that no connection to the dead address was left open.
 

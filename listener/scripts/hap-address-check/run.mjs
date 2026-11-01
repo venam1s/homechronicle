@@ -205,27 +205,28 @@ const back = await waitFor(() => {
 const since = attempts.slice(attemptsBefore);
 check('C1 the subscriber reconnects after the restart', back);
 check('C2 it stayed on the working address', stored.address === LIVE && !since.includes(DEAD), `attempts since restart: ${JSON.stringify(since)}`);
-// -- E. Liveness probe on a quiet / wedged accessory --------------------------
-console.log('\nE. Liveness probe: a quiet accessory answers; a frozen one is reconnected');
+// -- D. Liveness probe on a quiet / wedged accessory --------------------------
+console.log('\nD. Liveness probe: a quiet accessory answers; a frozen one is reconnected');
 const session = subscriber.__testHooks.getSession(ID_A);
-check('E1 the probe target is the accessory\'s own Name characteristic', /^1\.\d+$/.test(session.probeKey ?? ''), `probeKey=${session.probeKey}`);
+check('D1 the probe target is the accessory\'s own Name characteristic', /^1\.\d+$/.test(session.probeKey ?? ''), `probeKey=${session.probeKey}`);
 session.stats.lastHealthyAt = new Date(Date.now() - 2 * 3_600_000).toISOString(); // pretend quiet for 2 h
 const answered = await subscriber.__testHooks.probeLiveness(session, session.client, stored, 'Addr Check Sensor');
-check('E2 a quiet accessory answers and stays connected', answered === true && subscriber.getSubscriberStats(ID_A)?.connected === true);
+check('D2 a quiet accessory answers and stays connected', answered === true && subscriber.getSubscriberStats(ID_A)?.connected === true);
 const reconnectsBefore = subscriber.getSubscriberStats(ID_A).connectAttempts;
 accA2.child.kill('SIGSTOP'); // wedged: TCP stays open, nothing answers
 session.stats.lastHealthyAt = new Date(Date.now() - 2 * 3_600_000).toISOString();
 const frozen = await subscriber.__testHooks.probeLiveness(session, session.client, stored, 'Addr Check Sensor');
-check('E3 a frozen accessory fails the probe and is no longer reported connected', frozen === false && subscriber.getSubscriberStats(ID_A)?.connected === false);
+check('D3 a frozen accessory fails the probe and is no longer reported connected', frozen === false && subscriber.getSubscriberStats(ID_A)?.connected === false);
 accA2.child.kill('SIGCONT');
 const recovered = await waitFor(() => subscriber.getSubscriberStats(ID_A)?.connected && subscriber.getSubscriberStats(ID_A).connectAttempts > reconnectsBefore, TIMEOUT_MS * 10, 'reconnect after resume');
-check('E4 it reconnects once the accessory answers again', recovered);
+check('D4 it reconnects once the accessory answers again', recovered);
+check('D5 no socket left open to the dead address', deadSockets() === 0, `${deadSockets()} open`);
 
 subscriber.stopSubscriber(ID_A);
 accA2.child.kill('SIGTERM');
 
-// -- D. Scheduled re-pair ----------------------------------------------------
-console.log('\nD. Scheduled re-pair of a pairing stored on the dead address');
+// -- E. Scheduled re-pair ----------------------------------------------------
+console.log('\nE. Scheduled re-pair of a pairing stored on the dead address');
 const accD = startAccessory(ID_D, PORT_D);
 await accD.ready;
 const repairPairings = { [ID_D]: { name: 'Addr Check D', address: DEAD, port: PORT_D, addresses: [DEAD, LIVE] } };
@@ -245,10 +246,10 @@ try {
   repairError = err;
 }
 const repaired = repairPairings[ID_D];
-check('D1 re-pair succeeds via the second address', !repairError && Boolean(repaired.longTermData), repairError ? repairError.message : `${Date.now() - repairStart} ms`);
-check('D2 re-pair stores the address that worked', repaired.address === LIVE, `address=${repaired.address}`);
+check('E1 re-pair succeeds via the second address', !repairError && Boolean(repaired.longTermData), repairError ? repairError.message : `${Date.now() - repairStart} ms`);
+check('E2 re-pair stores the address that worked', repaired.address === LIVE, `address=${repaired.address}`);
 await sleep(300);
-check('D3 no socket left open to the dead address', deadSockets() === 0, `${deadSockets()} open`);
+check('E3 no socket left open to the dead address', deadSockets() === 0, `${deadSockets()} open`);
 accD.child.kill('SIGTERM');
 
 await pool.query("DELETE FROM event_logs WHERE accessory_id LIKE 'CC:22:3D:E3:CE:%'");

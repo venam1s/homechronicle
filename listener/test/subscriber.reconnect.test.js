@@ -881,15 +881,15 @@ test('attemptAutoRepair DOES schedule a 60s retry when pair-setup fails (failure
   assert.equal(session.repairing, false, 'repairing flag cleared');
 
   // On failure with attempts < 3, a retry timer MUST be scheduled
-  assert.notEqual(
-    session.reconnectTimeout,
-    null,
-    'reconnectTimeout should be set after a failed repair attempt (retry is expected on failure path)'
+  // (its own timer, so a reconnect scheduled meanwhile can't cancel it)
+  assert.ok(
+    session.repairRetryTimeout,
+    'repairRetryTimeout should be set after a failed repair attempt (retry is expected on failure path)'
   );
 
   // Clean up the timer so the test runner exits cleanly
-  clearTimeout(session.reconnectTimeout);
-  session.reconnectTimeout = null;
+  clearTimeout(session.repairRetryTimeout);
+  session.repairRetryTimeout = null;
 
   __testHooks.resetState();
 });

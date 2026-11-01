@@ -180,29 +180,66 @@ test('a device that is announced but failing is never marked unreachable', async
   __testHooks.resetState();
 });
 
-test('a probe that gets any answer — an HTTP error status or a refused extra connection — counts as alive', async () => {
+test('a probe answered with an HTTP error status counts as alive', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+  const session = started('answers-with-error');
+  const err = Object.assign(new Error('Get failed with status 422'), { statusCode: 422 });
+  const client = { async getCharacteristics() { throw err; }, off() {}, async close() {} };
+  session.client = client;
+  session.stats.subscribed = true;
+  session.stats.lastHealthyAt = HOURS_AGO(1);
+
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'x' }, 'x', '1.2'), true);
+  assert.equal(session.client, client, 'not torn down');
+  assert.equal(getSubscriberStats('answers-with-error').connected, true);
+  __testHooks.resetState();
+});
+
+test('a refused probe or a failed pair-verify reconnects instead of counting as alive', async () => {
   for (const err of [
-    Object.assign(new Error('Get failed with status 422'), { statusCode: 422 }),
-    Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:51000'), { code: 'ECONNREFUSED' }),
+    Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:51000'), { code: 'ECONNREFUSED' }), // nothing listening
+    Object.assign(new Error('M4: Error: 2'), { statusCode: 2 }), // pairing revoked (TLV code, not HTTP)
   ]) {
     __testHooks.resetState();
-    __testHooks.setConnectAccessoryImpl(() => {});
-    const session = started('answers-with-error');
+    __testHooks.setReconnectWindow(5, 20);
+    const connects = [];
+    __testHooks.setConnectAccessoryImpl((_s, pairing) => { connects.push(pairing); });
+    const session = started('not-alive', { discoverDevice: async () => null, savePairing: async () => {} });
+    connects.length = 0;
     const client = { async getCharacteristics() { throw err; }, off() {}, async close() {} };
     session.client = client;
     session.stats.subscribed = true;
     session.stats.lastHealthyAt = HOURS_AGO(1);
 
     // eslint-disable-next-line no-await-in-loop
-    const alive = await __testHooks.probeLiveness(session, client, { name: 'x' }, 'x', '1.2');
-    assert.equal(alive, true, err.message);
-    assert.equal(session.client, client, `not torn down: ${err.message}`);
-    assert.equal(getSubscriberStats('answers-with-error').connected, true);
+    assert.equal(await __testHooks.probeLiveness(session, client, { name: 'n', address: '10.0.0.5', port: 51000 }, 'n', '1.2'), false, err.message);
+    assert.equal(session.client, null, `released: ${err.message}`);
+    // eslint-disable-next-line no-await-in-loop
+    await waitUntil(() => connects.length >= 1, { label: `reconnect after ${err.message}` });
+    session.stopped = true;
+    if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
   }
   __testHooks.resetState();
 });
 
-test('the probe reads the accessory\'s own Name characteristic', () => {
+test('a probe already running on the client reports unknown, not alive', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+  const session = started('in-flight');
+  let release;
+  const client = { getCharacteristics: () => new Promise((r) => { release = r; }) };
+  session.client = client;
+  session.stats.subscribed = true;
+  const first = __testHooks.probeLiveness(session, client, { name: 'f' }, 'f', '1.2');
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'f' }, 'f', '1.2'), null);
+  release({ characteristics: [] });
+  assert.equal(await first, true);
+  __testHooks.resetState();
+});
+
+test('the probe reads the accessory\'s own Name characteristic', async () => {
+  const { nameCharacteristicKey } = await import('../src/accessory-metadata.js');
   const accessories = { accessories: [
     { aid: 2, services: [{ type: '0000003E-0000-1000-8000-0026BB765291', characteristics: [{ iid: 9, type: '00000023-0000-1000-8000-0026BB765291' }] }] },
     { aid: 1, services: [
@@ -213,8 +250,8 @@ test('the probe reads the accessory\'s own Name characteristic', () => {
       ] },
     ] },
   ] };
-  assert.equal(__testHooks.findProbeKey(accessories), '1.4');
-  assert.equal(__testHooks.findProbeKey({ accessories: [] }), null);
+  assert.equal(nameCharacteristicKey(accessories), '1.4');
+  assert.equal(nameCharacteristicKey({ accessories: [] }), null);
 });
 
 test('a second reconnect replaces a pending one instead of running alongside it', async () => {
