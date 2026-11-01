@@ -283,6 +283,7 @@ function connectAccessory(session, pairing) {
   }
 
   stopLivenessProbe(session);
+  session.inconclusiveProbes = 0; // a new connection starts with a clean slate
   // This connect supersedes any pending one: a stale timer firing later would
   // tear down the client this call is about to set up.
   if (session.reconnectTimeout) {
@@ -346,10 +347,14 @@ function connectAccessory(session, pairing) {
     stats.lastHealthyAt = stats.lastConnectedAt;
     stats.authFailures = 0;
     session.lastFailedAddress = null;
-    // The device answers with valid keys again: any re-pair episode is over.
-    clearRepairRetry(session);
-    stats.authFailed = false;
-    stats.autoRepairAttempts = 0;
+    // The device answers with valid keys again: any re-pair episode is over
+    // (unless a re-pair is running right now; it settles its own counters).
+    if (!session.repairing) {
+      clearRepairRetry(session);
+      stats.authFailed = false;
+      stats.autoRepairAttempts = 0;
+      stats.needsRepair = false;
+    }
     markReachable(session, accessoryName);
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
@@ -375,6 +380,7 @@ function connectAccessory(session, pairing) {
       // Refresh the heartbeat once per event batch (not per change in the loop).
       // This is the canonical signal that the HAP subscription is actively producing data.
       stats.lastHealthyAt = new Date().toISOString();
+      session.inconclusiveProbes = 0; // an event is proof of life
       const changes = event?.characteristics ?? (Array.isArray(event) ? event : [event]);
       for (const change of changes) {
         const key  = `${change.aid}.${change.iid}`;
@@ -639,8 +645,11 @@ function connectAccessory(session, pairing) {
 // disconnect path), while a refused extra connection (slot-limited devices) or
 // a transient pair-verify error is ambiguous — it just doesn't count as proof
 // of life, so the device shows as not connected after HUNG_SOCKET_THRESHOLD_MS
-// without losing its subscription. A bridge with nothing subscribed has
-// nothing to lose, so any failure reconnects it.
+// without losing its subscription. Refused/reset never escalates; other doubt
+// (e.g. a revoked pairing failing pair-verify) reconnects after
+// MAX_INCONCLUSIVE_PROBES in a row, and the connect's auth handling takes
+// over. A bridge with nothing subscribed has nothing to lose, so any failure
+// reconnects it.
 //
 // Limit: the probe runs on its own connection, so it proves the accessory is
 // alive, not that it still sends events on the subscription socket.
@@ -654,7 +663,8 @@ const MAX_INCONCLUSIVE_PROBES = 3;
 const PROBE = Object.freeze({
   ALIVE: 'alive', // answered: proof of life recorded
   INCONCLUSIVE: 'inconclusive', // ambiguous error: subscription kept, no proof recorded
-  DEAD: 'dead', // reconnect started (or the probe no longer applies)
+  DEAD: 'dead', // reconnect started
+  SKIPPED: 'skipped', // no longer applies (stopped, replaced, not subscribed)
   BUSY: 'busy', // a probe on this client was already running
 });
 
@@ -668,6 +678,7 @@ function stopLivenessProbe(session) {
     clearTimeout(session.livenessTimer);
     session.livenessTimer = null;
   }
+  session.livenessDelayMs = null; // armed delay, for diagnostics and tests
 }
 
 /**
@@ -727,8 +738,8 @@ function isHttpStatusError(err) {
 /** Probe once; returns a PROBE result. */
 async function probeLiveness(session, client, pairing, name, probeKey = session.probeKey) {
   const { stats } = session;
-  if (session.stopped || session.client !== client) return PROBE.DEAD;
-  if (!stats.subscribed && !stats.nothingToWatch) return PROBE.DEAD;
+  if (session.stopped || session.client !== client) return PROBE.SKIPPED;
+  if (!stats.subscribed && !stats.nothingToWatch) return PROBE.SKIPPED;
   if (session.probingClient === client) return PROBE.BUSY;
   session.probingClient = client;
   try {
@@ -736,7 +747,7 @@ async function probeLiveness(session, client, pairing, name, probeKey = session.
     await withTimeout(read, HAP_REQUEST_TIMEOUT_MS, null, 'liveness probe');
     return recordAlive(session, client);
   } catch (err) {
-    if (session.stopped || session.client !== client) return PROBE.DEAD;
+    if (session.stopped || session.client !== client) return PROBE.SKIPPED;
     if (isHttpStatusError(err)) {
       log.debug(`[subscriber] ${name}: liveness probe answered with an error status (${err.message ?? err})`);
       return recordAlive(session, client);
@@ -745,8 +756,12 @@ async function probeLiveness(session, client, pairing, name, probeKey = session.
     stats.lastErrorAt = new Date().toISOString();
     const noAnswer = isConnectionError(err) && !hostAnswered(err);
     if (stats.subscribed && !noAnswer) {
-      session.inconclusiveProbes = (session.inconclusiveProbes ?? 0) + 1;
-      if (session.inconclusiveProbes < MAX_INCONCLUSIVE_PROBES) {
+      // A refused/reset extra connection is what slot-limited devices do, and
+      // a dead HAP process closes the subscription socket by itself: never
+      // escalate on those. Other doubt (e.g. pair-verify failing because the
+      // pairing was revoked) escalates after a few probes in a row.
+      if (!hostAnswered(err)) session.inconclusiveProbes = (session.inconclusiveProbes ?? 0) + 1;
+      if ((session.inconclusiveProbes ?? 0) < MAX_INCONCLUSIVE_PROBES) {
         log.debug(`[subscriber] ${name}: liveness probe inconclusive (${err.message ?? err}) — keeping the subscription`);
         return PROBE.INCONCLUSIVE;
       }
@@ -758,10 +773,18 @@ async function probeLiveness(session, client, pairing, name, probeKey = session.
     stats.subscribed = false;
     stats.nothingToWatch = false;
     releaseClient(session);
-    // Reconnect on the address in use, with the latest stored keys (a manual
-    // re-pair may have replaced them since this probe was armed).
+    // Reconnect from the stored pairing (latest keys, PIN, address list), but
+    // on the address in use: the store can lag if a save failed. A scheduled
+    // reconnect re-reads the store again when it fires.
     const stored = session.getPairing?.(session.deviceId);
-    const latest = stored?.longTermData ? { ...pairing, longTermData: stored.longTermData } : pairing;
+    const latest = stored
+      ? {
+        ...stored,
+        address: pairing.address,
+        port: pairing.port,
+        addresses: rememberAddresses(stored.addresses, pairing.addresses ?? [], pairing.address),
+      }
+      : pairing;
     if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, latest, err);
     else scheduleReconnect(session, latest);
     return PROBE.DEAD;

@@ -339,10 +339,28 @@ test('inconclusive probes re-arm a full interval later, and three in a row recon
   session.livenessTimer = null;
 
   assert.equal(await __testHooks.probeLiveness(session, client, { name: 'r' }, 'r', '1.2'), PROBE.INCONCLUSIVE);
-  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'r', address: '10.0.0.5', port: 1 }, 'r', '1.2'), PROBE.DEAD, 'third in a row escalates');
+  assert.equal(await __testHooks.probeLiveness(session, client, { name: 'r', address: '10.0.0.5', port: 1 }, 'r', '1.2'), PROBE.DEAD, 'third pair-verify failure in a row escalates');
   assert.equal(session.client, null);
   await waitUntil(() => connects.length >= 1, { label: 'reconnect (auth handling takes over)' });
   session.stopped = true;
   if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
+  __testHooks.resetState();
+});
+
+test('refused probes never escalate', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+  const session = started('slot-limited');
+  const refused = Object.assign(new Error('connect ECONNREFUSED 10.0.0.5:51000'), { code: 'ECONNREFUSED' });
+  const client = { async getCharacteristics() { throw refused; }, off() {}, async close() {} };
+  session.client = client;
+  session.stats.subscribed = true;
+  session.stats.lastHealthyAt = HOURS_AGO(1);
+  for (let i = 0; i < 6; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal(await __testHooks.probeLiveness(session, client, { name: 's' }, 's', '1.2'), PROBE.INCONCLUSIVE);
+  }
+  assert.equal(session.client, client, 'subscription kept through repeated refusals');
+  assert.equal(session.inconclusiveProbes ?? 0, 0, 'refusals are not counted toward escalation');
   __testHooks.resetState();
 });
