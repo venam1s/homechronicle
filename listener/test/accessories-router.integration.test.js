@@ -705,3 +705,11 @@ test('GET /accessories/:accessoryId/capabilities — live query is bounded by ha
   assert.ok(elapsed < 1000, `capabilities query must time out, not hang (took ${elapsed}ms)`);
   assert.equal(track.closed, 1, 'client.close() should be called on timeout');
 });
+
+test('mapReliabilityStats passes on the unreachable and nothing-to-watch flags', async () => {
+  const { mapReliabilityStats } = await import('../src/setup-helpers.js');
+  const mapped = mapReliabilityStats({ connected: false, unreachable: true, nothingToWatch: false });
+  assert.equal(mapped.unreachable, true);
+  assert.equal(mapped.nothing_to_watch, false);
+  assert.equal(mapReliabilityStats({}).unreachable, false, 'absent means reachable');
+});

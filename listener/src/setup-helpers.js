@@ -157,6 +157,10 @@ export function mapReliabilityStats(reliability) {
     auth_failures: reliability.authFailures,
     auth_failed: reliability.authFailed,
     needs_repair: reliability.needsRepair,
+    // Failing repeatedly and not announced on the network (retried slowly).
+    unreachable: reliability.unreachable ?? false,
+    // Connected, but exposes nothing HomeChronicle watches (e.g. a main bridge).
+    nothing_to_watch: reliability.nothingToWatch ?? false,
     auto_repair_attempts: reliability.autoRepairAttempts,
     auto_repair_last_error: reliability.autoRepairLastError,
     auto_repaired_at: reliability.autoRepairedAt,

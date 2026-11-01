@@ -190,6 +190,7 @@ export default function MyDevicesTab({ setup }) {
       if (!map[bridgeId]) {
         map[bridgeId] = {
           needsRepair: acc.reliability?.needs_repair ?? false,
+          unreachable: acc.reliability?.unreachable ?? false,
           healthStatus: acc.health?.status ?? 'unknown',
           isStale: acc.health?.isStale ?? false,
         };
@@ -314,7 +315,7 @@ export default function MyDevicesTab({ setup }) {
           return (
             <div key={acc.id} className="px-4 py-3">
               <div className="flex items-center gap-3">
-                <CheckCircle size={18} className={clsx('flex-shrink-0', deviceStatus[acc.id]?.needsRepair ? 'text-hc-danger-text' : deviceStatus[acc.id]?.isStale ? 'text-hc-warning-text' : 'text-hc-success-text')} />
+                <CheckCircle size={18} className={clsx('flex-shrink-0', deviceStatus[acc.id]?.needsRepair ? 'text-hc-danger-text' : (deviceStatus[acc.id]?.unreachable || deviceStatus[acc.id]?.isStale) ? 'text-hc-warning-text' : 'text-hc-success-text')} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 min-w-0">
@@ -393,6 +394,14 @@ export default function MyDevicesTab({ setup }) {
                       const ds = deviceStatus[acc.id];
                       if (ds?.needsRepair) return (
                         <span className="text-xs bg-hc-danger-bg text-hc-danger-text border border-hc-danger-border px-2 py-0.5 rounded-full">Needs Repair</span>
+                      );
+                      if (ds?.unreachable) return (
+                        <span
+                          title="Not announced on the network and not answering. HomeChronicle retries every 10 minutes; remove the pairing if the device is gone."
+                          className="text-xs bg-hc-warning-bg text-hc-warning-text border border-hc-warning-border px-2 py-0.5 rounded-full"
+                        >
+                          Not on network
+                        </span>
                       );
                       if (ds?.isStale) return (
                         <span className="text-xs bg-hc-warning-bg text-hc-warning-text border border-hc-warning-border px-2 py-0.5 rounded-full">Stale</span>

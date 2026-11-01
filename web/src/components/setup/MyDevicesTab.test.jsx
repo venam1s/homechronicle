@@ -165,3 +165,18 @@ describe('Live Toasts toggle', () => {
   });
 });
 
+
+describe('MyDevicesTab device status badge', () => {
+  it('shows "Not on network" for an unreachable device and "Logging" for a quiet connected one', () => {
+    renderTab(makeSetup({
+      dbAccessories: [
+        { accessory_id: 'AA:BB:CC:DD:EE:01', reliability: { needs_repair: false, unreachable: true }, health: { status: 'stale', isStale: true } },
+        { accessory_id: 'AA:BB:CC:DD:EE:02', reliability: { needs_repair: false, unreachable: false }, health: { status: 'online', isStale: false } },
+      ],
+    }));
+    const badge = screen.getByText('Not on network');
+    expect(badge).toHaveAttribute('title', expect.stringMatching(/retries every 10 minutes/));
+    expect(screen.getAllByText('Logging')).toHaveLength(1);
+    expect(screen.queryByText('Stale')).toBeNull();
+  });
+});

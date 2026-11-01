@@ -31,6 +31,14 @@ import { withTimeout, parseIntInRange } from './utils.js';
 // re-pairs.
 const HAP_REQUEST_TIMEOUT_MS = parseIntInRange(process.env.HAP_REQUEST_TIMEOUT_MS, 30_000, 1_000, 300_000);
 const HAP_PAIR_TIMEOUT_MS = parseIntInRange(process.env.HAP_PAIR_TIMEOUT_MS, 60_000, 1_000, 300_000);
+// A device that keeps failing and isn't announced on the network at all is
+// treated as unreachable: retried this often, quietly, until it reappears.
+const UNREACHABLE_AFTER_FAILURES = 5;
+const HAP_UNREACHABLE_RETRY_MS = parseIntInRange(process.env.HAP_UNREACHABLE_RETRY_MS, 10 * 60_000, 60_000, 24 * 60 * 60_000);
+// TCP keepalive on the event subscription socket: a peer that vanished without
+// closing the connection is detected in minutes (idle + OS probes), so an
+// open socket can be trusted as "connected" for a device that is just quiet.
+const SUBSCRIPTION_KEEPALIVE_MS = 60_000;
 
 let alertEmailFrom = '';
 
@@ -282,7 +290,7 @@ function connectAccessory(session, pairing) {
   session.pairingName = accessoryName;
   stats.connectAttempts += 1;
 
-  log.info(`[subscriber] Connecting to ${accessoryName} (${address}:${port})`);
+  attemptLog(session).info(`[subscriber] Connecting to ${accessoryName} (${address}:${port})`);
 
   const client = new HttpClient(deviceId, address, port, longTermData);
   session.client = client;
@@ -328,14 +336,19 @@ function connectAccessory(session, pairing) {
     stats.lastHealthyAt = stats.lastConnectedAt;
     stats.authFailures = 0;
     session.lastFailedAddress = null;
+    markReachable(session, accessoryName);
 
     // subscribeCharacteristics() expects an array of "aid.iid" strings
     const watchedKeys = [...iidMeta.keys()];
 
     if (watchedKeys.length === 0) {
+      // Nothing to subscribe to (e.g. a Homebridge main bridge whose devices are
+      // paired as their own child bridges): healthy, just idle — not stale.
+      stats.nothingToWatch = true;
       log.info(`[subscriber] ${accessoryName}: no watched characteristics found`);
       return;
     }
+    stats.nothingToWatch = false;
 
     // HAP events are emitted on the client instance itself (HttpClient extends
     // EventEmitter). subscribeCharacteristics() returns Promise<void|null> —
@@ -512,6 +525,7 @@ function connectAccessory(session, pairing) {
       stats.lastSubscribedAt = new Date().toISOString();
       stats.lastHealthyAt = stats.lastSubscribedAt;
       stats.subscribed = true; // M-01: enter the live state
+      subscriptionSocket(session)?.setKeepAlive?.(true, SUBSCRIPTION_KEEPALIVE_MS);
       log.info(`[subscriber] ${accessoryName}: subscribed to ${watchedKeys.length} characteristic(s)`);
     } catch (err) {
       stats.subscribeFailures += 1;
@@ -572,18 +586,64 @@ function connectAccessory(session, pairing) {
         return;
       }
       log.warn(`[subscriber] ${accessoryName}: getAccessories auth failed (${stats.authFailures}/3):`, err.message ?? err.stack ?? err);
+    } else if (session.stats.unreachable) {
+      log.debug(`[subscriber] ${accessoryName}: getAccessories failed:`, err.message ?? err);
     } else {
       log.error(`[subscriber] ${accessoryName}: getAccessories failed:`, err.message ?? err.stack ?? err);
     }
 
     if (isConnectionError(err) && session.discoverDevice) {
-      log.info(`[subscriber] ${accessoryName}: connection failed, re-discovering device…`);
+      attemptLog(session).info(`[subscriber] ${accessoryName}: connection failed, re-discovering device…`);
       rediscoverAndReconnect(session, pairing, err);
       return;
     }
 
     scheduleReconnect(session, pairing);
   });
+}
+
+// -- Unreachable devices --
+// A paired device that keeps failing while discovery can't find it on the
+// network at all (unplugged, retired, moved to another network) is retried
+// every HAP_UNREACHABLE_RETRY_MS instead of every minute, and its attempts are
+// logged at debug: one line when it becomes unreachable, one when it is back.
+
+let unreachableRetryMs = HAP_UNREACHABLE_RETRY_MS;
+
+/** Logger for per-attempt connection lines: quiet once a device is unreachable. */
+function attemptLog(session) {
+  return session?.stats?.unreachable ? { info: log.debug, warn: log.debug } : log;
+}
+
+/** Record whether re-discovery found the device; flips the unreachable state. */
+function noteDiscovery(session, name, found) {
+  const { stats } = session;
+  if (found) {
+    session.unannouncedFailures = 0;
+    if (stats.unreachable) {
+      stats.unreachable = false;
+      session.retryDelayMs = reconnectBaseMs;
+      log.info(`[subscriber] ${name}: announced on the network again — reconnecting`);
+    }
+    return;
+  }
+  session.unannouncedFailures = (session.unannouncedFailures ?? 0) + 1;
+  if (!stats.unreachable && session.unannouncedFailures >= UNREACHABLE_AFTER_FAILURES) {
+    stats.unreachable = true;
+    log.warn(
+      `[subscriber] ${name}: not found on the network after ${session.unannouncedFailures} attempts — ` +
+      `retrying every ${Math.round(unreachableRetryMs / 60_000)} min until it reappears`
+    );
+  }
+}
+
+/** A successful connection ends the unreachable state. */
+function markReachable(session, name) {
+  session.unannouncedFailures = 0;
+  if (session.stats.unreachable) {
+    session.stats.unreachable = false;
+    log.info(`[subscriber] ${name}: reachable again`);
+  }
 }
 
 // The address reached the device's host, which refused or dropped the connection.
@@ -609,6 +669,7 @@ function rediscoverAndReconnect(session, pairing, err = null) {
   const discover = session.discoverDevice ? session.discoverDevice(deviceId) : Promise.resolve(null);
   Promise.resolve(discover).then((discovered) => {
     if (session.stopped) return;
+    noteDiscovery(session, name, Boolean(discovered));
     // Known = announced now or stored from earlier announcements; the in-use
     // address alone doesn't count (it may be a stale DHCP lease).
     const known = Array.isArray(pairing.addresses) ? pairing.addresses : [];
@@ -637,7 +698,7 @@ function rediscoverAndReconnect(session, pairing, err = null) {
       return;
     }
     const others = candidates.filter((a) => a !== address);
-    log.info(
+    attemptLog(session).info(
       `[subscriber] ${name}: trying ${address}:${port} (was ${pairing.address}:${pairing.port}` +
       `${others.length ? `; also announced at ${others.join(', ')}` : ''})`
     );
@@ -649,7 +710,10 @@ function scheduleReconnect(session, pairing) {
   if (session.stopped) return;
   const { deviceId, getPairing } = session;
   if (session.stats) session.stats.reconnectSchedules += 1;
-  const nextDelay = Math.min(session.retryDelayMs * 2, reconnectMaxMs);
+  // An unreachable device (not announced, failing repeatedly) waits longer.
+  const nextDelay = session.stats?.unreachable
+    ? unreachableRetryMs
+    : Math.min(session.retryDelayMs * 2, reconnectMaxMs);
   session.retryDelayMs = nextDelay;
   log.debug(`[subscriber] ${pairing.name}: retrying in ${nextDelay / 1000}s`);
   session.reconnectTimeout = setTimeout(() => {
@@ -796,9 +860,20 @@ async function attemptAutoRepair(session, pairing) {
 // timestamp/needsRepair rescue paths.
 const HUNG_SOCKET_THRESHOLD_MS = 30 * 60_000;
 
+/** The socket hap-controller keeps open for event notifications, if any. */
+function subscriptionSocket(session) {
+  return session?.client?.subscriptionConnection?.socket ?? null;
+}
+
+// Connected = subscribed AND the event socket is open. A quiet device sends no
+// events for hours, so event age can't tell a healthy idle subscription from a
+// hung one; the socket can (TCP keepalive closes a dead one within minutes).
+// Without a socket to inspect, fall back to the age of the last heartbeat.
 function isLive(session, stats) {
   if (!session?.client) return false;
   if (stats.subscribed !== true) return false;
+  const socket = subscriptionSocket(session);
+  if (socket) return !socket.destroyed && socket.readyState === 'open';
   if (!stats.lastHealthyAt) return false;
   return (Date.now() - new Date(stats.lastHealthyAt).getTime()) < HUNG_SOCKET_THRESHOLD_MS;
 }
@@ -821,25 +896,33 @@ export function getSubscriberHealth() {
   let total = 0;
   let connected = 0;
   let stale = 0;
+  let idle = 0;
+  let unreachable = 0;
   let needsRepair = 0;
   let lastConnectedAt = null;
-  const staleThresholdMs = 10 * 60_000; // 10 minutes with no subscribe success
+  const staleThresholdMs = 10 * 60_000; // 10 minutes not connected
   const now = Date.now();
 
   for (const [, session] of subscriberSessions) {
+    const { stats } = session;
     total += 1;
-    // M-01: mirror the strict liveness AND used by getSubscriberStats.connected.
-    if (isLive(session, session.stats)) connected += 1;
-    if (session.stats.needsRepair) needsRepair += 1;
-    const lastHealthy = session.stats.lastHealthyAt;
-    if (!lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs) {
-      stale += 1;
-    }
-    const lc = session.stats.lastConnectedAt;
+    if (stats.needsRepair) needsRepair += 1;
+    if (stats.unreachable) unreachable += 1;
+    const lc = stats.lastConnectedAt;
     if (lc && (!lastConnectedAt || lc > lastConnectedAt)) lastConnectedAt = lc;
+    // M-01: mirror the strict liveness used by getSubscriberStats.connected.
+    if (isLive(session, stats)) {
+      connected += 1;
+    } else if (stats.nothingToWatch) {
+      idle += 1; // connected fine, nothing to subscribe to
+    } else {
+      // Stale = not connected for a while (a quiet but subscribed device is not stale).
+      const lastHealthy = stats.lastHealthyAt;
+      if (!lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs) stale += 1;
+    }
   }
 
-  return { total, connected, stale, needsRepair, lastConnectedAt };
+  return { total, connected, idle, stale, unreachable, needsRepair, lastConnectedAt };
 }
 
 /**
@@ -858,7 +941,8 @@ export function getRepairTargets(staleThresholdMs = 10 * 60_000) {
     // without a heartbeat while still actively subscribed — those are healthy
     // and must NOT be reconnected nightly. Only flag as stale when the
     // subscription is also not live.
-    const isStale = !stats.subscribed &&
+    // A device with nothing to watch never subscribes; that is not stale either.
+    const isStale = !stats.subscribed && !stats.nothingToWatch &&
       (!lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs);
     if (isNeedsRepair || isStale) {
       targets.push({
@@ -905,6 +989,9 @@ export const __testHooks = {
   setHttpClientFactory(fn) {
     httpClientFactory = fn;
   },
+  setUnreachableRetryMs(ms) {
+    unreachableRetryMs = ms;
+  },
   resetState() {
     for (const [deviceId] of subscriberSessions) {
       stopSubscriber(deviceId);
@@ -913,5 +1000,6 @@ export const __testHooks = {
     httpClientFactory = (deviceId, address, port) => new HttpClient(deviceId, address, port);
     reconnectBaseMs = 5_000;
     reconnectMaxMs = 60_000;
+    unreachableRetryMs = HAP_UNREACHABLE_RETRY_MS;
   },
 };
