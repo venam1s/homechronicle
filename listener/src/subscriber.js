@@ -35,10 +35,10 @@ const HAP_PAIR_TIMEOUT_MS = parseIntInRange(process.env.HAP_PAIR_TIMEOUT_MS, 60_
 // treated as unreachable: retried this often, quietly, until it reappears.
 const UNREACHABLE_AFTER_FAILURES = 5;
 const HAP_UNREACHABLE_RETRY_MS = parseIntInRange(process.env.HAP_UNREACHABLE_RETRY_MS, 10 * 60_000, 60_000, 24 * 60 * 60_000);
-// TCP keepalive on the event subscription socket: a peer that vanished without
-// closing the connection is detected in minutes (idle + OS probes), so an
-// open socket can be trusted as "connected" for a device that is just quiet.
-const SUBSCRIPTION_KEEPALIVE_MS = 60_000;
+// A connected device that has sent nothing for this long is asked for one
+// value: an answer proves it is alive (a quiet sensor is not stale), no answer
+// means a wedged or vanished accessory and triggers a reconnect.
+const LIVENESS_PROBE_IDLE_MS = 10 * 60_000;
 
 let alertEmailFrom = '';
 
@@ -173,6 +173,16 @@ export function startSubscribers(pairings, rooms = {}, getPairing = null, option
   }
 }
 
+// Discovery/save callbacks used when a caller doesn't pass its own (e.g. the
+// repair scheduler restarting a session): without them a session can't
+// re-discover a moved device or notice that it is gone from the network.
+let defaultSubscriberOptions = {};
+
+/** Set the discoverDevice/savePairing callbacks every session falls back to. */
+export function setDefaultSubscriberOptions(options = {}) {
+  defaultSubscriberOptions = { ...options };
+}
+
 export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null, options = {}) {
   stopSubscriber(deviceId);
   const stats = {
@@ -215,8 +225,8 @@ export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null
     eventHandler: null,
     disconnectHandler: null,
     stats,
-    discoverDevice: options.discoverDevice ?? null,
-    savePairing: options.savePairing ?? null,
+    discoverDevice: options.discoverDevice ?? defaultSubscriberOptions.discoverDevice ?? null,
+    savePairing: options.savePairing ?? defaultSubscriberOptions.savePairing ?? null,
   };
   subscriberSessions.set(deviceId, session);
   subscriberStats.set(deviceId, stats);
@@ -228,6 +238,7 @@ export function stopSubscriber(deviceId) {
   if (!session) return;
 
   session.stopped = true;
+  stopLivenessProbe(session);
   if (session.reconnectTimeout) {
     clearTimeout(session.reconnectTimeout);
     session.reconnectTimeout = null;
@@ -274,6 +285,7 @@ function connectAccessory(session, pairing) {
     return;
   }
 
+  stopLivenessProbe(session);
   // Close any existing client to prevent duplicate event handlers and
   // leaked TCP connections (CR-02).
   if (session.client) {
@@ -346,6 +358,7 @@ function connectAccessory(session, pairing) {
       // paired as their own child bridges): healthy, just idle — not stale.
       stats.nothingToWatch = true;
       log.info(`[subscriber] ${accessoryName}: no watched characteristics found`);
+      startLivenessProbe(session, client, pairing, accessoryName, null);
       return;
     }
     stats.nothingToWatch = false;
@@ -482,6 +495,7 @@ function connectAccessory(session, pairing) {
         stats.lastSubscribedAt = new Date().toISOString();
         stats.lastHealthyAt = stats.lastSubscribedAt;
         stats.subscribed = true;
+        startLivenessProbe(session, client, pairing, accessoryName, formerSubscribes[0] ?? null);
         log.info(`[subscriber] ${accessoryName}: resubscribed to ${formerSubscribes.length} characteristic(s)`);
       } catch (err) {
         stats.resubscribeFailures += 1;
@@ -525,7 +539,7 @@ function connectAccessory(session, pairing) {
       stats.lastSubscribedAt = new Date().toISOString();
       stats.lastHealthyAt = stats.lastSubscribedAt;
       stats.subscribed = true; // M-01: enter the live state
-      subscriptionSocket(session)?.setKeepAlive?.(true, SUBSCRIPTION_KEEPALIVE_MS);
+      startLivenessProbe(session, client, pairing, accessoryName, watchedKeys[0]);
       log.info(`[subscriber] ${accessoryName}: subscribed to ${watchedKeys.length} characteristic(s)`);
     } catch (err) {
       stats.subscribeFailures += 1;
@@ -600,6 +614,68 @@ function connectAccessory(session, pairing) {
 
     scheduleReconnect(session, pairing);
   });
+}
+
+// -- Liveness probe --
+// Event age alone can't tell a quiet sensor from a wedged accessory, and an
+// open TCP socket can't either (the kernel answers keepalives for a hung
+// process). So a device idle for LIVENESS_PROBE_IDLE_MS is asked for one
+// value; the answer refreshes lastHealthyAt, a failure reconnects it.
+
+let livenessIdleMs = LIVENESS_PROBE_IDLE_MS;
+
+function stopLivenessProbe(session) {
+  if (session.livenessTimer) {
+    clearInterval(session.livenessTimer);
+    session.livenessTimer = null;
+  }
+}
+
+function startLivenessProbe(session, client, pairing, name, probeKey) {
+  stopLivenessProbe(session);
+  session.livenessTimer = setInterval(() => {
+    void probeLiveness(session, client, pairing, name, probeKey);
+  }, livenessIdleMs);
+  session.livenessTimer.unref?.();
+}
+
+/** Detach and close the session's client without stopping the session. */
+function releaseClient(session) {
+  const { client } = session;
+  if (!client) return;
+  if (session.eventHandler) client.off('event', session.eventHandler);
+  if (session.disconnectHandler) client.off('event-disconnect', session.disconnectHandler);
+  abortHapClient(client);
+  session.client = null;
+  session.eventHandler = null;
+  session.disconnectHandler = null;
+}
+
+async function probeLiveness(session, client, pairing, name, probeKey) {
+  const { stats } = session;
+  if (session.stopped || session.client !== client || session.probing) return;
+  if (!stats.subscribed && !stats.nothingToWatch) return;
+  const last = stats.lastHealthyAt ? Date.parse(stats.lastHealthyAt) : 0;
+  if (Date.now() - last < livenessIdleMs) return; // an event arrived recently
+  session.probing = true;
+  try {
+    const read = probeKey ? client.getCharacteristics([probeKey]) : client.getAccessories();
+    await withTimeout(read, HAP_REQUEST_TIMEOUT_MS, null, 'liveness probe');
+    if (session.client === client) stats.lastHealthyAt = new Date().toISOString();
+  } catch (err) {
+    if (session.stopped || session.client !== client) return;
+    stats.lastError = err.message ?? String(err);
+    stats.lastErrorAt = new Date().toISOString();
+    log.warn(`[subscriber] ${name}: not answering (${err.message ?? err}) — reconnecting`);
+    stopLivenessProbe(session);
+    stats.subscribed = false;
+    stats.nothingToWatch = false;
+    releaseClient(session);
+    if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, pairing, err);
+    else scheduleReconnect(session, pairing);
+  } finally {
+    session.probing = false;
+  }
 }
 
 // -- Unreachable devices --
@@ -865,15 +941,18 @@ function subscriptionSocket(session) {
   return session?.client?.subscriptionConnection?.socket ?? null;
 }
 
-// Connected = subscribed AND the event socket is open. A quiet device sends no
-// events for hours, so event age can't tell a healthy idle subscription from a
-// hung one; the socket can (TCP keepalive closes a dead one within minutes).
-// Without a socket to inspect, fall back to the age of the last heartbeat.
+// Connected = subscribed (or connected with nothing to watch), the event
+// socket — if any — still open, AND recent proof of life: an event or a
+// liveness-probe answer within HUNG_SOCKET_THRESHOLD_MS. The probe keeps that
+// proof fresh for a quiet device, so only a device that stopped answering
+// (wedged, gone) drops out. The one place "connected" is decided.
 function isLive(session, stats) {
   if (!session?.client) return false;
-  if (stats.subscribed !== true) return false;
-  const socket = subscriptionSocket(session);
-  if (socket) return !socket.destroyed && socket.readyState === 'open';
+  if (stats.subscribed !== true && stats.nothingToWatch !== true) return false;
+  if (stats.subscribed) {
+    const socket = subscriptionSocket(session);
+    if (socket && (socket.destroyed || socket.readyState !== 'open')) return false;
+  }
   if (!stats.lastHealthyAt) return false;
   return (Date.now() - new Date(stats.lastHealthyAt).getTime()) < HUNG_SOCKET_THRESHOLD_MS;
 }
@@ -913,10 +992,9 @@ export function getSubscriberHealth() {
     // M-01: mirror the strict liveness used by getSubscriberStats.connected.
     if (isLive(session, stats)) {
       connected += 1;
-    } else if (stats.nothingToWatch) {
-      idle += 1; // connected fine, nothing to subscribe to
-    } else {
-      // Stale = not connected for a while (a quiet but subscribed device is not stale).
+      if (stats.nothingToWatch) idle += 1; // connected, nothing to subscribe to
+    } else if (!stats.unreachable) {
+      // Stale = not connected for a while; unreachable devices have their own count.
       const lastHealthy = stats.lastHealthyAt;
       if (!lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs) stale += 1;
     }
@@ -942,7 +1020,9 @@ export function getRepairTargets(staleThresholdMs = 10 * 60_000) {
     // and must NOT be reconnected nightly. Only flag as stale when the
     // subscription is also not live.
     // A device with nothing to watch never subscribes; that is not stale either.
-    const isStale = !stats.subscribed && !stats.nothingToWatch &&
+    // An unreachable one is already on its slow retry; a restart would only
+    // reset that and log again.
+    const isStale = !stats.subscribed && !stats.nothingToWatch && !stats.unreachable &&
       (!lastHealthy || now - new Date(lastHealthy).getTime() > staleThresholdMs);
     if (isNeedsRepair || isStale) {
       targets.push({
@@ -992,6 +1072,10 @@ export const __testHooks = {
   setUnreachableRetryMs(ms) {
     unreachableRetryMs = ms;
   },
+  setLivenessIdleMs(ms) {
+    livenessIdleMs = ms;
+  },
+  probeLiveness,
   resetState() {
     for (const [deviceId] of subscriberSessions) {
       stopSubscriber(deviceId);
@@ -1001,5 +1085,7 @@ export const __testHooks = {
     reconnectBaseMs = 5_000;
     reconnectMaxMs = 60_000;
     unreachableRetryMs = HAP_UNREACHABLE_RETRY_MS;
+    livenessIdleMs = LIVENESS_PROBE_IDLE_MS;
+    defaultSubscriberOptions = {};
   },
 };

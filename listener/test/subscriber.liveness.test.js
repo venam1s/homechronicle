@@ -28,17 +28,56 @@ function withSocket(session, socket) {
   session.stats.subscribed = true;
 }
 
-test('a quiet subscription with an open event socket is connected, however old its last event', () => {
+test('a quiet device stays connected because the liveness probe keeps answering', async () => {
   __testHooks.resetState();
   __testHooks.setConnectAccessoryImpl(() => {});
+  __testHooks.setLivenessIdleMs(60_000);
   const session = started('live-quiet');
-  withSocket(session, { destroyed: false, readyState: 'open' });
-  session.stats.lastHealthyAt = HOURS_AGO(6);
+  const reads = [];
+  const client = {
+    subscriptionConnection: { socket: { destroyed: false, readyState: 'open' } },
+    async getCharacteristics(keys) { reads.push(keys); return { characteristics: [] }; },
+  };
+  session.client = client;
+  session.stats.subscribed = true;
+  session.stats.lastHealthyAt = HOURS_AGO(6); // nothing for hours
 
-  assert.equal(getSubscriberStats('live-quiet').connected, true);
-  const health = getSubscriberHealth();
-  assert.equal(health.connected, 1);
-  assert.equal(health.stale, 0, 'quiet is not stale');
+  assert.equal(getSubscriberStats('live-quiet').connected, false, 'no recent proof yet');
+  await __testHooks.probeLiveness(session, client, { name: 'q' }, 'q', '2.10');
+  assert.deepEqual(reads, [['2.10']]);
+  assert.equal(getSubscriberStats('live-quiet').connected, true, 'the answer is proof of life');
+  assert.equal(getSubscriberHealth().stale, 0);
+  __testHooks.resetState();
+});
+
+test('a device that stops answering the probe is reconnected', async () => {
+  __testHooks.resetState();
+  __testHooks.setReconnectWindow(5, 20);
+  __testHooks.setLivenessIdleMs(60_000);
+  const connects = [];
+  __testHooks.setConnectAccessoryImpl((_s, pairing) => { connects.push(pairing); });
+  const session = started('wedged', { discoverDevice: async () => null, savePairing: async () => {} });
+  connects.length = 0; // ignore startSubscriber's own first connect
+  let closed = 0;
+  const client = {
+    subscriptionConnection: { socket: { destroyed: false, readyState: 'open' } },
+    async getCharacteristics() { throw Object.assign(new Error('liveness probe timed out after 30000ms'), { code: 'ETIMEDOUT' }); },
+    off() {},
+    async close() { closed += 1; },
+  };
+  session.client = client;
+  session.stats.subscribed = true;
+  session.stats.lastHealthyAt = HOURS_AGO(1);
+  const pairing = { name: 'wedged', address: '172.16.25.26', port: 51000 };
+
+  await __testHooks.probeLiveness(session, client, pairing, 'wedged', '2.10');
+  assert.equal(session.client, null, 'client released');
+  assert.equal(closed, 1);
+  assert.equal(session.stats.subscribed, false);
+  await waitUntil(() => connects.length === 1, { label: 'reconnect' });
+  assert.equal(connects[0].address, '172.16.25.26');
+  session.stopped = true;
+  if (session.reconnectTimeout) clearTimeout(session.reconnectTimeout);
   __testHooks.resetState();
 });
 
@@ -53,17 +92,37 @@ test('a closed or destroyed event socket is not connected', () => {
   __testHooks.resetState();
 });
 
-test('a bridge with nothing to watch counts as idle, not stale, and is not repaired nightly', () => {
+test('a bridge with nothing to watch is connected and idle while it answers, and is not repaired nightly', async () => {
   __testHooks.resetState();
   __testHooks.setConnectAccessoryImpl(() => {});
+  __testHooks.setLivenessIdleMs(60_000);
   const session = started('idle-bridge');
+  let probed = 0;
+  const client = { async getAccessories() { probed += 1; return { accessories: [] }; } };
+  session.client = client;
   session.stats.nothingToWatch = true;
-  session.stats.lastHealthyAt = HOURS_AGO(30);
+  session.stats.lastHealthyAt = HOURS_AGO(2);
 
+  await __testHooks.probeLiveness(session, client, { name: 'idle' }, 'idle', null);
+  assert.equal(probed, 1, 'probed with getAccessories: there is no characteristic to read');
   const health = getSubscriberHealth();
+  assert.equal(health.connected, 1);
   assert.equal(health.idle, 1);
   assert.equal(health.stale, 0);
   assert.equal(getRepairTargets().find((t) => t.deviceId === 'idle-bridge'), undefined);
+  __testHooks.resetState();
+});
+
+test('sessions started without callbacks fall back to the default discovery callbacks', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+  const { setDefaultSubscriberOptions } = await import('../src/subscriber.js');
+  const discoverDevice = async () => null;
+  const savePairing = async () => {};
+  setDefaultSubscriberOptions({ discoverDevice, savePairing });
+  const session = started('restarted-by-repair');
+  assert.equal(session.discoverDevice, discoverDevice);
+  assert.equal(session.savePairing, savePairing);
   __testHooks.resetState();
 });
 
@@ -85,6 +144,8 @@ test('repeated failures with the device absent from the network switch to the sl
   assert.equal(session.stats.unreachable, true);
   assert.equal(session.retryDelayMs, 777, 'next retry waits the unreachable interval');
   assert.equal(getSubscriberHealth().unreachable, 1);
+  assert.equal(getSubscriberHealth().stale, 0, 'counted as unreachable, not also as stale');
+  assert.equal(getRepairTargets().find((t) => t.deviceId === 'gone'), undefined, 'left to its slow retry');
   assert.equal(getSubscriberStats('gone').unreachable, true);
 
   // It reappears on the network: back to the normal fast reconnect.

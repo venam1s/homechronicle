@@ -39,10 +39,21 @@ index 32c6c40..b4e2062 100644
  }
  exports.default = HttpClient;
 diff --git a/node_modules/hap-controller/lib/transport/ip/http-connection.js b/node_modules/hap-controller/lib/transport/ip/http-connection.js
-index f40685b..3508a57 100644
+index f40685b..7dbbaee 100644
 --- a/node_modules/hap-controller/lib/transport/ip/http-connection.js
 +++ b/node_modules/hap-controller/lib/transport/ip/http-connection.js
-@@ -287,7 +287,19 @@ class HttpConnection extends events_1.EventEmitter {
+@@ -84,7 +84,9 @@ class HttpConnection extends events_1.EventEmitter {
+             this.state = State.CLOSED;
+             try {
+                 this.socket = net_1.default.createConnection(this.port, this.address);
+-                this.socket.setKeepAlive(true);
++                // A peer that vanished without closing is noticed in minutes,
++                // not after the OS default of two hours idle.
++                this.socket.setKeepAlive(true, 60000);
+                 this.socket.on('close', () => {
+                     this.socket = null;
+                     this.state = State.CLOSED;
+@@ -287,7 +289,19 @@ class HttpConnection extends events_1.EventEmitter {
                          parser.execute(decryptedData);
                      }
                      catch (e) {
@@ -63,7 +74,7 @@ index f40685b..3508a57 100644
                      }
                  }
              };
-@@ -355,6 +367,12 @@ class HttpConnection extends events_1.EventEmitter {
+@@ -355,6 +369,12 @@ class HttpConnection extends events_1.EventEmitter {
       */
      close() {
          var _a;

@@ -141,7 +141,7 @@ All SMTP variables are optional. If `SMTP_HOST` or `SMTP_PASS` is not set, email
 | `RECONNECT_MAX_MS` | `60000` | Max reconnect delay |
 | `HAP_REQUEST_TIMEOUT_MS` | `30000` | Upper bound for a single HomeKit request (1000–300000). On expiry the connection is dropped and the normal reconnect path takes over. Also bounds the metadata fetch behind Devices › Browse. |
 | `HAP_PAIR_TIMEOUT_MS` | `60000` | Upper bound for a HomeKit pair-setup during auto or scheduled repair (1000–300000). |
-| `HAP_UNREACHABLE_RETRY_MS` | `600000` | How often to retry a paired HomeKit device that has failed 5 times in a row and isn't announced on the network at all (60000–86400000). Until then the listener retries at most every minute. It logs one line when a device becomes unreachable and one when it is back, and Devices › Manage Accessories shows it as **Not on network**. |
+| `HAP_UNREACHABLE_RETRY_MS` | `600000` | How often to retry a paired HomeKit device that has failed to connect 5 times in a row while discovery can't find it on the network at all (60000–86400000). Before that it is retried with the normal backoff. The listener logs one line when a device becomes unreachable and one when it is back, and Devices › Manage Accessories shows it as **Not on network**. |
 
 ## Matter
 

@@ -200,8 +200,7 @@ export function createAccessoriesRouter({
           staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
           subscriberConnectedAt: reliability?.lastConnectedAt ?? null,
           subscriberLastHealthyAt: reliability?.lastHealthyAt ?? null,
-          // Idle (nothing to watch) is a healthy connection too.
-          subscriberConnected: Boolean(reliability?.connected || reliability?.nothingToWatch),
+          subscriberConnected: reliability?.connected ?? false,
           now,
         });
         return {
@@ -264,8 +263,7 @@ export function createAccessoriesRouter({
               staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
               subscriberConnectedAt: reliability?.lastConnectedAt ?? null,
               subscriberLastHealthyAt: reliability?.lastHealthyAt ?? null,
-              // Idle (nothing to watch) is a healthy connection too.
-              subscriberConnected: Boolean(reliability?.connected || reliability?.nothingToWatch),
+              subscriberConnected: reliability?.connected ?? false,
               now,
             }),
           };
@@ -347,8 +345,7 @@ export function createAccessoriesRouter({
               staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
               subscriberConnectedAt: reliability?.lastConnectedAt ?? null,
               subscriberLastHealthyAt: reliability?.lastHealthyAt ?? null,
-              // Idle (nothing to watch) is a healthy connection too.
-              subscriberConnected: Boolean(reliability?.connected || reliability?.nothingToWatch),
+              subscriberConnected: reliability?.connected ?? false,
               now,
             }),
           };
@@ -455,8 +452,7 @@ export function createAccessoriesRouter({
         staleThresholdSeconds: retentionSettings.staleThresholdHours * 60 * 60,
         subscriberConnectedAt: reliability?.lastConnectedAt ?? null,
         subscriberLastHealthyAt: reliability?.lastHealthyAt ?? null,
-        // Idle (nothing to watch) is a healthy connection too.
-        subscriberConnected: Boolean(reliability?.connected || reliability?.nothingToWatch),
+        subscriberConnected: reliability?.connected ?? false,
         now,
       });
 

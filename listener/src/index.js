@@ -11,7 +11,7 @@ import cors from 'cors';
 import { HttpClient } from 'hap-controller'; // injected into setup-router and accessories-router for testability
 import { insertEvent, pool, migrateDb, setDisplayNameLookup, runRetentionSweep, runAlertDeliveriesRetentionSweep, runSessionRetentionSweep, runInviteTokenSweep, runPasswordResetTokenSweep, validateSession } from './db.js';
 import { reconcileDisplayNames } from './display-names.js';
-import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets, stopAllSubscribers } from './subscriber.js';
+import { startSubscribers, stopSubscriber, startSubscriber, getSubscriberStats, getSubscriberHealth, resetSubscriberStats, getRepairTargets, stopAllSubscribers, setDefaultSubscriberOptions } from './subscriber.js';
 import { JsonObjectStore } from './store.js';
 import { createEventsRouter } from './events-router.js';
 import { isLoopbackHostname, extractBearerToken, parseIntInRange } from './utils.js';
@@ -364,6 +364,10 @@ const {
 // ---------------------------------------------------------------------------
 // 1. Start HomeKit subscribers
 // ---------------------------------------------------------------------------
+
+// Every session re-discovers moved devices and notices ones gone from the
+// network, including sessions restarted by the repair scheduler.
+setDefaultSubscriberOptions({ discoverDevice: discoverDeviceForRepair, savePairing: savePairingForRepair });
 
 const pairings = loadPairings();
 const homeKitPairings = getHomeKitPairings(pairings);

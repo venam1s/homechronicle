@@ -155,7 +155,7 @@ export function createRepairScheduler({
               const updatedPairing = updatedPairings[target.deviceId] ?? null;
               if (updatedPairing) {
                 stopSubscriber(target.deviceId);
-                startSubscriber(target.deviceId, updatedPairing, loadRooms(), getPairingForLookup);
+                startSubscriber(target.deviceId, updatedPairing, loadRooms(), getPairingForLookup, { discoverDevice, savePairing });
               }
               repaired++;
               log.info(`[repair] ${target.pairingName}: repaired successfully`);
@@ -179,7 +179,7 @@ export function createRepairScheduler({
             } else {
               resetSubscriberStats(target.deviceId);
               stopSubscriber(target.deviceId);
-              startSubscriber(target.deviceId, pairing, loadRooms(), getPairingForLookup);
+              startSubscriber(target.deviceId, pairing, loadRooms(), getPairingForLookup, { discoverDevice, savePairing });
               repaired++;
               log.info(`[repair] ${target.pairingName}: reconnected`);
             }

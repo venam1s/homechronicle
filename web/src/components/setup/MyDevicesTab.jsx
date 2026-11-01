@@ -397,7 +397,7 @@ export default function MyDevicesTab({ setup }) {
                       );
                       if (ds?.unreachable) return (
                         <span
-                          title="Not announced on the network and not answering. HomeChronicle retries every 10 minutes; remove the pairing if the device is gone."
+                          title="Not announced on the network and not answering. HomeChronicle keeps retrying, less often, until it reappears. Remove the pairing if the device is gone."
                           className="text-xs bg-hc-warning-bg text-hc-warning-text border border-hc-warning-border px-2 py-0.5 rounded-full"
                         >
                           Not on network

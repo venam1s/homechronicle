@@ -175,7 +175,7 @@ describe('MyDevicesTab device status badge', () => {
       ],
     }));
     const badge = screen.getByText('Not on network');
-    expect(badge).toHaveAttribute('title', expect.stringMatching(/retries every 10 minutes/));
+    expect(badge).toHaveAttribute('title', expect.stringMatching(/keeps retrying, less often/));
     expect(screen.getAllByText('Logging')).toHaveLength(1);
     expect(screen.queryByText('Stale')).toBeNull();
   });
