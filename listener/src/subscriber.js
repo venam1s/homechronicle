@@ -226,6 +226,7 @@ export function startSubscriber(deviceId, pairing, rooms = {}, getPairing = null
     eventHandler: null,
     disconnectHandler: null,
     stats,
+    inconclusiveProbes: 0,
     discoverDevice: options.discoverDevice ?? defaultSubscriberOptions.discoverDevice ?? null,
     savePairing: options.savePairing ?? defaultSubscriberOptions.savePairing ?? null,
   };
@@ -353,7 +354,6 @@ function connectAccessory(session, pairing) {
       clearRepairRetry(session);
       stats.authFailed = false;
       stats.autoRepairAttempts = 0;
-      stats.needsRepair = false;
     }
     markReachable(session, accessoryName);
 
@@ -364,6 +364,7 @@ function connectAccessory(session, pairing) {
       // Nothing to subscribe to (e.g. a Homebridge main bridge whose devices are
       // paired as their own child bridges): healthy, just idle — not stale.
       stats.nothingToWatch = true;
+      stats.needsRepair = false; // connected and answering
       session.retryDelayMs = reconnectBaseMs; // connected: start the backoff over
       log.info(`[subscriber] ${accessoryName}: no watched characteristics found`);
       startLivenessProbe(session, client, pairing, accessoryName);
@@ -551,6 +552,7 @@ function connectAccessory(session, pairing) {
       stats.lastSubscribedAt = new Date().toISOString();
       stats.lastHealthyAt = stats.lastSubscribedAt;
       stats.subscribed = true; // M-01: enter the live state
+      stats.needsRepair = false; // subscribed: whatever needed repair is fixed
       startLivenessProbe(session, client, pairing, accessoryName);
       log.info(`[subscriber] ${accessoryName}: subscribed to ${watchedKeys.length} characteristic(s)`);
     } catch (err) {
@@ -645,10 +647,10 @@ function connectAccessory(session, pairing) {
 // disconnect path), while a refused extra connection (slot-limited devices) or
 // a transient pair-verify error is ambiguous — it just doesn't count as proof
 // of life, so the device shows as not connected after HUNG_SOCKET_THRESHOLD_MS
-// without losing its subscription. Refused/reset never escalates; other doubt
-// (e.g. a revoked pairing failing pair-verify) reconnects after
+// without losing its subscription. Only an authentication failure (a revoked
+// pairing failing pair-verify) escalates: it reconnects after
 // MAX_INCONCLUSIVE_PROBES in a row, and the connect's auth handling takes
-// over. A bridge with nothing subscribed has nothing to lose, so any failure
+// over. Everything else where the host answered keeps the subscription. A bridge with nothing subscribed has nothing to lose, so any failure
 // reconnects it.
 //
 // Limit: the probe runs on its own connection, so it proves the accessory is
@@ -756,35 +758,31 @@ async function probeLiveness(session, client, pairing, name, probeKey = session.
     stats.lastErrorAt = new Date().toISOString();
     const noAnswer = isConnectionError(err) && !hostAnswered(err);
     if (stats.subscribed && !noAnswer) {
-      // A refused/reset extra connection is what slot-limited devices do, and
-      // a dead HAP process closes the subscription socket by itself: never
-      // escalate on those. Other doubt (e.g. pair-verify failing because the
-      // pairing was revoked) escalates after a few probes in a row.
-      if (!hostAnswered(err)) session.inconclusiveProbes = (session.inconclusiveProbes ?? 0) + 1;
-      if ((session.inconclusiveProbes ?? 0) < MAX_INCONCLUSIVE_PROBES) {
+      // The host answered somehow. Only an authentication failure (a revoked
+      // pairing) counts toward escalation, in a row; anything else — busy,
+      // unavailable, refused or reset extra connection, broken pipe — is
+      // what a healthy slot-limited device can do, and never escalates.
+      session.inconclusiveProbes = isAuthError(err) ? session.inconclusiveProbes + 1 : 0;
+      if (session.inconclusiveProbes < MAX_INCONCLUSIVE_PROBES) {
         log.debug(`[subscriber] ${name}: liveness probe inconclusive (${err.message ?? err}) — keeping the subscription`);
         return PROBE.INCONCLUSIVE;
       }
-      log.warn(`[subscriber] ${name}: no proof of life for ${session.inconclusiveProbes} probes (${err.message ?? err}) — reconnecting`);
+      log.warn(`[subscriber] ${name}: pair-verify failed on ${session.inconclusiveProbes} probes in a row (${err.message ?? err}) — reconnecting`);
     } else {
       log.warn(`[subscriber] ${name}: not answering (${err.message ?? err}) — reconnecting`);
     }
-    session.inconclusiveProbes = 0;
     stats.subscribed = false;
     stats.nothingToWatch = false;
     releaseClient(session);
-    // Reconnect from the stored pairing (latest keys, PIN, address list), but
-    // on the address in use: the store can lag if a save failed. A scheduled
-    // reconnect re-reads the store again when it fires.
+    // The pairing in use, with the latest stored keys and PIN when present (a
+    // manual re-pair may have replaced them). Re-discovery starts from the
+    // address in use; a scheduled reconnect re-reads the stored pairing.
     const stored = session.getPairing?.(session.deviceId);
-    const latest = stored
-      ? {
-        ...stored,
-        address: pairing.address,
-        port: pairing.port,
-        addresses: rememberAddresses(stored.addresses, pairing.addresses ?? [], pairing.address),
-      }
-      : pairing;
+    const latest = {
+      ...pairing,
+      ...(stored?.longTermData ? { longTermData: stored.longTermData } : {}),
+      ...(stored?.pin ? { pin: stored.pin } : {}),
+    };
     if (isConnectionError(err) && session.discoverDevice) rediscoverAndReconnect(session, latest, err);
     else scheduleReconnect(session, latest);
     return PROBE.DEAD;
@@ -1056,6 +1054,12 @@ async function attemptAutoRepair(session, pairing) {
       session.repairRetryTimeout = setTimeout(() => {
         session.repairRetryTimeout = null;
         if (session.stopped) return;
+        if (isLive(session, stats)) {
+          // Recovered meanwhile (a connect succeeded during the re-pair).
+          stats.authFailed = false;
+          stats.autoRepairAttempts = 0;
+          return;
+        }
         attemptAutoRepair(session, pairing);
       }, 60_000);
     }

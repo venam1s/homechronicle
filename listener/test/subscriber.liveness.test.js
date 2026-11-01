@@ -329,6 +329,7 @@ test('inconclusive probes re-arm a full interval later, and three in a row recon
   session.client = client;
   session.stats.subscribed = true;
   session.stats.lastHealthyAt = HOURS_AGO(1); // stale: arming from it would give a 1 s timer
+  session.probeKey = '1.2'; // as found by the connect
 
   // The timer path: an inconclusive result must re-arm at the full interval.
   __testHooks.startLivenessProbe(session, client, { name: 'r' }, 'r', 0);
@@ -362,5 +363,29 @@ test('refused probes never escalate', async () => {
   }
   assert.equal(session.client, client, 'subscription kept through repeated refusals');
   assert.equal(session.inconclusiveProbes ?? 0, 0, 'refusals are not counted toward escalation');
+  __testHooks.resetState();
+});
+
+test('only authentication failures in a row escalate; other answers reset the count', async () => {
+  __testHooks.resetState();
+  __testHooks.setConnectAccessoryImpl(() => {});
+  const session = started('mixed');
+  const auth = Object.assign(new Error('M4: Error: 2'), { statusCode: 2 });
+  const busy = Object.assign(new Error('M2: Error: 7'), { statusCode: 7 });
+  const epipe = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' });
+  let next = auth;
+  const client = { async getCharacteristics() { throw next; }, off() {}, async close() {} };
+  session.client = client;
+  session.stats.subscribed = true;
+  session.stats.lastHealthyAt = HOURS_AGO(1);
+  const probe = () => __testHooks.probeLiveness(session, client, { name: 'm' }, 'm', '1.2');
+
+  for (const [err, count] of [[auth, 1], [auth, 2], [busy, 0], [auth, 1], [epipe, 0], [auth, 1], [auth, 2]]) {
+    next = err;
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal(await probe(), PROBE.INCONCLUSIVE, err.message);
+    assert.equal(session.inconclusiveProbes, count, `after ${err.message}`);
+  }
+  assert.equal(session.client, client, 'never torn down: no three auth failures in a row');
   __testHooks.resetState();
 });
