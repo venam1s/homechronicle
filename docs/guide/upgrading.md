@@ -1,6 +1,42 @@
 # Upgrading
 
-This page covers upgrading to **0.4**, then the general steps for any upgrade. The full list of changes in each release is in the [CHANGELOG](https://gitlab.com/havuq/homechronicle/-/blob/main/CHANGELOG.md).
+This page covers upgrading to **0.5.0** and **0.4**, then the general steps for any upgrade. The full list of changes in each release is in the [CHANGELOG](https://gitlab.com/havuq/homechronicle/-/blob/main/CHANGELOG.md).
+
+## Upgrading to 0.5.0
+
+0.5.0 adds threshold and goes-quiet alert rules, Timeline export, device categories, display names that apply everywhere, and a steadier HomeKit listener. No `.env` changes are required. Read the notes below before upgrading; most matter only if you rely on the behaviour they describe.
+
+### Database migrations
+
+The listener applies migrations 0009–0013 on first start. One of them adds an index to the archive table, so on an install with a large archive the first start takes longer than usual — watch the listener log for `[db] Schema ready.` before you worry. Take the usual database dump first (see [the general steps](#upgrading-between-versions) below).
+
+If you go back to 0.4.3 afterwards, it runs on the upgraded database, but threshold and goes-quiet rules don't fire, and display names apply only to events recorded before you went back.
+
+### More HomeKit events
+
+Nine HomeKit characteristic codes were wrong until now. Temperature, contact sensor, ambient light level, color temperature and low-battery events are logged for the first time, and smoke detected, window-covering position, heating/cooling state and active status are logged under their correct names. Expect more events than before and a faster-growing database; adjust `RETENTION_DAYS` if needed (see [Settings › Data management](settings.md#data-management)).
+
+### Event names
+
+New events from a single-service accessory are named after the accessory (`Front Door`) instead of `Front Door · ContactSensor`. Older events keep their old names, so **Top Devices** and the heatmap may list such a device twice until the old events age out. Anomaly baselines and accessory-scoped alert rules match both forms, so nothing needs re-creating.
+
+### Alert rules
+
+- Rules on `ContactSensorState`, `CurrentTemperature` or `StatusLowBattery` now fire for HomeKit accessories; they never could before.
+- Blinds no longer report as `ContactSensorState`, and smoke moves from `PM2_5Density` to `SmokeDetected`. A rule written against the old name needs its characteristic changed.
+- Battery percentage no longer counts as low battery.
+
+### Display names rewrite history
+
+Setting a display name under **Devices › Manage Accessories** now renames that device's past events too, so the Timeline, search, exports and alerts all use the new name. Clearing the name puts the original back. Rules and muted devices that referred to the old name follow it. See [Managing devices](devices.md#managing-devices).
+
+### Connection status means something different
+
+A device that sent nothing for 30 minutes used to be reported as not connected and shown as **Stale**. Now the listener checks a quiet device is alive by asking for its name, so quiet devices stay **Logging**, a device that stops answering is reconnected, and a device that has vanished from the network is shown as **Not on network** and retried every 10 minutes (`HAP_UNREACHABLE_RETRY_MS`). `GET /api/health` gains `idle` and `unreachable` counts. If you watch health externally, expect `connected` to be higher and `stale` lower than before. See [Connection status](devices.md#connection-status).
+
+### Optional new settings
+
+`EVENTS_EXPORT_RATE_LIMIT_MAX`, `EVENTS_MAX_EXPORT_ROWS`, `CATEGORIES_FILE` and `HAP_UNREACHABLE_RETRY_MS` — all have sensible defaults; see [Environment Variables](environment-variables.md).
 
 ## Upgrading to 0.4
 

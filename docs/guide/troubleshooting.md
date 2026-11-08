@@ -117,10 +117,10 @@ Avoid recreating the container with `docker compose up --force-recreate` unless 
 
 ### Events stop arriving
 
-1. Check device status in **Devices › Browse** — look for offline or stale devices and missed heartbeats
+1. Check the badge in **Devices › Manage Accessories** (see [Connection status](devices.md#connection-status)). **Not on network** means the device isn't announcing itself on mDNS and isn't answering — check it's powered on and on the same network as the listener; it is retried every 10 minutes and reconnects on its own. **Needs Repair** means the pairing keys were rejected — use **Repair**.
 2. Check listener logs: `docker compose logs -f listener`
-3. Look for reconnection messages — the subscriber auto-reconnects with backoff
-4. Verify the device is still powered on and reachable on the network
+3. Look for reconnection and `PROBE` messages — a quiet device is asked for its name every 10 minutes, and one that stops answering is reconnected automatically
+4. If the device is on a bridge with more than one address (Homebridge on two networks), the detail page's **Also announced at** shows the alternatives; the listener switches to one that works on its own
 5. Try restarting the listener: `docker compose restart listener`
 
 ### 502 Bad Gateway from the web UI

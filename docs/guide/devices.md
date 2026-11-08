@@ -23,7 +23,7 @@ Select a device to open its detail page.
 The detail page shows, where the device has the data:
 
 - **Category** — under the device name; see [Device categories](#device-categories)
-- **Device Info** — manufacturer, model, serial number, firmware and hardware revision, protocol and transport
+- **Device Info** — manufacturer, model, serial number, firmware and hardware revision, protocol and transport. For a HomeKit device, **Address** is the one HomeChronicle is using and **Also announced at** lists any other addresses the device advertises (for example a Homebridge container on two networks)
 - **Connection Reliability** — disconnects, reconnect attempts, subscribe failures, last connected/subscribed, last error
 - **Anomalies (last 24h)** — unusual activity compared with the device's baseline
 - **Activity Over Time** — event counts over a range you choose
@@ -145,13 +145,13 @@ If a bridge is unreachable (for example after its IP address changed), Devices s
 
 | Field / button | What it does |
 |----------------|--------------|
-| **Name** (pencil icon) | Set a display name in place of the name the device reports |
+| **Name** (pencil icon) | Set a display name in place of the name the device reports. It applies everywhere — Timeline, dashboard, alerts and exports, past events included — and clearing it restores the reported name. Homebridge child accessories can be named too (expand the bridge) |
 | **Room** | Assign a room — HomeKit and Matter don't share room names with homechronicle, so you set them here |
 | **Note** | Free-text note shown on the device detail page (PIN, firmware, location, …) |
 | **Bell** | Choose whether this device triggers [live event toasts](settings.md#toast) |
 | **Repair** (wrench icon) | Re-pair a HomeKit device whose pairing has broken |
 
-Each HomeKit device shows a status badge — **Logging**, **Stale**, or **Needs Repair**. **Repair All** at the top repairs every HomeKit device in one go; any it skips are listed so you can repair them one at a time. Changes to names, rooms and notes save as you type, and a reminder at the top says how many devices still have no room.
+Each HomeKit device shows a status badge — **Logging**, **Stale**, **Not on network**, or **Needs Repair** (see [Connection status](#connection-status)). **Repair All** at the top repairs every HomeKit device in one go; any it skips are listed so you can repair them one at a time. Changes to names, rooms and notes save as you type, and a reminder at the top says how many devices still have no room.
 
 ### Room assignment
 
@@ -306,12 +306,32 @@ Once paired, the listener keeps a persistent connection to every HomeKit accesso
 4. Checks your [alert rules](alerts.md)
 5. Updates the value cache
 
+### Connection status
+
+A device counts as **connected** while its subscription socket is open and it has shown a sign of life in the last 30 minutes — an event, a successful request, or an answer to a liveness check. A quiet device is not assumed dead: 10 minutes after its last sign of life the listener asks it for its own name, and any answer keeps it connected. A device that stops answering (for example a frozen Homebridge process) is dropped and reconnected.
+
+A bridge with nothing to watch, such as a Homebridge main bridge whose accessories are paired separately, counts as connected and **idle**, and the nightly repair leaves it alone.
+
+In **Devices › Manage Accessories**:
+
+| Badge | Meaning |
+|-------|---------|
+| **Logging** | Connected and subscribed |
+| **Stale** | Not connected for more than 10 minutes; the listener is retrying |
+| **Not on network** | Five connection attempts in a row failed while discovery can't find the device on the network at all. It is retried every 10 minutes (`HAP_UNREACHABLE_RETRY_MS`) and comes back on its own when it reappears; remove the pairing if the device is gone for good |
+| **Needs Repair** | The device rejected the stored pairing keys; use **Repair** |
+
+`GET /api/health` reports the same states as counts — see the [API reference](api-reference.md#get-apihealth).
+
 ### Reconnection
 
 If a device becomes unreachable, the listener reconnects with exponential back-off:
 
 - Initial delay: 5 seconds (`RECONNECT_BASE_MS`)
 - Maximum delay: 60 seconds (`RECONNECT_MAX_MS`)
+- After five failures while the device isn't announced on the network: every 10 minutes (`HAP_UNREACHABLE_RETRY_MS`), with one log line when it disappears and one when it is back
+
+A bridge that announces several addresses (for example a Homebridge container on both a Docker bridge network and a macvlan) has every address stored. Pairing, reconnecting and re-pairing try the others when one can't be reached, and a restarting device keeps the address that worked last.
 
 Every HomeKit request has a timeout (`HAP_REQUEST_TIMEOUT_MS`, default 30 seconds; pairing uses `HAP_PAIR_TIMEOUT_MS`, default 60 seconds), so a device that accepts a connection but never answers is dropped and reconnected rather than left hanging.
 

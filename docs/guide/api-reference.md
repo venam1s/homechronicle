@@ -76,10 +76,12 @@ Public. Returns `200` when healthy, `503` when not.
   "db": "ok",
   "subscribers": {
     "total": 12,
-    "connected": 12,
+    "connected": 11,
+    "idle": 1,
     "stale": 0,
+    "unreachable": 1,
     "needsRepair": 0,
-    "lastConnectedAt": "2026-10-11T08:00:00.000Z"
+    "lastConnectedAt": "2026-11-08T08:00:00.000Z"
   },
   "paired": 12,
   "matter": {
@@ -94,7 +96,7 @@ Public. Returns `200` when healthy, `503` when not.
 |-------|-------------|
 | `status` | `ok` or `unhealthy` |
 | `db` | `ok` or `unreachable` |
-| `subscribers` | HomeKit subscription counts. `stale` counts subscriptions with no successful subscribe in the last 10 minutes |
+| `subscribers` | HomeKit subscription counts. `connected` devices have an open subscription and a sign of life in the last 30 minutes (quiet devices are asked for their name after 10 minutes). `idle` is the subset of connected devices with nothing to watch. `stale` counts devices not connected for more than 10 minutes. `unreachable` counts devices that failed five times in a row while absent from the network and are retried every `HAP_UNREACHABLE_RETRY_MS`. See [Connection status](devices.md#connection-status) |
 | `paired` | Number of entries in `pairings.json` (HomeKit and Matter) |
 | `matter` | Matter runtime summary, or `null` when the Matter runtime is not running |
 
@@ -829,7 +831,7 @@ Get all room assignments as `{ accessoryId: roomName }`.
 
 ### `PATCH /api/setup/display-name`
 
-Set or clear a custom display name for an accessory. Display names override the HAP-reported name in the UI.
+Set or clear a custom display name for an accessory. The name replaces the reported name everywhere — Timeline, dashboard, alerts, exports — and past events are renamed too (in the background; the request waits up to 10 seconds for it). Accessory-scoped alert rules and muted devices follow the new name. Clearing the name restores the reported name on past events as well.
 
 **Body:**
 ```json
