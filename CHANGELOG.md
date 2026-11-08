@@ -2,6 +2,59 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.5.0] — 2026-11-08
+
+Threshold and goes-quiet alerts, Timeline export, device categories, display names that apply everywhere, and a steadier HomeKit listener: bridges with several addresses, quiet devices that stay connected, and fewer retries for devices that have left the network.
+
+### Upgrade notes
+- **Database migrations:** the listener applies migrations 0009–0013 on first start. One of them adds an index to the archive table, so the first start can take longer on an install with a large archive. v0.4.3 still runs on the upgraded database if you need to go back, but threshold and goes-quiet rules don't fire on it, and display names apply only to events recorded before you went back.
+- **More HomeKit events:** temperature, contact sensor, ambient light level, color temperature and low-battery events were never recorded until now (see Fixed), so installs log more events than before and the database grows faster.
+- **Event names:** new events from single-service accessories are named `Front Door` instead of `Front Door · ContactSensor`. Older events keep their old names, so Top Devices and the heatmap may list a device twice until those events age out. Anomaly baselines and accessory alert rules match both forms.
+- **Alert rules:** rules on ContactSensorState, CurrentTemperature or StatusLowBattery now fire for HomeKit accessories. Blinds no longer report as ContactSensorState, smoke moves from PM2_5Density to SmokeDetected, and battery percentage no longer counts as low battery.
+- **Display names:** setting one rewrites the stored name of that device's past events, so search and exports use the new name. Clearing it puts the original back.
+- **Connection status:** a device that has sent nothing for 30 minutes used to be reported as not connected and shown as Stale. It now stays connected as long as it answers a liveness check (see Changed), so the health endpoint and Devices page report fewer stale devices.
+- **New optional settings:** `EVENTS_EXPORT_RATE_LIMIT_MAX` (default 10 exports per rate-limit window), `EVENTS_MAX_EXPORT_ROWS` (default 500000), `CATEGORIES_FILE` (default `/app/data/categories.json`) and `HAP_UNREACHABLE_RETRY_MS` (default 600000, 10 minutes).
+
+### Added
+- **Threshold alerts:** alert rules can fire when a reading rises above or drops below a value, once each time it crosses the threshold.
+- **Goes-quiet alerts:** a rule can fire when a device sends no matching event for a set number of hours. It sends once per quiet stretch, and time the listener was down does not count.
+- **Timeline export:** download the events matching the Timeline's filters as CSV or JSON, oldest first, up to 500,000 rows. The export includes muted devices.
+- **Device categories:** every device gets a category (lighting, climate, security, doors & locks and so on) worked out from what it reports. You can override it on the device page, and a new optional dashboard panel shows events per category with the trend against the previous period.
+- **Display names everywhere:** a name set under Devices › Manage Accessories now replaces the name the device reports across the Timeline, dashboard, alerts and exports, past events included. Homebridge child accessories get a name field too. Accessory alert rules and muted devices follow the new name. Clearing the name restores the original.
+- **Device page:** shows the address HomeChronicle uses for a HomeKit device and any other addresses it announces, and a **Not on network** badge for a device that has disappeared from the network.
+- **Settings › Toast:** a button to preview where toasts appear.
+
+### Changed
+- **Quiet devices count as connected.** Ten minutes after the last sign of life, HomeChronicle asks the device for its own name. An answer keeps it connected; a device that stops answering (for example a frozen Homebridge process) is shown as not connected and reconnected.
+- **A bridge with nothing to watch** (such as a Homebridge main bridge whose devices are paired separately) counts as connected and idle, and the nightly repair no longer reconnects it.
+- **Devices gone from the network are retried less often.** After 5 failed attempts while a device isn't announced on the network at all, it is retried every 10 minutes (`HAP_UNREACHABLE_RETRY_MS`) instead of every minute, with one log line when it disappears and one when it is back.
+
+### Fixed
+- **HomeKit bridges with more than one address:** a bridge that announces several addresses, such as a Homebridge container on both a Docker bridge network and a macvlan, kept only the first one, which the listener's host may not be able to reach. HomeChronicle now remembers every announced address. Pairing, reconnecting and re-pairing try the others when one can't be reached, a restarting device keeps its working address, and timed-out attempts no longer leave connections open.
+- **HomeKit pairing (#1):** the pair-setup method now comes from the accessory's advertised feature flags, with one retry using the other method. This should fix `M4: Empty TLV` on HomeKit-native devices such as Kasa plugs.
+- **HomeKit events (#2):** nine characteristic codes in the watch list were wrong. Temperature, contact sensor, ambient light level, color temperature and low-battery events are now logged, and smoke detected, window-covering position, heating/cooling state and active status are logged under their correct names.
+- **Automatic re-pair** saved the new keys but never reconnected, so the device stayed unsubscribed until the listener restarted.
+- Devices restarted by the nightly repair lost the ability to re-discover a moved device or switch to another announced address.
+- A connection that disappeared without closing (a device unplugged mid-session) could look open for up to two hours; it is now noticed within minutes.
+- The listener no longer stops when a network error interrupts HomeKit discovery, and the discovery CLI scripts report the error instead of crashing.
+- Theme, palette and other preferences no longer overwrite each other between open tabs and devices, and failed saves are retried.
+- Clicking into a saved room, note or name and back out without typing no longer clears it.
+- The archive CSV export opens correctly in Excel with accented device names, and negative numbers stay numeric.
+- The archive download no longer gets cancelled or saved empty in Firefox-based browsers.
+- Today's Rhythm, the House Summary and the Timeline quiet-hours divider no longer show the 11 PM–6 AM default while the real quiet hours are loading.
+- The Settings sub-tabs fit on a phone, and the Stale Devices and Quiet Hours panels no longer share colors with the panels next to them.
+
+### Security
+- Updated body-parser (via Express) to fix a denial of service: a malformed compressed request body could tie up the listener, without signing in.
+- Updated proxy-addr to fix client IP spoofing when `TRUST_PROXY` is set to a subnet. The default hop-count setting was not affected.
+- Updated nodemailer to 10.2.1 for its address-parsing fixes.
+
+### Docs
+- New **macOS Installation** guide (native listener, PostgreSQL and web UI in Docker), a guide to routing native HomeKit devices through Homebridge so Home and HomeChronicle can both see them, and troubleshooting for discovery stopping with `EHOSTUNREACH`. Account screenshots are legible and every screenshot opens full size on click.
+
+### Internal
+- `npm run check:hap-addresses` runs the multi-address pairing and reconnect paths against a real HAP accessory; the reconnect tests poll instead of sleeping. Anomaly rows are bucketed before the name mapping. The beta stack syncs production data into its own schema. A commit hook strips AI attribution trailers.
+
 ## [0.4.3] — 2026-10-13
 
 ### Fixed

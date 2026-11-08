@@ -10,6 +10,20 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.5.0',
+    title: 'Threshold and goes-quiet alerts, Timeline export, device categories, and a steadier HomeKit listener',
+    items: [
+      'Alert rules can now fire when a reading rises above or drops below a value, or when a device goes quiet for a set number of hours.',
+      'Export the events matching the Timeline\'s filters as CSV or JSON, up to 500,000 rows.',
+      'Every device gets a category (lighting, climate, security and so on), which you can override on the device page. A new optional dashboard panel shows events per category.',
+      'A display name set under Devices \u203a Manage Accessories now applies everywhere, past events included, and Homebridge child accessories can be named too. Clearing the name restores the original.',
+      'HomeKit: bridges that announce several addresses (for example Homebridge on two networks) now connect on one that works; pairing follows the accessory\'s advertised method, which should fix "M4: Empty TLV" on devices such as Kasa plugs; and temperature, contact, light level, color temperature and low-battery events are logged for the first time, so expect more events than before.',
+      'Quiet devices stay connected: HomeChronicle checks a device is alive instead of marking it Stale after 30 quiet minutes, reconnects devices that stop answering, retries devices that have left the network every 10 minutes instead of every minute, and reconnects after an automatic re-pair.',
+      'Preferences no longer overwrite each other between tabs and devices, the archive CSV opens correctly in Excel and Firefox, the Settings sub-tabs fit a phone, and quiet hours are no longer shown as the default while loading.',
+      'Security: dependency updates fix a denial of service in request parsing and client IP spoofing behind a subnet TRUST_PROXY.',
+    ],
+  },
+  {
     version: 'v0.4.3',
     title: 'Today\'s Rhythm shows quiet hours correctly',
     items: [
