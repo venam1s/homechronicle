@@ -1,5 +1,6 @@
 import { resolveAndValidateWebhookTarget } from './security.js';
 import { sendAlertEmail, isEmailEnabled } from './emails.js';
+import { isTemperatureCharacteristic, formatTemperature, normalizeTemperatureUnit } from './temperature.js';
 import { log } from './logger.js';
 
 // Webhook timeout precedence: ALERTS_WEBHOOK_TIMEOUT_MS when it is set (it
@@ -174,14 +175,47 @@ function buildPayload(rule, event, firedAt) {
   };
 }
 
-function buildAlertBody(rule, event) {
+/**
+ * A reading as a person should see it: temperatures (stored in °C) in the
+ * given unit, everything else as the raw stored text.
+ */
+function displayValue(characteristic, value, temperatureUnit) {
+  if (isTemperatureCharacteristic(characteristic)) {
+    const formatted = formatTemperature(value, temperatureUnit);
+    if (formatted !== null) return formatted;
+  }
+  return String(value);
+}
+
+/**
+ * The rule owner's temperature unit for an email. Legacy rules (no user_id)
+ * and any lookup failure or garbage preference resolve to °C. `cache` is a
+ * per-event Map so several rules of one owner cost one query.
+ */
+async function temperatureUnitForRule(pool, rule, cache) {
+  if (rule.user_id == null) return 'c';
+  if (cache.has(rule.user_id)) return cache.get(rule.user_id);
+  let unit = 'c';
+  try {
+    const result = await pool.query('SELECT prefs FROM user_preferences WHERE user_id = $1', [rule.user_id]);
+    unit = normalizeTemperatureUnit(result.rows[0]?.prefs?.temperatureUnit);
+  } catch (err) {
+    log.warn(`[alerts] rule ${rule.id}: could not read the owner's temperature unit, using °C:`, err.message);
+  }
+  cache.set(rule.user_id, unit);
+  return unit;
+}
+
+function buildAlertBody(rule, event, { temperatureUnit = 'c' } = {}) {
   const ts = new Date().toISOString();
+  const oldShown = event.oldValue == null ? '(none)' : displayValue(event.characteristic, event.oldValue, temperatureUnit);
+  const newShown = event.newValue == null ? '' : displayValue(event.characteristic, event.newValue, temperatureUnit);
   const lines = [
     `Rule:           ${rule.name}`,
     `Accessory:      ${event.accessoryName ?? ''} (${event.accessoryId ?? ''})`,
     `Room:           ${event.roomName ?? '(no room)'}`,
     `Characteristic: ${event.characteristic ?? ''}`,
-    `Change:         ${event.oldValue ?? '(none)'} → ${event.newValue ?? ''}`,
+    `Change:         ${oldShown} → ${newShown}`,
     `Time:           ${event.timestamp ?? ts}`,
   ];
   return lines.join('\n');
@@ -261,18 +295,18 @@ async function sendWebhook(rule, event, payloadOverride = null) {
   }
 }
 
-async function sendEmailAlertForRule(rule, event, emailFrom) {
+async function sendEmailAlertForRule(rule, event, emailFrom, { temperatureUnit = 'c' } = {}) {
   if (!isEmailEnabled()) {
     return { status: 'failed', error: 'Email not configured' };
   }
   try {
     const accessoryName = String(event.accessoryName ?? event.accessoryId ?? 'Unknown');
     const characteristic = String(event.characteristic ?? '');
-    const newValue = String(event.newValue ?? '');
+    const newValue = event.newValue == null ? '' : displayValue(event.characteristic, event.newValue, temperatureUnit);
     const subject = (accessoryName && characteristic && newValue)
       ? `[HomeChronicle] ${accessoryName} ${characteristic} = ${newValue}`.slice(0, 200)
       : `[HomeChronicle] ${String(rule.name ?? 'Alert').slice(0, 180)}`;
-    const body = buildAlertBody(rule, event);
+    const body = buildAlertBody(rule, event, { temperatureUnit });
     await sendAlertEmail(rule.target_email, subject, body, { from: emailFrom });
     return { status: 'sent' };
   } catch (err) {
@@ -386,7 +420,8 @@ export async function processAlertsForEvent(pool, event, emailFrom) {
     `SELECT r.id AS id, r.name AS name, r.enabled AS enabled, r.scope_type AS scope_type,
             r.scope_value AS scope_value, r.characteristic AS characteristic,
             r.operator AS operator, r.match_value AS match_value, r.target_url AS target_url,
-            r.target_email AS target_email, r.channel AS channel, r.quiet_minutes AS quiet_minutes
+            r.target_email AS target_email, r.channel AS channel, r.quiet_minutes AS quiet_minutes,
+            r.user_id AS user_id
      FROM alert_rules r
      LEFT JOIN users u ON u.id = r.user_id
      WHERE r.enabled = TRUE AND (r.user_id IS NULL OR u.disabled_at IS NULL)
@@ -397,6 +432,8 @@ export async function processAlertsForEvent(pool, event, emailFrom) {
   // Quiet rules never fire on an event; an event in their scope just resets
   // their silence clock.
   const eventAtMs = Date.now();
+  // Owner id -> temperature unit, filled lazily for email rules on temperature events.
+  const unitCache = new Map();
   for (const rule of rulesResult.rows) {
     if (normalizeLower(rule.operator) !== QUIET_OPERATOR) continue;
     if (eventMatchesScope(rule, event) && eventMatchesCharacteristic(rule, event)) {
@@ -487,8 +524,11 @@ export async function processAlertsForEvent(pool, event, emailFrom) {
       }
       inFlight += 1;
       try {
+        const temperatureUnit = rule.channel === 'email' && isTemperatureCharacteristic(event.characteristic)
+          ? await temperatureUnitForRule(pool, rule, unitCache)
+          : 'c';
         const delivery = rule.channel === 'email'
-          ? await sendEmailAlertForRule(rule, event, emailFrom)
+          ? await sendEmailAlertForRule(rule, event, emailFrom, { temperatureUnit })
           : await sendWebhook(rule, event);
         await createDelivery(pool, {
           ruleId: rule.id,
