@@ -162,9 +162,10 @@ export default function Alerts() {
       ...form,
       quietMinutes: Number.parseInt(String(form.quietMinutes ?? 0), 10) || 0,
     };
-    // A temperature threshold was typed in the user's unit; store °C (two decimals
-    // so a whole °F value round-trips: 75 °F → 23.89 °C → 75.0 °F).
-    if (isTemperatureThreshold) {
+    // A temperature threshold typed in °F is stored as °C with two decimals, so a
+    // whole °F value round-trips (75 °F → 23.89 °C → 75 °F). A Celsius user's
+    // value is sent exactly as typed — no rounding of an untouched threshold.
+    if (isTemperatureThreshold && unit === 'f') {
       const typed = parseFloat(form.matchValue);
       if (Number.isFinite(typed)) payload.matchValue = String(roundTo(unitToCelsius(typed, unit), 2));
     }
@@ -198,9 +199,11 @@ export default function Alerts() {
       scopeValue: rule.scopeValue ?? '',
       characteristic: rule.characteristic ?? '',
       operator: rule.operator,
-      // Stored °C; show a temperature threshold in the user's unit.
-      matchValue: isTemperatureRule(rule) && Number.isFinite(parseFloat(rule.matchValue))
-        ? String(roundTo(celsiusToUnit(parseFloat(rule.matchValue), unit), 1))
+      // Stored °C. A Fahrenheit user sees it converted with two decimals (0.01 °F
+      // is finer than the 0.01 °C the save path keeps, so an untouched value
+      // round-trips); a Celsius user sees the stored text exactly.
+      matchValue: isTemperatureRule(rule) && unit === 'f' && Number.isFinite(parseFloat(rule.matchValue))
+        ? String(roundTo(celsiusToUnit(parseFloat(rule.matchValue), unit), 2))
         : rule.matchValue,
       channel: rule.channel ?? 'webhook',
       // targetUrl is redacted from the rules list response; leave blank and let

@@ -290,8 +290,10 @@ test('GET /stats/sensor-environment — disambiguates Matter cluster_id and scal
 test('GET /stats/sensor-environment — normalised Matter rows are not scaled', async () => {
   // Since the Matter normalisation (0.4.0) new rows are stored under the HomeKit
   // names already in real units; only legacy MeasuredValue rows are centi-units.
+  const sqlSeen = [];
   const pool = {
-    async query() {
+    async query(sql) {
+      sqlSeen.push(sql);
       return {
         rows: [
           {
@@ -329,6 +331,10 @@ test('GET /stats/sensor-environment — normalised Matter rows are not scaled', 
   assert.equal(normalised.temperature, 23.5, 'normalised Matter temp unscaled');
   assert.equal(normalised.humidity, 45, 'normalised Matter humidity unscaled');
   assert.equal(legacy.temperature, 21.5, 'legacy MeasuredValue row still scaled /100');
+  // The JS branches on row.characteristic, so the OUTER select must carry it —
+  // a fake pool returns the column regardless, so check the SQL shape too.
+  const outerSelect = sqlSeen[0].split('FROM (')[0];
+  assert.match(outerSelect, /DISTINCT ON \(accessory_id, metric\)[\s\S]*\bcharacteristic\b/, 'outer SELECT must include characteristic');
 });
 
 // -- GET /stats/battery-levels --

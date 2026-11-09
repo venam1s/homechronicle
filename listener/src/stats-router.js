@@ -430,17 +430,18 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
 
   // -- Tier 2 optional dashboard panels (read-only) --
 
-  // Latest temperature/humidity per accessory. Matter reports a generic
-  // characteristic ('MeasuredValue'), so the metric is disambiguated by
-  // cluster_id (1026 = temperature, 1029 = relative humidity); Matter values
-  // are centi-units (÷100). HomeKit reports CurrentTemperature /
-  // CurrentRelativeHumidity in real units (no scaling).
+  // Latest temperature/humidity per accessory. Legacy Matter rows report a
+  // generic characteristic ('MeasuredValue') in centi-units, so the metric is
+  // disambiguated by cluster_id (1026 = temperature, 1029 = relative humidity)
+  // and the value is ÷100. Rows written since the Matter normalisation (0.4.0)
+  // and all HomeKit rows carry CurrentTemperature / CurrentRelativeHumidity in
+  // real units (no scaling) — the JS below branches on `characteristic`.
   router.get('/stats/sensor-environment', statsReadLimiter, async (_req, res) => {
     try {
       const out = await cached('stats:sensor-environment', async () => {
         const result = await pool.query(`
           SELECT DISTINCT ON (accessory_id, metric)
-            accessory_id, accessory_name, room_name, protocol, new_value, timestamp, metric
+            accessory_id, accessory_name, room_name, protocol, characteristic, new_value, timestamp, metric
           FROM (
             SELECT id, accessory_id, accessory_name, room_name, protocol, characteristic, new_value, timestamp,
               CASE

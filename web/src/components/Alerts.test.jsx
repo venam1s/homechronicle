@@ -471,6 +471,32 @@ describe('Alerts temperature unit', () => {
     expect(lastPatchBody().matchValue).toBe('23.89');
   });
 
+  it('a Celsius user editing a rule saves the stored threshold unchanged', async () => {
+    unitState.unit = 'c';
+    unitState.symbol = '°C';
+    rulesState.rules = [{ ...tempRule, matchValue: '0.25' }];
+    renderAlerts();
+    fireEvent.click(screen.getByRole('button', { name: 'Office warm' }));
+    expect(screen.getByLabelText('Threshold (°C)').value).toBe('0.25');
+    fireEvent.click(screen.getByRole('button', { name: /update rule/i }));
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('/api/alerts/rules/9', expect.objectContaining({ method: 'PATCH' }));
+    });
+    expect(lastPatchBody().matchValue).toBe('0.25');
+  });
+
+  it('a Fahrenheit user editing an odd Celsius threshold saves it back within 0.01 °C', async () => {
+    rulesState.rules = [{ ...tempRule, matchValue: '23.57' }];
+    renderAlerts();
+    fireEvent.click(screen.getByRole('button', { name: 'Office warm' }));
+    expect(screen.getByLabelText('Threshold (°F)').value).toBe('74.43');
+    fireEvent.click(screen.getByRole('button', { name: /update rule/i }));
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('/api/alerts/rules/9', expect.objectContaining({ method: 'PATCH' }));
+    });
+    expect(lastPatchBody().matchValue).toBe('23.57');
+  });
+
   it("lists temperature thresholds in the user's unit", () => {
     const { unmount } = renderAlerts();
     expect(screen.getByText('rises above 75.0 °F')).toBeInTheDocument();
