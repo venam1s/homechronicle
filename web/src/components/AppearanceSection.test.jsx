@@ -15,6 +15,12 @@ vi.mock('../hooks/usePalette.js', () => ({
   usePalette: () => ({ ...paletteState, setPalette }),
 }));
 
+const setUnit = vi.fn();
+const unitState = { unit: 'c', symbol: '°C' };
+vi.mock('../hooks/useTemperatureUnit.js', () => ({
+  useTemperatureUnit: () => ({ ...unitState, setUnit }),
+}));
+
 const { default: AppearanceSection } = await import('./AppearanceSection.jsx');
 const { PALETTE_IDS, PALETTES } = await import('../lib/palettes.js');
 
@@ -108,5 +114,41 @@ describe('AppearanceSection', () => {
         ).toBe(true);
       }
     }
+  });
+});
+
+describe('AppearanceSection units', () => {
+  beforeEach(() => {
+    setUnit.mockClear();
+    unitState.unit = 'c';
+    unitState.symbol = '°C';
+  });
+
+  it('offers Celsius and Fahrenheit', () => {
+    render(<AppearanceSection />);
+    const group = screen.getByRole('radiogroup', { name: 'Temperature unit' });
+    const options = within(group).getAllByRole('radio');
+    expect(options.map((o) => o.textContent)).toEqual(['Celsius (°C)', 'Fahrenheit (°F)']);
+  });
+
+  it('marks the stored unit as checked', () => {
+    unitState.unit = 'f';
+    unitState.symbol = '°F';
+    render(<AppearanceSection />);
+    const group = screen.getByRole('radiogroup', { name: 'Temperature unit' });
+    expect(within(group).getByRole('radio', { name: 'Fahrenheit (°F)' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'Celsius (°C)' })).not.toBeChecked();
+  });
+
+  it('sets the unit on click', async () => {
+    const user = userEvent.setup();
+    render(<AppearanceSection />);
+    await user.click(screen.getByRole('radio', { name: 'Fahrenheit (°F)' }));
+    expect(setUnit).toHaveBeenCalledWith('f');
+  });
+
+  it('explains where the unit applies', () => {
+    render(<AppearanceSection />);
+    expect(screen.getByText(/Readings are stored in °C/)).toBeInTheDocument();
   });
 });

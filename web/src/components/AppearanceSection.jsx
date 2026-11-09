@@ -1,8 +1,9 @@
-import { Sun, Moon, SunMoon, Check } from 'lucide-react';
+import { Sun, Moon, SunMoon, Check, Thermometer } from 'lucide-react';
 import clsx from 'clsx';
 import Card from './Card.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { usePalette } from '../hooks/usePalette.js';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
 import { PALETTE_IDS, PALETTES, rampFor } from '../lib/palettes.js';
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2';
@@ -11,6 +12,11 @@ const THEME_OPTIONS = [
   { id: 'light', label: 'Light', icon: Sun, hint: 'Always the light palette.' },
   { id: 'dark', label: 'Dark', icon: Moon, hint: 'Always the dark palette.' },
   { id: 'system', label: 'System', icon: SunMoon, hint: "Follows this device's appearance and switches with it." },
+];
+
+const UNIT_OPTIONS = [
+  { id: 'c', label: 'Celsius (°C)' },
+  { id: 'f', label: 'Fahrenheit (°F)' },
 ];
 
 /**
@@ -49,6 +55,7 @@ function SwatchRow({ paletteId, mode }) {
 export default function AppearanceSection() {
   const { preference, resolvedTheme, setPreference } = useTheme();
   const { palette, setPalette } = usePalette();
+  const { unit, setUnit } = useTemperatureUnit();
 
   const activeTheme = THEME_OPTIONS.find((o) => o.id === preference) ?? THEME_OPTIONS[2];
 
@@ -91,6 +98,45 @@ export default function AppearanceSection() {
             {preference === 'system' && (
               <> Currently showing the <strong className="font-semibold">{resolvedTheme}</strong> palette.</>
             )}
+          </p>
+        </Card.Body>
+      </Card>
+
+      <Card>
+        <Card.Header title="Units" headingLevel={2} />
+        <Card.Body>
+          <div
+            role="radiogroup"
+            aria-label="Temperature unit"
+            className="inline-flex gap-1 p-1 rounded-lg bg-hc-panel-mid"
+          >
+            {UNIT_OPTIONS.map(({ id, label }) => {
+              const selected = unit === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setUnit(id)}
+                  className={clsx(
+                    'flex items-center gap-2 px-4 py-2 rounded-md text-hc-label font-semibold transition-colors',
+                    FOCUS_RING,
+                    selected
+                      ? 'bg-hc-panel text-hc-fg-strong border border-hc-panel-border'
+                      : 'text-hc-muted hover:text-hc-fg',
+                  )}
+                >
+                  <Thermometer size={16} aria-hidden="true" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-3 text-hc-caption text-hc-muted">
+            Applies everywhere you read or type a temperature, including alert rules, alert emails
+            and exports. Readings are stored in °C.
           </p>
         </Card.Body>
       </Card>

@@ -7,7 +7,7 @@ Open **Settings** from the top navigation bar (or the floating navigation button
 | **About** | Always | Version, update status, changelog, help links |
 | **Admin** | Login enabled, admins only | Users, Pending invites, Email (SMTP) |
 | **Configuration** | Always (opens by default) | Device Management, Data management, Toast, and Advanced tabs |
-| **Appearance** | Always | Theme and palette |
+| **Appearance** | Always | Theme, palette and temperature unit |
 | **Account** | Login enabled | Change password, Active Sessions |
 
 All settings save automatically unless noted otherwise.
@@ -143,7 +143,7 @@ A collapsible section for destructive actions. Each one asks for confirmation.
 
 ## Appearance
 
-Theme (Light / Dark / System) and palette. See [Appearance](appearance.md).
+Theme (Light / Dark / System), palette and temperature unit (°C / °F). See [Appearance](appearance.md).
 
 ## Account (login enabled)
 
@@ -159,7 +159,7 @@ Lists your signed-in sessions with the browser/device and IP address recorded at
 
 When you're signed in, these are saved to your account and follow you to any browser or device:
 
-- Theme and palette
+- Theme, palette and temperature unit
 - Dashboard layout, panel sizes, hidden panels, date ranges and the Sync toggle
 - Muted devices on the Timeline
 - Toast settings
