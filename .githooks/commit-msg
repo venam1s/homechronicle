@@ -1,9 +1,10 @@
 #!/bin/sh
 # Strip AI attribution from commit messages. This repo never carries
-# Co-Authored-By trailers or "Generated with Claude Code" lines (CLAUDE.md),
-# whoever or whatever writes the message. Enable per clone with:
+# Co-Authored-By trailers, Claude-Session trailers (they link a claude.ai
+# session) or "Generated with Claude Code" lines (CLAUDE.md), whoever or
+# whatever writes the message. Enable per clone with:
 #   git config core.hooksPath .githooks
 msg_file="$1"
 tmp_file="$msg_file.strip.$$"
-grep -viE '^[[:space:]]*(co-authored-by:|.*generated with \[?claude code)' "$msg_file" > "$tmp_file" || true
+grep -viE '^[[:space:]]*(co-authored-by:|claude-session:|.*generated with \[?claude code)' "$msg_file" > "$tmp_file" || true
 mv "$tmp_file" "$msg_file"
