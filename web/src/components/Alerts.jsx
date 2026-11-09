@@ -7,6 +7,10 @@ import { fetchJson } from '../lib/api.js';
 import Card from './Card.jsx';
 import { useAlertRules, useAlertDeliveries } from '../hooks/useAlerts.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
+import {
+  isTemperatureCharacteristic, celsiusToUnit, unitToCelsius, roundTo, formatTemperature,
+} from '../lib/temperature.js';
 
 const EMPTY_FORM = {
   name: '',
@@ -32,12 +36,32 @@ const OPERATOR_LABELS = {
   below: 'drops below',
 };
 
-function describeCondition(rule) {
-  if (rule.operator === 'silent_for') return `quiet for ${rule.matchValue} h`;
-  return `${OPERATOR_LABELS[rule.operator] ?? rule.operator} ${rule.matchValue}`;
+const THRESHOLD_OPERATORS = new Set(['above', 'below']);
+
+/**
+ * The characteristic a rule is judged on: the filter box, or the scope value
+ * when the rule is scoped by characteristic with the filter left blank (the
+ * listener accepts threshold rules in either shape). Works for the form state
+ * and for API rule objects — both use scopeType / scopeValue / characteristic.
+ */
+function ruleTemperatureCharacteristic(rule) {
+  return rule.characteristic || (rule.scopeType === 'characteristic' ? rule.scopeValue : '') || '';
 }
 
-const THRESHOLD_OPERATORS = new Set(['above', 'below']);
+/** A rises-above / drops-below rule on a temperature: typed and shown in the user's unit. */
+function isTemperatureRule(rule) {
+  return THRESHOLD_OPERATORS.has(rule.operator) && isTemperatureCharacteristic(ruleTemperatureCharacteristic(rule));
+}
+
+function describeCondition(rule, unit = 'c') {
+  if (rule.operator === 'silent_for') return `quiet for ${rule.matchValue} h`;
+  const label = OPERATOR_LABELS[rule.operator] ?? rule.operator;
+  if (isTemperatureRule(rule)) {
+    const formatted = formatTemperature(rule.matchValue, unit);
+    if (formatted !== null) return `${label} ${formatted}`;
+  }
+  return `${label} ${rule.matchValue}`;
+}
 
 function statusClass(status) {
   if (status === 'sent') return 'text-hc-success-text bg-hc-success-bg border-hc-success-border';
@@ -72,6 +96,12 @@ export default function Alerts() {
 
   const isThreshold = THRESHOLD_OPERATORS.has(form.operator);
   const isQuiet = form.operator === 'silent_for';
+
+  // Temperature thresholds are typed and shown in the user's unit but stored in °C.
+  const { unit, symbol } = useTemperatureUnit();
+  const isTemperatureThreshold = isTemperatureRule(form);
+  const isTemperatureTextRule = !isThreshold && !isQuiet
+    && isTemperatureCharacteristic(ruleTemperatureCharacteristic(form));
 
   const sortedRules = useMemo(
     () => [...rules].sort((a, b) => Number(b.enabled) - Number(a.enabled) || b.id - a.id),
@@ -132,6 +162,12 @@ export default function Alerts() {
       ...form,
       quietMinutes: Number.parseInt(String(form.quietMinutes ?? 0), 10) || 0,
     };
+    // A temperature threshold was typed in the user's unit; store °C (two decimals
+    // so a whole °F value round-trips: 75 °F → 23.89 °C → 75.0 °F).
+    if (isTemperatureThreshold) {
+      const typed = parseFloat(form.matchValue);
+      if (Number.isFinite(typed)) payload.matchValue = String(roundTo(unitToCelsius(typed, unit), 2));
+    }
     // Untouched on a new rule: let the listener apply the current default.
     if (form.quietMinutes == null) delete payload.quietMinutes;
     // GET /api/alerts/rules redacts targetUrl (secret webhook URLs aren't sent
@@ -162,7 +198,10 @@ export default function Alerts() {
       scopeValue: rule.scopeValue ?? '',
       characteristic: rule.characteristic ?? '',
       operator: rule.operator,
-      matchValue: rule.matchValue,
+      // Stored °C; show a temperature threshold in the user's unit.
+      matchValue: isTemperatureRule(rule) && Number.isFinite(parseFloat(rule.matchValue))
+        ? String(roundTo(celsiusToUnit(parseFloat(rule.matchValue), unit), 1))
+        : rule.matchValue,
       channel: rule.channel ?? 'webhook',
       // targetUrl is redacted from the rules list response; leave blank and let
       // the user optionally enter a replacement (blank = keep existing URL).
@@ -337,14 +376,24 @@ export default function Alerts() {
                 value={form.matchValue}
                 onChange={(e) => setForm((prev) => ({ ...prev, matchValue: e.target.value }))}
                 placeholder={isThreshold ? 'Threshold (number)' : isQuiet ? 'Hours (0.25–720)' : 'Match value'}
-                aria-label={isThreshold ? 'Threshold' : isQuiet ? 'Hours without events' : 'Match value'}
-                aria-describedby={isThreshold ? 'alert-threshold-hint' : isQuiet ? 'alert-quiet-hint' : undefined}
+                aria-label={isThreshold
+                  ? (isTemperatureThreshold ? `Threshold (${symbol})` : 'Threshold')
+                  : isQuiet ? 'Hours without events' : 'Match value'}
+                aria-describedby={isThreshold
+                  ? 'alert-threshold-hint'
+                  : isQuiet ? 'alert-quiet-hint' : isTemperatureTextRule ? 'alert-text-temperature-hint' : undefined}
                 className="w-full border border-hc-panel-border rounded-lg px-3 py-2 text-sm bg-hc-panel text-hc-fg"
                 required
               />
               {isThreshold && (
                 <p id="alert-threshold-hint" className="text-xs text-hc-muted">
-                  Fires once each time the reading crosses this number. Temperatures are in °C.
+                  Fires once each time the reading crosses this number.
+                  {isTemperatureThreshold && ` Temperatures are in ${symbol}.`}
+                </p>
+              )}
+              {isTemperatureTextRule && (
+                <p id="alert-text-temperature-hint" className="text-xs text-hc-muted">
+                  Compared against the stored reading, which is in °C.
                 </p>
               )}
               {isQuiet && (
@@ -439,7 +488,7 @@ export default function Alerts() {
                   </span>
                 )}
                 <span className="text-xs text-hc-muted">{rule.scopeType}{rule.scopeValue ? `: ${rule.scopeValue}` : ''}</span>
-                <span className="text-xs text-hc-muted">{describeCondition(rule)}</span>
+                <span className="text-xs text-hc-muted">{describeCondition(rule, unit)}</span>
                 {rule.operator !== 'silent_for' && (
                   <span className="text-xs text-hc-muted">quiet {rule.quietMinutes}m</span>
                 )}
