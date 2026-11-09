@@ -2,6 +2,8 @@ import { useRef, useState, useEffect } from 'react';
 import clsx from 'clsx';
 import Card from './Card.jsx';
 import { useEvents } from '../hooks/useEvents.js';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
+import { isTemperatureCharacteristic, formatTemperature } from '../lib/temperature.js';
 
 function relativeTime(isoTimestamp) {
   const date = new Date(isoTimestamp);
@@ -16,6 +18,14 @@ function relativeTime(isoTimestamp) {
 export default function ActivityFeed({ onNavigateToAccessory, onViewAll }) {
   const { data, isLoading } = useEvents({}, 1, 20);
   const events = data?.events ?? [];
+  const { unit: temperatureUnit } = useTemperatureUnit();
+
+  // Readings are stored in °C; show temperature changes in the user's unit.
+  const shown = (event, value) => {
+    if (value == null) return '—';
+    if (!isTemperatureCharacteristic(event.characteristic)) return value;
+    return formatTemperature(value, temperatureUnit) ?? value;
+  };
 
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -111,7 +121,7 @@ export default function ActivityFeed({ onNavigateToAccessory, onViewAll }) {
               <span className="text-hc-caption text-hc-muted min-w-[48px] flex-shrink-0">{relativeTime(event.timestamp)}</span>
               <span className="text-hc-fg font-medium truncate">{event.accessory_name}</span>
               <span className="text-hc-caption text-hc-muted truncate">
-                {event.characteristic} {event.old_value ?? '—'} → {event.new_value ?? '—'}
+                {event.characteristic} {shown(event, event.old_value)} → {shown(event, event.new_value)}
               </span>
             </div>
           ))}

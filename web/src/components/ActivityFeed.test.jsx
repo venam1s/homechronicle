@@ -21,6 +21,11 @@ vi.mock('../hooks/useEvents.js', () => ({
   useEvents: vi.fn(),
 }));
 
+const { unitState } = vi.hoisted(() => ({ unitState: { unit: 'c', symbol: '°C', setUnit: () => {} } }));
+vi.mock('../hooks/useTemperatureUnit.js', () => ({
+  useTemperatureUnit: () => unitState,
+}));
+
 import { useEvents } from '../hooks/useEvents.js';
 import ActivityFeed from './ActivityFeed.jsx';
 
@@ -90,5 +95,30 @@ describe('ActivityFeed', () => {
     const onViewAll = vi.fn();
     render(<ActivityFeed onViewAll={onViewAll} />, { wrapper });
     expect(screen.getByRole('button', { name: /view all/i })).toBeInTheDocument();
+  });
+});
+
+describe('ActivityFeed temperature unit', () => {
+  it("shows temperature changes in the user's unit and leaves other values raw", () => {
+    unitState.unit = 'f';
+    unitState.symbol = '°F';
+    try {
+      useEvents.mockReturnValue({
+        data: {
+          events: [
+            { id: 11, timestamp: new Date().toISOString(), accessory_id: 'acc-3', accessory_name: 'Office Sensor', characteristic: 'CurrentTemperature', old_value: '23', new_value: '24' },
+            { id: 12, timestamp: new Date().toISOString(), accessory_id: 'acc-1', accessory_name: 'Living Room Light', characteristic: 'On', old_value: 'false', new_value: 'true' },
+          ],
+          total: 2,
+        },
+        isLoading: false,
+      });
+      render(<ActivityFeed />, { wrapper });
+      expect(screen.getByText(/73\.4 °F → 75\.2 °F/)).toBeInTheDocument();
+      expect(screen.getByText(/false → true/)).toBeInTheDocument();
+    } finally {
+      unitState.unit = 'c';
+      unitState.symbol = '°C';
+    }
   });
 });

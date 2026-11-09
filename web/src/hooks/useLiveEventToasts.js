@@ -2,6 +2,8 @@ import { useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from '../lib/api.js';
 import { useToast } from '../components/Toast.jsx';
+import { useTemperatureUnit } from './useTemperatureUnit.js';
+import { describeChange } from '../lib/icons.js';
 
 const POLL_INTERVAL = 5000;
 const BASE = '/api';
@@ -18,6 +20,7 @@ function parentDeviceId(id) {
 
 export function useLiveEventToasts({ activeTab, retentionConfig, onNavigateToAccessory }) {
   const { addToast } = useToast();
+  const { unit: temperatureUnit } = useTemperatureUnit();
   const seenIds = useRef(new Set());
   const sinceRef = useRef(new Date().toISOString());
 
@@ -56,7 +59,7 @@ export function useLiveEventToasts({ activeTab, retentionConfig, onNavigateToAcc
 
     for (const event of newEvents.slice().reverse()) {
       seenIds.current.add(event.id);
-      const label = `${event.accessory_name} — ${event.characteristic}: ${event.new_value}`;
+      const label = `${event.accessory_name} — ${describeChange(event.characteristic, event.new_value, { temperatureUnit })}`;
       const name = event.accessory_name;
       addToast(label, 'info', {
         onClick: onNavigateToAccessory ? () => onNavigateToAccessory(name) : undefined,

@@ -5,6 +5,11 @@ vi.mock('../hooks/useEvents.js', () => ({
   useSensorEnvironment: vi.fn(),
 }));
 
+const { unitState } = vi.hoisted(() => ({ unitState: { unit: 'c', symbol: '°C', setUnit: () => {} } }));
+vi.mock('../hooks/useTemperatureUnit.js', () => ({
+  useTemperatureUnit: () => unitState,
+}));
+
 import { useSensorEnvironment } from '../hooks/useEvents.js';
 import SensorEnvironmentPanel from './SensorEnvironmentPanel.jsx';
 
@@ -36,9 +41,29 @@ describe('SensorEnvironmentPanel', () => {
     });
     render(<SensorEnvironmentPanel />);
     expect(screen.getByText('Hall Sensor')).toBeInTheDocument();
-    expect(screen.getByText('21.5°')).toBeInTheDocument();
+    expect(screen.getByText('21.5 °C')).toBeInTheDocument();
     expect(screen.getByText('45%')).toBeInTheDocument();
     expect(screen.getByText('Bedroom Thermo')).toBeInTheDocument();
-    expect(screen.getByText('20.5°')).toBeInTheDocument();
+    expect(screen.getByText('20.5 °C')).toBeInTheDocument();
+  });
+
+  it('shows Fahrenheit when the unit is f', () => {
+    unitState.unit = 'f';
+    unitState.symbol = '°F';
+    try {
+      useSensorEnvironment.mockReturnValue({
+        data: [
+          { accessoryId: 'a1', accessoryName: 'Hall Sensor', roomName: 'Hall', temperature: 23.5, humidity: 45, lastUpdated: '2026-06-01T10:00:00Z' },
+        ],
+        isLoading: false,
+        isError: false,
+      });
+      render(<SensorEnvironmentPanel />);
+      expect(screen.getByText('74.3 °F')).toBeInTheDocument();
+      expect(screen.getByText('45%')).toBeInTheDocument();
+    } finally {
+      unitState.unit = 'c';
+      unitState.symbol = '°C';
+    }
   });
 });

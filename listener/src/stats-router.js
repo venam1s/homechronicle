@@ -442,7 +442,7 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
           SELECT DISTINCT ON (accessory_id, metric)
             accessory_id, accessory_name, room_name, protocol, new_value, timestamp, metric
           FROM (
-            SELECT id, accessory_id, accessory_name, room_name, protocol, new_value, timestamp,
+            SELECT id, accessory_id, accessory_name, room_name, protocol, characteristic, new_value, timestamp,
               CASE
                 WHEN characteristic = 'CurrentTemperature' OR cluster_id = 1026 THEN 'temperature'
                 WHEN characteristic = 'CurrentRelativeHumidity' OR cluster_id = 1029 THEN 'humidity'
@@ -460,7 +460,13 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
         for (const row of result.rows) {
           const raw = Number.parseFloat(row.new_value);
           if (!Number.isFinite(raw)) continue;
-          const value = row.protocol === 'matter' ? raw / 100 : raw;
+          // Legacy Matter rows (characteristic MeasuredValue, matched by cluster_id)
+          // are centi-units. Rows written since the Matter normalisation (0.4.0)
+          // carry the HomeKit names and are already in real units — do not scale them.
+          const isLegacyMatter = row.protocol === 'matter'
+            && row.characteristic !== 'CurrentTemperature'
+            && row.characteristic !== 'CurrentRelativeHumidity';
+          const value = isLegacyMatter ? raw / 100 : raw;
           let entry = byAccessory.get(row.accessory_id);
           if (!entry) {
             entry = {
