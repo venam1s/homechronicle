@@ -2,6 +2,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { VolumeX } from 'lucide-react';
 import { getServiceIcon, getServiceLabel, describeChange, describeBeforeAfter } from '../lib/icons.js';
 import { getRoomColor } from '../lib/roomColors.js';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
 
 /** 1st / 2nd / 3rd … Nth */
 function ordinal(n) {
@@ -24,8 +25,9 @@ export default function EventRow({ event, hoveredCell = null, meta = {}, onMute,
   const Icon        = getServiceIcon(event.service_type);
   const serviceName = getServiceLabel(event.service_type);
   const ts          = new Date(event.timestamp);
-  const description = describeChange(event.characteristic, event.new_value);
-  const beforeAfter = describeBeforeAfter(event.characteristic, event.old_value, event.new_value);
+  const { unit: temperatureUnit } = useTemperatureUnit();
+  const description = describeChange(event.characteristic, event.new_value, { temperatureUnit });
+  const beforeAfter = describeBeforeAfter(event.characteristic, event.old_value, event.new_value, { temperatureUnit });
   const roomColor   = getRoomColor(event.room_name);
 
   const { gap, marker, rank, dayTotal, anomalyLabel } = meta;
