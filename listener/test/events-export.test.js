@@ -228,3 +228,44 @@ test('GET /events/export/check reports 429 once the export limit is used up, wit
   assert.equal(blocked.statusCode, 429);
   assert.equal(prev, process.env.EVENTS_EXPORT_RATE_LIMIT_MAX);
 });
+
+// -- unit=f: temperature rows converted for the user, everything else untouched --
+
+function temperatureRows() {
+  return [
+    row(1, '2026-11-08T10:00:00Z', { characteristic: 'CurrentTemperature', old_value: '23', new_value: '24' }),
+    row(2, '2026-11-08T10:01:00Z', { characteristic: 'CurrentTemperature', old_value: null, new_value: '--' }),
+    row(3, '2026-11-08T10:02:00Z'),
+  ];
+}
+
+test('GET /events/export unit=f converts temperature rows and leaves the rest', async () => {
+  const pool = makePool(temperatureRows());
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events/export');
+  const { statusCode, body } = await invokeStream(handler, { unit: 'f' });
+  assert.equal(statusCode, 200);
+  const lines = body.split('\n');
+  assert.ok(lines[1].includes(',CurrentTemperature,73.4,75.2,'), lines[1]);
+  // csvCell guards a leading dash against spreadsheet formulas, so '--' is written as '--.
+  assert.ok(lines[2].includes(",CurrentTemperature,,'--,"), lines[2]);
+  assert.ok(lines[3].includes(',On,false,true,'), lines[3]);
+});
+
+test('GET /events/export without unit stays Celsius', async () => {
+  const pool = makePool(temperatureRows());
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events/export');
+  const { body } = await invokeStream(handler, {});
+  assert.ok(body.split('\n')[1].includes(',CurrentTemperature,23,24,'), body);
+});
+
+test('GET /events/export rejects an unknown unit', async () => {
+  const pool = makePool(temperatureRows());
+  const router = createEventsRouter({ pool, getRooms: () => ({}) });
+  const handler = getRouteHandler(router, 'GET', '/events/export');
+  const { statusCode, jsonBody } = await invokeStream(handler, { unit: 'kelvin' });
+  assert.equal(statusCode, 400);
+  assert.equal(jsonBody.error, 'unit must be c or f');
+  assert.equal(pool.seen.length, 0, 'rejected before any query');
+});

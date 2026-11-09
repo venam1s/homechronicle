@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
 import { csvCell, parseIntInRange, parentBridgeId } from './utils.js';
+import { isTemperatureCharacteristic, celsiusToUnit, roundTo } from './temperature.js';
 
 const EVENTS_RATE_LIMIT_WINDOW_MS = parseIntInRange(
   process.env.EVENTS_RATE_LIMIT_WINDOW_MS,
@@ -168,6 +169,12 @@ export function createEventsRouter({ pool, getRooms }) {
     if (format !== 'csv' && format !== 'json') {
       return res.status(400).json({ error: 'format must be csv or json' });
     }
+    // Temperatures are stored in °C; unit=f converts the temperature rows'
+    // values for the person downloading (the web UI sends their preference).
+    const unit = String(req.query.unit ?? 'c').toLowerCase();
+    if (unit !== 'c' && unit !== 'f') {
+      return res.status(400).json({ error: 'unit must be c or f' });
+    }
 
     const { conditions, params } = buildEventFilters(req.query);
     try {
@@ -230,6 +237,12 @@ export function createEventsRouter({ pool, getRooms }) {
           const out = { ...row };
           delete out.cursor_ts;
           out.room_name = rooms[row.accessory_id] ?? rooms[parentBridgeId(row.accessory_id)] ?? row.room_name;
+          if (unit === 'f' && isTemperatureCharacteristic(row.characteristic)) {
+            for (const col of ['old_value', 'new_value']) {
+              const n = parseFloat(out[col]);
+              if (out[col] != null && Number.isFinite(n)) out[col] = String(roundTo(celsiusToUnit(n, 'f'), 1));
+            }
+          }
           if (format === 'csv') {
             chunk += `${EXPORT_COLUMNS.map((col) => csvCell(out[col])).join(',')}\n`;
           } else {

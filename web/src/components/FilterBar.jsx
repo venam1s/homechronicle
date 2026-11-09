@@ -6,6 +6,7 @@ import { getRoomColor } from '../lib/roomColors.js';
 import { Search, SlidersHorizontal, ChevronDown, ChevronUp, BarChart2, Download, Loader2 } from 'lucide-react';
 import HeatmapGrid from './HeatmapGrid.jsx';
 import { downloadEventsExport } from '../lib/exportEvents.js';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
 
 const EXPORT_FORMATS = [
   { format: 'csv', label: 'CSV' },
@@ -37,12 +38,13 @@ export default function FilterBar({
 
   const [exporting, setExporting] = useState(null);
   const [exportNote, setExportNote] = useState(null);
+  const { unit } = useTemperatureUnit();
 
   async function handleExport(format) {
     setExporting(format);
     setExportNote(null);
     try {
-      const result = await downloadEventsExport(filters, format);
+      const result = await downloadEventsExport(filters, format, { unit });
       if (result.truncated) {
         setExportNote({
           tone: 'warning',

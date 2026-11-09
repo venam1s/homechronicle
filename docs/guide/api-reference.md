@@ -365,6 +365,7 @@ Download every event matching the same filters as `GET /api/events` (`room`, `ac
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `format` | `csv` \| `json` | `csv` | CSV with a header row (UTF-8 with BOM), or a JSON array of event objects |
+| `unit` | `c` \| `f` | `c` | With `f`, `old_value` and `new_value` of `CurrentTemperature`, `TargetTemperature`, `HeatingThresholdTemperature` and `CoolingThresholdTemperature` rows are converted to Fahrenheit (one decimal, plain numbers). Other rows are untouched. The web UI sends the signed-in user's unit. |
 
 Columns / fields: `id`, `timestamp`, `accessory_id`, `accessory_name`, `room_name`, `service_type`, `characteristic`, `old_value`, `new_value`, `protocol`, `transport`, `endpoint_id`, `cluster_id`, `attribute_id`, `raw_iid`. `room_name` reflects current room assignments.
 
@@ -1143,6 +1144,7 @@ Notes:
 
 - `targetUrl` is checked before saving: it must be `http` or `https`, and `localhost`, loopback, link-local, multicast and reserved addresses are refused. Private network addresses are allowed unless `ALERTS_ALLOW_PRIVATE_TARGETS=false`.
 - The `email` channel needs working SMTP; otherwise the request returns `400`.
+- Alert emails show temperature readings in the rule owner's unit (Settings › Appearance › Units); rules with no owner, and webhook payloads, stay in °C.
 - For members, an email rule always goes to their own account address, whatever `targetEmail` says. Admins can set any recipient.
 - Each user can have at most `ALERTS_MAX_RULES_PER_USER` rules (default 25) and the household at most `ALERTS_MAX_RULES_TOTAL` (default 100). Over either limit, the request returns `400`.
 - Rules fire for HomeKit and Matter events alike.

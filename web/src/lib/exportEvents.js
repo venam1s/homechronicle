@@ -21,12 +21,20 @@ function filterParams(filters = {}, extra = {}) {
   return qs.toString();
 }
 
-export function buildExportUrl(filters = {}, format = 'csv') {
-  return `${API_BASE}/events/export?${filterParams(filters, { format })}`;
+// Temperatures are stored in °C; `unit=f` asks the listener to convert the
+// temperature rows for this user. Omitted for 'c' so existing URLs are unchanged.
+function withUnit(query, unit) {
+  const qs = new URLSearchParams(query);
+  if (unit === 'f') qs.set('unit', 'f');
+  return qs.toString();
 }
 
-export function buildExportCheckUrl(filters = {}) {
-  return `${API_BASE}/events/export/check?${filterParams(filters)}`;
+export function buildExportUrl(filters = {}, format = 'csv', unit = 'c') {
+  return `${API_BASE}/events/export?${withUnit(filterParams(filters, { format }), unit)}`;
+}
+
+export function buildExportCheckUrl(filters = {}, unit = 'c') {
+  return `${API_BASE}/events/export/check?${withUnit(filterParams(filters), unit)}`;
 }
 
 function exportError(status) {
@@ -53,14 +61,14 @@ function filenameFrom(res, format) {
  * Cross origin (Vite dev, VITE_API_BASE_URL): a link can't carry the API token
  * header, so fetch it, buffer it and save the blob.
  */
-export async function downloadEventsExport(filters, format) {
+export async function downloadEventsExport(filters, format, { unit = 'c' } = {}) {
   if (apiIsSameOrigin()) {
-    const check = await fetch(buildExportCheckUrl(filters), { credentials: 'include', headers: withApiAuthHeaders() });
+    const check = await fetch(buildExportCheckUrl(filters, unit), { credentials: 'include', headers: withApiAuthHeaders() });
     if (!check.ok) throw exportError(check.status);
     const counts = await check.json();
 
     const a = document.createElement('a');
-    a.href = buildExportUrl(filters, format);
+    a.href = buildExportUrl(filters, format, unit);
     a.download = '';
     a.style.display = 'none';
     document.body.appendChild(a);
@@ -72,7 +80,7 @@ export async function downloadEventsExport(filters, format) {
     return { total: counts.total, rows: counts.rows, truncated: Boolean(counts.truncated) };
   }
 
-  const res = await fetch(buildExportUrl(filters, format), {
+  const res = await fetch(buildExportUrl(filters, format, unit), {
     credentials: 'include',
     headers: withApiAuthHeaders(),
   });
