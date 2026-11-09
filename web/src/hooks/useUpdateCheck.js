@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import { fetchJson, API_BASE } from '../lib/api.js';
 
 // Asks our OWN listener, which fetches and caches the project's releases
-// server-side, GitHub first with GitLab as fallback
-// (listener/src/updates-router.js). The browser cannot call either host: the
-// SPA is served with `connect-src 'self'`, so it is not allowed to reach any
-// third-party origin. Same-origin sidesteps that without
-// loosening the CSP.
+// server-side from GitHub and GitLab, merged (listener/src/updates-router.js).
+// The browser cannot call either host: the SPA is served with
+// `connect-src 'self'`, so it is not allowed to reach any third-party origin.
+// Same-origin sidesteps that without loosening the CSP.
 const UPDATES_URL = `${API_BASE}/updates/latest`;
 const CHECK_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
 const DISMISS_KEY = 'hc_update_dismissed';

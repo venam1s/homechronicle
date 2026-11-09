@@ -11,8 +11,8 @@ import {
 
 /**
  * The update check is proxied server-side because the browser cannot do it:
- * the SPA is served with `connect-src 'self'`. It asks GitHub first and falls
- * back to GitLab, where every release up to v0.5.0 was published.
+ * the SPA is served with `connect-src 'self'`. It asks GitHub and GitLab (where
+ * every release up to v0.5.0 was published) and merges the answers.
  */
 
 // A realistic GitHub releases payload.
@@ -133,7 +133,7 @@ describe('resolveReleaseUrls', () => {
   });
 });
 
-describe('GitHub first, GitLab fallback', () => {
+describe('GitHub and GitLab, merged', () => {
   // Routes by URL so each test says exactly what each host answers.
   function routedFetch(routes, calls = []) {
     return async (url) => {
@@ -150,36 +150,73 @@ describe('GitHub first, GitLab fallback', () => {
     app.use('/api/updates', createUpdatesRouter({ fetchImpl: routedFetch(routes, calls) }));
     return app;
   };
+  const tags = (res) => res.body.releases.map((r) => r.tag);
 
-  test('uses GitHub when it answers, and does not call GitLab', async () => {
+  test('asks both hosts and merges their releases', async () => {
     const calls = [];
     const res = await get(makeRoutedApp({ 'api.github.com': GITHUB_RELEASES, 'gitlab.com': GITLAB_RELEASES }, calls));
-    assert.deepEqual(res.body.releases.map((r) => r.tag), ['v0.6.0']);
-    assert.equal(res.body.source, 'github');
+    assert.deepEqual(tags(res), ['v0.6.0', 'v0.4.0-beta.1', 'v0.3.4']);
+    assert.deepEqual(res.body.sources, ['github', 'gitlab']);
     assert.equal(res.body.upstreamOk, true);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 2);
   });
 
-  test('falls back to GitLab when GitHub 404s (repo missing or account gone)', async () => {
+  // The migration window: GitHub holds backfilled releases while new ones are
+  // still cut on GitLab. A GitHub answer must not hide a newer GitLab release.
+  test('a newer GitLab-only release is not hidden by an older GitHub list', async () => {
+    const res = await get(makeRoutedApp({
+      'api.github.com': [{ tag_name: 'v0.5.0', html_url: 'https://github.com/x/releases/tag/v0.5.0' }],
+      'gitlab.com': [
+        { tag_name: 'v0.6.0', _links: { self: 'https://gitlab.com/x/-/releases/v0.6.0' } },
+        { tag_name: 'v0.5.0', _links: { self: 'https://gitlab.com/x/-/releases/v0.5.0' } },
+      ],
+    }));
+    assert.deepEqual(tags(res), ['v0.6.0', 'v0.5.0']);
+  });
+
+  test('a tag on both hosts appears once, linking to GitHub', async () => {
+    const res = await get(makeRoutedApp({
+      'api.github.com': [{ tag_name: 'v0.5.0', html_url: 'https://github.com/x/releases/tag/v0.5.0' }],
+      'gitlab.com': [{ tag_name: 'v0.5.0', _links: { self: 'https://gitlab.com/x/-/releases/v0.5.0' } }],
+    }));
+    assert.equal(res.body.releases.length, 1);
+    assert.equal(res.body.releases[0].url, 'https://github.com/x/releases/tag/v0.5.0');
+  });
+
+  // Backfilled releases come back in creation order, not version order.
+  test('sorts newest version first, whatever order the hosts return', async () => {
+    const res = await get(makeRoutedApp({
+      'api.github.com': [{ tag_name: 'v0.4.9' }, { tag_name: 'v0.10.0' }, { tag_name: 'v0.10.0-beta.2' }, { tag_name: 'v0.10.0-beta.10' }],
+      'gitlab.com': [{ tag_name: 'not-a-version' }, { tag_name: 'v1.0.0' }],
+    }));
+    assert.deepEqual(tags(res), ['v1.0.0', 'v0.10.0', 'v0.10.0-beta.10', 'v0.10.0-beta.2', 'v0.4.9', 'not-a-version']);
+  });
+
+  test('works from GitLab alone when GitHub 404s (repo missing or account gone)', async () => {
     const res = await get(makeRoutedApp({ 'api.github.com': 404, 'gitlab.com': GITLAB_RELEASES }));
-    assert.deepEqual(res.body.releases.map((r) => r.tag), ['v0.3.4', 'v0.4.0-beta.1']);
-    assert.equal(res.body.source, 'gitlab');
+    assert.deepEqual(tags(res), ['v0.4.0-beta.1', 'v0.3.4']);
+    assert.deepEqual(res.body.sources, ['gitlab']);
     assert.equal(res.body.upstreamOk, true);
   });
 
   // Unauthenticated GitHub API calls are rate-limited per IP (403).
-  test('falls back to GitLab when GitHub rate-limits or is unreachable', async () => {
+  test('works from GitLab alone when GitHub rate-limits or is unreachable', async () => {
     for (const github of [403, new Error('ENOTFOUND')]) {
       const res = await get(makeRoutedApp({ 'api.github.com': github, 'gitlab.com': GITLAB_RELEASES }));
-      assert.equal(res.body.source, 'gitlab');
+      assert.deepEqual(res.body.sources, ['gitlab']);
       assert.equal(res.body.releases.length, 2);
     }
   });
 
+  test('works from GitHub alone when GitLab is down', async () => {
+    const res = await get(makeRoutedApp({ 'api.github.com': GITHUB_RELEASES, 'gitlab.com': 503 }));
+    assert.deepEqual(tags(res), ['v0.6.0']);
+    assert.deepEqual(res.body.sources, ['github']);
+  });
+
   // A GitHub repo that exists but has no releases yet must not hide GitLab's.
-  test('falls back to GitLab when GitHub has no releases', async () => {
+  test('an empty GitHub list does not hide GitLab releases', async () => {
     const res = await get(makeRoutedApp({ 'api.github.com': [], 'gitlab.com': GITLAB_RELEASES }));
-    assert.equal(res.body.source, 'gitlab');
     assert.equal(res.body.releases.length, 2);
   });
 
@@ -188,10 +225,10 @@ describe('GitHub first, GitLab fallback', () => {
     assert.equal(res.status, 200);
     assert.deepEqual(res.body.releases, []);
     assert.equal(res.body.upstreamOk, false);
-    assert.equal(res.body.source, null);
+    assert.deepEqual(res.body.sources, []);
   });
 
-  test('the fallback result is cached like any other', async () => {
+  test('one host down is still cached as a success', async () => {
     const calls = [];
     const app = makeRoutedApp({ 'api.github.com': 404, 'gitlab.com': GITLAB_RELEASES }, calls);
     await get(app); await get(app); await get(app);
@@ -215,15 +252,16 @@ describe('GET /api/updates/latest', () => {
     const res = await get(makeApp(okFetch(GITLAB_RELEASES)));
     assert.equal(res.status, 200);
     assert.equal(res.body.enabled, true);
-    assert.deepEqual(res.body.releases.map((r) => r.tag), ['v0.3.4', 'v0.4.0-beta.1']);
+    assert.deepEqual(res.body.releases.map((r) => r.tag), ['v0.4.0-beta.1', 'v0.3.4']);
     assert.equal(res.body.upstreamOk, true);
   });
 
-  test('caches, so N clients do not mean N calls to gitlab.com', async () => {
+  // One call per host per cache window, however many clients ask.
+  test('caches, so N clients do not mean N upstream calls', async () => {
     let calls = 0;
     const app = makeApp(async () => { calls += 1; return { ok: true, status: 200, json: async () => GITLAB_RELEASES }; });
     await get(app); await get(app); await get(app);
-    assert.equal(calls, 1);
+    assert.equal(calls, 2);
   });
 
   // A self-hosted box with no internet must not surface errors over this.

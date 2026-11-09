@@ -160,12 +160,12 @@ All SMTP variables are optional. If `SMTP_HOST` or `SMTP_PASS` is not set, email
 
 ## Update Check
 
-The listener checks the project's GitHub releases, falling back to its GitLab releases, so **Settings › About** can show whether a newer version exists. Your browser never contacts a third-party site; it asks the listener (`GET /api/updates/latest`).
+The listener checks the project's releases on GitHub and GitLab so **Settings › About** can show whether a newer version exists. Your browser never contacts a third-party site; it asks the listener (`GET /api/updates/latest`).
 
 | Variable | Default | Description |
 |---|---|---|
 | `UPDATE_CHECK_ENABLED` | `true` | Set `false` to turn off the outbound check entirely. |
-| `UPDATE_CHECK_URL` | *(unset: GitHub, then GitLab)* | A single releases API to query instead, with no fallback. GitHub and GitLab release JSON are both understood. A successful result is cached for 12 hours, a failure for 15 minutes; each request times out after 8 seconds. |
+| `UPDATE_CHECK_URL` | *(unset: GitHub and GitLab)* | A single releases API to query instead of both. GitHub and GitLab release JSON are both understood. A successful result is cached for 12 hours, a failure for 15 minutes; each request times out after 8 seconds. |
 
 ## API Authentication
 
