@@ -28,10 +28,10 @@ On desktop, a dot on **Settings** in the navigation bar means there are changelo
 
 ### Update check
 
-The listener checks the project's GitLab releases (`GET /api/updates/latest`) and caches the answer for 12 hours. Your browser only talks to your own HomeChronicle server — it never contacts GitLab or any other site directly.
+The listener checks the project's releases on GitHub, falling back to GitLab (`GET /api/updates/latest`), and caches the answer for 12 hours. Your browser only talks to your own HomeChronicle server — it never contacts GitHub, GitLab or any other site directly.
 
 - Stable versions only offer stable updates. If you run a beta, newer betas are offered too.
-- If the listener can't reach GitLab, About shows **Couldn't check for updates** rather than claiming you're up to date.
+- If the listener can't reach GitHub or GitLab, About shows **Couldn't check for updates** rather than claiming you're up to date.
 - To turn the check off for everyone, set `UPDATE_CHECK_ENABLED=false` on the listener (see [Environment Variables](environment-variables.md)).
 - To turn it off in one browser only, run `localStorage.setItem('hc_disable_update_check', 'true')` in the browser console.
 

@@ -108,7 +108,7 @@ The status is `unhealthy` when the database is unreachable, or when there are Ho
 
 ### `GET /api/updates/latest`
 
-Public. Recent releases of HomeChronicle, newest first, fetched by the listener from the project's GitLab releases. The listener caches the result for 12 hours (15 minutes after a failed fetch), so calling this does not hit GitLab each time.
+Public. Recent releases of HomeChronicle, newest first, fetched by the listener from the project's GitHub releases, or from its GitLab releases if GitHub can't be reached or has none. The listener caches the result for 12 hours (15 minutes after a failed fetch), so calling this does not reach out each time.
 
 **Response:**
 ```json
@@ -123,11 +123,12 @@ Public. Recent releases of HomeChronicle, newest first, fetched by the listener 
     }
   ],
   "checkedAt": "2026-10-11T09:00:00.000Z",
-  "upstreamOk": true
+  "upstreamOk": true,
+  "source": "gitlab"
 }
 ```
 
-`prerelease` is `true` for tags containing `-alpha`, `-beta` or `-rc`. When GitLab can't be reached, `releases` is empty and `upstreamOk` is `false`. With `UPDATE_CHECK_ENABLED=false` the response is `{ "enabled": false, "releases": [] }` and no outbound request is made. `UPDATE_CHECK_URL` points the check at a different releases URL.
+`prerelease` is `true` for tags containing `-alpha`, `-beta` or `-rc`. `source` is `github`, `gitlab` or `custom` (a `UPDATE_CHECK_URL` on another host), whichever answered. When neither can be reached, `releases` is empty, `upstreamOk` is `false` and `source` is `null`. With `UPDATE_CHECK_ENABLED=false` the response is `{ "enabled": false, "releases": [] }` and no outbound request is made. `UPDATE_CHECK_URL` points the check at a single different releases URL, with no fallback.
 
 ---
 

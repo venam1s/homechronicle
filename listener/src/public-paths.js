@@ -27,7 +27,7 @@ export const PUBLIC_AUTH_PATHS = new Set([
   // credentials.
   '/api/health',
 
-  // Published release tags. This is public information on gitlab.com and says
+  // Published release tags. This is public information on GitHub/GitLab and says
   // nothing about this instance. It cannot be used to make the box issue
   // outbound requests on demand either: the listener answers from a 12-hour
   // cache, so anonymous traffic hits memory, not the network.

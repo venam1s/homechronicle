@@ -227,10 +227,10 @@ If `docker compose pull` fails:
 
 ### Settings › About says "Couldn't check for updates"
 
-The update check runs on the listener, not in your browser. About shows this when the listener couldn't reach GitLab, or its own request failed.
+The update check runs on the listener, not in your browser. About shows this when the listener couldn't reach GitHub or GitLab, or its own request failed.
 
-- Check the listener's answer: `curl http://localhost:3001/api/updates/latest`. This endpoint is public, so no token is needed. `"enabled": false` means `UPDATE_CHECK_ENABLED=false` is set; `"upstreamOk": false` means the last fetch from GitLab failed.
-- The listener needs outbound HTTPS access to `gitlab.com`. On a network without internet access, the check can't work — compare your version with the [CHANGELOG](https://gitlab.com/havuq/homechronicle/-/blob/main/CHANGELOG.md) instead.
+- Check the listener's answer: `curl http://localhost:3001/api/updates/latest`. This endpoint is public, so no token is needed. `"enabled": false` means `UPDATE_CHECK_ENABLED=false` is set; `"upstreamOk": false` means the last fetch failed on both GitHub and GitLab; `"source"` shows which one answered when it worked.
+- The listener needs outbound HTTPS access to `api.github.com` or `gitlab.com`. On a network without internet access, the check can't work — compare your version with the [CHANGELOG](https://gitlab.com/havuq/homechronicle/-/blob/main/CHANGELOG.md) instead.
 - Results are cached for 12 hours (15 minutes after a failure), so a just-published release may take a while to show. Restarting the listener clears the cache.
 - If About says **Up to date** but you expected a release: if you run a stable version, beta releases are not offered.
 - Check this browser hasn't turned the check off: `localStorage.getItem('hc_disable_update_check')` should not be `'true'`.

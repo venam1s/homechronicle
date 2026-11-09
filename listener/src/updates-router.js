@@ -8,29 +8,54 @@ import { rateLimitKeyGenerator } from './security.js';
  *
  * WHY THE SERVER DOES THIS
  *
- * The browser used to call api.github.com directly. That could never work, for
- * two independent reasons:
- *   1. The GitHub account is gone — `havuq` does not resolve there any more, so
- *      the repo 404s. Releases moved to GitLab.
- *   2. Nginx serves the SPA with `connect-src 'self'` (web/nginx.conf.template),
- *      so the browser is not allowed to reach ANY third-party origin. Pointing
- *      the same fetch at gitlab.com would have been blocked identically.
+ * Nginx serves the SPA with `connect-src 'self'` (web/nginx.conf.template), so
+ * the browser is not allowed to reach ANY third-party origin. Proxying through
+ * the listener works without widening the CSP — the page only ever talks to its
+ * own origin. It also means one outbound request per server per cache window
+ * instead of one per browser tab, and it keeps working for deployments whose
+ * browsers have no internet access at all.
  *
- * Proxying through the listener fixes both without widening the CSP — the page
- * only ever talks to its own origin. It also means one outbound request per
- * server per cache window instead of one per browser tab, and it keeps working
- * for deployments whose browsers have no internet access at all.
+ * WHERE IT LOOKS
  *
- * PRIVACY: this is an outbound call to gitlab.com from a self-hosted box. It is
- * on by default because the app has always attempted an update check, but it is
- * a single env var to turn off, and it sends nothing but a GET.
+ * GitHub first, then GitLab. Every release up to v0.5.0 was published only on
+ * GitLab, and installs older than this code ask only GitLab — so GitLab stays a
+ * live release source through the move to GitHub. The first source that answers
+ * with at least one release wins; an empty GitHub list (repo created, releases
+ * not yet published there) falls through rather than hiding GitLab's.
+ *
+ * PRIVACY: this is an outbound call to github.com (and, if that fails,
+ * gitlab.com) from a self-hosted box. It is on by default because the app has
+ * always attempted an update check, but it is a single env var to turn off, and
+ * it sends nothing but a GET with a generic User-Agent.
  */
 
-// GitLab's releases API for this project. Public — no token, no auth.
-const DEFAULT_RELEASES_URL =
+// Public releases APIs for this project — no token, no auth. Unauthenticated
+// GitHub API calls are limited to 60/hour per IP; the 12-hour cache below keeps
+// this far under that.
+export const GITHUB_RELEASES_URL =
+  'https://api.github.com/repos/venam1s/homechronicle/releases?per_page=10';
+export const GITLAB_RELEASES_URL =
   'https://gitlab.com/api/v4/projects/havuq%2Fhomechronicle/releases?per_page=10';
 
-const RELEASES_URL = process.env.UPDATE_CHECK_URL?.trim() || DEFAULT_RELEASES_URL;
+/**
+ * The URLs to try, in order. An explicit UPDATE_CHECK_URL means exactly that
+ * URL: someone who points the check elsewhere did not ask for a fallback.
+ */
+export function resolveReleaseUrls(env = process.env) {
+  const override = env.UPDATE_CHECK_URL?.trim();
+  return override ? [override] : [GITHUB_RELEASES_URL, GITLAB_RELEASES_URL];
+}
+
+// For the `source` field — which host the releases came from.
+function sourceName(url) {
+  let host;
+  try { host = new URL(url).hostname; } catch { return 'custom'; }
+  if (host === 'api.github.com' || host === 'github.com') return 'github';
+  if (host === 'gitlab.com') return 'gitlab';
+  return 'custom';
+}
+
+const RELEASE_URLS = resolveReleaseUrls();
 const ENABLED = !/^(0|false|no|off)$/i.test(process.env.UPDATE_CHECK_ENABLED ?? 'true');
 
 // One upstream call per this window, however many clients ask.
@@ -41,24 +66,25 @@ const ERROR_TTL_MS = 15 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 8000;
 
 /**
- * Normalize a GitLab release into the shape the UI wants.
+ * Normalize a GitHub or GitLab release into the shape the UI wants. The two
+ * APIs share `tag_name` and differ in the rest, so one function reads both.
  *
- * GitLab has no `prerelease` boolean (that is a GitHub concept), so it is
- * derived from the tag — which is where the app already encodes it, e.g.
- * `v0.1.4-beta.16`. `upcoming_release` is a different thing entirely: a release
- * dated in the future. Those are filtered out rather than offered as updates.
+ * GitLab has no `prerelease` boolean, so it is also derived from the tag —
+ * which is where the app already encodes it, e.g. `v0.1.4-beta.16`. GitLab's
+ * `upcoming_release` (dated in the future) and GitHub's `draft` are filtered
+ * out rather than offered as updates.
  */
 export function normalizeRelease(release) {
   const tag = typeof release?.tag_name === 'string' ? release.tag_name.trim() : '';
   if (!tag) return null;
-  if (release?.upcoming_release) return null;
+  if (release?.upcoming_release || release?.draft) return null;
 
   return {
     tag,
-    // `_links.self` is the human-facing release page.
-    url: release?._links?.self ?? null,
-    prerelease: /-(?:alpha|beta|rc)\b/i.test(tag),
-    publishedAt: release?.released_at ?? release?.created_at ?? null,
+    // The human-facing release page: GitHub `html_url`, GitLab `_links.self`.
+    url: release?.html_url ?? release?._links?.self ?? null,
+    prerelease: release?.prerelease === true || /-(?:alpha|beta|rc)\b/i.test(tag),
+    publishedAt: release?.published_at ?? release?.released_at ?? release?.created_at ?? null,
   };
 }
 
@@ -75,8 +101,28 @@ export function createUpdatesRouter({ fetchImpl = fetch } = {}) {
     message: { error: 'Too many requests' },
   });
 
-  // { releases, fetchedAt, ok }
+  // { releases, fetchedAt, ok, source }
   let cache = null;
+
+  // One source, one bounded request. Throws on anything but a JSON array.
+  async function fetchReleases(url) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetchImpl(url, {
+        signal: controller.signal,
+        // GitHub's API rejects requests without a User-Agent. Generic on
+        // purpose: it says nothing about this instance or its version.
+        headers: { accept: 'application/json', 'user-agent': 'HomeChronicle-update-check' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      if (!Array.isArray(body)) throw new Error('expected an array of releases');
+      return body.map(normalizeRelease).filter(Boolean);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 
   async function loadReleases() {
     const now = Date.now();
@@ -84,33 +130,31 @@ export function createUpdatesRouter({ fetchImpl = fetch } = {}) {
       return cache;
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    try {
-      const res = await fetchImpl(RELEASES_URL, {
-        signal: controller.signal,
-        headers: { accept: 'application/json' },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = await res.json();
-      if (!Array.isArray(body)) throw new Error('expected an array of releases');
-
-      const releases = body.map(normalizeRelease).filter(Boolean);
-      cache = { releases, fetchedAt: now, ok: true };
-      log.debug(`[updates] fetched ${releases.length} release(s) from upstream`);
-    } catch (err) {
-      // Best-effort by design: a self-hosted box with no internet must not see
-      // errors in its UI over this. Serve an empty list and try again later.
-      log.debug(`[updates] release check failed: ${err.message ?? err}`);
-      cache = { releases: [], fetchedAt: now, ok: false };
-    } finally {
-      clearTimeout(timer);
+    // Best-effort by design: a self-hosted box with no internet must not see
+    // errors in its UI over this. If every source fails, serve an empty list
+    // and try again after ERROR_TTL_MS.
+    let result = { releases: [], fetchedAt: now, ok: false, source: null };
+    for (const url of RELEASE_URLS) {
+      const source = sourceName(url);
+      try {
+        const releases = await fetchReleases(url);
+        log.debug(`[updates] fetched ${releases.length} release(s) from ${source}`);
+        // Reachable counts as ok even when empty; keep looking for a source
+        // that actually has releases.
+        if (!result.ok || releases.length > 0) {
+          result = { releases, fetchedAt: now, ok: true, source };
+        }
+        if (releases.length > 0) break;
+      } catch (err) {
+        log.debug(`[updates] release check via ${source} failed: ${err.message ?? err}`);
+      }
     }
+    cache = result;
     return cache;
   }
 
   /**
-   * GET /latest — the recent releases, newest-first as GitLab returns them.
+   * GET /latest — the recent releases, newest-first as the source returns them.
    *
    * Deliberately returns the LIST rather than a single "latest": the client
    * already owns the comparison rules (a stable install ignores betas, a beta
@@ -122,12 +166,14 @@ export function createUpdatesRouter({ fetchImpl = fetch } = {}) {
       return res.json({ enabled: false, releases: [] });
     }
     try {
-      const { releases, ok, fetchedAt } = await loadReleases();
+      const { releases, ok, fetchedAt, source } = await loadReleases();
       return res.json({
         enabled: true,
         releases,
         checkedAt: new Date(fetchedAt).toISOString(),
         upstreamOk: ok,
+        // 'github' | 'gitlab' | 'custom' | null (nothing answered).
+        source,
       });
     } catch (err) {
       log.error('[api] /api/updates/latest error:', err.message ?? err);
