@@ -688,3 +688,117 @@ test('processAlertsForEvent accessory scope matches the display name and the rep
     }
   }
 });
+
+// -- Temperature unit in alert emails --
+// Readings are stored in °C; the email shows them in the rule owner's unit
+// (user_preferences.prefs.temperatureUnit). Legacy rules (no user_id) stay °C.
+
+function makeTemperaturePool({ rule, prefsRows, deliveries, prefsQueries }) {
+  return {
+    async query(sql, params = []) {
+      if (sql.includes('FROM alert_rules')) return { rows: [rule] };
+      if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+      if (sql.includes('FROM user_preferences')) {
+        prefsQueries.push(params[0]);
+        if (prefsRows === null) throw new Error('user_preferences must not be queried');
+        return { rows: prefsRows };
+      }
+      if (sql.startsWith('INSERT INTO alert_deliveries')) {
+        deliveries.push({ status: params[2], channel: params[4] });
+        return { rowCount: 1 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+}
+
+async function withEmailCapture(fn) {
+  const sent = [];
+  const originalFetch = global.fetch;
+  global.fetch = async () => { throw new Error('fetch should not be called for email rules'); };
+  await initEmail({
+    host: 'smtp.test',
+    smtpPass: 'x',
+    from: 'noreply@homechronicle.test',
+    _testTransport: { verify: async () => true, sendMail: async (msg) => { sent.push(msg); return { messageId: 'test-id' }; } },
+  });
+  try {
+    await fn(sent);
+  } finally {
+    global.fetch = originalFetch;
+    await initEmail({});
+  }
+}
+
+const temperatureRule = (overrides = {}) => makeRule({
+  channel: 'email', target_email: 'a@example.com', target_url: null, user_id: 7,
+  scope_type: 'all', scope_value: null, characteristic: 'CurrentTemperature',
+  operator: 'above', match_value: '23.89', ...overrides,
+});
+const temperatureEvent = (overrides = {}) => makeEvent({
+  characteristic: 'CurrentTemperature', oldValue: '23', newValue: '24', ...overrides,
+});
+
+test("email for a temperature rule uses the owner's Fahrenheit", async () => {
+  const deliveries = []; const prefsQueries = [];
+  const pool = makeTemperaturePool({
+    rule: temperatureRule(), prefsRows: [{ prefs: { temperatureUnit: 'f' } }], deliveries, prefsQueries,
+  });
+  await withEmailCapture(async (sent) => {
+    await processAlertsForEvent(pool, temperatureEvent(), 'noreply@homechronicle.test');
+    assert.equal(deliveries[0]?.status, 'sent');
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].subject, '[HomeChronicle] Hallway Motion CurrentTemperature = 75.2 °F');
+    assert.ok(sent[0].text.includes('Change:         73.4 °F → 75.2 °F'), sent[0].text);
+    assert.deepEqual(prefsQueries, [7], 'preferences looked up once, by the owner id');
+  });
+});
+
+test('legacy rule with no owner stays in Celsius', async () => {
+  const deliveries = []; const prefsQueries = [];
+  const pool = makeTemperaturePool({
+    rule: temperatureRule({ user_id: null }), prefsRows: null, deliveries, prefsQueries,
+  });
+  await withEmailCapture(async (sent) => {
+    await processAlertsForEvent(pool, temperatureEvent(), 'noreply@homechronicle.test');
+    assert.equal(deliveries[0]?.status, 'sent');
+    assert.ok(sent[0].subject.endsWith('= 24.0 °C'), sent[0].subject);
+    assert.deepEqual(prefsQueries, []);
+  });
+});
+
+test('garbage preference falls back to Celsius', async () => {
+  const deliveries = []; const prefsQueries = [];
+  const pool = makeTemperaturePool({
+    rule: temperatureRule(), prefsRows: [{ prefs: { temperatureUnit: 'kelvin' } }], deliveries, prefsQueries,
+  });
+  await withEmailCapture(async (sent) => {
+    await processAlertsForEvent(pool, temperatureEvent(), 'noreply@homechronicle.test');
+    assert.ok(sent[0].subject.endsWith('= 24.0 °C'), sent[0].subject);
+  });
+});
+
+test('non-temperature email is unchanged and skips the preferences lookup', async () => {
+  const deliveries = []; const prefsQueries = [];
+  const pool = makeTemperaturePool({
+    rule: temperatureRule({ characteristic: null, scope_type: 'characteristic', scope_value: 'MotionDetected', operator: 'equals', match_value: 'true' }),
+    prefsRows: null, deliveries, prefsQueries,
+  });
+  await withEmailCapture(async (sent) => {
+    await processAlertsForEvent(pool, makeEvent(), 'noreply@homechronicle.test');
+    assert.equal(deliveries[0]?.status, 'sent');
+    assert.ok(sent[0].subject.endsWith('MotionDetected = true'), sent[0].subject);
+    assert.deepEqual(prefsQueries, []);
+  });
+});
+
+test('first reading shows (none) before the arrow', async () => {
+  const deliveries = []; const prefsQueries = [];
+  const pool = makeTemperaturePool({
+    rule: temperatureRule(), prefsRows: [{ prefs: { temperatureUnit: 'f' } }], deliveries, prefsQueries,
+  });
+  await withEmailCapture(async (sent) => {
+    await processAlertsForEvent(pool, temperatureEvent({ oldValue: null }), 'noreply@homechronicle.test');
+    assert.ok(sent[0].text.includes('(none) → 75.2 °F'), sent[0].text);
+  });
+});

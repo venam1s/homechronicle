@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { describeChange, humanizeCharacteristic } from './icons.js';
+import { describeChange, describeBeforeAfter, humanizeCharacteristic } from './icons.js';
 
 describe('describeChange', () => {
   it.each([
@@ -8,9 +8,33 @@ describe('describeChange', () => {
     ['MotionDetected', '1', 'motion detected'],
     ['MotionDetected', '0', 'motion cleared'],
     ['CurrentRelativeHumidity', '60.4', '60% RH'],
-    ['CurrentTemperature', '18.14', '18.1°C'],
+    ['CurrentTemperature', '18.14', '18.1 °C'],
   ])('%s=%s reads as "%s"', (char, value, expected) => {
     expect(describeChange(char, value)).toBe(expected);
+  });
+
+  describe('temperature unit option', () => {
+    it('converts the headline to Fahrenheit when asked', () => {
+      expect(describeChange('CurrentTemperature', '18.14', { temperatureUnit: 'f' })).toBe('64.7 °F');
+    });
+    it('names the setpoint characteristics', () => {
+      expect(describeChange('TargetTemperature', '22', { temperatureUnit: 'f' })).toBe('target 71.6 °F');
+      expect(describeChange('HeatingThresholdTemperature', '20')).toBe('heating threshold 20.0 °C');
+      expect(describeChange('CoolingThresholdTemperature', '25')).toBe('cooling threshold 25.0 °C');
+    });
+    it('leaves colour temperature alone', () => {
+      expect(describeChange('ColorTemperature', '200', { temperatureUnit: 'f' })).toBe('5000K');
+    });
+    it('converts both sides of a before/after', () => {
+      expect(describeBeforeAfter('CurrentTemperature', '20', '21', { temperatureUnit: 'f' }))
+        .toEqual({ from: '68.0 °F', to: '69.8 °F' });
+    });
+    it('returns null before/after when the old value is missing', () => {
+      expect(describeBeforeAfter('CurrentTemperature', null, '21', { temperatureUnit: 'f' })).toBeNull();
+    });
+    it('falls back to the raw text for a non-numeric reading', () => {
+      expect(describeChange('CurrentTemperature', '--')).toBe('Current temperature: --');
+    });
   });
 
   // v0.4: these strings became the timeline HEADLINE, so characteristics that

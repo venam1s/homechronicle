@@ -25,6 +25,14 @@ describe('downloadEventsExport — same-origin API (production)', () => {
     expect(document.querySelector('a[download]')).toBeNull();
   });
 
+  it('adds unit=f to the check and download URLs when asked', async () => {
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ total: 1, rows: 1, truncated: false }) });
+    await downloadEventsExport({ room: 'Kitchen' }, 'csv', { unit: 'f' });
+    expect(global.fetch.mock.calls[0][0]).toBe('/api/events/export/check?room=Kitchen&unit=f');
+    expect(clicked[0].href).toBe('/api/events/export?format=csv&room=Kitchen&unit=f');
+    expect(buildExportUrl({}, 'csv', 'c')).toBe('/api/events/export?format=csv');
+  });
+
   it('reports an expired session instead of saving an error body as the file', async () => {
     global.fetch.mockResolvedValue({ ok: false, status: 401 });
     await expect(downloadEventsExport({}, 'csv')).rejects.toThrow(/session has expired/);

@@ -287,6 +287,56 @@ test('GET /stats/sensor-environment — disambiguates Matter cluster_id and scal
   assert.equal(homekit.humidity, null, 'no humidity reading -> null');
 });
 
+test('GET /stats/sensor-environment — normalised Matter rows are not scaled', async () => {
+  // Since the Matter normalisation (0.4.0) new rows are stored under the HomeKit
+  // names already in real units; only legacy MeasuredValue rows are centi-units.
+  const sqlSeen = [];
+  const pool = {
+    async query(sql) {
+      sqlSeen.push(sql);
+      return {
+        rows: [
+          {
+            accessory_id: 'm2', accessory_name: 'Matter Sensor', room_name: 'Hall',
+            protocol: 'matter', characteristic: 'CurrentTemperature', cluster_id: 1026,
+            new_value: '23.5', timestamp: '2026-11-08T10:00:00Z', metric: 'temperature',
+          },
+          {
+            accessory_id: 'm2', accessory_name: 'Matter Sensor', room_name: 'Hall',
+            protocol: 'matter', characteristic: 'CurrentRelativeHumidity', cluster_id: 1029,
+            new_value: '45.0', timestamp: '2026-11-08T10:01:00Z', metric: 'humidity',
+          },
+          {
+            accessory_id: 'm1', accessory_name: 'Legacy Matter', room_name: 'Hall',
+            protocol: 'matter', characteristic: 'MeasuredValue', cluster_id: 1026,
+            new_value: '2150', timestamp: '2026-11-08T10:00:00Z', metric: 'temperature',
+          },
+        ],
+      };
+    },
+  };
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({}),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/sensor-environment');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  const normalised = jsonBody.find((r) => r.accessoryId === 'm2');
+  const legacy = jsonBody.find((r) => r.accessoryId === 'm1');
+  assert.equal(normalised.temperature, 23.5, 'normalised Matter temp unscaled');
+  assert.equal(normalised.humidity, 45, 'normalised Matter humidity unscaled');
+  assert.equal(legacy.temperature, 21.5, 'legacy MeasuredValue row still scaled /100');
+  // The JS branches on row.characteristic, so the OUTER select must carry it —
+  // a fake pool returns the column regardless, so check the SQL shape too.
+  const outerSelect = sqlSeen[0].split('FROM (')[0];
+  assert.match(outerSelect, /DISTINCT ON \(accessory_id, metric\)[\s\S]*\bcharacteristic\b/, 'outer SELECT must include characteristic');
+});
+
 // -- GET /stats/battery-levels --
 
 test('GET /stats/battery-levels — combines characteristics and sorts low/empty first', async () => {

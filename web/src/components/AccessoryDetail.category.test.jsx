@@ -31,6 +31,10 @@ vi.mock('../hooks/useEvents.js', () => ({
   useAccessoryCharSummary: () => ({ data: null }),
 }));
 
+vi.mock('../hooks/useTemperatureUnit.js', () => ({
+  useTemperatureUnit: () => ({ unit: 'c', symbol: '°C', setUnit: vi.fn() }),
+}));
+
 vi.mock('../hooks/useCategories.js', () => ({
   useCategories: () => ({
     data: {

@@ -12,6 +12,9 @@ import {
 import clsx from 'clsx';
 import { useAccessoryDetail, useAccessoryAnomalies, useCharacteristicTrend, useAccessoryHeatmap, useAccessoryStateDuration, useAccessoryCharSummary } from '../hooks/useEvents.js';
 import { describeChange, getServiceIcon } from '../lib/icons.js';
+import { buildTrendValues } from '../lib/characteristicTrend.js';
+import { isTemperatureCharacteristic, celsiusToUnit, formatTemperature, temperatureSymbol } from '../lib/temperature.js';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
 import { useCategories, useSetCategory } from '../hooks/useCategories.js';
 import Card from './Card.jsx';
 
@@ -45,28 +48,13 @@ function formatNumber(value, digits = 1) {
 // ---------------------------------------------------------------------------
 // Characteristic Trend sub-component
 // ---------------------------------------------------------------------------
-function CharacteristicTrend({ accessoryId, characteristic, days }) {
+function CharacteristicTrend({ accessoryId, characteristic, days, temperatureUnit = 'c' }) {
   const { data, isLoading } = useCharacteristicTrend(accessoryId, characteristic, days);
 
-  const chartData = useMemo(() => {
-    const points = data?.points ?? [];
-    if (!points.length) return { values: [], isNumeric: false };
-
-    const numericCount = points.filter((p) => {
-      const n = Number(p.new_value);
-      return Number.isFinite(n);
-    }).length;
-    const isNumeric = numericCount / points.length > 0.8;
-
-    const values = points.map((p) => ({
-      time: format(new Date(p.timestamp), 'MMM d HH:mm'),
-      ts: new Date(p.timestamp).getTime(),
-      value: isNumeric ? Number(p.new_value) : (p.new_value === 'true' || p.new_value === '1' ? 1 : 0),
-      raw: p.new_value,
-    }));
-
-    return { values, isNumeric };
-  }, [data?.points]);
+  const chartData = useMemo(
+    () => buildTrendValues(data?.points, { characteristic, temperatureUnit }),
+    [data?.points, characteristic, temperatureUnit],
+  );
 
   if (isLoading) {
     return <div className="text-xs text-hc-muted py-3">Loading trend…</div>;
@@ -326,10 +314,16 @@ function ActivityHeatmap({ accessoryId, days }) {
 // ---------------------------------------------------------------------------
 // Characteristic Change Summary Table
 // ---------------------------------------------------------------------------
-function CharSummaryTable({ accessoryId, days }) {
+function CharSummaryTable({ accessoryId, days, temperatureUnit = 'c' }) {
   const { data, isLoading } = useAccessoryCharSummary(accessoryId, days);
 
   const chars = data?.characteristics ?? [];
+
+  // Temperature rows are stored in °C; show them in the user's unit with its symbol.
+  const stat = (c, value) => {
+    if (!isTemperatureCharacteristic(c.characteristic)) return formatNumber(value, 1);
+    return `${formatNumber(celsiusToUnit(Number(value), temperatureUnit), 1)} ${temperatureSymbol(temperatureUnit)}`;
+  };
 
   if (isLoading) return <div className="text-xs text-hc-muted py-3">Loading…</div>;
   if (!chars.length) return null;
@@ -358,13 +352,13 @@ function CharSummaryTable({ accessoryId, days }) {
                     <td className="py-1.5 pr-3 text-hc-fg font-medium">{c.characteristic}</td>
                     <td className="py-1.5 px-2 text-right text-hc-fg">{c.change_count}</td>
                     <td className="py-1.5 px-2 text-right text-hc-muted">
-                      {isNumeric ? formatNumber(c.min_val, 1) : '—'}
+                      {isNumeric ? stat(c, c.min_val) : '—'}
                     </td>
                     <td className="py-1.5 px-2 text-right text-hc-muted">
-                      {isNumeric ? formatNumber(c.avg_val, 1) : '—'}
+                      {isNumeric ? stat(c, c.avg_val) : '—'}
                     </td>
                     <td className="py-1.5 px-2 text-right text-hc-muted">
-                      {isNumeric ? formatNumber(c.max_val, 1) : '—'}
+                      {isNumeric ? stat(c, c.max_val) : '—'}
                     </td>
                     <td className="py-1.5 px-2 text-right text-hc-muted">{c.distinct_values}</td>
                   </tr>
@@ -390,6 +384,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
   const { data: categoryData } = useCategories();
   const setCategory = useSetCategory();
   const categoryOptions = categoryData?.categories ?? [];
+  const { unit: temperatureUnit } = useTemperatureUnit();
   const categoryLabelFor = (id) => categoryOptions.find((c) => c.id === id)?.label ?? id;
 
   const accessory = data?.accessory ?? null;
@@ -792,7 +787,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
           <ActivityHeatmap accessoryId={accessoryId} days={days} />
 
           {/* Characteristic Change Summary */}
-          <CharSummaryTable accessoryId={accessoryId} days={days} />
+          <CharSummaryTable accessoryId={accessoryId} days={days} temperatureUnit={temperatureUnit} />
 
           {/* Current State with Features 6 (protocol details) and 5 (characteristic trends) */}
           <Card>
@@ -826,7 +821,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                             <p className="text-[11px] text-hc-muted">{state.characteristic}</p>
                             {isSelected ? <ChevronUp size={11} className="text-[var(--hc-room-5)]" /> : <ChevronDown size={11} className="text-hc-muted" />}
                           </div>
-                          <p className="text-sm text-hc-fg mt-0.5">{describeChange(state.characteristic, state.new_value)}</p>
+                          <p className="text-sm text-hc-fg mt-0.5">{describeChange(state.characteristic, state.new_value, { temperatureUnit })}</p>
                           <p className="text-[11px] text-hc-muted mt-1">
                             {formatDistanceToNow(new Date(state.timestamp), { addSuffix: true })}
                           </p>
@@ -849,6 +844,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                               accessoryId={accessoryId}
                               characteristic={state.characteristic}
                               days={days}
+                              temperatureUnit={temperatureUnit}
                             />
                           </div>
                         )}
@@ -877,7 +873,7 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                   {history.events.map((event) => (
                     <div key={event.id} className="px-3 py-2.5">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm text-hc-fg">{describeChange(event.characteristic, event.new_value)}</p>
+                        <p className="text-sm text-hc-fg">{describeChange(event.characteristic, event.new_value, { temperatureUnit })}</p>
                         <p className="text-xs text-hc-muted whitespace-nowrap" title={format(new Date(event.timestamp), 'PPpp')}>
                           {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
                         </p>
@@ -886,7 +882,9 @@ export default function AccessoryDetail({ accessoryId, onBack }) {
                         {event.characteristic}
                         {event.old_value != null && (
                           <span>
-                            {' '}· {event.old_value} → {event.new_value}
+                            {' '}· {isTemperatureCharacteristic(event.characteristic)
+                              ? `${formatTemperature(event.old_value, temperatureUnit) ?? event.old_value} → ${formatTemperature(event.new_value, temperatureUnit) ?? event.new_value}`
+                              : `${event.old_value} → ${event.new_value}`}
                           </span>
                         )}
                       </p>

@@ -5,26 +5,34 @@ import { fetchJson } from '../lib/api.js';
 
 // targetUrl is redacted from GET /api/alerts/rules (secret webhook URLs are not
 // disclosed over unauthenticated reads), so the rules list never carries it.
+const { rulesState, unitState, DEFAULT_RULE } = vi.hoisted(() => {
+  const DEFAULT_RULE = {
+    id: 7,
+    name: 'Test Rule',
+    enabled: true,
+    scopeType: 'all',
+    scopeValue: '',
+    characteristic: '',
+    operator: 'equals',
+    matchValue: '1',
+    channel: 'webhook',
+    quietMinutes: 0,
+    // no targetUrl — redacted by the server
+  };
+  return {
+    DEFAULT_RULE,
+    rulesState: { rules: [DEFAULT_RULE] },
+    unitState: { unit: 'c', symbol: '°C', setUnit: () => {} },
+  };
+});
+
 vi.mock('../hooks/useAlerts.js', () => ({
-  useAlertRules: () => ({
-    data: [
-      {
-        id: 7,
-        name: 'Test Rule',
-        enabled: true,
-        scopeType: 'all',
-        scopeValue: '',
-        characteristic: '',
-        operator: 'equals',
-        matchValue: '1',
-        channel: 'webhook',
-        quietMinutes: 0,
-        // no targetUrl — redacted by the server
-      },
-    ],
-    isLoading: false,
-  }),
+  useAlertRules: () => ({ data: rulesState.rules, isLoading: false }),
   useAlertDeliveries: () => ({ data: { deliveries: [], pages: 1 }, isLoading: false }),
+}));
+
+vi.mock('../hooks/useTemperatureUnit.js', () => ({
+  useTemperatureUnit: () => unitState,
 }));
 
 const { mockUseAuth } = vi.hoisted(() => ({
@@ -340,7 +348,7 @@ describe('Alerts threshold operators', () => {
     fireEvent.change(screen.getByLabelText('Webhook URL'), { target: { value: 'https://hooks.example.com/x' } });
     fireEvent.change(screen.getByLabelText('Characteristic filter'), { target: { value: 'CurrentTemperature' } });
     fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'above' } });
-    fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: '-10' } });
+    fireEvent.change(screen.getByLabelText('Threshold (°C)'), { target: { value: '-10' } });
     fireEvent.click(screen.getByRole('button', { name: /create rule/i }));
 
     await waitFor(() => {
@@ -382,5 +390,133 @@ describe('Alerts goes-quiet operator', () => {
     });
     const [, opts] = fetchJson.mock.calls.find(([url, o]) => url === '/api/alerts/rules' && o?.method === 'POST');
     expect(JSON.parse(opts.body)).toMatchObject({ operator: 'silent_for', matchValue: '6', scopeValue: 'Freezer' });
+  });
+});
+
+describe('Alerts temperature unit', () => {
+  const tempRule = {
+    id: 9, name: 'Office warm', enabled: true, scopeType: 'all', scopeValue: '',
+    characteristic: 'CurrentTemperature', operator: 'above', matchValue: '23.89', channel: 'webhook', quietMinutes: 0,
+  };
+
+  function fillRequired() {
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'Office warm' } });
+    fireEvent.change(screen.getByLabelText('Webhook URL'), { target: { value: 'https://hooks.example.com/x' } });
+  }
+
+  async function postBody() {
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('/api/alerts/rules', expect.objectContaining({ method: 'POST' }));
+    });
+    const [, opts] = fetchJson.mock.calls.find(([url, o]) => url === '/api/alerts/rules' && o?.method === 'POST');
+    return JSON.parse(opts.body);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchJson.mockImplementation(() => Promise.resolve({}));
+    unitState.unit = 'f';
+    unitState.symbol = '°F';
+    rulesState.rules = [tempRule];
+  });
+
+  afterEach(() => {
+    unitState.unit = 'c';
+    unitState.symbol = '°C';
+    rulesState.rules = [DEFAULT_RULE];
+  });
+
+  it('labels a temperature threshold with the unit', () => {
+    renderAlerts();
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'above' } });
+    fireEvent.change(screen.getByLabelText('Characteristic filter'), { target: { value: 'CurrentTemperature' } });
+    const threshold = screen.getByLabelText('Threshold (°F)');
+    expect(threshold).toHaveAccessibleDescription(/Temperatures are in °F/);
+  });
+
+  it('a non-temperature threshold has no unit', () => {
+    renderAlerts();
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'above' } });
+    fireEvent.change(screen.getByLabelText('Characteristic filter'), { target: { value: 'Brightness' } });
+    const threshold = screen.getByLabelText('Threshold');
+    expect(threshold).not.toHaveAccessibleDescription(/Temperatures are in/);
+  });
+
+  it('treats a characteristic scope as the threshold characteristic', () => {
+    renderAlerts();
+    fireEvent.change(screen.getByLabelText('Scope type'), { target: { value: 'characteristic' } });
+    fireEvent.change(screen.getByLabelText('Scope value'), { target: { value: 'currenttemperature' } });
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'above' } });
+    expect(screen.getByLabelText('Threshold (°F)')).toBeInTheDocument();
+  });
+
+  it('saves a Fahrenheit threshold as Celsius', async () => {
+    renderAlerts();
+    fillRequired();
+    fireEvent.change(screen.getByLabelText('Characteristic filter'), { target: { value: 'CurrentTemperature' } });
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'above' } });
+    fireEvent.change(screen.getByLabelText('Threshold (°F)'), { target: { value: '75' } });
+    fireEvent.click(screen.getByRole('button', { name: /create rule/i }));
+    expect(await postBody()).toMatchObject({ operator: 'above', matchValue: '23.89', characteristic: 'CurrentTemperature' });
+  });
+
+  it('shows a stored Celsius threshold in Fahrenheit when editing and saves it back unchanged', async () => {
+    renderAlerts();
+    fireEvent.click(screen.getByRole('button', { name: 'Office warm' }));
+    expect(screen.getByLabelText('Threshold (°F)').value).toBe('75');
+    fireEvent.click(screen.getByRole('button', { name: /update rule/i }));
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('/api/alerts/rules/9', expect.objectContaining({ method: 'PATCH' }));
+    });
+    expect(lastPatchBody().matchValue).toBe('23.89');
+  });
+
+  it('a Celsius user editing a rule saves the stored threshold unchanged', async () => {
+    unitState.unit = 'c';
+    unitState.symbol = '°C';
+    rulesState.rules = [{ ...tempRule, matchValue: '0.25' }];
+    renderAlerts();
+    fireEvent.click(screen.getByRole('button', { name: 'Office warm' }));
+    expect(screen.getByLabelText('Threshold (°C)').value).toBe('0.25');
+    fireEvent.click(screen.getByRole('button', { name: /update rule/i }));
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('/api/alerts/rules/9', expect.objectContaining({ method: 'PATCH' }));
+    });
+    expect(lastPatchBody().matchValue).toBe('0.25');
+  });
+
+  it('a Fahrenheit user editing an odd Celsius threshold saves it back within 0.01 °C', async () => {
+    rulesState.rules = [{ ...tempRule, matchValue: '23.57' }];
+    renderAlerts();
+    fireEvent.click(screen.getByRole('button', { name: 'Office warm' }));
+    expect(screen.getByLabelText('Threshold (°F)').value).toBe('74.43');
+    fireEvent.click(screen.getByRole('button', { name: /update rule/i }));
+    await waitFor(() => {
+      expect(fetchJson).toHaveBeenCalledWith('/api/alerts/rules/9', expect.objectContaining({ method: 'PATCH' }));
+    });
+    expect(lastPatchBody().matchValue).toBe('23.57');
+  });
+
+  it("lists temperature thresholds in the user's unit", () => {
+    const { unmount } = renderAlerts();
+    expect(screen.getByText('rises above 75.0 °F')).toBeInTheDocument();
+    unmount();
+    unitState.unit = 'c';
+    unitState.symbol = '°C';
+    renderAlerts();
+    expect(screen.getByText('rises above 23.9 °C')).toBeInTheDocument();
+  });
+
+  it('text operators on a temperature are not converted', async () => {
+    rulesState.rules = [{ ...tempRule, operator: 'equals', matchValue: '23.5' }];
+    renderAlerts();
+    expect(screen.getByText('equals 23.5')).toBeInTheDocument();
+    fillRequired();
+    fireEvent.change(screen.getByLabelText('Characteristic filter'), { target: { value: 'CurrentTemperature' } });
+    fireEvent.change(screen.getByLabelText('Match operator'), { target: { value: 'equals' } });
+    expect(screen.getByText(/stored reading, which is in °C/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Match value'), { target: { value: '23.5' } });
+    fireEvent.click(screen.getByRole('button', { name: /create rule/i }));
+    expect(await postBody()).toMatchObject({ operator: 'equals', matchValue: '23.5' });
   });
 });

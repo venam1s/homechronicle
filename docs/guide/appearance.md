@@ -1,6 +1,6 @@
 # Appearance
 
-homechronicle has two appearance settings: a **theme** (light, dark, or follow your system) and a **palette** (one of twelve colour schemes). Both live in **Settings › Appearance** and apply immediately — there is no save button and no reload.
+homechronicle has three appearance settings: a **theme** (light, dark, or follow your system), a **palette** (one of twelve colour schemes) and a **temperature unit** (Celsius or Fahrenheit). All live in **Settings › Appearance** and apply immediately — there is no save button and no reload.
 
 ![Settings › Appearance with the Theme switch and the grid of twelve palettes](../screenshots/settings-appearance.png)
 
@@ -15,6 +15,19 @@ homechronicle has two appearance settings: a **theme** (light, dark, or follow y
 On desktop (1024 px and wider), the theme button in the top navigation bar cycles **System → Light → Dark**. Its icon shows the current mode: half sun/half moon (system), sun (light), or moon (dark).
 
 On phones and tablets there is no theme button in the floating navigation — change the theme in **Settings › Appearance**.
+
+## Units
+
+**Settings › Appearance › Units** switches every temperature you read or type between **Celsius (°C)**, the default, and **Fahrenheit (°F)**. It applies to temperature readings (`CurrentTemperature`) everywhere they appear:
+
+- Timeline rows and the dashboard Activity Feed and Sensor Environment panels
+- the device page: current state, history, the characteristic trend chart and the summary table
+- live event toasts
+- alert rules: a *rises above* / *drops below* threshold on a temperature is typed and shown in your unit (see [Alerts](alerts.md#match-operator))
+- alert emails for your rules
+- the Timeline export (`old_value` / `new_value` of temperature rows)
+
+Readings are stored in °C regardless of the setting, so changing it never alters your data, and each household member sees temperatures in their own unit. Webhook payloads stay in °C. Thermostat setpoints are not logged today, so the setting only affects sensor readings.
 
 ## Palettes
 
@@ -63,8 +76,9 @@ Browser keys:
 |-----|--------|
 | `hc_theme_preference` | `system` (default), `light`, `dark` |
 | `hc_palette` | `gallery`, `ember`, `almanac`, `harvest`, `ink`, `fern`, `porcelain` (default), `tide`, `atlas`, `iris`, `dusk`, `graphite` |
+| `hc_temperature_unit` | `c` (default), `f` |
 
-Clearing site data resets this browser to System and Porcelain (when signed in, your account's choice is restored on the next load).
+Clearing site data resets this browser to System, Porcelain and Celsius (when signed in, your account's choice is restored on the next load).
 
 ## Upgrading from an earlier version
 

@@ -20,6 +20,7 @@ import {
   Bell,
   Zap,
 } from 'lucide-react';
+import { isTemperatureCharacteristic, formatTemperature } from './temperature.js';
 
 const SERVICE_ICONS = {
   Lightbulb:       Lightbulb,
@@ -76,17 +77,19 @@ export function getServiceLabel(serviceType) {
  * Returns before → after strings for numeric/enum characteristics where
  * showing the transition adds value. Returns null when not applicable.
  */
-export function describeBeforeAfter(characteristic, oldValue, newValue) {
+export function describeBeforeAfter(characteristic, oldValue, newValue, { temperatureUnit = 'c' } = {}) {
   if (oldValue == null || oldValue === '' || String(oldValue) === String(newValue)) return null;
+  if (isTemperatureCharacteristic(characteristic)) {
+    const from = formatTemperature(oldValue, temperatureUnit);
+    const to = formatTemperature(newValue, temperatureUnit);
+    return from && to ? { from, to } : null;
+  }
   switch (characteristic) {
     case 'Brightness':
     case 'Volume':
       return { from: `${Math.round(oldValue)}%`, to: `${Math.round(newValue)}%` };
     case 'Saturation':
       return { from: `${parseFloat(oldValue).toFixed(0)}%`, to: `${parseFloat(newValue).toFixed(0)}%` };
-    case 'CurrentTemperature':
-    case 'TargetTemperature':
-      return { from: `${parseFloat(oldValue).toFixed(1)}°C`, to: `${parseFloat(newValue).toFixed(1)}°C` };
     case 'CurrentRelativeHumidity':
       return { from: `${parseFloat(oldValue).toFixed(0)}%`, to: `${parseFloat(newValue).toFixed(0)}%` };
     case 'Hue':
@@ -112,8 +115,24 @@ export function formatGap(ms) {
   return `${h}h ${m}m`;
 }
 
-/** Returns a human-readable description of a characteristic change */
-export function describeChange(characteristic, newValue) {
+const TEMPERATURE_PREFIX = {
+  CurrentTemperature: '',
+  TargetTemperature: 'target ',
+  HeatingThresholdTemperature: 'heating threshold ',
+  CoolingThresholdTemperature: 'cooling threshold ',
+};
+
+/**
+ * Returns a human-readable description of a characteristic change.
+ * `options.temperatureUnit` ('c' | 'f', default 'c') is applied to the
+ * temperature characteristics; readings are stored in °C.
+ */
+export function describeChange(characteristic, newValue, { temperatureUnit = 'c' } = {}) {
+  if (isTemperatureCharacteristic(characteristic)) {
+    const formatted = formatTemperature(newValue, temperatureUnit);
+    if (formatted !== null) return `${TEMPERATURE_PREFIX[characteristic] ?? ''}${formatted}`;
+    // Non-numeric reading: fall through to the generic "Name: raw" default below.
+  }
   switch (characteristic) {
     case 'On':
       return newValue === 'true' || newValue === '1' ? 'turned on' : 'turned off';
@@ -138,8 +157,6 @@ export function describeChange(characteristic, newValue) {
       const states = ['stay arm', 'away arm', 'night arm', 'disarmed', 'alarm triggered'];
       return states[parseInt(newValue, 10)] ?? `state ${newValue}`;
     }
-    case 'CurrentTemperature':
-      return `${parseFloat(newValue).toFixed(1)}°C`;
     case 'CurrentRelativeHumidity':
       return `${parseFloat(newValue).toFixed(0)}% RH`;
     case 'Brightness':

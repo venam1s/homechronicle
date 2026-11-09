@@ -1,8 +1,11 @@
 import { Thermometer, Droplets } from 'lucide-react';
 import { useSensorEnvironment } from '../hooks/useEvents.js';
+import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
+import { formatTemperature } from '../lib/temperature.js';
 
 export default function SensorEnvironmentPanel() {
   const { data, isLoading, isError } = useSensorEnvironment();
+  const { unit } = useTemperatureUnit();
 
   const header = (
     <div className="flex items-baseline justify-between mb-3">
@@ -36,7 +39,7 @@ export default function SensorEnvironmentPanel() {
             {r.temperature !== null && (
               <span className="flex items-center gap-1 text-hc-fg tabular-nums whitespace-nowrap">
                 <Thermometer size={13} className="text-hc-muted" />
-                {r.temperature.toFixed(1)}°
+                {formatTemperature(r.temperature, unit)}
               </span>
             )}
             {r.humidity !== null && (

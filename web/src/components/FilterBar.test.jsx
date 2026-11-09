@@ -8,6 +8,11 @@ vi.mock('../hooks/useEvents.js', () => ({
   useHeatmap: () => ({ data: [{ accessory_name: 'Lamp', hour: 10, count: 3 }], isLoading: false }),
 }));
 
+const { unitState } = vi.hoisted(() => ({ unitState: { unit: 'c', symbol: '°C', setUnit: () => {} } }));
+vi.mock('../hooks/useTemperatureUnit.js', () => ({
+  useTemperatureUnit: () => unitState,
+}));
+
 vi.mock('../hooks/useAccentRgb.js', () => ({
   useAccentRgb: () => [37, 99, 235],
 }));
@@ -147,8 +152,10 @@ describe('FilterBar export — warns from the counts the listener reports', () =
   afterEach(() => vi.restoreAllMocks());
 
   it('warns when the download hits the row cap', async () => {
+    unitState.unit = 'f';
+    unitState.symbol = '°F';
     const mod = await import('../lib/exportEvents.js');
-    vi.spyOn(mod, 'downloadEventsExport').mockResolvedValue({ total: 812345, rows: 500000, truncated: true });
+    const spy = vi.spyOn(mod, 'downloadEventsExport').mockResolvedValue({ total: 812345, rows: 500000, truncated: true });
     render(
       <FilterBar
         filters={{}}
@@ -165,5 +172,9 @@ describe('FilterBar export — warns from the counts the listener reports', () =
     );
     fireEvent.click(screen.getByRole('button', { name: 'Export matching events as CSV' }));
     expect(await screen.findByRole('status')).toHaveTextContent(/oldest 500,000 of 812,345 events/);
+    // The signed-in user's temperature unit rides along so temperature rows come out in °F.
+    expect(spy).toHaveBeenCalledWith({}, 'csv', { unit: 'f' });
+    unitState.unit = 'c';
+    unitState.symbol = '°C';
   });
 });
