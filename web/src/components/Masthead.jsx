@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Sun, Moon, SunMoon, ArrowUpCircle, LogOut, Palette, ChevronDown } from 'lucide-react';
+import { Sun, Moon, SunMoon, ArrowUpCircle, LogOut, Palette, ChevronDown, Settings } from 'lucide-react';
 import clsx from 'clsx';
 import BrandLogo from './BrandLogo.jsx';
 import { useTheme } from '../hooks/useTheme.js';
@@ -9,15 +9,16 @@ import { useSignOut } from '../hooks/useSignOut.js';
 
 // -- Constants --
 
-// Mirrors FloatingNav.jsx NAV_ITEMS so the two navigations stay in sync.
-// The masthead is text-only: at desktop widths labels read faster than icons,
-// and dropping the icons is what lets five sections sit on one line.
+// The four content sections. Settings is deliberately NOT here: on desktop it
+// lives in the account menu (or behind a cog when sign-in is off), so the
+// centre of the masthead is only the places you browse. FloatingNav keeps
+// Settings in its own list — on phones a bottom-menu item is easier to reach.
+// The masthead is text-only: at desktop widths labels read faster than icons.
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'devices', label: 'Devices' },
   { id: 'timeline', label: 'Timeline' },
   { id: 'alerts', label: 'Alerts' },
-  { id: 'settings', label: 'Settings' },
 ];
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2';
@@ -66,6 +67,11 @@ function formatToday(now = new Date()) {
  * sections centre, date and account right, over the Almanac double rule. Below
  * 1024px App renders FloatingNav instead, unchanged (NAV-02).
  *
+ * Settings is reached from the right-hand cluster: the account menu when
+ * sign-in is on, or a cog in the same spot when it is off (there is no account
+ * to show, but Settings must stay reachable). Whichever is shown carries the
+ * new-version dot and highlights while Settings is open.
+ *
  * The palette picker that used to live in the sidebar is NOT reproduced here —
  * it now has a proper home in Settings -> Appearance. The quick theme toggle
  * stays, because switching to dark is a several-times-a-day action and a trip
@@ -111,6 +117,18 @@ export default function Masthead({
     return signOut();
   }
 
+  const onSettings = activePage === 'settings';
+  // Screen readers read the button's aria-label, not its children, so the
+  // update dot's state has to be spelled out in the label too.
+  const updateSuffix = hasNewVersion ? ', new version available' : '';
+  const updateDot = hasNewVersion && (
+    <span
+      // Points at Settings -> About, where the changelog lives.
+      className="absolute top-0 right-0 w-2 h-2 rounded-full bg-hc-warning-text ring-2 ring-hc-bg"
+      aria-label="New version available"
+    />
+  );
+
   return (
     <header className="shrink-0 bg-hc-bg">
       <div className="flex items-center gap-6 px-6 lg:px-10 py-3">
@@ -142,14 +160,6 @@ export default function Masthead({
                 )}
               >
                 {label}
-                {id === 'settings' && hasNewVersion && (
-                  <span
-                    // Points at where the changelog now lives, rather than
-                    // spending masthead room on a version string nobody acts on.
-                    className="inline-block w-1.5 h-1.5 rounded-full bg-hc-warning-text ml-1.5 align-middle"
-                    aria-label="New version available"
-                  />
-                )}
               </button>
             );
           })}
@@ -193,6 +203,26 @@ export default function Masthead({
               cluster: it is reversible, so a confirmation dialog would be
               friction, but it sat one misclick away from the theme toggle. A
               menu adds intent without a modal. */}
+          {/* Auth off: no account to show, so a cog takes the avatar's place
+              and goes straight to Settings — a one-item menu would only add a
+              click. */}
+          {authEnabled === false && (
+            <button
+              type="button"
+              onClick={() => onNavigate('settings')}
+              aria-label={`Settings${updateSuffix}`}
+              aria-current={onSettings ? 'page' : undefined}
+              className={clsx(
+                'relative flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:bg-hc-interactive hover:text-hc-fg',
+                onSettings ? 'bg-hc-interactive text-hc-fg-strong' : 'text-hc-muted',
+                FOCUS_RING,
+              )}
+            >
+              <Settings size={18} aria-hidden="true" />
+              {updateDot}
+            </button>
+          )}
+
           {authEnabled !== false && (
             <div className="relative" ref={accountRef}>
               <button
@@ -200,17 +230,23 @@ export default function Masthead({
                 onClick={() => setAccountOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={accountOpen}
-                aria-label={`Account: ${accountLabel}`}
+                aria-label={`Account: ${accountLabel}${updateSuffix}`}
                 className={clsx(
                   'flex items-center gap-1 rounded-full pl-0.5 pr-1.5 py-0.5 transition-colors hover:bg-hc-interactive',
+                  onSettings && 'bg-hc-interactive',
                   FOCUS_RING,
                 )}
               >
                 <span
-                  aria-hidden="true"
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-hc-interactive text-hc-fg text-hc-caption font-semibold"
+                  className={clsx(
+                    'relative flex items-center justify-center w-8 h-8 rounded-full bg-hc-interactive text-hc-fg text-hc-caption font-semibold',
+                    // Settings left the section nav, so the avatar is what
+                    // shows you're on it.
+                    onSettings && 'ring-2 ring-hc-fg-strong',
+                  )}
                 >
-                  {accountInitials}
+                  <span aria-hidden="true">{accountInitials}</span>
+                  {updateDot}
                 </span>
                 <ChevronDown size={14} className="text-hc-muted" aria-hidden="true" />
               </button>
@@ -224,6 +260,23 @@ export default function Masthead({
                     <p className="text-hc-caption text-hc-muted">Signed in as</p>
                     <p className="text-hc-label font-medium text-hc-fg-strong truncate">{accountLabel}</p>
                   </div>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    aria-current={onSettings ? 'page' : undefined}
+                    onClick={() => { setAccountOpen(false); onNavigate('settings'); }}
+                    className={clsx(
+                      'flex w-full items-center gap-2 px-3 py-2 text-hc-label text-hc-fg hover:bg-hc-interactive transition-colors',
+                      FOCUS_RING,
+                    )}
+                  >
+                    <Settings size={15} className="text-hc-muted" aria-hidden="true" />
+                    <span className="flex-1 text-left">Settings</span>
+                    {hasNewVersion && (
+                      <span className="text-hc-caption text-hc-warning-text">New version</span>
+                    )}
+                  </button>
 
                   <button
                     type="button"

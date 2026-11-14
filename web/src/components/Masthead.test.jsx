@@ -27,7 +27,8 @@ vi.mock('../hooks/useUserPreferences.js', () => ({
 
 const { default: Masthead } = await import('./Masthead.jsx');
 
-const NAV = ['Dashboard', 'Devices', 'Timeline', 'Alerts', 'Settings'];
+// Settings is not a section: it lives in the account menu (or a cog when auth is off).
+const NAV = ['Dashboard', 'Devices', 'Timeline', 'Alerts'];
 
 function renderMasthead(props = {}) {
   return render(
@@ -55,7 +56,7 @@ describe('Masthead', () => {
   });
 
   // NAV-01
-  it('exposes the five sections as a labelled navigation landmark', () => {
+  it('exposes the four sections as a labelled navigation landmark', () => {
     renderMasthead();
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
     const buttons = within(nav).getAllByRole('button');
@@ -96,14 +97,24 @@ describe('Masthead', () => {
     expect(screen.queryByText(/v0\.4\.0/)).toBeNull();
   });
 
-  // Only the actionable half stays: a dot on Settings pointing at About.
-  it('marks Settings with a dot when a new version is available', () => {
+  // Only the actionable half stays: a dot on the way into Settings, pointing at About.
+  it('marks the account avatar with a dot when a new version is available', () => {
     const { unmount } = renderMasthead({ hasNewVersion: false });
     expect(screen.queryByLabelText('New version available')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Account: admin@example.com' })).toBeInTheDocument();
     unmount();
 
     renderMasthead({ hasNewVersion: true });
     expect(screen.getByLabelText('New version available')).toBeInTheDocument();
+    // The button's aria-label overrides its children, so the state must be in it.
+    expect(screen.getByRole('button', { name: 'Account: admin@example.com, new version available' }))
+      .toBeInTheDocument();
+  });
+
+  it('does not offer Settings as a top-level section', () => {
+    renderMasthead();
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    expect(within(nav).queryByRole('button', { name: /Settings/ })).toBeNull();
   });
 
   it('links to an available update only when there is one', () => {
@@ -200,10 +211,72 @@ describe('Masthead', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
     });
 
+    it('opens Settings from the menu', () => {
+      const onNavigate = vi.fn();
+      renderMasthead({ onNavigate });
+      openMenu();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
+      expect(onNavigate).toHaveBeenCalledWith('settings');
+      expect(screen.queryByRole('menuitem', { name: 'Sign out' })).toBeNull();
+    });
+
+    it('flags the new version on the Settings item', () => {
+      renderMasthead({ hasNewVersion: true });
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: /^Settings/ })).toHaveTextContent('New version');
+    });
+
+    it('marks the Settings item current while on Settings', () => {
+      const { unmount } = renderMasthead({ activePage: 'dashboard' });
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Settings' })).not.toHaveAttribute('aria-current');
+      unmount();
+
+      renderMasthead({ activePage: 'settings' });
+      openMenu();
+      expect(screen.getByRole('menuitem', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('does not show the settings cog when auth is on', () => {
+      renderMasthead();
+      expect(screen.queryByRole('button', { name: /^Settings/ })).toBeNull();
+    });
+
     it('hides the account menu entirely when auth is disabled', () => {
       configState.authEnabled = false;
       renderMasthead();
       expect(screen.queryByRole('button', { name: /Account:/ })).toBeNull();
+    });
+  });
+
+  // Auth off: no account menu, so Settings must still be reachable.
+  describe('settings cog (auth off)', () => {
+    beforeEach(() => {
+      configState.authEnabled = false;
+      authState.user = null;
+    });
+
+    it('goes straight to Settings', () => {
+      const onNavigate = vi.fn();
+      renderMasthead({ onNavigate });
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+      expect(onNavigate).toHaveBeenCalledWith('settings');
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+
+    it('is marked current while on Settings', () => {
+      const { unmount } = renderMasthead({ activePage: 'dashboard' });
+      expect(screen.getByRole('button', { name: 'Settings' })).not.toHaveAttribute('aria-current');
+      unmount();
+
+      renderMasthead({ activePage: 'settings' });
+      expect(screen.getByRole('button', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('carries the new-version dot', () => {
+      renderMasthead({ hasNewVersion: true });
+      expect(screen.getByLabelText('New version available')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Settings, new version available' })).toBeInTheDocument();
     });
   });
 });

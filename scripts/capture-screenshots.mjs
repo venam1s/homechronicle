@@ -4,7 +4,8 @@
  * docs/screenshots.html and docs/guide/*.md) from a live instance.
  *
  * Targets the v0.4 UI:
- *   - Masthead top navigation (Dashboard / Devices / Timeline / Alerts / Settings)
+ *   - Masthead top navigation (Dashboard / Devices / Timeline / Alerts; Settings
+ *     via the account menu, or the cog when sign-in is off)
  *   - Twelve palettes x light/dark, driven through the per-user `palette` and
  *     `theme` preferences
  *   - Settings sections About / Admin / Configuration / Appearance / Account
@@ -327,9 +328,25 @@ async function clipShot(page, locators, file, { pad = 24, alignTop = false } = {
 }
 
 async function navTo(page, label) {
-  await page.locator('nav[aria-label="Main navigation"] button', { hasText: label }).first().click({ timeout: 8000 });
+  if (label === 'Settings') {
+    await openSettings(page);
+  } else {
+    await page.locator('nav[aria-label="Main navigation"] button', { hasText: label }).first().click({ timeout: 8000 });
+  }
   await page.waitForTimeout(1800);
   await scrollMainTop(page);
+}
+
+// Settings is no longer a top-level section: it is an item in the account menu
+// (auth on) or a cog in its place (auth off). The old top-level button is tried
+// first so the script keeps working against deployments from before the move.
+async function openSettings(page) {
+  const legacy = page.locator('nav[aria-label="Main navigation"] button', { hasText: 'Settings' });
+  if (await legacy.count()) return legacy.first().click({ timeout: 8000 });
+  const cog = page.getByRole('button', { name: /^Settings/ });
+  if (await cog.count()) return cog.first().click({ timeout: 8000 });
+  await page.getByRole('button', { name: /^Account:/ }).first().click({ timeout: 8000 });
+  await page.getByRole('menuitem', { name: /^Settings/ }).first().click({ timeout: 6000 });
 }
 
 async function settingsSection(page, label) {

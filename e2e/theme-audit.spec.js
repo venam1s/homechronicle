@@ -9,6 +9,19 @@ const slug = (label) => label.toLowerCase().replace(/\s+/g, '-');
 const navButton = (page, label) =>
   page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: label, exact: true });
 
+// Settings left the section nav: it is the cog (auth off) or an item in the
+// account menu (auth on). The old top-level button is tried first so the audit
+// still runs against builds from before the move.
+async function openPage(page, label) {
+  if (label !== 'Settings') return navButton(page, label).click();
+  const legacy = navButton(page, 'Settings');
+  if (await legacy.count()) return legacy.click();
+  const cog = page.getByRole('button', { name: /^Settings/ });
+  if (await cog.count()) return cog.click();
+  await page.getByRole('button', { name: /^Account:/ }).click();
+  return page.getByRole('menuitem', { name: /^Settings/ }).click();
+}
+
 for (const theme of ['light', 'dark']) {
   test.describe(`Theme: ${theme}`, () => {
     test.beforeEach(async ({ page }) => {
@@ -32,7 +45,7 @@ for (const theme of ['light', 'dark']) {
 
     for (const label of PAGES) {
       test(`${slug(label)} page`, async ({ page }) => {
-        await navButton(page, label).click();
+        await openPage(page, label);
         await page.waitForTimeout(500);
         await page.screenshot({
           path: `test-results/theme-audit/${theme}-${slug(label)}.png`,
