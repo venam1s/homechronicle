@@ -61,15 +61,28 @@ const MAX_STORE_ENTRIES = 5_000;
 
 /**
  * Validate an accessoryId used as a JSON-store key.
+ *
  * Length-capped only, with no character class: real keys include HAP MACs,
  * split-service ids (`MAC:aid:iid`) and Matter `nodeId` / `nodeId:endpoint`.
+ * A finite number is coerced rather than refused — every current caller sends a
+ * string, but the pre-cap code accepted any truthy value and a numeric Matter
+ * nodeId must not start failing every save for that device.
+ *
+ * The length cap applies to NEW keys only, exactly as MAX_STORE_ENTRIES does:
+ * an over-long key that is already in the store is still accepted, so junk
+ * written before this cap existed can be cleared through the API instead of
+ * needing a hand-edit of the JSON file.
+ *
+ * @param {unknown} raw
+ * @param {object} [store] current store contents, for the already-present check
  * @returns {{ error: string } | { value: string }}
  */
-function parseStoreKey(raw) {
-  if (typeof raw !== 'string') return { error: 'accessoryId is required' };
-  const value = raw.trim();
+function parseStoreKey(raw, store = {}) {
+  const asString = (typeof raw === 'number' && Number.isFinite(raw)) ? String(raw) : raw;
+  if (typeof asString !== 'string') return { error: 'accessoryId is required' };
+  const value = asString.trim();
   if (!value) return { error: 'accessoryId is required' };
-  if (value.length > MAX_KEY_LEN) {
+  if (value.length > MAX_KEY_LEN && !Object.prototype.hasOwnProperty.call(store, value)) {
     return { error: `accessoryId must be ${MAX_KEY_LEN} characters or fewer` };
   }
   return { value };
@@ -497,17 +510,23 @@ export function createSetupRouter({
   // -- Rooms --
 
   router.patch('/room', setupWriteLimiter, async (req, res) => {
-    const { accessoryId, roomName } = req.body ?? {};
-    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
-
     const rooms = loadRooms();
-    if (roomName && roomName.trim()) {
-      rooms[accessoryId] = roomName.trim();
+    const key = parseStoreKey(req.body?.accessoryId, rooms);
+    if (key.error) return res.status(400).json({ error: key.error });
+    const name = parseStoreText(req.body?.roomName, 'roomName', MAX_NAME_LEN);
+    if (name.error) return res.status(400).json({ error: name.error });
+
+    if (name.value) {
+      const full = storeCapacityError(rooms, key.value, 'room');
+      if (full) return res.status(400).json({ error: full });
+      rooms[key.value] = name.value;
     } else {
-      delete rooms[accessoryId];
+      delete rooms[key.value];
     }
     await saveRooms(rooms);
-    log.info(`[setup] Room for ${accessoryId} set to ${roomName?.trim() || '(cleared)'}`);
+    // Values are JSON-quoted so a newline in a member-supplied name cannot forge
+    // an extra audit log line.
+    log.info(`[setup] Room for ${JSON.stringify(key.value)} set to ${name.value ? JSON.stringify(name.value) : '(cleared)'}`);
     res.json({ success: true });
   });
 
@@ -520,21 +539,24 @@ export function createSetupRouter({
   // An empty or missing category clears the override, so the device goes back
   // to the category its service types imply.
   router.patch('/category', setupWriteLimiter, async (req, res) => {
-    const { accessoryId } = req.body ?? {};
+    const overrides = loadCategories();
+    const key = parseStoreKey(req.body?.accessoryId, overrides);
+    if (key.error) return res.status(400).json({ error: key.error });
+    // Category values are closed-set, so isValidCategory is the only cap needed.
     const category = String(req.body?.category ?? '').trim();
-    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
     if (category && !isValidCategory(category)) {
       return res.status(400).json({ error: `category must be one of: ${CATEGORIES.map((c) => c.id).join(', ')}` });
     }
 
-    const overrides = loadCategories();
     if (category) {
-      overrides[accessoryId] = category;
+      const full = storeCapacityError(overrides, key.value, 'category');
+      if (full) return res.status(400).json({ error: full });
+      overrides[key.value] = category;
     } else {
-      delete overrides[accessoryId];
+      delete overrides[key.value];
     }
     await saveCategories(overrides);
-    log.info(`[setup] Category for ${accessoryId} set to ${category || '(automatic)'}`);
+    log.info(`[setup] Category for ${JSON.stringify(key.value)} set to ${category || '(automatic)'}`);
     res.json({ success: true });
   });
 
@@ -545,16 +567,18 @@ export function createSetupRouter({
   // -- Display Names --
 
   router.patch('/display-name', setupWriteLimiter, async (req, res) => {
-    const { accessoryId, displayName } = req.body ?? {};
-    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
-    if (displayName != null && typeof displayName !== 'string') {
-      return res.status(400).json({ error: 'displayName must be a string' });
-    }
+    const key = parseStoreKey(req.body?.accessoryId, loadDisplayNames());
+    if (key.error) return res.status(400).json({ error: key.error });
+    const parsedName = parseStoreText(req.body?.displayName, 'displayName', MAX_NAME_LEN);
+    if (parsedName.error) return res.status(400).json({ error: parsedName.error });
+    const accessoryId = key.value;
 
     try {
       const names = loadDisplayNames();
-      const name = displayName?.trim() ?? '';
+      const name = parsedName.value;
       if (name) {
+        const full = storeCapacityError(names, accessoryId, 'display name');
+        if (full) return res.status(400).json({ error: full });
         names[accessoryId] = name;
       } else {
         delete names[accessoryId];
@@ -562,7 +586,7 @@ export function createSetupRouter({
       // Store first, then rewrite history: an event inserted in between already
       // picks up the new name from the store.
       await saveDisplayNames(names);
-      log.info(`[setup] Display name for ${accessoryId} set to ${name || '(cleared)'}`);
+      log.info(`[setup] Display name for ${JSON.stringify(accessoryId)} set to ${name ? JSON.stringify(name) : '(cleared)'}`);
 
       // Renaming a long history can outlast the proxy timeout; wait a little,
       // then let it finish in the background. A failure is logged and repaired
@@ -594,17 +618,22 @@ export function createSetupRouter({
   // -- Notes --
 
   router.patch('/note', setupWriteLimiter, async (req, res) => {
-    const { accessoryId, note } = req.body ?? {};
-    if (!accessoryId) return res.status(400).json({ error: 'accessoryId is required' });
-
     const notes = loadNotes();
-    if (note && note.trim()) {
-      notes[accessoryId] = note.trim();
+    const key = parseStoreKey(req.body?.accessoryId, notes);
+    if (key.error) return res.status(400).json({ error: key.error });
+    const parsedNote = parseStoreText(req.body?.note, 'note', MAX_NOTE_LEN);
+    if (parsedNote.error) return res.status(400).json({ error: parsedNote.error });
+
+    if (parsedNote.value) {
+      const full = storeCapacityError(notes, key.value, 'note');
+      if (full) return res.status(400).json({ error: full });
+      notes[key.value] = parsedNote.value;
     } else {
-      delete notes[accessoryId];
+      delete notes[key.value];
     }
     await saveNotes(notes);
-    log.info(`[setup] Note for ${accessoryId} set to ${note?.trim() || '(cleared)'}`);
+    // Note bodies are long free text; log only whether one was set, not the body.
+    log.info(`[setup] Note for ${JSON.stringify(key.value)} ${parsedNote.value ? 'set' : 'cleared'}`);
     res.json({ success: true });
   });
 

@@ -141,9 +141,16 @@ export function createAuthPublicRouter({
     message: { error: 'Too many requests' },
   });
 
-  // Ceiling on anonymous DB work via the four pre-gate GET routes (see the
+  // Ceiling on anonymous DB work via the pre-gate GET routes (see the
   // PUBLIC_READ_RATE_LIMIT_* constants above for why this is not authLimiter).
-  const publicReadLimiter = rateLimit({
+  //
+  // One INSTANCE PER ROUTE, not one shared instance: express-rate-limit keeps a
+  // counter per instance, so a shared one would let a caller hammering
+  // /user-count exhaust the budget that /csrf-token needs. /csrf-token is the
+  // one route whose 429 actually breaks the app — AuthGate fetches it on load
+  // and api.js re-fetches it on every post-403 retry, so losing it means no
+  // login and no writes. Separate buckets keep that route's budget its own.
+  const publicReadLimiter = () => rateLimit({
     windowMs: PUBLIC_READ_RATE_LIMIT_WINDOW_MS,
     max: PUBLIC_READ_RATE_LIMIT_MAX,
     standardHeaders: true,
@@ -180,7 +187,7 @@ export function createAuthPublicRouter({
   // can persist the token to the session (Strategy B: in-memory write + lazy
   // DB flush). Without this, the post-login CSRF flow would always fail because
   // storeTokenInState no-ops when req.hcSession is absent.
-  router.get('/csrf-token', publicReadLimiter, async (req, res) => {
+  router.get('/csrf-token', publicReadLimiter(), async (req, res) => {
     try {
       // Session-aware: populate req.hcSession if a valid cookie is present so
       // storeTokenInState can write the CSRF token to the session object.
@@ -207,7 +214,7 @@ export function createAuthPublicRouter({
   });
 
   // -- GET /user-count — public probe (Plan 05 cross-plan contract) --
-  router.get('/user-count', publicReadLimiter, async (req, res) => {
+  router.get('/user-count', publicReadLimiter(), async (req, res) => {
     try {
       const count = await getUserCount(pool);
       res.json({ count });
@@ -221,7 +228,7 @@ export function createAuthPublicRouter({
   // Returns the server-side AUTH_ENABLED flag so the browser can skip the login
   // wall in auth-off mode (AUTH_ENABLED=false). No secrets are exposed — only a
   // boolean indicating whether the auth system is active.
-  router.get('/config', publicReadLimiter, (_req, res) => {
+  router.get('/config', publicReadLimiter(), (_req, res) => {
     res.json({ authEnabled });
   });
 
@@ -231,7 +238,7 @@ export function createAuthPublicRouter({
   // non-destructive: it reads the invite row without mutating it (getInviteByTokenHash).
   // Returns ONLY { valid } or { valid, reason } — never email or role (privacy:
   // tokens are 256-bit random so the endpoint cannot be used for enumeration).
-  router.get('/invite-status', publicReadLimiter, async (req, res) => {
+  router.get('/invite-status', publicReadLimiter(), async (req, res) => {
     try {
       const rawToken = String(req.query.token ?? '').trim();
       if (!rawToken) {

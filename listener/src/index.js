@@ -603,8 +603,13 @@ app.use(async (req, res, next) => {
   if (req.method === 'OPTIONS') return next();
   if (PUBLIC_AUTH_PATHS.has(req.path)) return next();
 
-  // Session cookie path FIRST (D-01/D-03/CR-02): browser sessions win even when nginx
-  // unconditionally injects X-API-Token. SHA-256 hash before DB lookup (D-12).
+  // Session cookie path FIRST (D-01/D-03/CR-02): browser sessions win over the
+  // service-token fallback below. Note that nginx injects X-API-Token only when
+  // AUTH_ENABLED=false (web/docker-entrypoint.d/15-compute-api-token.envsh and
+  // docker/standalone/entrypoint.sh both compute an EMPTY NGINX_API_TOKEN when
+  // auth is on) — so in the default topology a cookie-less browser request does
+  // NOT arrive pre-authenticated and cannot bypass the login wall or the
+  // requireAdminSession guards. SHA-256 hash before DB lookup (D-12).
   const rawCookie = req.cookies?.hc_session;
   if (rawCookie) {
     const session = await validateSession(pool, hashToken(rawCookie));

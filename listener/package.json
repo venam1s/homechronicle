@@ -18,7 +18,9 @@
   "overrides": {
     "picomatch": "2.3.2",
     "path-to-regexp": "8.4.2",
-    "tmp": "0.2.7"
+    "tmp": "0.2.7",
+    "glob": "14.0.6",
+    "minimatch": "11.0.8"
   },
   "dependencies": {
     "@matter/main": "^0.17.9",

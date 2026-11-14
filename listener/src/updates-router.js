@@ -104,10 +104,22 @@ export function normalizeRelease(release) {
   if (!tag) return null;
   if (release?.upcoming_release || release?.draft) return null;
 
+  // The human-facing release page: GitHub `html_url`, GitLab `_links.self`.
+  // This URL comes off the wire and the UI renders it as an href, so accept it
+  // only if it parses as https. Belt-and-braces next to React 19's escaping and
+  // the SPA's CSP, but it costs two lines and rules out a `javascript:` href
+  // from a compromised or redirected upstream (or a mis-set UPDATE_CHECK_URL).
+  const rawUrl = release?.html_url ?? release?._links?.self ?? null;
+  let url = null;
+  if (typeof rawUrl === 'string') {
+    try {
+      if (new URL(rawUrl).protocol === 'https:') url = rawUrl;
+    } catch { /* not a URL — leave it null */ }
+  }
+
   return {
     tag,
-    // The human-facing release page: GitHub `html_url`, GitLab `_links.self`.
-    url: release?.html_url ?? release?._links?.self ?? null,
+    url,
     prerelease: release?.prerelease === true || /-(?:alpha|beta|rc)\b/i.test(tag),
     publishedAt: release?.published_at ?? release?.released_at ?? release?.created_at ?? null,
   };
@@ -128,6 +140,15 @@ export function createUpdatesRouter({ fetchImpl = fetch } = {}) {
 
   // { releases, fetchedAt, ok, sources }
   let cache = null;
+  // The in-flight loadReleases(), shared by every caller that arrives while it
+  // runs. Without it a cold cache was a stampede: /api/updates/latest is in
+  // PUBLIC_AUTH_PATHS, so N concurrent anonymous requests each fired their own
+  // pair of upstream GETs — the cache is only assigned after all hosts settle.
+  // That contradicted the reason the path is public ("the listener answers from
+  // a 12-hour cache, so anonymous traffic hits memory, not the network") and
+  // could burn GitHub's 60-requests/hour-per-IP unauthenticated budget in a
+  // single burst. One shared promise makes a cold check exactly one call per host.
+  let inFlight = null;
 
   // One source, one bounded request. Throws on anything but a JSON array.
   async function fetchReleases(url) {
@@ -149,12 +170,19 @@ export function createUpdatesRouter({ fetchImpl = fetch } = {}) {
     }
   }
 
-  async function loadReleases() {
+  function loadReleases() {
     const now = Date.now();
     if (cache && now - cache.fetchedAt < (cache.ok ? CACHE_TTL_MS : ERROR_TTL_MS)) {
-      return cache;
+      return Promise.resolve(cache);
     }
+    // Join the refresh already running instead of starting a second one.
+    if (inFlight) return inFlight;
+    inFlight = refreshReleases().finally(() => { inFlight = null; });
+    return inFlight;
+  }
 
+  async function refreshReleases() {
+    const now = Date.now();
     // Best-effort by design: a self-hosted box with no internet must not see
     // errors in its UI over this. If every host fails, serve an empty list and
     // try again after ERROR_TTL_MS. Parallel, so a cold check takes at most one
