@@ -56,4 +56,13 @@ describe('BridgeChildrenRow split outlets', () => {
     expect(rooms[0]).toHaveValue('');
     expect(rooms[1]).toHaveValue('Porch');
   });
+
+  it('leaves out the plug hint when the outlet name already says it', async () => {
+    fetchJson.mockResolvedValueOnce([
+      { childId: 'AA:BB:2:8', name: 'Holiday Outlet Tree', aid: 2, parentChildId: 'AA:BB:2', parentName: 'Holiday Outlet' },
+    ]);
+    renderRow();
+    await screen.findByLabelText('Display name for Holiday Outlet Tree');
+    expect(screen.queryByText('on Holiday Outlet')).toBeNull();
+  });
 });

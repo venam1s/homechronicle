@@ -333,7 +333,7 @@ function connectAccessory(session, pairing) {
     // take their past events with them. Best-effort: the next connect retries.
     if (serviceSplits.length > 0) {
       moveSplitServiceHistory(serviceSplits).then((moved) => {
-        if (moved > 0) log.info(`[subscriber] ${accessoryName}: moved ${moved} past event(s) onto ${serviceSplits.length} split service(s)`);
+        if (moved > 0) log.info(`[subscriber] ${accessoryName}: moved or renamed ${moved} past event(s) for ${serviceSplits.length} split service(s)`);
       }).catch((err) => {
         log.warn(`[subscriber] ${accessoryName}: moving past events onto split services failed:`, err.message ?? err);
       });
@@ -441,6 +441,7 @@ function connectAccessory(session, pairing) {
           rawIid:         change.iid,
           // Lets alert rules naming the whole accessory match each split service.
           parentAccessoryName: effectiveId !== meta.parentAccessoryId ? meta.childName : null,
+          parentDisplayName: meta.parentDisplayName ?? null,
         };
 
         // Run-cycle switches often auto-reset immediately. Delay OFF logging so

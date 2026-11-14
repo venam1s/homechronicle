@@ -698,6 +698,7 @@ test('processAlertsForEvent accessory scope matches a split service\'s parent ac
     [`${MAC}:7`, true],
     ['Tree', true],
     ['Holiday Outlet', true],
+    ['Xmas', true], // the plug's display name
     [`${MAC}:7:20`, false],
     [MAC, false],
     ['Garland', false],
@@ -724,6 +725,7 @@ test('processAlertsForEvent accessory scope matches a split service\'s parent ac
         accessoryId: `${MAC}:7:10`,
         accessoryName: 'Tree',
         parentAccessoryName: 'Holiday Outlet',
+        parentDisplayName: 'Xmas',
         serviceType: 'Outlet',
         characteristic: 'On',
       }));

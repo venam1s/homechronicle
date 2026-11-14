@@ -83,26 +83,29 @@ export async function insertEvent(event, executor = pool) {
 }
 
 /**
- * Move a split accessory's past events onto its services.
+ * Keep a split accessory's past events in line with its services.
  *
  * When an accessory is first logged per service (a multi-outlet plug: see
  * extractAccessoryMetadata), its earlier events still sit under the
  * accessory's id. Each one records the characteristic it came from (raw_iid),
  * which says which service it belongs to: those events move to that service's
  * id and name, live and archived alike. Events with no raw_iid (firmware
- * changes) stay with the accessory. Per-user mutes on the old name carry over
- * to each service's name. Idempotent: once moved, nothing matches again.
+ * changes) stay with the accessory. A service's name can change later (it is
+ * built from the accessory's display name): its past events follow. Per-user
+ * mutes on an old name carry over to the new one. Idempotent: once everything
+ * matches, nothing is touched.
  *
  * @param {Array<{accessoryId: string, parentAccessoryId: string, name: string,
  *   serviceType: string, iids: number[]}>} splits - from extractAccessoryMetadata
- * @returns {Promise<number>} events moved
+ * @returns {Promise<number>} events moved or renamed
  */
 export async function moveSplitServiceHistory(splits, executor = pool) {
   const pending = (splits ?? []).filter((s) => s?.iids?.length > 0 && s.accessoryId !== s.parentAccessoryId);
   if (pending.length === 0) return 0;
-  // Cheap check first: this runs on every connect and normally finds nothing.
+  // Cheap checks first: this runs on every connect and normally finds nothing.
   const pairs = pending.flatMap((s) => s.iids.map((iid) => [s.parentAccessoryId, iid]));
-  const params = [pairs.map((p) => p[0]), pairs.map((p) => p[1])];
+  const moveParams = [pairs.map((p) => p[0]), pairs.map((p) => p[1])];
+  const nameParams = [pending.map((s) => s.accessoryId), pending.map((s) => s.name)];
   let found = false;
   for (const table of ['event_logs', 'event_logs_archive']) {
     // eslint-disable-next-line no-await-in-loop
@@ -111,39 +114,60 @@ export async function moveSplitServiceHistory(splits, executor = pool) {
          JOIN unnest($1::text[], $2::int[]) AS s(accessory_id, raw_iid)
            ON e.accessory_id = s.accessory_id AND e.raw_iid = s.raw_iid
         LIMIT 1`,
-      params
+      moveParams
     );
-    if (rows.length > 0) { found = true; break; }
+    // eslint-disable-next-line no-await-in-loop
+    const renamed = rows.length > 0 ? { rows } : await executor.query(
+      `SELECT 1 FROM ${table} e
+         JOIN unnest($1::text[], $2::text[]) AS s(accessory_id, name)
+           ON e.accessory_id = s.accessory_id
+          AND COALESCE(e.reported_name, e.accessory_name) IS DISTINCT FROM s.name
+        LIMIT 1`,
+      nameParams
+    );
+    if (renamed.rows.length > 0) { found = true; break; }
   }
   if (!found) return 0;
 
   const client = executor === pool ? await pool.connect() : executor;
-  let moved = 0;
+  let changed = 0;
   try {
     await client.query('BEGIN');
     for (const split of pending) {
       const storedName = withDisplayName(split.name, split.serviceType, getDisplayNames()?.[split.accessoryId]);
       const reportedName = storedName === split.name ? null : split.name;
+      // The names these events carry now: rows still on the accessory, and
+      // rows on the service under an older name.
       // eslint-disable-next-line no-await-in-loop
       const { rows: oldNames } = await client.query(
         `SELECT DISTINCT name FROM (
            SELECT accessory_name AS name FROM event_logs
-            WHERE accessory_id = $1 AND raw_iid = ANY($2::int[])
+            WHERE (accessory_id = $1 AND raw_iid = ANY($2::int[]))
+               OR (accessory_id = $3 AND COALESCE(reported_name, accessory_name) IS DISTINCT FROM $4)
            UNION
            SELECT reported_name FROM event_logs
-            WHERE accessory_id = $1 AND raw_iid = ANY($2::int[]) AND reported_name IS NOT NULL
+            WHERE reported_name IS NOT NULL
+              AND ((accessory_id = $1 AND raw_iid = ANY($2::int[]))
+               OR (accessory_id = $3 AND reported_name IS DISTINCT FROM $4))
          ) n WHERE name IS NOT NULL`,
-        [split.parentAccessoryId, split.iids]
+        [split.parentAccessoryId, split.iids, split.accessoryId, split.name]
       );
       for (const table of ['event_logs', 'event_logs_archive']) {
         // eslint-disable-next-line no-await-in-loop
-        const result = await client.query(
+        const moved = await client.query(
           `UPDATE ${table}
               SET accessory_id = $1, accessory_name = $2, reported_name = $3
             WHERE accessory_id = $4 AND raw_iid = ANY($5::int[])`,
           [split.accessoryId, storedName, reportedName, split.parentAccessoryId, split.iids]
         );
-        moved += result.rowCount ?? 0;
+        // eslint-disable-next-line no-await-in-loop
+        const renamed = await client.query(
+          `UPDATE ${table}
+              SET accessory_name = $2, reported_name = $3
+            WHERE accessory_id = $1 AND COALESCE(reported_name, accessory_name) IS DISTINCT FROM $4`,
+          [split.accessoryId, storedName, reportedName, split.name]
+        );
+        changed += (moved.rowCount ?? 0) + (renamed.rowCount ?? 0);
       }
       const names = oldNames.map((r) => r.name).filter((n) => n !== storedName);
       if (names.length > 0) {
@@ -169,9 +193,9 @@ export async function moveSplitServiceHistory(splits, executor = pool) {
   } finally {
     if (client !== executor) client.release();
   }
-  // Cached stats and lists still hold the accessory's old id and name.
-  if (moved > 0) invalidate('');
-  return moved;
+  // Cached stats and lists still hold the old ids and names.
+  if (changed > 0) invalidate('');
+  return changed;
 }
 
 /**

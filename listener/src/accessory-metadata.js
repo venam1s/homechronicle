@@ -147,16 +147,44 @@ function describeService(service) {
   };
 }
 
+// accessoryId → display name, for naming split services after their accessory
+// as the user sees it. Set by index.js from the display names store.
+let parentDisplayNameFor = () => null;
+
+/** Supply the display names split-service names are built from. */
+export function setParentDisplayNameLookup(fn) {
+  parentDisplayNameFor = typeof fn === 'function' ? fn : () => null;
+}
+
+/**
+ * A service's name without a live reading some plugins append to it
+ * (homebridge-weather-plus: "Wind Speedː 11.5 mph", "UV Indexː 1"), so the
+ * device name stays the same from one connection to the next.
+ */
+export function stableServiceName(name) {
+  const text = copyOrNull(name);
+  if (!text) return null;
+  const stripped = text
+    .replace(/\s*\u02D0.*$/, '') // "ː <anything>": a separator, never part of a name
+    .replace(/\s*:\s*[-+]?\d.*$/, '') // ": <number…>"
+    .trim();
+  return stripped || null;
+}
+
 /**
  * Services to log as entities of their own: watched services whose type occurs
  * more than once on a bridged accessory (a two-outlet plug published by a
- * Homebridge plugin as one accessory with two Outlet services). Each gets its
- * own name: the service's own name when the accessory gives each one a
- * distinct name, else "<accessory> <n>" in service order.
+ * Homebridge plugin as one accessory with two Outlet services).
+ *
+ * Each is named "<accessory> <service>", the accessory being its display name
+ * when one is set: plugins name services after their function ("Clean",
+ * "Status"), which says nothing without the device. A service name that
+ * already contains the accessory's name is used as is. When the services have
+ * no names of their own, or share one, they are "<accessory> <n>" in order.
  *
  * @returns {Map<object, string>} service → name
  */
-function findSplitServices(acc, childName) {
+function findSplitServices(acc, childName, accessoryId) {
   const split = new Map();
   // Bridged accessories only (Homebridge and the like): their per-device
   // settings live under the bridge's children, where the services are listed.
@@ -169,15 +197,25 @@ function findSplitServices(acc, childName) {
     if (!byType.has(type)) byType.set(type, []);
     byType.get(type).push(service);
   }
+  const displayName = copyOrNull(parentDisplayNameFor(accessoryId));
   for (const [type, services] of byType) {
     if (services.length < 2) continue;
-    const own = services.map(serviceOwnName);
-    const distinct = own.every((name, i) => name
-      && name !== childName
-      && own.findIndex((other) => other?.toLowerCase() === name.toLowerCase()) === i);
-    const base = childName ?? SERVICE_TYPE_LABELS.get(type) ?? type;
+    const base = displayName ?? childName ?? SERVICE_TYPE_LABELS.get(type) ?? type;
+    const reported = childName?.toLowerCase();
+    const named = services.map((service) => {
+      const own = stableServiceName(serviceOwnName(service));
+      if (!own) return null;
+      const lower = own.toLowerCase();
+      if (lower === reported || lower === base.toLowerCase()) return null;
+      if (lower.includes(base.toLowerCase())) return own;
+      // "Holiday Outlet Left" under a display name: swap the reported prefix.
+      if (reported && lower.startsWith(reported)) return `${base}${own.slice(childName.length)}`;
+      return `${base} ${own}`;
+    });
+    const distinct = named.every((name, i) => name
+      && named.findIndex((other) => other?.toLowerCase() === name.toLowerCase()) === i);
     services.forEach((service, i) => {
-      split.set(service, distinct ? own[i] : `${base} ${i + 1}`);
+      split.set(service, distinct ? named[i] : `${base} ${i + 1}`);
     });
   }
   return split;
@@ -219,7 +257,7 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
       hardware_revision: hardwareRevision,
     };
 
-    const splitServices = findSplitServices(acc, childName);
+    const splitServices = findSplitServices(acc, childName, effectiveId);
 
     // The accessory itself keeps every service that is not split off.
     const watchedServiceTypes = new Set();
@@ -258,6 +296,7 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
         iidMetaMap.set(`${acc.aid}.${char.iid}`, {
           accessoryId,
           parentAccessoryId: effectiveId,
+          ...(splitName ? { parentDisplayName: copyOrNull(parentDisplayNameFor(effectiveId)) } : {}),
           serviceType,
           characteristicName: charName,
           childName,

@@ -5,6 +5,8 @@ import {
   WATCHED_CHARACTERISTICS,
   cacheAccessoryMetadata,
   extractAccessoryMetadata,
+  setParentDisplayNameLookup,
+  stableServiceName,
   getAccessoryCapabilities,
   getAccessoryIdentity,
   shortUuid,
@@ -172,23 +174,24 @@ test('service split: two Outlet services on one accessory become two entities', 
   assert.deepEqual(iidMetaMap.get('7.11'), {
     accessoryId: `${MAC}:7:10`,
     parentAccessoryId: `${MAC}:7`,
+    parentDisplayName: null,
     serviceType: 'Outlet',
     characteristicName: 'On',
     childName: 'Holiday Outlet',
-    componentName: 'Tree',
+    componentName: 'Holiday Outlet Tree',
   });
   assert.equal(iidMetaMap.get('7.21').accessoryId, `${MAC}:7:20`);
-  assert.equal(iidMetaMap.get('7.21').componentName, 'Garland');
+  assert.equal(iidMetaMap.get('7.21').componentName, 'Holiday Outlet Garland');
 
   assert.deepEqual(serviceSplits, [
-    { accessoryId: `${MAC}:7:10`, parentAccessoryId: `${MAC}:7`, name: 'Tree', serviceType: 'Outlet', iids: [11] },
-    { accessoryId: `${MAC}:7:20`, parentAccessoryId: `${MAC}:7`, name: 'Garland', serviceType: 'Outlet', iids: [21] },
+    { accessoryId: `${MAC}:7:10`, parentAccessoryId: `${MAC}:7`, name: 'Holiday Outlet Tree', serviceType: 'Outlet', iids: [11] },
+    { accessoryId: `${MAC}:7:20`, parentAccessoryId: `${MAC}:7`, name: 'Holiday Outlet Garland', serviceType: 'Outlet', iids: [21] },
   ]);
 
   // The fully split accessory is not listed itself; each outlet is.
   assert.equal(capabilitiesByAccessoryId.has(`${MAC}:7`), false);
   const tree = capabilitiesByAccessoryId.get(`${MAC}:7:10`);
-  assert.equal(tree.accessory_name, 'Tree');
+  assert.equal(tree.accessory_name, 'Holiday Outlet Tree');
   assert.equal(tree.parent_device_id, MAC);
   assert.equal(tree.parent_accessory_id, `${MAC}:7`);
   assert.equal(tree.parent_accessory_name, 'Holiday Outlet');
@@ -212,7 +215,7 @@ test('service split: ConfiguredName wins over the published Name', () => {
   const accessories = kasaBridge();
   accessories.accessories[1].services[1].characteristics.push({ iid: 13, type: fullUuid('E3'), value: 'Porch' });
   const { iidMetaMap } = extractAccessoryMetadata({ deviceId: MAC, accessories });
-  assert.equal(iidMetaMap.get('7.11').componentName, 'Porch');
+  assert.equal(iidMetaMap.get('7.11').componentName, 'Holiday Outlet Porch');
 });
 
 test('service split: a directly paired device (aid 1) is not split', () => {
@@ -266,6 +269,67 @@ test('no split: separate accessories (Meross-style) and switch+sensor keep today
 test('cacheAccessoryMetadata: a split service shows its accessory\'s identity', () => {
   cacheAccessoryMetadata({ deviceId: MAC, accessories: kasaBridge() });
   assert.equal(getAccessoryIdentity(`${MAC}:7:10`)?.model, 'EP40A');
-  assert.equal(getAccessoryCapabilities(`${MAC}:7:20`)?.accessory_name, 'Garland');
+  assert.equal(getAccessoryCapabilities(`${MAC}:7:20`)?.accessory_name, 'Holiday Outlet Garland');
   assert.equal(getAccessoryCapabilities(`${MAC}:7`), null);
+});
+
+// Seen on prod with v0.6.0-beta.2 (issue #4 follow-up): plugins name services
+// after their function or append a live reading to the name.
+function namedService(iid, type, char, name) {
+  return { iid, type: fullUuid(type), characteristics: [{ iid: iid + 1, type: fullUuid(char), value: 0 }, { iid: iid + 2, type: fullUuid('23'), value: name }] };
+}
+
+test('service split: function-named services get the accessory name in front', () => {
+  const accessories = { accessories: [{ aid: 2, services: [info(1, 'Deebot'), namedService(8, '49', '25', 'Clean'), namedService(14, '49', '25', 'Go Charge')] }] };
+  const { iidMetaMap } = extractAccessoryMetadata({ deviceId: MAC, accessories });
+  assert.equal(iidMetaMap.get('2.9').componentName, 'Deebot Clean');
+  assert.equal(iidMetaMap.get('2.15').componentName, 'Deebot Go Charge');
+});
+
+test('service split: names keep no live reading (homebridge-weather-plus)', () => {
+  assert.equal(stableServiceName('Wind Speedː 11.5 mph'), 'Wind Speed');
+  assert.equal(stableServiceName('Cloud Coverː 0'), 'Cloud Cover');
+  assert.equal(stableServiceName('Air Pressure: 1023 hPa'), 'Air Pressure');
+  assert.equal(stableServiceName('Outlet 2'), 'Outlet 2');
+  assert.equal(stableServiceName('Kitchen: Left'), 'Kitchen: Left');
+  assert.equal(stableServiceName('ː 5'), null);
+
+  const weather = (wind, uv) => ({ accessories: [{ aid: 2, services: [
+    info(1, 'Weather'),
+    namedService(8, '86', '71', wind),
+    namedService(14, '86', '71', uv),
+  ] }] });
+  const first = extractAccessoryMetadata({ deviceId: MAC, accessories: weather('Wind Speedː 11.5 mph', 'UV Indexː 1') });
+  const later = extractAccessoryMetadata({ deviceId: MAC, accessories: weather('Wind Speedː 3 mph', 'UV Indexː 6') });
+  assert.equal(first.iidMetaMap.get('2.9').componentName, 'Weather Wind Speed');
+  assert.deepEqual(later.serviceSplits.map((s) => s.name), first.serviceSplits.map((s) => s.name));
+});
+
+test('service split: names use the accessory\'s display name when it has one', () => {
+  setParentDisplayNameLookup((id) => ({ [`${MAC}:2`]: 'Neakasa', [`${MAC}:7`]: 'Xmas' })[id] ?? null);
+  try {
+    const neakasa = { accessories: [{ aid: 2, services: [
+      info(1, 'PB01009G24410010060'),
+      namedService(8, '86', '71', 'Cat Present'),
+      namedService(14, '86', '71', 'Waste Bin Full'),
+    ] }] };
+    const { iidMetaMap } = extractAccessoryMetadata({ deviceId: MAC, accessories: neakasa });
+    assert.equal(iidMetaMap.get('2.9').componentName, 'Neakasa Cat Present');
+    assert.equal(iidMetaMap.get('2.9').parentDisplayName, 'Neakasa');
+    assert.equal(iidMetaMap.get('2.15').componentName, 'Neakasa Waste Bin Full');
+
+    // A service already named after the accessory swaps the reported name for the display name.
+    const kasa = kasaBridge(['Holiday Outlet Left', 'Holiday Outlet Right']);
+    const split = extractAccessoryMetadata({ deviceId: MAC, accessories: kasa });
+    assert.equal(split.iidMetaMap.get('7.11').componentName, 'Xmas Left');
+    assert.equal(split.iidMetaMap.get('7.21').componentName, 'Xmas Right');
+  } finally {
+    setParentDisplayNameLookup(null);
+  }
+});
+
+test('service split: a service name already containing the accessory name is used as is', () => {
+  const { iidMetaMap } = extractAccessoryMetadata({ deviceId: MAC, accessories: kasaBridge(['Holiday Outlet Left', 'Holiday Outlet Right']) });
+  assert.equal(iidMetaMap.get('7.11').componentName, 'Holiday Outlet Left');
+  assert.equal(iidMetaMap.get('7.21').componentName, 'Holiday Outlet Right');
 });

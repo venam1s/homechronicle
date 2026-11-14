@@ -141,7 +141,9 @@ If a bridge is unreachable (for example after its IP address changed), Devices s
 
 #### Multi-outlet plugs and power strips
 
-Some Homebridge plugins publish a multi-outlet device as one accessory with an outlet service per socket (for example a two-outlet Kasa plug), where others publish each outlet as its own accessory. Either way, HomeChronicle logs each outlet of a bridged device as its own device, named after the outlet: it gets its own Timeline entries, room, display name, note and alerts, and each outlet is listed under the bridge in **Devices › Manage Accessories**. The same applies to any bridged accessory with more than one switch, light or sensor of the same kind.
+Some Homebridge plugins publish a multi-outlet device as one accessory with an outlet service per socket (for example a two-outlet Kasa plug), where others publish each outlet as its own accessory. Either way, HomeChronicle logs each outlet of a bridged device as its own device: it gets its own Timeline entries, room, display name, note and alerts, and each outlet is listed under the bridge in **Devices › Manage Accessories**. The same applies to any bridged accessory with more than one switch, light or sensor of the same kind, such as a robot vacuum's **Clean** and **Go Charge** switches or the sensors of a weather plugin.
+
+Each one is named after the device and the service, for example "Holiday Outlet Tree" or "Deebot Go Charge", using the device's display name if it already had one. To rename one, give it its own display name under the bridge. A live reading that some plugins put in a sensor's name ("Wind Speedː 11.5 mph") is left out, so the name doesn't change with the weather.
 
 - A room, category or quiet-hours exclusion set on the plug itself covers its outlets until you give an outlet its own
 - An alert rule scoped to the plug (by name or id) fires for each of its outlets

@@ -328,10 +328,36 @@ test('GET /bridge-children/:deviceId — a multi-outlet accessory is listed as i
 
   assert.equal(statusCode, 200);
   assert.deepEqual(jsonBody, [
-    { childId: `${MAC}:2:8`, name: 'Tree', aid: 2, parentChildId: `${MAC}:2`, parentName: 'Holiday Outlet' },
-    { childId: `${MAC}:2:11`, name: 'Garland', aid: 2, parentChildId: `${MAC}:2`, parentName: 'Holiday Outlet' },
+    { childId: `${MAC}:2:8`, name: 'Holiday Outlet Tree', aid: 2, parentChildId: `${MAC}:2`, parentName: 'Holiday Outlet' },
+    { childId: `${MAC}:2:11`, name: 'Holiday Outlet Garland', aid: 2, parentChildId: `${MAC}:2`, parentName: 'Holiday Outlet' },
     { childId: `${MAC}:3`, name: 'Left Bed', aid: 3 },
   ]);
+});
+
+test('GET /bridge-children/:deviceId — split outlets show the plug by its display name', async () => {
+  const T = (short) => `${short.padStart(8, '0')}-0000-1000-8000-0026BB765291`;
+  const sensor = (iid, name) => ({
+    iid, type: T('86'),
+    characteristics: [{ iid: iid + 1, type: T('71'), value: 0 }, { iid: iid + 2, type: T('23'), value: name }],
+  });
+  const MAC = 'AA:BB:CC:DD:EE:FF';
+  const router = makeRouter({
+    loadPairings: () => ({ [MAC]: { protocol: 'homekit', name: 'Bridge', address: '1.2.3.4', port: 80, longTermData: {} } }),
+    loadDisplayNames: () => ({ [`${MAC}:2`]: 'Neakasa' }),
+    HttpClient: class MockBridgeClient {
+      async getAccessories() {
+        return {
+          accessories: [
+            { aid: 1, services: [] },
+            { aid: 2, services: [{ iid: 1, type: T('3E'), characteristics: [{ iid: 2, type: T('23'), value: 'PB01009G24410010060' }] }, sensor(8, 'Cat Present'), sensor(14, 'Waste Bin Full')] },
+          ],
+        };
+      }
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/bridge-children/:deviceId');
+  const { jsonBody } = await invoke(handler, { params: { deviceId: MAC } });
+  assert.deepEqual(jsonBody.map((c) => c.parentName), ['Neakasa', 'Neakasa']);
 });
 
 test('GET /bridge-children/:deviceId — 404 for unknown pairing', async () => {

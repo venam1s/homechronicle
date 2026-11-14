@@ -70,7 +70,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                   onKeyDown={(e) => e.key === 'Enter' && onDisplayNameBlur?.(child.childId)}
                   className="text-xs text-hc-fg bg-transparent border-0 border-b border-transparent hover:border-hc-panel-border focus:border-hc-accent-strong focus:outline-none px-0 py-0 w-full truncate placeholder-hc-muted"
                 />
-                {child.parentName && (
+                {child.parentName && !child.name?.toLowerCase().includes(child.parentName.toLowerCase()) && (
                   <span className="text-[10px] text-hc-muted whitespace-nowrap flex-shrink-0">on {child.parentName}</span>
                 )}
               </div>

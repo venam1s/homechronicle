@@ -32,6 +32,75 @@ const DISPLAY_NAME_WAIT_MS = 10_000;
 // unreachable one fails over to the next instead of waiting out the OS TCP timeout.
 const HAP_PAIR_ADDRESS_TIMEOUT_MS = parseIntInRange(process.env.HAP_PAIR_TIMEOUT_MS, 60_000, 1_000, 300_000);
 
+// -- Input caps for the member-writable JSON stores (audit API L-3) --
+//
+// PATCH /room, /category, /display-name and /note are deliberately NOT
+// admin-only (see requireAdminSession's JSDoc), so any authenticated member can
+// write them. They had no type check and no length cap, which left three holes:
+//
+//   1. `accessoryId` became a *key* in rooms.json / notes.json / display-names.json
+//      verbatim. A member could post a 256 KB key (the express.json limit) under a
+//      fresh value each time and grow those files without bound — they are read
+//      into memory on every store refresh, on a box that is often an RPi or NAS.
+//   2. `roomName` / `note` / `displayName` were equally uncapped.
+//   3. A non-string `roomName` or `note` reached `.trim()` and threw a TypeError,
+//      answering 500 where 400 is correct.
+//
+// Caps are enforced on WRITE ONLY. An existing file is never rejected or
+// truncated on load, and clearing or updating a key that is already present
+// always succeeds regardless of MAX_STORE_ENTRIES — only brand-new keys are
+// refused once the ceiling is hit, so a full store can still be cleaned up.
+//
+// MAX_NAME_LEN matches alerts-router's MAX_TEXT_LEN (200) on purpose: clearing a
+// display name rewrites it into alert_rules.scope_value, so a name longer than
+// that cap would fail the rename transaction downstream.
+const MAX_KEY_LEN = 200;
+const MAX_NAME_LEN = 200;
+const MAX_NOTE_LEN = 2_000;
+const MAX_STORE_ENTRIES = 5_000;
+
+/**
+ * Validate an accessoryId used as a JSON-store key.
+ * Length-capped only, with no character class: real keys include HAP MACs,
+ * split-service ids (`MAC:aid:iid`) and Matter `nodeId` / `nodeId:endpoint`.
+ * @returns {{ error: string } | { value: string }}
+ */
+function parseStoreKey(raw) {
+  if (typeof raw !== 'string') return { error: 'accessoryId is required' };
+  const value = raw.trim();
+  if (!value) return { error: 'accessoryId is required' };
+  if (value.length > MAX_KEY_LEN) {
+    return { error: `accessoryId must be ${MAX_KEY_LEN} characters or fewer` };
+  }
+  return { value };
+}
+
+/**
+ * Validate an optional free-text store value. Absent/blank means "clear",
+ * which is always allowed; a present value must be a capped string.
+ * @returns {{ error: string } | { value: string }} value '' means clear.
+ */
+function parseStoreText(raw, field, maxLen) {
+  if (raw == null) return { value: '' };
+  if (typeof raw !== 'string') return { error: `${field} must be a string` };
+  const value = raw.trim();
+  if (value.length > maxLen) {
+    return { error: `${field} must be ${maxLen} characters or fewer` };
+  }
+  return { value };
+}
+
+/**
+ * Refuse a brand-new key once the store is at its entry ceiling. Updates and
+ * clears of an existing key are always permitted.
+ * @returns {string | null} an error message, or null when the write may proceed.
+ */
+function storeCapacityError(store, key, field) {
+  if (Object.prototype.hasOwnProperty.call(store, key)) return null;
+  if (Object.keys(store).length < MAX_STORE_ENTRIES) return null;
+  return `Too many ${field} entries (max ${MAX_STORE_ENTRIES}); remove one first`;
+}
+
 export function createSetupRouter({
   pool,
   getDiscoveryCache,
@@ -228,8 +297,10 @@ export function createSetupRouter({
           children.push({ childId, name, aid: acc.aid });
           continue;
         }
+        // The plug as the user knows it: its display name when it has one.
+        const parentName = loadDisplayNames()?.[childId] || name;
         for (const split of splits) {
-          children.push({ childId: split.accessoryId, name: split.name, aid: acc.aid, parentChildId: childId, parentName: name });
+          children.push({ childId: split.accessoryId, name: split.name, aid: acc.aid, parentChildId: childId, parentName });
         }
       }
       log.debug(`[setup] bridge-children: ${pairing.name} -> ${children.length} child(ren)`);

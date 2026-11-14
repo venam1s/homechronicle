@@ -48,6 +48,32 @@ const AUTH_RATE_LIMIT_MAX = parseIntInRange(
   100_000,
 );
 
+// -- Public read limiter (audit API L-3 residual) --
+// /csrf-token, /user-count, /config and /invite-status sit in PUBLIC_AUTH_PATHS,
+// so they answer with no session and no token. Three of the four touch the DB
+// (validateSession's join, getUserCount, getInviteByTokenHash), which left an
+// anonymous caller able to drive unbounded database work on a self-hosted box.
+//
+// Deliberately NOT the authLimiter (10 per 15 min): the SPA fetches /csrf-token
+// on every load, on each new tab and again on every post-403 `?refresh=1` retry,
+// and the login screens probe /config and /user-count. At 10/15min a single
+// household — or one bucket shared by the whole household when TRUST_PROXY is
+// set too low (M-12) — would lock itself out of the login page. This is a DoS
+// ceiling, not a brute-force control; the per-attempt controls stay on the POST
+// routes. Window is the generous-but-finite 120/min.
+const PUBLIC_READ_RATE_LIMIT_WINDOW_MS = parseIntInRange(
+  process.env.PUBLIC_READ_RATE_LIMIT_WINDOW_MS,
+  60_000,
+  1_000,
+  24 * 60 * 60 * 1000,
+);
+const PUBLIC_READ_RATE_LIMIT_MAX = parseIntInRange(
+  process.env.PUBLIC_READ_RATE_LIMIT_MAX,
+  120,
+  1,
+  100_000,
+);
+
 // Transaction-scoped advisory-lock key for the first-admin bootstrap path
 // (T-20-BOOTSTRAP-RACE). A bare `INSERT … WHERE NOT EXISTS (SELECT 1 FROM users)`
 // is NOT race-safe under READ COMMITTED: two concurrent claim-admin requests with
@@ -115,6 +141,18 @@ export function createAuthPublicRouter({
     message: { error: 'Too many requests' },
   });
 
+  // Ceiling on anonymous DB work via the four pre-gate GET routes (see the
+  // PUBLIC_READ_RATE_LIMIT_* constants above for why this is not authLimiter).
+  const publicReadLimiter = rateLimit({
+    windowMs: PUBLIC_READ_RATE_LIMIT_WINDOW_MS,
+    max: PUBLIC_READ_RATE_LIMIT_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: false,
+    keyGenerator: rateLimitKeyGenerator,
+    message: { error: 'Too many requests' },
+  });
+
   // -- Helper: issue hc_session cookie and create session row --
   // userAgent/ipAddress are captured from the caller's request at each call site
   // (login / claim-admin / accept-invite) so the Active Sessions UI can show device
@@ -142,7 +180,7 @@ export function createAuthPublicRouter({
   // can persist the token to the session (Strategy B: in-memory write + lazy
   // DB flush). Without this, the post-login CSRF flow would always fail because
   // storeTokenInState no-ops when req.hcSession is absent.
-  router.get('/csrf-token', async (req, res) => {
+  router.get('/csrf-token', publicReadLimiter, async (req, res) => {
     try {
       // Session-aware: populate req.hcSession if a valid cookie is present so
       // storeTokenInState can write the CSRF token to the session object.
@@ -169,7 +207,7 @@ export function createAuthPublicRouter({
   });
 
   // -- GET /user-count — public probe (Plan 05 cross-plan contract) --
-  router.get('/user-count', async (req, res) => {
+  router.get('/user-count', publicReadLimiter, async (req, res) => {
     try {
       const count = await getUserCount(pool);
       res.json({ count });
@@ -183,7 +221,7 @@ export function createAuthPublicRouter({
   // Returns the server-side AUTH_ENABLED flag so the browser can skip the login
   // wall in auth-off mode (AUTH_ENABLED=false). No secrets are exposed — only a
   // boolean indicating whether the auth system is active.
-  router.get('/config', (_req, res) => {
+  router.get('/config', publicReadLimiter, (_req, res) => {
     res.json({ authEnabled });
   });
 
@@ -193,7 +231,7 @@ export function createAuthPublicRouter({
   // non-destructive: it reads the invite row without mutating it (getInviteByTokenHash).
   // Returns ONLY { valid } or { valid, reason } — never email or role (privacy:
   // tokens are 256-bit random so the endpoint cannot be used for enumeration).
-  router.get('/invite-status', async (req, res) => {
+  router.get('/invite-status', publicReadLimiter, async (req, res) => {
     try {
       const rawToken = String(req.query.token ?? '').trim();
       if (!rawToken) {

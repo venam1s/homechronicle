@@ -103,7 +103,9 @@ function eventMatchesScope(rule, event) {
     // A service split off its accessory (one outlet of a multi-outlet plug)
     // still matches rules naming the whole accessory, by id or by name.
     const parentId = parentAccessoryId(event.accessoryId);
-    const parentNames = parentId && event.parentAccessoryName ? [event.parentAccessoryName] : [];
+    const parentNames = parentId
+      ? [event.parentAccessoryName, event.parentDisplayName].filter((n) => n != null && n !== '')
+      : [];
     return normalizeLower(event.accessoryId) === target
       || (parentId != null && normalizeLower(parentId) === target)
       || [...names, ...legacyNames, ...parentNames].some((n) => normalizeLower(n) === target);

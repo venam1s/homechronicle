@@ -45,6 +45,7 @@ import {
   getAllDiscoveredAccessories,
   getAccessoryCapabilities,
   getAccessoryIdentity,
+  setParentDisplayNameLookup,
 } from './accessory-metadata.js';
 import { getHomeKitPairings, createStoreHelpers } from './setup-helpers.js';
 import { createDiscoveryHelpers } from './discovery-helpers.js';
@@ -270,6 +271,7 @@ await pairingsStore.init();
 await roomsStore.init();
 await displayNamesStore.init();
 setDisplayNameLookup(() => displayNamesStore.getSnapshot());
+setParentDisplayNameLookup((accessoryId) => displayNamesStore.getSnapshot()?.[accessoryId] ?? null);
 // Keep stored history in line with display-names.json: at startup and every
 // 10 minutes (picks up hand edits and retries a rename that failed). Cheap —
 // it compares two small lists and only renames what differs. Background, logged.
