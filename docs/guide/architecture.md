@@ -52,7 +52,7 @@ The listener is the core service. It runs on Node.js with ES modules and serves 
 | `repair-router.js` | GET/PATCH endpoints for scheduled repair settings |
 | `repair-scheduler.js` | Daily scheduled repair cycle for stale HomeKit pairings |
 | `retention-router.js` | Retention and settings configuration endpoints |
-| `updates-router.js` | Server-side update check against the project's GitLab releases |
+| `updates-router.js` | Server-side update check against the project's GitHub and GitLab releases |
 | `setup-helpers.js` | Pairing normalization and store helper factory |
 | `discovery-helpers.js` | Discovery scan and repair helper factory |
 | `alerts.js` | Rule matching and webhook/email dispatch with quiet-period suppression |

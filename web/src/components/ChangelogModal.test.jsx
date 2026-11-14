@@ -7,7 +7,7 @@ describe('ChangelogModal', () => {
     render(<ChangelogModal onClose={vi.fn()} />);
     const link = screen.getByRole('link', { name: /report issue/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', 'https://gitlab.com/havuq/homechronicle/-/issues');
+    expect(link).toHaveAttribute('href', 'https://github.com/venam1s/homechronicle/issues');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });

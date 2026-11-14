@@ -85,7 +85,7 @@ For the **Docker Compose** multi-container setup:
 
 ```bash
 # Clone the repository
-git clone https://gitlab.com/havuq/homechronicle.git
+git clone https://github.com/venam1s/homechronicle.git
 cd homechronicle
 
 # Create the persistent data directory

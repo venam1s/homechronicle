@@ -117,7 +117,7 @@ Public. Recent releases of HomeChronicle, newest first, fetched by the listener 
   "releases": [
     {
       "tag": "v0.4.0",
-      "url": "https://gitlab.com/havuq/homechronicle/-/releases/v0.4.0",
+      "url": "https://github.com/venam1s/homechronicle/releases/tag/v0.4.0",
       "prerelease": false,
       "publishedAt": "2026-10-11T00:00:00.000Z"
     }

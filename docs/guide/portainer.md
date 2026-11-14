@@ -7,7 +7,7 @@ homechronicle includes a Portainer-specific compose file that works with Portain
 1. In Portainer, go to **Stacks** > **Add stack**
 2. Choose **Repository**
 3. Configure:
-   - **Repository URL**: `https://gitlab.com/havuq/homechronicle.git`
+   - **Repository URL**: `https://github.com/venam1s/homechronicle.git`
    - **Reference**: select `main` (or a release tag like `refs/tags/v1.2.3`)
    - **Compose path**: `docker-compose.portainer.yml`
 4. Add **Environment variables**:
@@ -43,7 +43,7 @@ Host networking is recommended for HomeKit/Matter discovery reliability.
 ## Common Issues
 
 **"could not find ref main":**
-- Confirm URL is exactly `https://gitlab.com/havuq/homechronicle.git`
+- Confirm URL is exactly `https://github.com/venam1s/homechronicle.git`
 - Try `refs/heads/main` in the reference field
 - If Portainer auto-populates refs, pick `main` from the dropdown
 

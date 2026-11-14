@@ -1,6 +1,6 @@
 # Upgrading
 
-This page covers upgrading to **0.5.0** and **0.4**, then the general steps for any upgrade. The full list of changes in each release is in the [CHANGELOG](https://gitlab.com/havuq/homechronicle/-/blob/main/CHANGELOG.md).
+This page covers upgrading to **0.5.0** and **0.4**, then the general steps for any upgrade. The full list of changes in each release is in the [CHANGELOG](https://github.com/venam1s/homechronicle/blob/main/CHANGELOG.md).
 
 ## Upgrading to 0.5.0
 
@@ -121,7 +121,7 @@ docker cp homechronicle:/app/listener/data ./listener-data-backup
 
 ### 2. Read the release notes
 
-Check the [CHANGELOG](https://gitlab.com/havuq/homechronicle/-/blob/main/CHANGELOG.md) for **Upgrade notes** in every release between your version and the new one.
+Check the [CHANGELOG](https://github.com/venam1s/homechronicle/blob/main/CHANGELOG.md) for **Upgrade notes** in every release between your version and the new one.
 
 ### 3. Pull and restart
 
@@ -158,4 +158,4 @@ Look for `[db] Schema ready.`, then open the web UI. **Settings › About** show
 
 ### If something goes wrong
 
-Pin the previous image tags, restore the database dump and data directory from step 1 (see [Docker Compose › Backup and Restore](docker-compose.md#backup-and-restore)), and start the stack again. Then [report an issue](https://gitlab.com/havuq/homechronicle/-/issues).
+Pin the previous image tags, restore the database dump and data directory from step 1 (see [Docker Compose › Backup and Restore](docker-compose.md#backup-and-restore)), and start the stack again. Then [report an issue](https://github.com/venam1s/homechronicle/issues).

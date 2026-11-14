@@ -509,11 +509,11 @@ A redesign of the whole interface — twelve colour palettes, each with its own 
 ### Added
 - Initial release: HomeKit discovery/pairing (HAP), Matter commissioning, event timeline, dashboard analytics, accessory management, webhook alerts, Docker Compose deployment, dark mode, PWA
 
-[0.1.8]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.6...v0.1.8
-[0.1.6]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.5...v0.1.6
-[0.1.5]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.4...v0.1.5
-[0.1.4]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.3...v0.1.4
-[0.1.3]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.2...v0.1.3
-[0.1.2]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.1...v0.1.2
-[0.1.1]: https://gitlab.com/havuq/homechronicle/-/compare/v0.1.0...v0.1.1
-[0.1.0]: https://gitlab.com/havuq/homechronicle/-/tags/v0.1.0
+[0.1.8]: https://github.com/venam1s/homechronicle/compare/v0.1.6...v0.1.8
+[0.1.6]: https://github.com/venam1s/homechronicle/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/venam1s/homechronicle/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/venam1s/homechronicle/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/venam1s/homechronicle/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/venam1s/homechronicle/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/venam1s/homechronicle/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/venam1s/homechronicle/releases/tag/v0.1.0

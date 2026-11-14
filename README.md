@@ -1,6 +1,6 @@
 # homechronicle
 
-[![Latest Release](https://gitlab.com/havuq/homechronicle/-/badges/release.svg)](https://gitlab.com/havuq/homechronicle/-/releases) ![Last Commit](https://img.shields.io/gitlab/last-commit/homechronicle/homechronicle?gitlab_url=https://gitlab.com) ![Docker Pulls](https://img.shields.io/docker/pulls/havuq/homechronicle-standalone?logo=docker) 
+[![Latest Release](https://img.shields.io/github/v/release/venam1s/homechronicle)](https://github.com/venam1s/homechronicle/releases) ![Last Commit](https://img.shields.io/github/last-commit/venam1s/homechronicle) ![Docker Pulls](https://img.shields.io/docker/pulls/havuq/homechronicle-standalone?logo=docker) 
 
 ![Self Hosted](https://img.shields.io/badge/self--hosted-yes-purple) 
 ![HomeKit](https://img.shields.io/badge/apple-homekit-black?logo=apple)
@@ -47,7 +47,7 @@ Open `http://localhost:3000` (or `http://<your-server-ip>:3000` from another dev
 For more control (separate containers, external PostgreSQL access, per-service resource limits):
 
 ```bash
-git clone https://gitlab.com/havuq/homechronicle.git
+git clone https://github.com/venam1s/homechronicle.git
 cd homechronicle
 cp .env.example .env
 # Set POSTGRES_PASSWORD and API_TOKEN in .env

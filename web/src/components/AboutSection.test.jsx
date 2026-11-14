@@ -64,7 +64,7 @@ describe('AboutSection', () => {
     it('links to the issue tracker that actually exists', () => {
       renderAbout();
       expect(screen.getByRole('link', { name: 'Report an issue' }))
-        .toHaveAttribute('href', 'https://gitlab.com/havuq/homechronicle/-/issues');
+        .toHaveAttribute('href', 'https://github.com/venam1s/homechronicle/issues');
     });
 
     it('opens external links safely', () => {

@@ -82,4 +82,28 @@ sudo systemctl enable --now avahi-daemon
 
 ## VLANs
 
-Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your IoT devices are on a separate VLAN, you need a VLAN sub-interface on the host. See [limitations.md](https://gitlab.com/havuq/homechronicle/-/blob/main/limitations.md#platform-note-vlan--segregated-iot-networks) for details.
+Matter requires IPv6 link-local connectivity between the Docker host and your devices. If your Matter devices are on a separate VLAN from the Docker host, commissioning **discovers** the device over mDNS but **fails during pairing** with a PASE timeout:
+
+- mDNS discovery uses multicast, which your router can relay across VLANs.
+- Matter commissioning uses unicast IPv6 link-local (`fe80::`) addresses, which stay inside one Layer 2 segment and cannot cross a VLAN boundary.
+
+The fix is to give the Docker host a presence on the IoT VLAN with a VLAN sub-interface:
+
+1. Create the sub-interface (in your NAS UI, or manually). Example: parent `bond0`, VLAN tag 20, a static IP on the IoT subnet:
+   ```bash
+   ip link add link bond0 name bond0.20 type vlan id 20
+   ip addr add 192.168.20.50/24 dev bond0.20
+   ip link set bond0.20 up
+   ```
+2. Confirm it has an IPv6 link-local address:
+   ```bash
+   ip -6 addr show dev bond0.20 scope link
+   ```
+3. Confirm the Matter device answers:
+   ```bash
+   ping6 -c 3 fe80::<device-link-local>%bond0.20
+   ```
+4. Set `DISCOVER_IFACE=bond0.20` in `.env`. matter.js binds mDNS to that interface directly.
+5. Restart the listener: `docker compose up -d listener`.
+
+If this is not set up, discovery finds the device but commissioning times out with PASE errors, and `ping6 fe80::<device>%<host-interface>` returns `Destination unreachable: Address unreachable`.

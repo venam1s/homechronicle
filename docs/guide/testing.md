@@ -378,7 +378,7 @@ This produces screenshots named `test-results/theme-audit/dark-dashboard.png`, `
 
 ## CI integration
 
-CI runs on GitLab and is defined in `.gitlab-ci.yml`. (The old GitHub Actions files under `.github/workflows/` are kept in the repository but are no longer used.)
+CI runs on GitLab and is defined in `.gitlab-ci.yml`, on a self-hosted runner. The repository's home is GitHub, where Actions are disabled; the files under `.github/workflows/` are kept but not used. GitHub pull requests therefore get no CI run — run both suites locally.
 
 **Runs on:** merge requests, every push to `main`, and version tags (`v*`). Node.js 20 (`node:20-alpine`).
 
@@ -390,6 +390,7 @@ CI runs on GitLab and is defined in `.gitlab-ci.yml`. (The old GitHub Actions fi
 | `validate-release` | prepare | Tags only. Checks the tag is `vX.Y.Z` or `vX.Y.Z-beta.N`. |
 | `build-listener`, `build-web`, `build-standalone` | build | Tags only, and only after `test` passes. Multi-arch (`linux/amd64`, `linux/arm64`) builds pushed to Docker Hub, with a Trivy scan. The standalone image is built for stable tags only. |
 | `create-release` | release | Tags only. Creates the GitLab release from the matching `CHANGELOG.md` section. |
+| `github-release` | release | Tags only, when the `GITHUB_RELEASE_TOKEN` variable is set. Publishes the same notes as a release on GitHub via `scripts/github-release.mjs`; betas become prereleases. Allowed to fail. |
 
 E2E tests and the [HomeKit address check](#homekit-address-check-real-accessory) are **not** included in CI. They need a live application or a real network stack and are run manually.
 

@@ -53,7 +53,7 @@ export default function ChangelogModal({ onClose }) {
         {/* Footer */}
         <div className="px-5 py-3 border-t border-hc-panel-border space-y-2">
           <a
-            href="https://gitlab.com/havuq/homechronicle/-/issues"
+            href="https://github.com/venam1s/homechronicle/issues"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-1 text-xs text-hc-muted hover:text-hc-fg transition-colors"

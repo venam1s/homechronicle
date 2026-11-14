@@ -42,7 +42,7 @@ The installer from [nodejs.org](https://nodejs.org) works too; pick the 22.x LTS
 
 ```bash
 cd ~
-git clone https://gitlab.com/havuq/homechronicle.git
+git clone https://github.com/venam1s/homechronicle.git
 cd homechronicle
 
 # Use the latest release rather than the development branch

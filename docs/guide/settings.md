@@ -22,7 +22,7 @@ All settings save automatically unless noted otherwise.
 | **Update** | **Up to date**, a link such as **v0.4.1 available** that opens the release notes, **Couldn't check for updates** if the check failed, or **Update check is off** |
 | **What's new** | Opens the changelog. A dot appears after an upgrade until you've read the new notes (the changelog also opens by itself the first time you load a new version). |
 | **Documentation** | Opens this guide |
-| **Report an issue** | Opens the project's issue tracker on GitLab |
+| **Report an issue** | Opens the project's issue tracker on GitHub |
 
 On desktop, a dot on **Settings** in the navigation bar means there are changelog notes you haven't read, and an "*version* available" link appears in the top bar when an update is out.
 

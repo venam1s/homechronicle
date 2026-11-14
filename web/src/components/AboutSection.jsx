@@ -8,12 +8,11 @@ const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring 
 // carried over from the About tab that used to live inside Configuration —
 // this section replaced it rather than adding a second copy.
 //
-// The tracker is GitLab, not GitHub: the GitHub account was lost to a
-// suspension and `havuq` no longer resolves there, so a GitHub link would be
-// dead. This matches the two issue links already in ChangelogModal and
-// SettingsTab.
+// Issues live on GitHub (venam1s/homechronicle) since 2026-11. The GitLab
+// project is a mirror; its old issues were copied over with the same numbers.
+// This matches the issue link in ChangelogModal.
 const DOCS_URL = 'https://homechronicle.net/guide/#/';
-const ISSUES_URL = 'https://gitlab.com/havuq/homechronicle/-/issues';
+const ISSUES_URL = 'https://github.com/venam1s/homechronicle/issues';
 
 const LINK_BUTTON = [
   'inline-flex items-center gap-2 rounded-lg border border-hc-panel-border px-3 py-2',
