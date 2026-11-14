@@ -5,7 +5,7 @@ import { rateLimitKeyGenerator, requireAdminSession } from './security.js';
 import { parseIntInRange, withTimeout } from './utils.js';
 import { abortHapClient, advertisedAddresses, tryEachAddress } from './hap-addresses.js';
 import { scheduleRename } from './display-names.js';
-import { shortUuid } from './accessory-metadata.js';
+import { extractAccessoryMetadata, shortUuid } from './accessory-metadata.js';
 import { CATEGORIES, isValidCategory } from './categories.js';
 import { resolveControllerIdentity, runAddPairing } from './add-pairing-helpers.js';
 import {
@@ -213,12 +213,24 @@ export function createSetupRouter({
       const client = new HttpClient(deviceId, pairing.address, pairing.port, pairing.longTermData);
       const result = await client.getAccessories();
       const children = [];
+      // An accessory logged per service (each outlet of a multi-outlet plug)
+      // is listed as those services: they are what gets named, roomed and
+      // noted. A room set on the accessory itself still covers them.
+      const { serviceSplits } = extractAccessoryMetadata({ deviceId, pairingName: pairing.name, accessories: result });
       for (const acc of result?.accessories ?? []) {
         if (acc.aid === 1) continue;
         const infoService = acc.services?.find((s) => shortUuid(s.type) === '3E');
         const nameProp = infoService?.characteristics?.find((c) => shortUuid(c.type) === '23');
         const name = nameProp?.value ?? `Device ${acc.aid}`;
-        children.push({ childId: `${deviceId}:${acc.aid}`, name, aid: acc.aid });
+        const childId = `${deviceId}:${acc.aid}`;
+        const splits = serviceSplits.filter((split) => split.parentAccessoryId === childId);
+        if (splits.length === 0) {
+          children.push({ childId, name, aid: acc.aid });
+          continue;
+        }
+        for (const split of splits) {
+          children.push({ childId: split.accessoryId, name: split.name, aid: acc.aid, parentChildId: childId, parentName: name });
+        }
       }
       log.debug(`[setup] bridge-children: ${pairing.name} -> ${children.length} child(ren)`);
       res.json(children);

@@ -566,6 +566,45 @@ test('GET /accessories — splits multi-service accessory into separate rows', a
   assert.equal(jsonBody.find((r) => r.service_type === 'HumiditySensor').event_count, 15);
 });
 
+// Issue #4: each outlet of a multi-outlet plug is its own entity; the plug's
+// own id keeps only firmware events, which must not show as a third device.
+test('GET /accessories — split services listed, their accessory\'s firmware-only row is not', async () => {
+  const MAC = 'AA:BB:CC:DD:EE:FF';
+  const row = (accessory_id, accessory_name, service_type, event_count) => ({
+    accessory_id, accessory_name, room_name: null, service_type, protocol: 'homekit',
+    last_seen: new Date().toISOString(), event_count,
+  });
+  let queryCallCount = 0;
+  const router = makeRouter({
+    loadRooms: () => ({ [`${MAC}:7`]: 'Front' }),
+    pool: {
+      async query() {
+        queryCallCount++;
+        if (queryCallCount === 1) {
+          return {
+            rows: [
+              row(`${MAC}:7:10`, 'Tree', 'Outlet', 16),
+              row(`${MAC}:7:20`, 'Garland', 'Outlet', 9),
+              row(`${MAC}:7`, 'Holiday Outlet', 'AccessoryInformation', 1),
+              // An unsplit accessory keeps its firmware row as before.
+              row(`${MAC}:3`, 'Left Bed', 'AccessoryInformation', 1),
+            ],
+          };
+        }
+        return { rows: [] };
+      },
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories');
+  const { statusCode, jsonBody } = await invoke(handler);
+
+  assert.equal(statusCode, 200);
+  assert.deepEqual(jsonBody.map((r) => r.accessory_id), [`${MAC}:7:10`, `${MAC}:7:20`, `${MAC}:3`]);
+  // Each outlet inherits the room set on the plug.
+  assert.equal(jsonBody[0].room_name, 'Front');
+  assert.equal(jsonBody[1].room_name, 'Front');
+});
+
 test('GET /accessories — on-demand metadata fetch for bridges with no cached children', async () => {
   const bridgeId = 'aa:bb:cc:dd:ee:ff';
   const cachedChildren = [];

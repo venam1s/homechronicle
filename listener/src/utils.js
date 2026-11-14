@@ -51,6 +51,41 @@ export function parentBridgeId(id) {
   return str;
 }
 
+// -- HomeKit service split --
+// An accessory exposing several watched services of the same type (a
+// two-outlet plug published as one accessory with two Outlet services) is
+// logged as one entity per service: "AA:BB:CC:DD:EE:FF:aid:serviceIid". The
+// aid is always present (also aid 1), so a split id is always 8 parts and
+// parentBridgeId() still finds the MAC.
+
+/** Id of one service of a split HomeKit accessory. */
+export function serviceSplitId(deviceId, aid, serviceIid) {
+  return `${deviceId}:${aid}:${serviceIid}`;
+}
+
+/**
+ * The accessory a split service id belongs to ("MAC:aid", or the MAC when the
+ * accessory is the device itself, aid 1), or null for any other id.
+ */
+export function parentAccessoryId(id) {
+  const parts = String(id ?? '').split(':');
+  if (parts.length !== 8) return null;
+  return parts[6] === '1' ? parts.slice(0, 6).join(':') : parts.slice(0, 7).join(':');
+}
+
+/**
+ * The room for an accessory id: its own, else its parent accessory's (split
+ * services), else its bridge's. Setting a room on a parent covers its children.
+ */
+export function roomFor(rooms, id) {
+  const own = rooms?.[id];
+  if (own != null) return own;
+  const accessory = parentAccessoryId(id);
+  if (accessory && rooms?.[accessory] != null) return rooms[accessory];
+  const bridge = parentBridgeId(id);
+  return bridge !== id ? rooms?.[bridge] : undefined;
+}
+
 export function isLoopbackHostname(hostname) {
   const normalized = String(hostname ?? '').toLowerCase();
   return normalized === 'localhost'

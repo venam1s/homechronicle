@@ -2,6 +2,7 @@ import { resolveAndValidateWebhookTarget } from './security.js';
 import { sendAlertEmail, isEmailEnabled } from './emails.js';
 import { isTemperatureCharacteristic, formatTemperature, normalizeTemperatureUnit } from './temperature.js';
 import { log } from './logger.js';
+import { parentAccessoryId } from './utils.js';
 
 // Webhook timeout precedence: ALERTS_WEBHOOK_TIMEOUT_MS when it is set (it
 // predates the Settings field, and existing .env configs must keep working);
@@ -99,8 +100,13 @@ function eventMatchesScope(rule, event) {
     // the device reports, plain or in the legacy suffixed form.
     const names = [event.accessoryName, event.reportedName].filter((n) => n != null && n !== '');
     const legacyNames = event.serviceType ? names.map((n) => `${n} · ${event.serviceType}`) : [];
+    // A service split off its accessory (one outlet of a multi-outlet plug)
+    // still matches rules naming the whole accessory, by id or by name.
+    const parentId = parentAccessoryId(event.accessoryId);
+    const parentNames = parentId && event.parentAccessoryName ? [event.parentAccessoryName] : [];
     return normalizeLower(event.accessoryId) === target
-      || [...names, ...legacyNames].some((n) => normalizeLower(n) === target);
+      || (parentId != null && normalizeLower(parentId) === target)
+      || [...names, ...legacyNames, ...parentNames].some((n) => normalizeLower(n) === target);
   }
   if (scopeType === 'characteristic') {
     return normalizeLower(event.characteristic) === normalizeLower(scopeValue);

@@ -45,3 +45,13 @@ test('category ids are unique and labelled', () => {
   assert.equal(categoryLabel('access'), 'Doors & locks');
   assert.equal(categoryLabel('nope'), 'Other');
 });
+
+test('resolveCategory: a split outlet follows its plug\'s override until it has its own', () => {
+  const MAC = 'AA:BB:CC:DD:EE:FF';
+  const overrides = { [`${MAC}:7`]: 'lighting', [`${MAC}:7:20`]: 'other' };
+  assert.equal(resolveCategory(`${MAC}:7:10`, new Set(['Outlet']), overrides).category, 'lighting');
+  assert.equal(resolveCategory(`${MAC}:7:10`, new Set(['Outlet']), overrides).override, 'lighting');
+  assert.equal(resolveCategory(`${MAC}:7:20`, new Set(['Outlet']), overrides).category, 'other');
+  // A bridge child does not inherit the bridge's override.
+  assert.equal(resolveCategory(`${MAC}:3`, new Set(['Outlet']), { [MAC]: 'lighting' }).override, null);
+});

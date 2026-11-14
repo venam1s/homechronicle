@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { log } from './logger.js';
 import { withDisplayName } from './display-names.js';
+import { invalidate } from './query-cache.js';
 
 const { Pool } = pg;
 
@@ -79,6 +80,98 @@ export async function insertEvent(event, executor = pool) {
       endpointId, clusterId, attributeId, rawIid, reportedName]
   );
   return result.rows[0];
+}
+
+/**
+ * Move a split accessory's past events onto its services.
+ *
+ * When an accessory is first logged per service (a multi-outlet plug: see
+ * extractAccessoryMetadata), its earlier events still sit under the
+ * accessory's id. Each one records the characteristic it came from (raw_iid),
+ * which says which service it belongs to: those events move to that service's
+ * id and name, live and archived alike. Events with no raw_iid (firmware
+ * changes) stay with the accessory. Per-user mutes on the old name carry over
+ * to each service's name. Idempotent: once moved, nothing matches again.
+ *
+ * @param {Array<{accessoryId: string, parentAccessoryId: string, name: string,
+ *   serviceType: string, iids: number[]}>} splits - from extractAccessoryMetadata
+ * @returns {Promise<number>} events moved
+ */
+export async function moveSplitServiceHistory(splits, executor = pool) {
+  const pending = (splits ?? []).filter((s) => s?.iids?.length > 0 && s.accessoryId !== s.parentAccessoryId);
+  if (pending.length === 0) return 0;
+  // Cheap check first: this runs on every connect and normally finds nothing.
+  const pairs = pending.flatMap((s) => s.iids.map((iid) => [s.parentAccessoryId, iid]));
+  const params = [pairs.map((p) => p[0]), pairs.map((p) => p[1])];
+  let found = false;
+  for (const table of ['event_logs', 'event_logs_archive']) {
+    // eslint-disable-next-line no-await-in-loop
+    const { rows } = await executor.query(
+      `SELECT 1 FROM ${table} e
+         JOIN unnest($1::text[], $2::int[]) AS s(accessory_id, raw_iid)
+           ON e.accessory_id = s.accessory_id AND e.raw_iid = s.raw_iid
+        LIMIT 1`,
+      params
+    );
+    if (rows.length > 0) { found = true; break; }
+  }
+  if (!found) return 0;
+
+  const client = executor === pool ? await pool.connect() : executor;
+  let moved = 0;
+  try {
+    await client.query('BEGIN');
+    for (const split of pending) {
+      const storedName = withDisplayName(split.name, split.serviceType, getDisplayNames()?.[split.accessoryId]);
+      const reportedName = storedName === split.name ? null : split.name;
+      // eslint-disable-next-line no-await-in-loop
+      const { rows: oldNames } = await client.query(
+        `SELECT DISTINCT name FROM (
+           SELECT accessory_name AS name FROM event_logs
+            WHERE accessory_id = $1 AND raw_iid = ANY($2::int[])
+           UNION
+           SELECT reported_name FROM event_logs
+            WHERE accessory_id = $1 AND raw_iid = ANY($2::int[]) AND reported_name IS NOT NULL
+         ) n WHERE name IS NOT NULL`,
+        [split.parentAccessoryId, split.iids]
+      );
+      for (const table of ['event_logs', 'event_logs_archive']) {
+        // eslint-disable-next-line no-await-in-loop
+        const result = await client.query(
+          `UPDATE ${table}
+              SET accessory_id = $1, accessory_name = $2, reported_name = $3
+            WHERE accessory_id = $4 AND raw_iid = ANY($5::int[])`,
+          [split.accessoryId, storedName, reportedName, split.parentAccessoryId, split.iids]
+        );
+        moved += result.rowCount ?? 0;
+      }
+      const names = oldNames.map((r) => r.name).filter((n) => n !== storedName);
+      if (names.length > 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await client.query(
+          `UPDATE user_preferences
+              SET prefs = jsonb_set(prefs, '{mutedDevices}', (prefs->'mutedDevices') || to_jsonb($2::text)),
+                  updated_at = now()
+            WHERE jsonb_typeof(prefs->'mutedDevices') = 'array'
+              AND NOT (prefs->'mutedDevices') ? $2
+              AND EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(prefs->'mutedDevices') AS e(value)
+                 WHERE e.value = ANY($1::text[])
+              )`,
+          [names, storedName]
+        );
+      }
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    if (client !== executor) client.release();
+  }
+  // Cached stats and lists still hold the accessory's old id and name.
+  if (moved > 0) invalidate('');
+  return moved;
 }
 
 /**

@@ -51,7 +51,9 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
     <div className="ml-9 mt-2 pb-2 border-l-2 border-hc-panel-border pl-3 space-y-1.5">
       {children.map((child) => {
         const childRoom = roomInputs[child.childId] ?? savedRooms[child.childId] ?? '';
-        const isInheriting = !childRoom && !!bridgeRoom;
+        // One outlet of a multi-outlet plug inherits the plug's room first.
+        const inheritedRoom = (child.parentChildId && savedRooms[child.parentChildId]) || bridgeRoom;
+        const isInheriting = !childRoom && !!inheritedRoom;
         return (
           <div key={child.childId} className="space-y-1">
             <div className="flex items-center gap-2">
@@ -68,6 +70,9 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                   onKeyDown={(e) => e.key === 'Enter' && onDisplayNameBlur?.(child.childId)}
                   className="text-xs text-hc-fg bg-transparent border-0 border-b border-transparent hover:border-hc-panel-border focus:border-hc-accent-strong focus:outline-none px-0 py-0 w-full truncate placeholder-hc-muted"
                 />
+                {child.parentName && (
+                  <span className="text-[10px] text-hc-muted whitespace-nowrap flex-shrink-0">on {child.parentName}</span>
+                )}
               </div>
             </div>
             <div className="flex flex-col gap-1 ml-3.5">
@@ -75,7 +80,7 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                 <MapPin size={9} className={isInheriting ? 'text-hc-accent-strong' : 'text-hc-muted'} />
                 <input
                   type="text"
-                  placeholder={bridgeRoom ? `Inherits: ${bridgeRoom}` : 'Room…'}
+                  placeholder={inheritedRoom ? `Inherits: ${inheritedRoom}` : 'Room…'}
                   value={childRoom}
                   list="hc-room-list"
                   onChange={(e) => onRoomChange(child.childId, e.target.value)}

@@ -139,6 +139,16 @@ GET /api/setup/bridge-children/:deviceId
 
 If a bridge is unreachable (for example after its IP address changed), Devices still loads with what's cached and the bridge is retried in the background.
 
+#### Multi-outlet plugs and power strips
+
+Some Homebridge plugins publish a multi-outlet device as one accessory with an outlet service per socket (for example a two-outlet Kasa plug), where others publish each outlet as its own accessory. Either way, HomeChronicle logs each outlet of a bridged device as its own device, named after the outlet: it gets its own Timeline entries, room, display name, note and alerts, and each outlet is listed under the bridge in **Devices › Manage Accessories**. The same applies to any bridged accessory with more than one switch, light or sensor of the same kind.
+
+- A room, category or quiet-hours exclusion set on the plug itself covers its outlets until you give an outlet its own
+- An alert rule scoped to the plug (by name or id) fires for each of its outlets
+- Events logged before this, when the outlets were one device, move to the right outlet the next time the listener connects to the bridge; firmware changes stay with the plug
+
+A multi-outlet device paired directly (not through a bridge) is still logged as one device.
+
 ## Managing devices
 
 **Devices › Manage Accessories** lists every paired HomeKit and Matter device. For each one you can:

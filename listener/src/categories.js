@@ -3,6 +3,8 @@
 // every service type it has reported, with a per-device manual override
 // stored in categories.json (accessoryId -> category id).
 
+import { parentAccessoryId } from './utils.js';
+
 // Days of activity a device's automatic category is resolved from on its detail
 // page: the Device Categories panel's default window (7 days) plus the 7 before,
 // so both show the same category for the same device.
@@ -107,7 +109,9 @@ export function autoCategory(serviceTypes) {
  */
 export function resolveCategory(accessoryId, serviceTypes, overrides = {}) {
   const auto = autoCategory(serviceTypes);
-  const stored = overrides?.[accessoryId];
+  // A split outlet of a multi-outlet plug follows the plug's override until it has its own.
+  const parent = parentAccessoryId(accessoryId);
+  const stored = overrides?.[accessoryId] ?? (parent ? overrides?.[parent] : undefined);
   const override = isValidCategory(stored) ? stored : null;
   return { category: override ?? auto, auto, override };
 }

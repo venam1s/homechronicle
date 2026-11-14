@@ -1,3 +1,5 @@
+import { serviceSplitId } from './utils.js';
+
 const SERVICE_TYPE_LABELS = new Map([
   ['43', 'Lightbulb'],
   ['49', 'Switch'],
@@ -103,10 +105,90 @@ export function shortUuid(uuid = '') {
   return match ? match[1].toUpperCase() : uuid.toUpperCase();
 }
 
+function serviceOwnName(service) {
+  // ConfiguredName (E3) is the name the user gave it in the Home app; Name (23)
+  // is the one the accessory (or Homebridge plugin) publishes for the service.
+  for (const code of ['E3', '23']) {
+    const match = service.characteristics?.find((c) => shortUuid(c.type) === code);
+    const text = copyOrNull(match?.value);
+    if (text) return text;
+  }
+  return null;
+}
+
+function hasWatchedCharacteristic(service) {
+  return (service.characteristics ?? []).some((c) => WATCHED_CHARACTERISTICS.has(shortUuid(c.type)));
+}
+
+function describeService(service) {
+  const serviceTypeShort = shortUuid(service.type);
+  const serviceLabel = SERVICE_TYPE_LABELS.get(serviceTypeShort) ?? serviceTypeShort;
+  const characteristics = [];
+  const watchedNames = new Set();
+  for (const char of service.characteristics ?? []) {
+    const charTypeShort = shortUuid(char.type);
+    const watchedLabel = WATCHED_CHARACTERISTICS.get(charTypeShort);
+    if (watchedLabel) watchedNames.add(watchedLabel);
+    characteristics.push({
+      iid: char.iid ?? null,
+      type: charTypeShort,
+      label: watchedLabel ?? char.description ?? charTypeShort,
+      format: char.format ?? null,
+      unit: char.unit ?? null,
+      min_value: char.minValue ?? null,
+      max_value: char.maxValue ?? null,
+      min_step: char.minStep ?? null,
+      perms: Array.isArray(char.perms) ? char.perms : [],
+    });
+  }
+  return {
+    summary: { iid: service.iid ?? null, type: serviceTypeShort, label: serviceLabel, characteristics },
+    watchedNames,
+  };
+}
+
+/**
+ * Services to log as entities of their own: watched services whose type occurs
+ * more than once on a bridged accessory (a two-outlet plug published by a
+ * Homebridge plugin as one accessory with two Outlet services). Each gets its
+ * own name: the service's own name when the accessory gives each one a
+ * distinct name, else "<accessory> <n>" in service order.
+ *
+ * @returns {Map<object, string>} service → name
+ */
+function findSplitServices(acc, childName) {
+  const split = new Map();
+  // Bridged accessories only (Homebridge and the like): their per-device
+  // settings live under the bridge's children, where the services are listed.
+  // A directly paired device has no such place yet, so it stays one entity.
+  if (!(acc.aid > 1)) return split;
+  const byType = new Map();
+  for (const service of acc.services ?? []) {
+    if (!hasWatchedCharacteristic(service)) continue;
+    const type = shortUuid(service.type);
+    if (!byType.has(type)) byType.set(type, []);
+    byType.get(type).push(service);
+  }
+  for (const [type, services] of byType) {
+    if (services.length < 2) continue;
+    const own = services.map(serviceOwnName);
+    const distinct = own.every((name, i) => name
+      && name !== childName
+      && own.findIndex((other) => other?.toLowerCase() === name.toLowerCase()) === i);
+    const base = childName ?? SERVICE_TYPE_LABELS.get(type) ?? type;
+    services.forEach((service, i) => {
+      split.set(service, distinct ? own[i] : `${base} ${i + 1}`);
+    });
+  }
+  return split;
+}
+
 export function extractAccessoryMetadata({ deviceId, pairingName = null, accessories }) {
   const iidMetaMap = new Map();
   const identitiesByAccessoryId = new Map();
   const capabilitiesByAccessoryId = new Map();
+  // Split services: one entry per service logged as its own entity.
+  const serviceSplits = [];
   const nowIso = new Date().toISOString();
 
   for (const acc of accessories?.accessories ?? []) {
@@ -119,62 +201,63 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
     const firmwareRevision = getInfoCharacteristicValue(infoService, '52');
     const hardwareRevision = getInfoCharacteristicValue(infoService, '53');
     const effectiveId = acc.aid > 1 ? `${deviceId}:${acc.aid}` : deviceId;
+    const identity = {
+      manufacturer,
+      model,
+      serial_number: serialNumber,
+      firmware_revision: firmwareRevision,
+      hardware_revision: hardwareRevision,
+      metadata_updated_at: nowIso,
+    };
+    const capabilityBase = {
+      parent_device_id: deviceId,
+      aid: acc.aid,
+      manufacturer,
+      model,
+      serial_number: serialNumber,
+      firmware_revision: firmwareRevision,
+      hardware_revision: hardwareRevision,
+    };
 
+    const splitServices = findSplitServices(acc, childName);
+
+    // The accessory itself keeps every service that is not split off.
     const watchedServiceTypes = new Set();
     const watchedCharacteristicNames = new Set();
     const services = [];
     let characteristicCount = 0;
 
     for (const service of acc.services ?? []) {
-      const serviceTypeShort = shortUuid(service.type);
-      const serviceLabel = SERVICE_TYPE_LABELS.get(serviceTypeShort) ?? serviceTypeShort;
-      const characteristics = [];
-      let hasWatchedCharacteristic = false;
-
-      for (const char of service.characteristics ?? []) {
-        const charTypeShort = shortUuid(char.type);
-        const watchedLabel = WATCHED_CHARACTERISTICS.get(charTypeShort);
-        if (watchedLabel) {
-          hasWatchedCharacteristic = true;
-          watchedCharacteristicNames.add(watchedLabel);
-        }
-        characteristicCount += 1;
-        characteristics.push({
-          iid: char.iid ?? null,
-          type: charTypeShort,
-          label: watchedLabel ?? char.description ?? charTypeShort,
-          format: char.format ?? null,
-          unit: char.unit ?? null,
-          min_value: char.minValue ?? null,
-          max_value: char.maxValue ?? null,
-          min_step: char.minStep ?? null,
-          perms: Array.isArray(char.perms) ? char.perms : [],
-        });
-      }
-
-      if (hasWatchedCharacteristic) watchedServiceTypes.add(serviceLabel);
-
-      services.push({
-        iid: service.iid ?? null,
-        type: serviceTypeShort,
-        label: serviceLabel,
-        characteristics,
-      });
+      if (splitServices.has(service)) continue;
+      const { summary, watchedNames } = describeService(service);
+      if (watchedNames.size > 0) watchedServiceTypes.add(summary.label);
+      for (const name of watchedNames) watchedCharacteristicNames.add(name);
+      characteristicCount += summary.characteristics.length;
+      services.push(summary);
     }
 
-    const shouldDisambiguateByService = watchedServiceTypes.size > 1;
+    // Counted over every watched service, split ones included, so a sensor
+    // next to a split pair keeps the "<name> · <service>" name it had before.
+    const allWatchedTypes = new Set((acc.services ?? [])
+      .filter(hasWatchedCharacteristic)
+      .map((s) => shortUuid(s.type)));
+    const shouldDisambiguateByService = allWatchedTypes.size > 1;
 
     for (const service of acc.services ?? []) {
       const serviceTypeShort = shortUuid(service.type);
       const serviceType = SERVICE_TYPE_LABELS.get(serviceTypeShort) ?? serviceTypeShort;
+      const splitName = splitServices.get(service);
+      const accessoryId = splitName ? serviceSplitId(deviceId, acc.aid, service.iid) : effectiveId;
       for (const char of service.characteristics ?? []) {
         const charType = shortUuid(char.type);
         const charName = WATCHED_CHARACTERISTICS.get(charType) ?? null;
         if (!charName) continue;
-        const componentName = (shouldDisambiguateByService && childName)
-          ? `${childName} · ${serviceType}`
-          : childName;
+        let componentName = childName;
+        if (splitName) componentName = splitName;
+        else if (shouldDisambiguateByService && childName) componentName = `${childName} · ${serviceType}`;
         iidMetaMap.set(`${acc.aid}.${char.iid}`, {
+          accessoryId,
+          parentAccessoryId: effectiveId,
           serviceType,
           characteristicName: charName,
           childName,
@@ -183,25 +266,47 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
       }
     }
 
-    identitiesByAccessoryId.set(effectiveId, {
-      manufacturer,
-      model,
-      serial_number: serialNumber,
-      firmware_revision: firmwareRevision,
-      hardware_revision: hardwareRevision,
-      metadata_updated_at: nowIso,
-    });
+    // Identity and firmware belong to the accessory, split or not: one
+    // firmware change is one event, not one per outlet.
+    identitiesByAccessoryId.set(effectiveId, identity);
+
+    for (const [service, name] of splitServices) {
+      const { summary, watchedNames } = describeService(service);
+      const accessoryId = serviceSplitId(deviceId, acc.aid, service.iid);
+      serviceSplits.push({
+        accessoryId,
+        parentAccessoryId: effectiveId,
+        name,
+        serviceType: summary.label,
+        iids: summary.characteristics
+          .filter((c) => WATCHED_CHARACTERISTICS.has(c.type) && c.iid != null)
+          .map((c) => c.iid),
+      });
+      capabilitiesByAccessoryId.set(accessoryId, {
+        accessory_id: accessoryId,
+        ...capabilityBase,
+        service_iid: service.iid ?? null,
+        accessory_name: name,
+        parent_accessory_id: effectiveId,
+        parent_accessory_name: childName,
+        service_count: 1,
+        characteristic_count: summary.characteristics.length,
+        watched_service_types: [summary.label],
+        watched_characteristics: [...watchedNames],
+        watched_characteristic_count: watchedNames.size,
+        services: [summary],
+        metadata_updated_at: nowIso,
+      });
+    }
+
+    // A fully split accessory has no entity of its own left to list: listing
+    // it would show a device that never logs anything next to its services.
+    if (splitServices.size > 0 && watchedServiceTypes.size === 0) continue;
 
     capabilitiesByAccessoryId.set(effectiveId, {
       accessory_id: effectiveId,
-      parent_device_id: deviceId,
-      aid: acc.aid,
+      ...capabilityBase,
       accessory_name: childName,
-      manufacturer,
-      model,
-      serial_number: serialNumber,
-      firmware_revision: firmwareRevision,
-      hardware_revision: hardwareRevision,
       service_count: services.length,
       characteristic_count: characteristicCount,
       watched_service_types: [...watchedServiceTypes],
@@ -212,7 +317,7 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
     });
   }
 
-  return { iidMetaMap, identitiesByAccessoryId, capabilitiesByAccessoryId };
+  return { iidMetaMap, identitiesByAccessoryId, capabilitiesByAccessoryId, serviceSplits };
 }
 
 export function cacheAccessoryMetadata({ deviceId, pairingName = null, accessories }) {
@@ -221,6 +326,11 @@ export function cacheAccessoryMetadata({ deviceId, pairingName = null, accessori
 
   for (const [accessoryId, identity] of parsed.identitiesByAccessoryId.entries()) {
     identityCache.set(accessoryId, identity);
+  }
+  // A split service shows its accessory's make, model and firmware.
+  for (const split of parsed.serviceSplits) {
+    const identity = parsed.identitiesByAccessoryId.get(split.parentAccessoryId);
+    if (identity) identityCache.set(split.accessoryId, identity);
   }
   for (const [accessoryId, capability] of parsed.capabilitiesByAccessoryId.entries()) {
     capabilitiesCache.set(accessoryId, capability);

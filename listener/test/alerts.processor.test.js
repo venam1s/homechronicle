@@ -689,6 +689,51 @@ test('processAlertsForEvent accessory scope matches the display name and the rep
   }
 });
 
+// One outlet of a multi-outlet plug is logged as its own entity (issue #4);
+// rules naming the whole plug, by id or name, must keep firing for each outlet.
+test('processAlertsForEvent accessory scope matches a split service\'s parent accessory', async () => {
+  const MAC = 'AA:BB:CC:DD:EE:FF';
+  for (const [scopeValue, shouldFire] of [
+    [`${MAC}:7:10`, true],
+    [`${MAC}:7`, true],
+    ['Tree', true],
+    ['Holiday Outlet', true],
+    [`${MAC}:7:20`, false],
+    [MAC, false],
+    ['Garland', false],
+  ]) {
+    const deliveries = [];
+    const pool = {
+      async query(sql, params = []) {
+        if (sql.includes('FROM alert_rules')) {
+          return { rows: [makeRule({ scope_type: 'accessory', scope_value: scopeValue })] };
+        }
+        if (sql.includes('DISTINCT ON (rule_id)')) return { rows: [] };
+        if (sql.startsWith('INSERT INTO alert_deliveries')) {
+          deliveries.push({ status: params[2] });
+          return { rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({ ok: true, status: 200 });
+    try {
+      await processAlertsForEvent(pool, makeEvent({
+        accessoryId: `${MAC}:7:10`,
+        accessoryName: 'Tree',
+        parentAccessoryName: 'Holiday Outlet',
+        serviceType: 'Outlet',
+        characteristic: 'On',
+      }));
+      assert.equal(deliveries.length, shouldFire ? 1 : 0, `scope_value=${scopeValue}`);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  }
+});
+
 // -- Temperature unit in alert emails --
 // Readings are stored in °C; the email shows them in the rule owner's unit
 // (user_preferences.prefs.temperatureUnit). Legacy rules (no user_id) stay °C.

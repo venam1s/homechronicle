@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
-import { csvCell, parseIntInRange, parentBridgeId } from './utils.js';
+import { csvCell, parseIntInRange, roomFor } from './utils.js';
 import { isTemperatureCharacteristic, celsiusToUnit, roundTo } from './temperature.js';
 
 const EVENTS_RATE_LIMIT_WINDOW_MS = parseIntInRange(
@@ -115,8 +115,7 @@ export function createEventsRouter({ pool, getRooms }) {
       const rooms = getRooms();
       const events = dataResult.rows.map((row) => ({
         ...row,
-        room_name: rooms[row.accessory_id]
-          ?? rooms[parentBridgeId(row.accessory_id)]
+        room_name: roomFor(rooms, row.accessory_id)
           ?? row.room_name,
       }));
 
@@ -236,7 +235,7 @@ export function createEventsRouter({ pool, getRooms }) {
         for (const row of batch.rows) {
           const out = { ...row };
           delete out.cursor_ts;
-          out.room_name = rooms[row.accessory_id] ?? rooms[parentBridgeId(row.accessory_id)] ?? row.room_name;
+          out.room_name = roomFor(rooms, row.accessory_id) ?? row.room_name;
           if (unit === 'f' && isTemperatureCharacteristic(row.characteristic)) {
             for (const col of ['old_value', 'new_value']) {
               const n = parseFloat(out[col]);

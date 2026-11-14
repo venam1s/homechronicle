@@ -300,6 +300,40 @@ test('GET /bridge-children/:deviceId — returns children for known bridge', asy
   assert.equal(jsonBody[0].aid, 2);
 });
 
+test('GET /bridge-children/:deviceId — a multi-outlet accessory is listed as its outlets', async () => {
+  const T = (short) => `${short.padStart(8, '0')}-0000-1000-8000-0026BB765291`;
+  const outlet = (iid, name) => ({
+    iid, type: T('47'),
+    characteristics: [{ iid: iid + 1, type: T('25'), value: false }, { iid: iid + 2, type: T('23'), value: name }],
+  });
+  const MAC = 'AA:BB:CC:DD:EE:FF';
+  const router = makeRouter({
+    loadPairings: () => ({
+      [MAC]: { protocol: 'homekit', name: 'Bridge', address: '1.2.3.4', port: 80, longTermData: {} },
+    }),
+    HttpClient: class MockBridgeClient {
+      async getAccessories() {
+        return {
+          accessories: [
+            { aid: 1, services: [] },
+            { aid: 2, services: [{ iid: 1, type: T('3E'), characteristics: [{ iid: 2, type: T('23'), value: 'Holiday Outlet' }] }, outlet(8, 'Tree'), outlet(11, 'Garland')] },
+            { aid: 3, services: [{ iid: 1, type: T('3E'), characteristics: [{ iid: 2, type: T('23'), value: 'Left Bed' }] }, outlet(8, 'Left Bed')] },
+          ],
+        };
+      }
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/bridge-children/:deviceId');
+  const { statusCode, jsonBody } = await invoke(handler, { params: { deviceId: MAC } });
+
+  assert.equal(statusCode, 200);
+  assert.deepEqual(jsonBody, [
+    { childId: `${MAC}:2:8`, name: 'Tree', aid: 2, parentChildId: `${MAC}:2`, parentName: 'Holiday Outlet' },
+    { childId: `${MAC}:2:11`, name: 'Garland', aid: 2, parentChildId: `${MAC}:2`, parentName: 'Holiday Outlet' },
+    { childId: `${MAC}:3`, name: 'Left Bed', aid: 3 },
+  ]);
+});
+
 test('GET /bridge-children/:deviceId — 404 for unknown pairing', async () => {
   const router = makeRouter({
     loadPairings: () => ({}),

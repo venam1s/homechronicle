@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
-import { parseIntInRange, parentBridgeId } from './utils.js';
+import { parseIntInRange, roomFor } from './utils.js';
 import { normalizeRetentionSettings } from './retention-router.js';
 import { detectOutliers } from './anomaly-detection.js';
 import { CATEGORIES, resolveCategory } from './categories.js';
@@ -97,7 +97,7 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
       const rooms = getRooms();
       const rows = result.rows.map((r) => ({
         ...r,
-        room_name: rooms[r.accessory_id] ?? rooms[parentBridgeId(r.accessory_id)] ?? r.room_name,
+        room_name: roomFor(rooms, r.accessory_id) ?? r.room_name,
       }));
       res.json(rows);
     } catch (err) {
@@ -118,8 +118,7 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
       const rooms = getRooms();
       const totals = {};
       for (const row of result.rows) {
-        const name = rooms[row.accessory_id]
-          ?? rooms[parentBridgeId(row.accessory_id)]
+        const name = roomFor(rooms, row.accessory_id)
           ?? row.room_name;
         if (!name) continue;
         totals[name] = (totals[name] ?? 0) + row.count;
@@ -390,7 +389,13 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
       let excludeCondition = '';
       if (excluded.length) {
         params.push(excluded);
-        excludeCondition = `AND accessory_id <> ALL($${params.length})`;
+        // Excluding a multi-outlet plug ("MAC:aid") also excludes each of its
+        // split outlets ("MAC:aid:serviceIid").
+        excludeCondition = `AND accessory_id <> ALL($${params.length})
+          AND NOT (
+            array_length(string_to_array(accessory_id, ':'), 1) = 8
+            AND array_to_string((string_to_array(accessory_id, ':'))[1:7], ':') = ANY($${params.length})
+          )`;
       }
       const result = await pool.query(`
         SELECT
@@ -473,7 +478,7 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
             entry = {
               accessoryId: row.accessory_id,
               accessoryName: row.accessory_name,
-              roomName: rooms[row.accessory_id] ?? rooms[parentBridgeId(row.accessory_id)] ?? row.room_name,
+              roomName: roomFor(rooms, row.accessory_id) ?? row.room_name,
               temperature: null,
               humidity: null,
               lastUpdated: null,
@@ -514,7 +519,7 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
             entry = {
               accessoryId: row.accessory_id,
               accessoryName: row.accessory_name,
-              roomName: rooms[row.accessory_id] ?? rooms[parentBridgeId(row.accessory_id)] ?? row.room_name,
+              roomName: roomFor(rooms, row.accessory_id) ?? row.room_name,
               batteryLevel: null,
               lowBattery: null,
               lastUpdated: null,

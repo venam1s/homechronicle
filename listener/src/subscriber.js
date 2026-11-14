@@ -8,7 +8,7 @@
  */
 
 import { HttpClient } from 'hap-controller';
-import { insertEvent, pool } from './db.js';
+import { insertEvent, moveSplitServiceHistory, pool } from './db.js';
 import { processAlertsForEvent } from './alerts.js';
 import {
   abortHapClient, addressesToTry, advertisedAddresses, nextAddress, rememberAddresses, tryEachAddress,
@@ -323,11 +323,21 @@ function connectAccessory(session, pairing) {
 
     session.probeKey = nameCharacteristicKey(accessories);
 
-    const { iidMetaMap: iidMeta, identitiesByAccessoryId } = cacheAccessoryMetadata({
+    const { iidMetaMap: iidMeta, identitiesByAccessoryId, serviceSplits } = cacheAccessoryMetadata({
       deviceId,
       pairingName: accessoryName,
       accessories,
     });
+
+    // Services now logged on their own (each outlet of a multi-outlet plug)
+    // take their past events with them. Best-effort: the next connect retries.
+    if (serviceSplits.length > 0) {
+      moveSplitServiceHistory(serviceSplits).then((moved) => {
+        if (moved > 0) log.info(`[subscriber] ${accessoryName}: moved ${moved} past event(s) onto ${serviceSplits.length} split service(s)`);
+      }).catch((err) => {
+        log.warn(`[subscriber] ${accessoryName}: moving past events onto split services failed:`, err.message ?? err);
+      });
+    }
 
     // Detect and log firmware version changes (skipped on first connect — oldFirmwareByAccessoryId is empty)
     const firmwareEvents = detectFirmwareChanges({
@@ -394,8 +404,10 @@ function connectAccessory(session, pairing) {
         // Use a component-specific label when an accessory exposes multiple
         // watched services (e.g. switch + sensor under the same parent name).
         const effectiveName = meta.componentName || meta.childName || accessoryName;
-        // For bridges, suffix the deviceId with the aid so each child is distinct
-        const effectiveId = change.aid > 1 ? `${deviceId}:${change.aid}` : deviceId;
+        // Bridge children are "<deviceId>:<aid>"; a service split off its
+        // accessory (one outlet of a multi-outlet plug) is "<deviceId>:<aid>:<service iid>".
+        const effectiveId = meta.accessoryId;
+        const isChild = change.aid > 1 || effectiveId !== meta.parentAccessoryId;
 
         // Look up (and then update) the cached previous value for this characteristic
         const cacheKey = `${effectiveId}:${change.aid}.${change.iid}`;
@@ -416,7 +428,10 @@ function connectAccessory(session, pairing) {
           // rooms.json stores child overrides keyed by effectiveId.
           // If the child has no override, fall back to the top-level bridge entry
           // so setting a room on the bridge automatically covers all its children.
-          roomName:       rooms[effectiveId] ?? (change.aid > 1 ? rooms[deviceId] : null) ?? null,
+          // A split service falls back to its accessory, then to the bridge.
+          roomName:       rooms[effectiveId]
+            ?? (effectiveId !== meta.parentAccessoryId ? rooms[meta.parentAccessoryId] : null)
+            ?? (isChild ? rooms[deviceId] : null) ?? null,
           serviceType:    meta.serviceType,
           characteristic: meta.characteristicName,
           oldValue,
@@ -424,6 +439,8 @@ function connectAccessory(session, pairing) {
           protocol:       'homekit',
           transport:      'ip',
           rawIid:         change.iid,
+          // Lets alert rules naming the whole accessory match each split service.
+          parentAccessoryName: effectiveId !== meta.parentAccessoryId ? meta.childName : null,
         };
 
         // Run-cycle switches often auto-reset immediately. Delay OFF logging so
@@ -584,8 +601,7 @@ function connectAccessory(session, pairing) {
       for (const ch of values) {
         const meta = iidMeta.get(`${ch.aid}.${ch.iid}`);
         if (!meta) continue;
-        const effectiveId = ch.aid > 1 ? `${deviceId}:${ch.aid}` : deviceId;
-        const cacheKey = `${effectiveId}:${ch.aid}.${ch.iid}`;
+        const cacheKey = `${meta.accessoryId}:${ch.aid}.${ch.iid}`;
         valueCache.set(cacheKey, String(ch.value));
       }
       if (values.length > 0) {

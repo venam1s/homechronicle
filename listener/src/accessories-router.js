@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
-import { parseIntInRange as _parseIntInRange, parentBridgeId, withTimeout } from './utils.js';
+import { parseIntInRange as _parseIntInRange, parentAccessoryId, parentBridgeId, roomFor, withTimeout } from './utils.js';
 import { isHomeKitPairing, mapReliabilityStats } from './setup-helpers.js';
 import { deriveDeviceHealth } from './device-health.js';
 import { CATEGORY_WINDOW_DAYS, resolveCategory } from './categories.js';
@@ -208,7 +208,7 @@ export function createAccessoriesRouter({
           protocol,
           category: bridgePairing?.category ?? null,
           bridge_name: getAccessoryCapabilities(bridgeId)?.accessory_name ?? bridgePairing?.name ?? null,
-          room_name: rooms[r.accessory_id] ?? rooms[bridgeId] ?? r.room_name,
+          room_name: (protocol === 'homekit' ? roomFor(rooms, r.accessory_id) : rooms[r.accessory_id]) ?? r.room_name,
           address: bridgePairing?.address ?? null,
           paired_at: bridgePairing?.pairedAt ?? null,
           manufacturer: identity?.manufacturer ?? null,
@@ -242,7 +242,7 @@ export function createAccessoriesRouter({
             accessory_id: id,
             accessory_name: p.name,
             protocol: p.protocol ?? 'homekit',
-            room_name: rooms[id] ?? rooms[parentBridgeId(id)] ?? null,
+            room_name: roomFor(rooms, id) ?? null,
             service_type: null,
             category: p.category ?? null,
             bridge_name: getAccessoryCapabilities(id)?.accessory_name ?? p.name ?? null,
@@ -324,7 +324,7 @@ export function createAccessoriesRouter({
               ? (serviceType ? `${d.accessory_name} · ${serviceType}` : d.accessory_name)
               : d.accessory_id,
             protocol: bridgePairing?.protocol ?? 'homekit',
-            room_name: rooms[d.accessory_id] ?? rooms[bridgeId] ?? null,
+            room_name: roomFor(rooms, d.accessory_id) ?? null,
             service_type: serviceType,
             category: bridgePairing?.category ?? null,
             bridge_name: getAccessoryCapabilities(bridgeId)?.accessory_name ?? bridgePairing?.name ?? null,
@@ -351,7 +351,15 @@ export function createAccessoriesRouter({
           };
         });
 
-      res.json([...dbRows, ...neverSeen, ...discovered]);
+      // An accessory logged per service (a multi-outlet plug) keeps only its
+      // firmware-change events under its own id: those are history, not a
+      // device of its own next to its outlets, so they are not listed.
+      const splitParents = new Set(dbRows.map((r) => parentAccessoryId(r.accessory_id)).filter(Boolean));
+      const listedRows = dbRows.filter((r) => !(
+        r.service_type === 'AccessoryInformation' && splitParents.has(r.accessory_id)
+      ));
+
+      res.json([...listedRows, ...neverSeen, ...discovered]);
     } catch (err) {
       log.error('[api] /api/accessories error:', err.message ?? err.stack ?? err);
       res.status(500).json({ error: 'Internal server error' });
@@ -506,7 +514,7 @@ export function createAccessoriesRouter({
       const accessory = {
         accessory_id: accessoryId,
         accessory_name: latest.accessory_name ?? bridgePairing?.name ?? accessoryId,
-        room_name: rooms[accessoryId] ?? latest.room_name ?? null,
+        room_name: (protocol === 'homekit' ? roomFor(rooms, accessoryId) : rooms[accessoryId]) ?? latest.room_name ?? null,
         service_type: latest.service_type ?? null,
         category: category.category,
         category_auto: category.auto,
@@ -550,7 +558,7 @@ export function createAccessoriesRouter({
           pages: Math.ceil(eventCount / limit),
           events: historyResult.rows.map((row) => ({
             ...row,
-            room_name: rooms[row.accessory_id] ?? row.room_name,
+            room_name: (protocol === 'homekit' ? roomFor(rooms, row.accessory_id) : rooms[row.accessory_id]) ?? row.room_name,
           })),
         },
       });
