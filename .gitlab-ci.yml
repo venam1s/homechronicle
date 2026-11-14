@@ -321,13 +321,46 @@ create-release:
         NOTES="Release ${TAG}"
       fi
 
-      # Write notes to a file so special characters don't break the CLI args
-      echo "$NOTES" > /tmp/release-notes.md
+      # Write notes to a file so special characters don't break the CLI args.
+      # It is also an artifact: github-release publishes the same text.
+      printf '%s\n' "$NOTES" > release-notes.md
 
       release-cli create \
         --name "$NAME" \
         --tag-name "$TAG" \
-        --description "$(cat /tmp/release-notes.md)"
+        --description "$(cat release-notes.md)"
+  artifacts:
+    paths: [release-notes.md]
+    expire_in: 1 week
+
+# ── GitHub Release (same release, mirrored to github.com/venam1s/homechronicle) ──
+# GitHub Actions stay DISABLED on the GitHub repo — every build runs here on the
+# homelab runner — so this job is how a release reaches GitHub, where the in-app
+# update check also looks (listener/src/updates-router.js). GitLab keeps getting
+# every release too: installs up to v0.5.0 only ask GitLab.
+#
+# Prerequisite: GITHUB_RELEASE_TOKEN as a masked + protected CI/CD variable — a
+# fine-grained PAT for venam1s/homechronicle with Contents: read & write. Until it
+# exists this job does not run at all (same gating as deploy-beta).
+#
+# The tag must already be on GitHub; the dual push (`git push origin <tag>`) puts it
+# there. Re-running is safe: an existing GitHub release is left alone.
+#
+# If GitHub Actions are ever re-enabled, .github/workflows/docker.yml fires on
+# GitHub release events and would build/push the images a second time.
+github-release:
+  stage: release
+  image: node:${NODE_VERSION}-alpine
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v/ && $GITHUB_RELEASE_TOKEN'
+  needs:
+    - job: validate-release
+      artifacts: true
+    - job: create-release
+      artifacts: true
+  allow_failure: true
+  script:
+    - node scripts/github-release.mjs
 
 # ── Beta deploy (triggers Dockhand async sync on every push to main) ─────────
 # WHY THIS JOB EXISTS (and why it replaces the GitLab project push webhook):
