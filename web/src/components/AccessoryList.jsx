@@ -3,7 +3,7 @@ import { useAccessories } from '../hooks/useEvents.js';
 import { SkeletonList } from './Skeleton.jsx';
 import { getServiceIcon } from '../lib/icons.js';
 import { getRoomColor } from '../lib/roomColors.js';
-import { AlertTriangle, ChevronDown, ChevronRight, Network } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Network } from 'lucide-react';
 import clsx from 'clsx';
 
 // ---------------------------------------------------------------------------
@@ -122,53 +122,6 @@ export default function AccessoryList({ onSelectAccessory }) {
 
   return (
     <div className="space-y-6">
-      <details className="bg-hc-panel rounded-xl border border-hc-panel-border overflow-hidden group">
-        <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between select-none">
-          <div>
-            <p className="text-sm font-semibold text-hc-fg-strong">Legend</p>
-            <p className="text-xs text-hc-muted">Icon and activity dot meanings</p>
-          </div>
-          <ChevronDown
-            size={16}
-            className="text-hc-muted transition-transform duration-200 group-open:rotate-180"
-          />
-        </summary>
-        <div className="px-4 pb-4 border-t border-hc-panel-border space-y-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-hc-muted mb-2">Icons</p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-hc-fg">
-                <span className="w-7 h-7 rounded-full flex items-center justify-center bg-hc-interactive">
-                  <span className="w-3.5 h-3.5 rounded-full bg-hc-accent-soft" />
-                </span>
-                <span>Service icon: accessory type (light, switch, sensor, lock, and others)</span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-hc-muted mb-2">Activity Dots</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-hc-fg">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-hc-success-text" />
-                <span>Green: active within 1 hour</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-hc-warning-text" />
-                <span>Yellow: active within 24 hours</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-hc-border-strong" />
-                <span>Gray: older than 24 hours</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-hc-muted" />
-                <span>Sky blue: no activity yet</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </details>
-
       {Object.entries(byRoom)
         .sort(([a], [b]) => {
           if (a === 'No room') return 1;
