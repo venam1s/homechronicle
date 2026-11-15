@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parentAccessoryId, parentBridgeId, roomFor, serviceSplitId } from '../src/utils.js';
 import { mergeSplitServiceHistory, moveSplitServiceHistory } from '../src/db.js';
+import { isRunCycleName } from '../src/subscriber.js';
 
 const MAC = 'AA:BB:CC:DD:EE:FF';
 
@@ -154,4 +155,13 @@ test('mergeSplitServiceHistory ignores an empty list', async () => {
   assert.equal(await mergeSplitServiceHistory([], client), 0);
   assert.equal(await mergeSplitServiceHistory(undefined, client), 0);
   assert.equal(client.queries.length, 0);
+});
+
+test('isRunCycleName: a run-cycle switch is found split or kept together', () => {
+  assert.equal(isRunCycleName('Neakasa Run Clean Cycle', 'Run Clean Cycle'), true); // split
+  assert.equal(isRunCycleName('Neakasa · Switch', 'Run Clean Cycle'), true); // kept together
+  assert.equal(isRunCycleName('Litter Box · Switch', 'Run Leveling'), true);
+  assert.equal(isRunCycleName('Run Clean Cycle', null), true); // a plugin publishing it as an accessory
+  assert.equal(isRunCycleName('Neakasa · Switch', 'Empty Bin'), false);
+  assert.equal(isRunCycleName(null, undefined), false);
 });

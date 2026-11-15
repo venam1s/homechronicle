@@ -69,6 +69,14 @@ let reconnectMaxMs  = Number.parseInt(process.env.RECONNECT_MAX_MS ?? '60000', 1
 if (!Number.isFinite(reconnectBaseMs) || reconnectBaseMs < 1) reconnectBaseMs = 5_000;
 if (!Number.isFinite(reconnectMaxMs) || reconnectMaxMs < reconnectBaseMs) reconnectMaxMs = 60_000;
 const RUN_CYCLE_NAME_REGEX = /(run leveling|run clean cycle)/i;
+/**
+ * A switch that starts a cycle and resets itself at once (Neakasa's "Run Clean
+ * Cycle"), recognized by the logged name or by the service's own name: kept
+ * together with its accessory, it is logged as "<accessory> · Switch".
+ */
+export function isRunCycleName(accessoryName, serviceName) {
+  return RUN_CYCLE_NAME_REGEX.test(accessoryName ?? '') || RUN_CYCLE_NAME_REGEX.test(serviceName ?? '');
+}
 const RUN_CYCLE_OFF_DELAY_MS = Number.parseInt(
   process.env.RUN_CYCLE_OFF_DELAY_MS ?? `${15 * 60_000}`,
   10
@@ -465,7 +473,7 @@ function connectAccessory(session, pairing) {
         const timerKey = `${effectiveId}:${change.aid}.${change.iid}`;
         const isRunCycleSwitch =
           meta.characteristicName === 'On' &&
-          RUN_CYCLE_NAME_REGEX.test(effectiveName) &&
+          isRunCycleName(effectiveName, meta.serviceName) &&
           Number.isFinite(RUN_CYCLE_OFF_DELAY_MS) &&
           RUN_CYCLE_OFF_DELAY_MS > 0;
 

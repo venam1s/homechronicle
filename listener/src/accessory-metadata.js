@@ -319,6 +319,10 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
           parentAccessoryId: effectiveId,
           ...(splitName ? { parentDisplayName: copyOrNull(parentDisplayNameFor(effectiveId)) } : {}),
           serviceType,
+          // The service's own name ("Run Clean Cycle"), whatever the entity is
+          // called: behavior keyed on a switch's name must not depend on
+          // whether its accessory is split or kept together.
+          serviceName: stableServiceName(serviceOwnName(service)),
           characteristicName: charName,
           childName,
           componentName,

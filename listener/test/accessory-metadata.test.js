@@ -129,6 +129,7 @@ test('extractAccessoryMetadata: contact sensor state is watched', () => {
     accessoryId: 'CC:DD',
     parentAccessoryId: 'CC:DD',
     serviceType: 'ContactSensor',
+    serviceName: null,
     characteristicName: 'ContactSensorState',
     childName: 'Front Door',
     componentName: 'Front Door',
@@ -177,6 +178,7 @@ test('service split: two Outlet services on one accessory become two entities', 
     parentAccessoryId: `${MAC}:7`,
     parentDisplayName: null,
     serviceType: 'Outlet',
+    serviceName: 'Tree',
     characteristicName: 'On',
     childName: 'Holiday Outlet',
     componentName: 'Holiday Outlet Tree',
@@ -384,4 +386,24 @@ test('keep together: split accessories are listed as splittable, not kept', () =
   const { serviceMerges, splittable } = extractAccessoryMetadata({ deviceId: MAC, accessories: kasaBridge() });
   assert.deepEqual(serviceMerges, []);
   assert.deepEqual(splittable, [{ accessoryId: `${MAC}:7`, keepTogether: false, serviceCount: 2 }]);
+});
+
+test('keep together: each characteristic still knows its service\'s own name', () => {
+  setKeepTogetherLookup(() => true);
+  try {
+    const neakasa = { accessories: [{ aid: 2, services: [
+      info(1, 'Neakasa'),
+      namedService(8, '49', '25', 'Run Clean Cycle'),
+      namedService(14, '49', '25', 'Empty Bin'),
+    ] }] };
+    const { iidMetaMap } = extractAccessoryMetadata({ deviceId: MAC, accessories: neakasa });
+    assert.equal(iidMetaMap.get('2.9').componentName, 'Neakasa');
+    assert.equal(iidMetaMap.get('2.9').serviceName, 'Run Clean Cycle');
+    assert.equal(iidMetaMap.get('2.15').serviceName, 'Empty Bin');
+  } finally {
+    setKeepTogetherLookup(null);
+  }
+  // A live reading in the name is left out here too.
+  const weather = { accessories: [{ aid: 2, services: [info(1, 'Weather'), namedService(8, '86', '71', 'Wind Speedː 11.5 mph')] }] };
+  assert.equal(extractAccessoryMetadata({ deviceId: MAC, accessories: weather }).iidMetaMap.get('2.9').serviceName, 'Wind Speed');
 });
