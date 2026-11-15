@@ -8,7 +8,7 @@
  */
 
 import { HttpClient } from 'hap-controller';
-import { insertEvent, moveSplitServiceHistory, pool } from './db.js';
+import { insertEvent, mergeSplitServiceHistory, moveSplitServiceHistory, pool } from './db.js';
 import { processAlertsForEvent } from './alerts.js';
 import {
   abortHapClient, addressesToTry, advertisedAddresses, nextAddress, rememberAddresses, tryEachAddress,
@@ -117,6 +117,14 @@ function detectFirmwareChanges({ oldFirmwareByAccessoryId, identitiesByAccessory
 // Used to populate old_value on each event so the UI can show before→after.
 // Survives reconnects within the same process; cleared on restart.
 const valueCache = new Map();
+// History moves for split and kept-together accessories run one at a time:
+// toggling "keep together" twice in quick succession reconnects twice, and the
+// second move must see what the first committed.
+let historyMoves = Promise.resolve();
+function queueHistoryMove(job) {
+  historyMoves = historyMoves.then(job, job);
+  return historyMoves;
+}
 const delayedOffTimers = new Map();
 const subscriberSessions = new Map();
 const subscriberStats = new Map();
@@ -323,7 +331,7 @@ function connectAccessory(session, pairing) {
 
     session.probeKey = nameCharacteristicKey(accessories);
 
-    const { iidMetaMap: iidMeta, identitiesByAccessoryId, serviceSplits } = cacheAccessoryMetadata({
+    const { iidMetaMap: iidMeta, identitiesByAccessoryId, serviceSplits, serviceMerges } = cacheAccessoryMetadata({
       deviceId,
       pairingName: accessoryName,
       accessories,
@@ -332,11 +340,19 @@ function connectAccessory(session, pairing) {
     // Services now logged on their own (each outlet of a multi-outlet plug)
     // take their past events with them. Best-effort: the next connect retries.
     if (serviceSplits.length > 0) {
-      moveSplitServiceHistory(serviceSplits).then((moved) => {
+      queueHistoryMove(() => moveSplitServiceHistory(serviceSplits).then((moved) => {
         if (moved > 0) log.info(`[subscriber] ${accessoryName}: moved or renamed ${moved} past event(s) for ${serviceSplits.length} split service(s)`);
       }).catch((err) => {
         log.warn(`[subscriber] ${accessoryName}: moving past events onto split services failed:`, err.message ?? err);
-      });
+      }));
+    }
+    // An accessory the user keeps together takes back what was logged split.
+    if (serviceMerges?.length > 0) {
+      queueHistoryMove(() => mergeSplitServiceHistory(serviceMerges).then((moved) => {
+        if (moved > 0) log.info(`[subscriber] ${accessoryName}: moved ${moved} past event(s) back onto ${new Set(serviceMerges.map((m) => m.accessoryId)).size} accessory(ies) kept together`);
+      }).catch((err) => {
+        log.warn(`[subscriber] ${accessoryName}: moving past events back onto kept-together accessories failed:`, err.message ?? err);
+      }));
     }
 
     // Detect and log firmware version changes (skipped on first connect — oldFirmwareByAccessoryId is empty)

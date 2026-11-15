@@ -129,6 +129,8 @@ export function createSetupRouter({
   saveNotes,
   loadCategories = () => ({}),
   saveCategories = async () => {},
+  loadKeepTogether = () => ({}),
+  saveKeepTogether = async () => {},
   discoverDeviceForRepair,
   savePairingForRepair,
   startSubscribers,
@@ -297,8 +299,9 @@ export function createSetupRouter({
       const children = [];
       // An accessory logged per service (each outlet of a multi-outlet plug)
       // is listed as those services: they are what gets named, roomed and
-      // noted. A room set on the accessory itself still covers them.
-      const { serviceSplits } = extractAccessoryMetadata({ deviceId, pairingName: pairing.name, accessories: result });
+      // noted. A room set on the accessory itself still covers them. One the
+      // user keeps together is listed as itself, flagged so it can be split.
+      const { serviceSplits, splittable } = extractAccessoryMetadata({ deviceId, pairingName: pairing.name, accessories: result });
       for (const acc of result?.accessories ?? []) {
         if (acc.aid === 1) continue;
         const infoService = acc.services?.find((s) => shortUuid(s.type) === '3E');
@@ -307,7 +310,10 @@ export function createSetupRouter({
         const childId = `${deviceId}:${acc.aid}`;
         const splits = serviceSplits.filter((split) => split.parentAccessoryId === childId);
         if (splits.length === 0) {
-          children.push({ childId, name, aid: acc.aid });
+          const kept = splittable.find((entry) => entry.accessoryId === childId && entry.keepTogether);
+          children.push(kept
+            ? { childId, name, aid: acc.aid, keepTogether: true, serviceCount: kept.serviceCount }
+            : { childId, name, aid: acc.aid });
           continue;
         }
         // The plug as the user knows it: its display name when it has one.
@@ -562,6 +568,60 @@ export function createSetupRouter({
 
   router.get('/categories', (_req, res) => {
     res.json({ categories: CATEGORIES, overrides: loadCategories() });
+  });
+
+  // -- Keep together --
+
+  // A bridged accessory with several services of one type is logged as one
+  // device per service unless kept together here. Changing it reconnects the
+  // bridge, which moves the accessory's past events to match. Admin only: it
+  // rewrites history for everyone.
+  router.patch('/keep-together', requireAdminSession, setupWriteLimiter, async (req, res) => {
+    const store = loadKeepTogether();
+    const key = parseStoreKey(req.body?.accessoryId, store);
+    if (key.error) return res.status(400).json({ error: key.error });
+    if (typeof req.body?.keepTogether !== 'boolean') {
+      return res.status(400).json({ error: 'keepTogether must be true or false' });
+    }
+    const parts = key.value.split(':');
+    if (parts.length !== 7 || !/^\d+$/.test(parts[6]) || Number(parts[6]) < 2) {
+      return res.status(400).json({ error: 'accessoryId must be a bridged accessory (MAC:aid)' });
+    }
+    const deviceId = parts.slice(0, 6).join(':');
+    const pairing = loadPairings()[deviceId];
+    if (!pairing || !isHomeKitPairing(pairing)) {
+      return res.status(404).json({ error: 'Pairing not found' });
+    }
+
+    const keepTogether = req.body.keepTogether;
+    if (keepTogether) {
+      const full = storeCapacityError(store, key.value, 'keep-together');
+      if (full) return res.status(400).json({ error: full });
+      store[key.value] = true;
+    } else {
+      delete store[key.value];
+    }
+    try {
+      await saveKeepTogether(store);
+    } catch (err) {
+      log.error('[setup] /keep-together error:', err.message ?? err.stack ?? err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    log.info(`[setup] ${JSON.stringify(key.value)} ${keepTogether ? 'kept together' : 'logged per service'}; reconnecting ${pairing.name}`);
+    // Reconnect the bridge: the next connect applies the change and moves
+    // the accessory's past events.
+    stopSubscriber(deviceId);
+    startSubscribers(
+      { [deviceId]: pairing },
+      loadRooms(),
+      getPairingForLookup,
+      { discoverDevice: discoverDeviceForRepair, savePairing: savePairingForRepair }
+    );
+    res.json({ success: true, keepTogether });
+  });
+
+  router.get('/keep-together', (_req, res) => {
+    res.json(loadKeepTogether());
   });
 
   // -- Display Names --

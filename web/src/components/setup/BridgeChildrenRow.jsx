@@ -1,14 +1,30 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MapPin, FileText, Loader, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 import { fetchJson } from '../../lib/api.js';
 
-export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, savedRooms = {}, bridgeRoom = '', onRoomChange, onRoomBlur, noteInputs = {}, savedNotes = {}, onNoteChange, onNoteBlur, displayNameInputs = {}, savedDisplayNames = {}, onDisplayNameChange, onDisplayNameBlur }) {
+const SPLIT_BUTTON_CLASS = 'text-[10px] text-hc-accent-strong hover:underline disabled:opacity-50 disabled:no-underline whitespace-nowrap';
+
+export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, savedRooms = {}, bridgeRoom = '', onRoomChange, onRoomBlur, noteInputs = {}, savedNotes = {}, onNoteChange, onNoteBlur, displayNameInputs = {}, savedDisplayNames = {}, onDisplayNameChange, onDisplayNameBlur, canChangeSplit = false }) {
+  const queryClient = useQueryClient();
   const { data: children = [], isLoading, isError } = useQuery({
     queryKey: ['bridge-children', bridgeId],
     queryFn: () => fetchJson(`/api/setup/bridge-children/${encodeURIComponent(bridgeId)}`),
     enabled: isExpanded,
     staleTime: 5 * 60 * 1000,
+  });
+  // Keep a multi-service accessory as one device, or log each service on its
+  // own. The bridge reconnects and its past events move to match.
+  const keepTogether = useMutation({
+    mutationFn: ({ accessoryId, keep }) => fetchJson('/api/setup/keep-together', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accessoryId, keepTogether: keep }),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bridge-children', bridgeId] });
+      queryClient.invalidateQueries({ queryKey: ['accessories'] });
+    },
   });
 
   if (!isExpanded) return null;
@@ -49,13 +65,32 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
 
   return (
     <div className="ml-9 mt-2 pb-2 border-l-2 border-hc-panel-border pl-3 space-y-1.5">
-      {children.map((child) => {
+      {children.map((child, index) => {
+        // The first service of a split accessory heads its group.
+        const startsGroup = child.parentChildId && children[index - 1]?.parentChildId !== child.parentChildId;
+        const groupSize = startsGroup ? children.filter((c) => c.parentChildId === child.parentChildId).length : 0;
         const childRoom = roomInputs[child.childId] ?? savedRooms[child.childId] ?? '';
         // One outlet of a multi-outlet plug inherits the plug's room first.
         const inheritedRoom = (child.parentChildId && savedRooms[child.parentChildId]) || bridgeRoom;
         const isInheriting = !childRoom && !!inheritedRoom;
         return (
           <div key={child.childId} className="space-y-1">
+            {startsGroup && (
+              <div className="flex items-center gap-2 pt-0.5">
+                <span className="text-[10px] text-hc-muted">{child.parentName} is logged as {groupSize} separate devices</span>
+                {canChangeSplit && (
+                  <button
+                    type="button"
+                    disabled={keepTogether.isPending}
+                    onClick={() => keepTogether.mutate({ accessoryId: child.parentChildId, keep: true })}
+                    title={`Log these as one device again. Past events move back onto ${child.parentName} when the bridge reconnects.`}
+                    className={SPLIT_BUTTON_CLASS}
+                  >
+                    Keep together
+                  </button>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-hc-success-text flex-shrink-0" />
               <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -75,6 +110,22 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
                 )}
               </div>
             </div>
+            {child.keepTogether && (
+              <div className="flex items-center gap-2 ml-3.5">
+                <span className="text-[10px] text-hc-muted">{child.serviceCount} services logged as one device</span>
+                {canChangeSplit && (
+                  <button
+                    type="button"
+                    disabled={keepTogether.isPending}
+                    onClick={() => keepTogether.mutate({ accessoryId: child.childId, keep: false })}
+                    title={`Log each of the ${child.serviceCount} services as its own device. Past events move over when the bridge reconnects.`}
+                    className={SPLIT_BUTTON_CLASS}
+                  >
+                    Log separately
+                  </button>
+                )}
+              </div>
+            )}
             <div className="flex flex-col gap-1 ml-3.5">
               <div className="flex items-center gap-1">
                 <MapPin size={9} className={isInheriting ? 'text-hc-accent-strong' : 'text-hc-muted'} />
@@ -110,6 +161,12 @@ export default function BridgeChildrenRow({ bridgeId, isExpanded, roomInputs, sa
           </div>
         );
       })}
+
+      {keepTogether.isError && (
+        <p role="alert" className="text-[10px] text-hc-danger-text pt-0.5">
+          Could not change how this accessory is logged: {keepTogether.error?.message ?? 'unknown error'}
+        </p>
+      )}
 
       {bridgeRoom && (
         <p className="text-[10px] text-hc-muted pt-0.5">

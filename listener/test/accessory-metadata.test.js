@@ -5,6 +5,7 @@ import {
   WATCHED_CHARACTERISTICS,
   cacheAccessoryMetadata,
   extractAccessoryMetadata,
+  setKeepTogetherLookup,
   setParentDisplayNameLookup,
   stableServiceName,
   getAccessoryCapabilities,
@@ -332,4 +333,55 @@ test('service split: a service name already containing the accessory name is use
   const { iidMetaMap } = extractAccessoryMetadata({ deviceId: MAC, accessories: kasaBridge(['Holiday Outlet Left', 'Holiday Outlet Right']) });
   assert.equal(iidMetaMap.get('7.11').componentName, 'Holiday Outlet Left');
   assert.equal(iidMetaMap.get('7.21').componentName, 'Holiday Outlet Right');
+});
+
+test('keep together: an accessory the user keeps together is not split', () => {
+  setKeepTogetherLookup((id) => id === `${MAC}:7`);
+  try {
+    const { iidMetaMap, capabilitiesByAccessoryId, serviceSplits, serviceMerges, splittable } =
+      extractAccessoryMetadata({ deviceId: MAC, accessories: kasaBridge() });
+    // Logged as one accessory again, under the name it had before the split.
+    assert.equal(iidMetaMap.get('7.11').accessoryId, `${MAC}:7`);
+    assert.equal(iidMetaMap.get('7.21').accessoryId, `${MAC}:7`);
+    assert.equal(iidMetaMap.get('7.11').componentName, 'Holiday Outlet');
+    assert.deepEqual(serviceSplits, []);
+    assert.ok(capabilitiesByAccessoryId.has(`${MAC}:7`));
+    assert.ok(!capabilitiesByAccessoryId.has(`${MAC}:7:10`));
+    // Its split services' history comes back to it.
+    assert.deepEqual(serviceMerges, [
+      { accessoryId: `${MAC}:7`, splitAccessoryId: `${MAC}:7:10`, name: 'Holiday Outlet', serviceType: 'Outlet' },
+      { accessoryId: `${MAC}:7`, splitAccessoryId: `${MAC}:7:20`, name: 'Holiday Outlet', serviceType: 'Outlet' },
+    ]);
+    assert.deepEqual(splittable, [{ accessoryId: `${MAC}:7`, keepTogether: true, serviceCount: 2 }]);
+  } finally {
+    setKeepTogetherLookup(null);
+  }
+});
+
+test('keep together: merged names keep the "· <service>" suffix of a mixed accessory', () => {
+  setKeepTogetherLookup(() => true);
+  try {
+    const mixed = { accessories: [{ aid: 2, services: [
+      info(1, 'Neakasa'),
+      namedService(8, '49', '25', 'Clean'),
+      namedService(14, '49', '25', 'Empty Bin'),
+      namedService(20, '86', '71', 'Cat Present'),
+    ] }] };
+    const { iidMetaMap, serviceMerges } = extractAccessoryMetadata({ deviceId: MAC, accessories: mixed });
+    assert.equal(iidMetaMap.get('2.9').componentName, 'Neakasa · Switch');
+    assert.equal(iidMetaMap.get('2.21').componentName, 'Neakasa · OccupancySensor');
+    // Same name the live events now carry: the history move can't drift from it.
+    assert.deepEqual(serviceMerges.map((m) => [m.splitAccessoryId, m.name]), [
+      [`${MAC}:2:8`, 'Neakasa · Switch'],
+      [`${MAC}:2:14`, 'Neakasa · Switch'],
+    ]);
+  } finally {
+    setKeepTogetherLookup(null);
+  }
+});
+
+test('keep together: split accessories are listed as splittable, not kept', () => {
+  const { serviceMerges, splittable } = extractAccessoryMetadata({ deviceId: MAC, accessories: kasaBridge() });
+  assert.deepEqual(serviceMerges, []);
+  assert.deepEqual(splittable, [{ accessoryId: `${MAC}:7`, keepTogether: false, serviceCount: 2 }]);
 });

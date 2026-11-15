@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import { useSetup } from '../hooks/useSetup.js';
+import { useAuth } from '../hooks/useAuth.js';
+import { useAuthConfig } from '../hooks/useAuthConfig.js';
 import AccessoryList from '../components/AccessoryList.jsx';
 import AccessoryLegend from '../components/AccessoryLegend.jsx';
 import AddDevicesTab from '../components/setup/AddDevicesTab.jsx';
@@ -17,6 +19,10 @@ const DEVICE_TABS = [
 export default function DevicesPage({ onSelectAccessory }) {
   const [activeTab, setActiveTab] = useState('browse');
   const setup = useSetup();
+  const { user } = useAuth();
+  const { authEnabled } = useAuthConfig();
+  // Admin-only on the server: auth off means the sole operator.
+  const canChangeSplit = !authEnabled || user?.role === 'admin';
 
   return (
     <PageContainer narrow className="space-y-6">
@@ -57,7 +63,7 @@ export default function DevicesPage({ onSelectAccessory }) {
       {activeTab === 'devices' && (
         <Card>
           <Card.Body>
-            <MyDevicesTab setup={setup} />
+            <MyDevicesTab setup={setup} canChangeSplit={canChangeSplit} />
           </Card.Body>
         </Card>
       )}

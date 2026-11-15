@@ -156,6 +156,21 @@ export function setParentDisplayNameLookup(fn) {
   parentDisplayNameFor = typeof fn === 'function' ? fn : () => null;
 }
 
+// accessoryId → true when the user chose to keep an accessory that would be
+// split as one device (its services logged together, as before the split).
+// Set by index.js from the keep-together store.
+let keepTogetherFor = () => false;
+
+/** Supply the accessories kept together instead of split per service. */
+export function setKeepTogetherLookup(fn) {
+  keepTogetherFor = typeof fn === 'function' ? fn : () => false;
+}
+
+/** The name an unsplit accessory's events carry for a service of `serviceType`. */
+function unsplitName(childName, serviceType, disambiguate) {
+  return disambiguate && childName ? `${childName} · ${serviceType}` : childName;
+}
+
 /**
  * A service's name without a live reading some plugins append to it
  * (homebridge-weather-plus: "Wind Speedː 11.5 mph", "UV Indexː 1"), so the
@@ -227,6 +242,11 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
   const capabilitiesByAccessoryId = new Map();
   // Split services: one entry per service logged as its own entity.
   const serviceSplits = [];
+  // Services that would be split but are kept with their accessory: their
+  // past events, if any were logged split, move back onto it.
+  const serviceMerges = [];
+  // Accessories that qualify for a split, kept together or not.
+  const splittable = [];
   const nowIso = new Date().toISOString();
 
   for (const acc of accessories?.accessories ?? []) {
@@ -257,7 +277,10 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
       hardware_revision: hardwareRevision,
     };
 
-    const splitServices = findSplitServices(acc, childName, effectiveId);
+    const candidates = findSplitServices(acc, childName, effectiveId);
+    const keepTogether = candidates.size > 0 && keepTogetherFor(effectiveId) === true;
+    if (candidates.size > 0) splittable.push({ accessoryId: effectiveId, keepTogether, serviceCount: candidates.size });
+    const splitServices = keepTogether ? new Map() : candidates;
 
     // The accessory itself keeps every service that is not split off.
     const watchedServiceTypes = new Set();
@@ -290,9 +313,7 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
         const charType = shortUuid(char.type);
         const charName = WATCHED_CHARACTERISTICS.get(charType) ?? null;
         if (!charName) continue;
-        let componentName = childName;
-        if (splitName) componentName = splitName;
-        else if (shouldDisambiguateByService && childName) componentName = `${childName} · ${serviceType}`;
+        const componentName = splitName ?? unsplitName(childName, serviceType, shouldDisambiguateByService);
         iidMetaMap.set(`${acc.aid}.${char.iid}`, {
           accessoryId,
           parentAccessoryId: effectiveId,
@@ -301,6 +322,18 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
           characteristicName: charName,
           childName,
           componentName,
+        });
+      }
+    }
+
+    if (keepTogether) {
+      for (const service of candidates.keys()) {
+        const serviceType = SERVICE_TYPE_LABELS.get(shortUuid(service.type)) ?? shortUuid(service.type);
+        serviceMerges.push({
+          accessoryId: effectiveId,
+          splitAccessoryId: serviceSplitId(deviceId, acc.aid, service.iid),
+          name: unsplitName(childName, serviceType, shouldDisambiguateByService) ?? serviceType,
+          serviceType,
         });
       }
     }
@@ -356,7 +389,7 @@ export function extractAccessoryMetadata({ deviceId, pairingName = null, accesso
     });
   }
 
-  return { iidMetaMap, identitiesByAccessoryId, capabilitiesByAccessoryId, serviceSplits };
+  return { iidMetaMap, identitiesByAccessoryId, capabilitiesByAccessoryId, serviceSplits, serviceMerges, splittable };
 }
 
 export function cacheAccessoryMetadata({ deviceId, pairingName = null, accessories }) {

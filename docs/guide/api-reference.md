@@ -805,7 +805,7 @@ Returns cached mDNS discovery results.
 
 ### `GET /api/setup/bridge-children/:deviceId`
 
-List child accessories behind a bridge.
+List child accessories behind a bridge, as `[{ childId, name, aid }]`. An accessory logged as one device per service is listed as those services, each with `parentChildId` and `parentName`; one kept together has `keepTogether: true` and `serviceCount`.
 
 ### `GET /api/setup/pairings`
 
@@ -888,6 +888,24 @@ The category list (`[{ id, label }]`, in display order) and all overrides as `{ 
 ```json
 { "categories": [{ "id": "security", "label": "Security" }, ...], "overrides": { "AA:BB:CC:DD:EE:FF:4": "cleaning" } }
 ```
+
+### `PATCH /api/setup/keep-together`
+
+*Admin only.* Keep a bridged accessory that has several services of one type as one device, or log each service as its own device again (see [Multi-outlet plugs](devices.md#multi-outlet-plugs-and-power-strips)). The bridge reconnects, and the accessory's past events move to match.
+
+**Body:**
+```json
+{
+  "accessoryId": "AA:BB:CC:DD:EE:FF:4",
+  "keepTogether": true
+}
+```
+
+`accessoryId` is a bridged accessory (`MAC:aid`, aid 2 or higher) of a paired HomeKit bridge; `keepTogether` is `true` or `false`.
+
+### `GET /api/setup/keep-together`
+
+The accessories kept together, as `{ accessoryId: true }`.
 
 ### `POST /api/setup/repair/:deviceId`
 

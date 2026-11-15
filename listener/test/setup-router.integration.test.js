@@ -879,3 +879,94 @@ test('POST /pair — every announced address unreachable reports the device as u
   assert.equal(attempts.length, 2);
   assert.match(jsonBody.error, /Could not reach the device/);
 });
+
+// -- PATCH /keep-together --
+
+function keepTogetherRouter(overrides = {}) {
+  const MAC = 'AA:BB:CC:DD:EE:FF';
+  const state = { store: {}, stopped: [], started: [] };
+  const pairing = { protocol: 'homekit', name: 'Bridge', address: '1.2.3.4', port: 80, longTermData: {} };
+  const router = makeRouter({
+    loadPairings: () => ({ [MAC]: pairing }),
+    loadKeepTogether: () => ({ ...state.store }),
+    saveKeepTogether: async (value) => { state.store = value; },
+    stopSubscriber: (id) => state.stopped.push(id),
+    startSubscribers: (pairings) => state.started.push(Object.keys(pairings)),
+    ...overrides,
+  });
+  return { MAC, state, router };
+}
+
+test('PATCH /keep-together — saves the choice and reconnects the bridge', async () => {
+  const { MAC, state, router } = keepTogetherRouter();
+  const handler = getRouteHandler(router, 'PATCH', '/keep-together');
+  const on = await invoke(handler, { body: { accessoryId: `${MAC}:2`, keepTogether: true } });
+  assert.equal(on.statusCode, 200);
+  assert.deepEqual(on.jsonBody, { success: true, keepTogether: true });
+  assert.deepEqual(state.store, { [`${MAC}:2`]: true });
+  assert.deepEqual(state.stopped, [MAC]);
+  assert.deepEqual(state.started, [[MAC]]);
+
+  const off = await invoke(handler, { body: { accessoryId: `${MAC}:2`, keepTogether: false } });
+  assert.equal(off.statusCode, 200);
+  assert.deepEqual(state.store, {});
+  assert.equal(state.stopped.length, 2);
+});
+
+test('PATCH /keep-together — admin only', () => {
+  const { router } = keepTogetherRouter();
+  const layer = router.stack.find((l) => l.route?.path === '/keep-together' && l.route.methods.patch);
+  assert.ok(layer.route.stack.some((s) => s.handle.name === 'requireAdminSession'));
+});
+
+test('PATCH /keep-together — rejects what is not a bridged accessory of a HomeKit pairing', async () => {
+  const { MAC, state, router } = keepTogetherRouter();
+  const handler = getRouteHandler(router, 'PATCH', '/keep-together');
+  for (const [body, status] of [
+    [{ accessoryId: `${MAC}:2` }, 400],
+    [{ accessoryId: `${MAC}:2`, keepTogether: 'yes' }, 400],
+    [{ accessoryId: MAC, keepTogether: true }, 400],
+    [{ accessoryId: `${MAC}:1`, keepTogether: true }, 400],
+    [{ accessoryId: `${MAC}:2:8`, keepTogether: true }, 400],
+    [{ accessoryId: `${MAC}:x`, keepTogether: true }, 400],
+    [{ keepTogether: true }, 400],
+    [{ accessoryId: '11:22:33:44:55:66:2', keepTogether: true }, 404],
+  ]) {
+    // eslint-disable-next-line no-await-in-loop
+    const { statusCode } = await invoke(handler, { body });
+    assert.equal(statusCode, status, JSON.stringify(body));
+  }
+  assert.deepEqual(state.store, {});
+  assert.deepEqual(state.stopped, []);
+});
+
+test('GET /bridge-children/:deviceId — an accessory kept together is listed as itself, flagged', async () => {
+  const T = (short) => `${short.padStart(8, '0')}-0000-1000-8000-0026BB765291`;
+  const outlet = (iid, name) => ({
+    iid, type: T('47'),
+    characteristics: [{ iid: iid + 1, type: T('25'), value: false }, { iid: iid + 2, type: T('23'), value: name }],
+  });
+  const { setKeepTogetherLookup } = await import('../src/accessory-metadata.js');
+  const MAC = 'AA:BB:CC:DD:EE:FF';
+  setKeepTogetherLookup((id) => id === `${MAC}:2`);
+  try {
+    const router = makeRouter({
+      loadPairings: () => ({ [MAC]: { protocol: 'homekit', name: 'Bridge', address: '1.2.3.4', port: 80, longTermData: {} } }),
+      HttpClient: class MockBridgeClient {
+        async getAccessories() {
+          return { accessories: [
+            { aid: 1, services: [] },
+            { aid: 2, services: [{ iid: 1, type: T('3E'), characteristics: [{ iid: 2, type: T('23'), value: 'Holiday Outlet' }] }, outlet(8, 'Tree'), outlet(11, 'Garland')] },
+          ] };
+        }
+      },
+    });
+    const handler = getRouteHandler(router, 'GET', '/bridge-children/:deviceId');
+    const { jsonBody } = await invoke(handler, { params: { deviceId: MAC } });
+    assert.deepEqual(jsonBody, [
+      { childId: `${MAC}:2`, name: 'Holiday Outlet', aid: 2, keepTogether: true, serviceCount: 2 },
+    ]);
+  } finally {
+    setKeepTogetherLookup(null);
+  }
+});

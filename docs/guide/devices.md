@@ -151,6 +151,14 @@ Each one is named after the device and the service, for example "Holiday Outlet 
 
 A multi-outlet device paired directly (not through a bridge) is still logged as one device.
 
+**Keeping a device together.** If you'd rather see a device as one entry (a weather plugin with eight sensors, say), expand the bridge in **Devices › Manage Accessories** and click **Keep together** next to "<device> is logged as N separate devices". The bridge reconnects, the device is logged as one again, and the events its services logged separately move back onto it, under the name it had before the split. **Log separately** on the same row splits it again, and the events move back out. Either change can be undone and takes a few seconds. Only admins can make it.
+
+- A room, display name or note you gave one of the separate devices is kept, and applies again if you split the device again
+- Mutes on one of the separate devices don't carry over to the combined device, since muting it would silence every service
+- An alert rule scoped to one of the separate devices stops matching while the device is kept together; scope it to the device instead
+
+The choice is stored in `listener/data/keep-together.json` (`KEEP_TOGETHER_FILE`).
+
 ## Managing devices
 
 **Devices › Manage Accessories** lists every paired HomeKit and Matter device. For each one you can:

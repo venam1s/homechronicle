@@ -5,6 +5,9 @@ vi.mock('../hooks/useSetup.js', () => ({ useSetup: () => ({}) }));
 vi.mock('../components/AccessoryList.jsx', () => ({ default: () => <div>accessory list</div> }));
 vi.mock('../components/setup/AddDevicesTab.jsx', () => ({ default: () => <div>add devices</div> }));
 vi.mock('../components/setup/MyDevicesTab.jsx', () => ({ default: () => <div>my devices</div> }));
+// The page reads the session to gate admin-only controls; no QueryClientProvider here.
+vi.mock('../hooks/useAuth.js', () => ({ useAuth: () => ({ user: null }) }));
+vi.mock('../hooks/useAuthConfig.js', () => ({ useAuthConfig: () => ({ authEnabled: true }) }));
 
 const legendButton = () => screen.queryByRole('button', { name: 'Legend' });
 

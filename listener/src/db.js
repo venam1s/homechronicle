@@ -199,6 +199,63 @@ export async function moveSplitServiceHistory(splits, executor = pool) {
 }
 
 /**
+ * The reverse of moveSplitServiceHistory, for an accessory the user keeps
+ * together: events logged under its split services move back onto the
+ * accessory, under the name an unsplit accessory gives them. raw_iid is left
+ * as is, so splitting it again moves them out once more. Rooms, notes and
+ * display names set on the split services stay in their files for that case.
+ * Mutes are not carried over: the merged name covers every service of that
+ * type, so a mute on one would silence the others. Idempotent.
+ *
+ * @param {Array<{accessoryId: string, splitAccessoryId: string, name: string,
+ *   serviceType: string}>} merges - from extractAccessoryMetadata
+ * @returns {Promise<number>} events moved
+ */
+export async function mergeSplitServiceHistory(merges, executor = pool) {
+  const pending = (merges ?? []).filter((m) => m?.splitAccessoryId && m.accessoryId && m.splitAccessoryId !== m.accessoryId);
+  if (pending.length === 0) return 0;
+  const splitIds = pending.map((m) => m.splitAccessoryId);
+  let found = false;
+  for (const table of ['event_logs', 'event_logs_archive']) {
+    // eslint-disable-next-line no-await-in-loop
+    const { rows } = await executor.query(
+      `SELECT 1 FROM ${table} WHERE accessory_id = ANY($1::text[]) LIMIT 1`,
+      [splitIds]
+    );
+    if (rows.length > 0) { found = true; break; }
+  }
+  if (!found) return 0;
+
+  const client = executor === pool ? await pool.connect() : executor;
+  let changed = 0;
+  try {
+    await client.query('BEGIN');
+    for (const merge of pending) {
+      const storedName = withDisplayName(merge.name, merge.serviceType, getDisplayNames()?.[merge.accessoryId]);
+      const reportedName = storedName === merge.name ? null : merge.name;
+      for (const table of ['event_logs', 'event_logs_archive']) {
+        // eslint-disable-next-line no-await-in-loop
+        const moved = await client.query(
+          `UPDATE ${table}
+              SET accessory_id = $1, accessory_name = $2, reported_name = $3
+            WHERE accessory_id = $4`,
+          [merge.accessoryId, storedName, reportedName, merge.splitAccessoryId]
+        );
+        changed += moved.rowCount ?? 0;
+      }
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    if (client !== executor) client.release();
+  }
+  if (changed > 0) invalidate('');
+  return changed;
+}
+
+/**
  * Run all pending database migrations using node-pg-migrate.
  * On existing installs where the schema exists but pgmigrations tracking
  * has not yet been set up, the baseline migration is fake-applied so that

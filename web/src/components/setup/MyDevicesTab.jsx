@@ -59,7 +59,7 @@ function summarizeMatterError(raw) {
   return firstLine.length > 140 ? `${firstLine.slice(0, 140)}...` : firstLine;
 }
 
-export default function MyDevicesTab({ setup }) {
+export default function MyDevicesTab({ setup, canChangeSplit = false }) {
   const {
     paired,
     matterPairings,
@@ -453,6 +453,7 @@ export default function MyDevicesTab({ setup }) {
                   savedDisplayNames={savedDisplayNames}
                   onDisplayNameChange={(id, val) => setDisplayNameInputs((d) => ({ ...d, [id]: val }))}
                   onDisplayNameBlur={onDisplayNameBlurWithFlash}
+                  canChangeSplit={canChangeSplit}
                 />
               )}
             </div>

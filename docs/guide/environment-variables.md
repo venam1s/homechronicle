@@ -65,6 +65,7 @@ Keep `API_PORT` and `LISTENER_PORT` aligned (default `3001`) or `/api` requests 
 | `DISCOVERY_SCAN_ENABLED` | `true` | Enable periodic background discovery |
 | `NOTES_FILE` | `/app/data/notes.json` | Device notes JSON storage path |
 | `CATEGORIES_FILE` | `/app/data/categories.json` | Device category overrides JSON storage path |
+| `KEEP_TOGETHER_FILE` | `/app/data/keep-together.json` | Bridged accessories kept as one device instead of split per service |
 | `STORE_REFRESH_INTERVAL_MS` | `30000` | JSON store refresh interval |
 
 ## Multi-User Auth & Sessions
@@ -270,6 +271,7 @@ Runtime configuration is split between environment variables (above) and JSON fi
 | `display-names.json` | Map of accessory ID to user-assigned display name |
 | `notes.json` | Map of accessory ID to free-text note |
 | `categories.json` | Map of accessory ID to device category override |
+| `keep-together.json` | Map of bridged accessory ID to `true` for devices kept as one device instead of split per service |
 | `retention.json` | Persisted overrides for retention days, archive flag, and stale threshold |
 | `repair.json` | Last repair cycle result and next scheduled time |
 | `matter-storage/` | Directory; Matter.js controller state (fabric, session, and node data) |

@@ -65,6 +65,7 @@ Use `.env.example` for a minimal setup, then add only what you need from this re
 | `PAIRINGS_FILE` | `/app/data/pairings.json` in prod | listener | Pairings JSON storage path. |
 | `ROOMS_FILE` | `/app/data/rooms.json` in prod | listener | Rooms JSON storage path. |
 | `NOTES_FILE` | `/app/data/notes.json` in prod | listener | Device notes JSON storage path. |
+| `KEEP_TOGETHER_FILE` | `/app/data/keep-together.json` in prod | listener | Bridged accessories kept as one device instead of split per service. |
 | `RETENTION_FILE` | `/app/data/retention.json` in prod | listener | Retention settings JSON storage path. |
 | `STORE_REFRESH_INTERVAL_MS` | `30000` | listener | Refresh interval for JSON stores. |
 | `DISCOVERY_SCAN_ENABLED` | `true` | listener | Enable periodic HomeKit discovery scans. |

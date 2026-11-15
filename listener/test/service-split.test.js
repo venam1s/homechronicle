@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parentAccessoryId, parentBridgeId, roomFor, serviceSplitId } from '../src/utils.js';
-import { moveSplitServiceHistory } from '../src/db.js';
+import { mergeSplitServiceHistory, moveSplitServiceHistory } from '../src/db.js';
 
 const MAC = 'AA:BB:CC:DD:EE:FF';
 
@@ -100,5 +100,58 @@ test('moveSplitServiceHistory is only cheap checks once everything matches', asy
 test('moveSplitServiceHistory ignores an empty split list', async () => {
   const client = fakeClient();
   assert.equal(await moveSplitServiceHistory([], client), 0);
+  assert.equal(client.queries.length, 0);
+});
+
+// -- Keep together: the reverse move --
+
+const merges = [
+  { accessoryId: `${MAC}:7`, splitAccessoryId: `${MAC}:7:10`, name: 'Holiday Outlet', serviceType: 'Outlet' },
+  { accessoryId: `${MAC}:7`, splitAccessoryId: `${MAC}:7:20`, name: 'Holiday Outlet', serviceType: 'Outlet' },
+];
+
+function mergeClient({ found = true } = {}) {
+  const queries = [];
+  return {
+    queries,
+    async query(sql, params = []) {
+      const flat = sql.replace(/\s+/g, ' ').trim();
+      queries.push({ sql: flat, params });
+      if (flat.startsWith('SELECT 1')) return { rows: found ? [{ '?column?': 1 }] : [] };
+      if (flat.startsWith('UPDATE event_logs_archive')) return { rowCount: 1 };
+      if (flat.startsWith('UPDATE event_logs')) return { rowCount: 2 };
+      return { rows: [], rowCount: 0 };
+    },
+  };
+}
+
+test('mergeSplitServiceHistory moves split services\' events back onto the accessory', async () => {
+  const client = mergeClient();
+  const moved = await mergeSplitServiceHistory(merges, client);
+  assert.equal(moved, 6);
+  const updates = client.queries.filter((q) => q.sql.startsWith('UPDATE'));
+  assert.equal(updates.length, 4);
+  for (const u of updates) {
+    // raw_iid is untouched, so splitting again finds the events by it.
+    assert.ok(!u.sql.includes('raw_iid'), u.sql);
+    assert.ok(!u.sql.includes('user_preferences'));
+  }
+  assert.deepEqual(updates[0].params, [`${MAC}:7`, 'Holiday Outlet', null, `${MAC}:7:10`]);
+  assert.ok(updates[1].sql.startsWith('UPDATE event_logs_archive'));
+  assert.equal(client.queries[0].sql.startsWith('SELECT 1 FROM event_logs'), true);
+  assert.equal(client.queries.at(-1).sql, 'COMMIT');
+});
+
+test('mergeSplitServiceHistory is one cheap check per table when nothing is split', async () => {
+  const client = mergeClient({ found: false });
+  assert.equal(await mergeSplitServiceHistory(merges, client), 0);
+  assert.equal(client.queries.length, 2);
+  assert.ok(client.queries.every((q) => q.sql.startsWith('SELECT 1')));
+});
+
+test('mergeSplitServiceHistory ignores an empty list', async () => {
+  const client = mergeClient();
+  assert.equal(await mergeSplitServiceHistory([], client), 0);
+  assert.equal(await mergeSplitServiceHistory(undefined, client), 0);
   assert.equal(client.queries.length, 0);
 });

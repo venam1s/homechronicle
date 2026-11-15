@@ -66,3 +66,54 @@ describe('BridgeChildrenRow split outlets', () => {
     expect(screen.queryByText('on Holiday Outlet')).toBeNull();
   });
 });
+
+// A split accessory can be kept together, and a kept one split again.
+describe('BridgeChildrenRow keep together', () => {
+  const outlets = [
+    { childId: 'AA:BB:2:8', name: 'Holiday Outlet Tree', aid: 2, parentChildId: 'AA:BB:2', parentName: 'Holiday Outlet' },
+    { childId: 'AA:BB:2:11', name: 'Holiday Outlet Garland', aid: 2, parentChildId: 'AA:BB:2', parentName: 'Holiday Outlet' },
+    { childId: 'AA:BB:3', name: 'Lamp', aid: 3 },
+  ];
+
+  it('heads a split group once and offers to keep it together', async () => {
+    fetchJson.mockResolvedValueOnce(outlets);
+    renderRow({ canChangeSplit: true });
+    expect(await screen.findByText('Holiday Outlet is logged as 2 separate devices')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Keep together' })).toHaveLength(1);
+
+    fetchJson.mockResolvedValueOnce({ success: true, keepTogether: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Keep together' }));
+    await vi.waitFor(() => expect(fetchJson).toHaveBeenCalledWith('/api/setup/keep-together', expect.objectContaining({
+      method: 'PATCH',
+      body: JSON.stringify({ accessoryId: 'AA:BB:2', keepTogether: true }),
+    })));
+  });
+
+  it('offers to log a kept-together accessory separately', async () => {
+    fetchJson.mockResolvedValueOnce([{ childId: 'AA:BB:2', name: 'Holiday Outlet', aid: 2, keepTogether: true, serviceCount: 2 }]);
+    renderRow({ canChangeSplit: true });
+    expect(await screen.findByText('2 services logged as one device')).toBeInTheDocument();
+
+    fetchJson.mockResolvedValueOnce({ success: true, keepTogether: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Log separately' }));
+    await vi.waitFor(() => expect(fetchJson).toHaveBeenCalledWith('/api/setup/keep-together', expect.objectContaining({
+      body: JSON.stringify({ accessoryId: 'AA:BB:2', keepTogether: false }),
+    })));
+  });
+
+  it('shows the state but no buttons to a member', async () => {
+    fetchJson.mockResolvedValueOnce(outlets);
+    renderRow();
+    expect(await screen.findByText('Holiday Outlet is logged as 2 separate devices')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Keep together' })).not.toBeInTheDocument();
+  });
+
+  it('says so when the change fails', async () => {
+    fetchJson.mockResolvedValueOnce(outlets);
+    renderRow({ canChangeSplit: true });
+    await screen.findByText('Holiday Outlet is logged as 2 separate devices');
+    fetchJson.mockRejectedValueOnce(new Error('Forbidden'));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep together' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not change how this accessory is logged: Forbidden');
+  });
+});
