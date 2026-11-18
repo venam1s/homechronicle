@@ -9,6 +9,7 @@ import { fetchJson, API_BASE, withApiAuthHeaders } from '../../lib/api.js';
 import { saveBlob } from '../../lib/download.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
 import { useSetting } from '../../hooks/useSetting.js';
+import { useToastsEnabled } from '../../hooks/useToastsEnabled.js';
 
 // The saver has already reported a failure with a toast; useSetting has reverted the value.
 const ignore = () => {};
@@ -18,9 +19,8 @@ const LOADING = <span className="text-xs text-hc-muted">Loading…</span>;
 
 export default function DataGroup({ setup }) {
   const { retentionConfig, saveRetentionMutation } = setup;
-  const saveRetention = useSettingSaver(saveRetentionMutation, {
-    toastsEnabled: retentionConfig?.toastsEnabled ?? true,
-  });
+  const toastsEnabled = useToastsEnabled(setup);
+  const saveRetention = useSettingSaver(saveRetentionMutation, { toastsEnabled });
 
   const loaded = retentionConfig != null;
   const retentionDays = retentionConfig?.retentionDays;

@@ -8,6 +8,7 @@ import SettingsRow from '../settings/SettingsRow.jsx';
 import { SELECT_CLASS } from '../settings/fieldStyles.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
 import { useSetting } from '../../hooks/useSetting.js';
+import { useToastsEnabled } from '../../hooks/useToastsEnabled.js';
 
 const LOG_LEVELS = [
   { value: 'error', label: 'Error', desc: 'Only errors' },
@@ -36,11 +37,9 @@ export default function AdminAdvancedSection({ setup }) {
   const logLevelSaveTarget = useMemo(() => ({
     mutateAsync: ({ level }) => saveLogLevelMutation.mutateAsync(level),
   }), [saveLogLevelMutation]);
-  // Same rule as before the saver: confirm unless toasts are explicitly off.
-  // The saver shows its own failure toast whatever this says.
-  const saveLogLevel = useSettingSaver(logLevelSaveTarget, {
-    toastsEnabled: retentionConfig?.toastsEnabled !== false,
-  });
+  // The saver shows its own failure toast whatever toastsEnabled says.
+  const toastsEnabled = useToastsEnabled(setup);
+  const saveLogLevel = useSettingSaver(logLevelSaveTarget, { toastsEnabled });
   const logLevelLoaded = logLevelConfig != null;
   const [logLevel, changeLogLevel] = useSetting(
     logLevelConfig?.level,

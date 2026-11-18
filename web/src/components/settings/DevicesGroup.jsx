@@ -7,6 +7,7 @@ import { HOURS_OPTIONS } from './hourOptions.js';
 import { localHourToUtc, utcHourToLocal } from '../../lib/hours.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
 import { useSetting } from '../../hooks/useSetting.js';
+import { useToastsEnabled } from '../../hooks/useToastsEnabled.js';
 
 // The saver has already reported a failure with a toast; useSetting has reverted the value.
 const ignore = () => {};
@@ -31,7 +32,7 @@ function lastRunLine(repairConfig) {
 // onNavigate, when given, adds a link to Devices › Manage Accessories.
 export default function DevicesGroup({ setup, onNavigate }) {
   const { retentionConfig, saveRetentionMutation, repairConfig, saveRepairMutation } = setup;
-  const toastsEnabled = retentionConfig?.toastsEnabled ?? true;
+  const toastsEnabled = useToastsEnabled(setup);
   const saveRetention = useSettingSaver(saveRetentionMutation, { toastsEnabled });
   const saveRepair = useSettingSaver(saveRepairMutation, { toastsEnabled });
 

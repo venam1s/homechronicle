@@ -11,6 +11,7 @@ import RepairFlow from './RepairFlow.jsx';
 import { LINK_CLASS } from '../settings/fieldStyles.js';
 import { useCanManageHome } from '../../hooks/useCanManageHome.js';
 import { useToastPrefs } from '../../hooks/useToastPrefs.js';
+import { useToastsEnabled } from '../../hooks/useToastsEnabled.js';
 
 function RoomAutocomplete({ value, onChange, onBlur, onKeyDown, rooms, placeholder, className }) {
   const [open, setOpen] = useState(false);
@@ -90,6 +91,7 @@ export default function MyDevicesTab({ setup, canChangeSplit = false, onNavigate
   // Live toasts follow the viewer's own preference when signed in, the household
   // setting when signed out; the watch bells below follow the same value.
   const toastPrefs = useToastPrefs(setup);
+  const toastsEnabled = useToastsEnabled(setup);
   const liveToastsOn = toastPrefs.liveEventToastsEnabled;
   // The watch list is a household setting the server lets only an admin change.
   const showWatchBells = liveToastsOn && canManageHome;
@@ -157,10 +159,10 @@ export default function MyDevicesTab({ setup, canChangeSplit = false, onNavigate
   const onRoomBlurWithFlash = useCallback((id) => {
     if (handleRoomBlur(id) === false) return;
     flashSave(`room-${id}`);
-    if (retentionConfig?.toastsEnabled !== false) {
+    if (toastsEnabled) {
       addToast('Room saved', 'success');
     }
-  }, [handleRoomBlur, flashSave, retentionConfig?.toastsEnabled, addToast]);
+  }, [handleRoomBlur, flashSave, toastsEnabled, addToast]);
 
   const onNoteBlurWithFlash = useCallback((id) => {
     if (handleNoteBlur(id) === false) return;
@@ -170,10 +172,10 @@ export default function MyDevicesTab({ setup, canChangeSplit = false, onNavigate
   const onDisplayNameBlurWithFlash = useCallback((id) => {
     if (handleDisplayNameBlur(id) === false) return;
     flashSave(`name-${id}`);
-    if (retentionConfig?.toastsEnabled !== false) {
+    if (toastsEnabled) {
       addToast('Name saved', 'success');
     }
-  }, [handleDisplayNameBlur, flashSave, retentionConfig?.toastsEnabled, addToast]);
+  }, [handleDisplayNameBlur, flashSave, toastsEnabled, addToast]);
 
   const toggleToastAccessory = useCallback((accessoryId) => {
     const current = retentionConfig?.toastAccessories ?? [];

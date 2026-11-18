@@ -4,12 +4,18 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '../Toast.jsx';
 import { fetchJson } from '../../lib/api.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import DataGroup from './DataGroup.jsx';
 
 vi.mock('../../lib/api.js', () => ({
   fetchJson: vi.fn().mockResolvedValue({}),
   API_BASE: '',
   withApiAuthHeaders: () => ({}),
+}));
+
+// Signed out unless a test says otherwise.
+vi.mock('../../hooks/useAuth.js', () => ({
+  useAuth: vi.fn(),
 }));
 
 function makeSetup(retentionOverrides = {}) {
@@ -41,12 +47,17 @@ let user;
 describe('DataGroup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     fetchJson.mockResolvedValue({});
+    useAuth.mockReturnValue({ user: null });
     // shouldAdvanceTime: RTL wraps user-event in a real setTimeout(0) it only advances under Jest.
     vi.useFakeTimers({ shouldAdvanceTime: true });
     user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
   });
-  afterEach(() => { vi.useRealTimers(); });
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+  });
 
   const retentionInput = () => screen.getByRole('spinbutton', { name: 'Retention cutoff' });
 
@@ -127,5 +138,24 @@ describe('DataGroup', () => {
     expect(screen.getByRole('spinbutton', { name: 'Stale accessory threshold' })).toHaveValue(48);
     expect(screen.getByRole('switch', { name: 'Archive before delete' })).toBeEnabled();
     expect(screen.queryByText('Loading…')).toBeNull();
+  });
+
+  it('signed in, follows the viewer\'s own toast preference rather than the household flag', async () => {
+    useAuth.mockReturnValue({ user: { id: 1, role: 'admin' } });
+    localStorage.setItem('hc_pref_toastsEnabled', 'false');
+    const setup = makeSetup({ toastsEnabled: true });
+    renderGroup(setup);
+    await user.click(screen.getByRole('switch', { name: 'Archive before delete' }));
+    await act(() => vi.advanceTimersByTimeAsync(300));
+    expect(setup.saveRetentionMutation.mutateAsync).toHaveBeenCalledWith({ archiveBeforeDelete: false });
+    expect(screen.queryByText('Setting saved')).toBeNull();
+  });
+
+  it('signed out, confirms a save when the household flag is on', async () => {
+    const setup = makeSetup({ toastsEnabled: true });
+    renderGroup(setup);
+    await user.click(screen.getByRole('switch', { name: 'Archive before delete' }));
+    await act(() => vi.advanceTimersByTimeAsync(300));
+    expect(screen.getByText('Setting saved')).toBeInTheDocument();
   });
 });

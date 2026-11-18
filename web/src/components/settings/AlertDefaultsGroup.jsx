@@ -3,16 +3,16 @@ import SettingsRow from './SettingsRow.jsx';
 import NumberField from './NumberField.jsx';
 import { LINK_CLASS } from './fieldStyles.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
+import { useToastsEnabled } from '../../hooks/useToastsEnabled.js';
 
 // Shown in place of a number field until its config loads: never an invented value.
 const LOADING = <span className="text-xs text-hc-muted">Loading…</span>;
 
 // onNavigate, when given, adds a link to the Alerts page, where rules are managed.
 export default function AlertDefaultsGroup({ setup, onNavigate }) {
-  const { retentionConfig, alertsConfig, saveAlertsMutation } = setup;
-  const saveAlerts = useSettingSaver(saveAlertsMutation, {
-    toastsEnabled: retentionConfig?.toastsEnabled ?? true,
-  });
+  const { alertsConfig, saveAlertsMutation } = setup;
+  const toastsEnabled = useToastsEnabled(setup);
+  const saveAlerts = useSettingSaver(saveAlertsMutation, { toastsEnabled });
   const loaded = alertsConfig != null;
   const timeoutFromEnv = Boolean(alertsConfig?.webhookTimeoutFromEnv);
 
