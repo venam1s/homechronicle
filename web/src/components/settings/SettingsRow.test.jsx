@@ -19,6 +19,17 @@ describe('SettingsRow', () => {
     expect(screen.getByText('Last run 3h ago')).toBeInTheDocument();
   });
 
+  it('stacks by breakpoint and keeps the control beside the text at sm and wider', () => {
+    render(<SettingsRow label="Theme" description="d" control={<button>ctl</button>} />);
+    const control = screen.getByRole('button', { name: 'ctl' });
+    const wrapper = control.parentElement;
+    expect(wrapper).toHaveClass('shrink-0');
+    const topLine = wrapper.parentElement;
+    expect(topLine).toHaveClass('flex', 'flex-col', 'sm:flex-row', 'sm:items-center', 'sm:justify-between');
+    expect(topLine).not.toHaveClass('flex-wrap');
+    expect(screen.getByText('Theme').parentElement).toHaveClass('min-w-0', 'sm:flex-1');
+  });
+
   it('marks a disabled row inert', () => {
     render(<SettingsRow label="A" control={<i />} disabled />);
     expect(screen.getByTestId('settings-row')).toHaveClass('opacity-50', 'pointer-events-none');
