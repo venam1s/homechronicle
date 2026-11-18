@@ -15,6 +15,9 @@ import { useSetting } from '../../hooks/useSetting.js';
 // The saver has already reported a failure with a toast; useSetting has reverted the value.
 const ignore = () => {};
 
+// A stable empty list, so useSetting's `saved` keeps its reference when the config has none.
+const NO_EXCLUSIONS = [];
+
 function HourLine({ label, ariaLabel, value, onChange }) {
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -69,7 +72,7 @@ export default function QuietHoursGroup({ setup }) {
   const savedEnd = blobHasQh
     ? utcHourToLocal(blobQhEnd)
     : (retentionConfig?.quietHoursEnd != null ? utcHourToLocal(retentionConfig.quietHoursEnd) : 6);
-  const excluded = blobHasQh ? blobQhExcluded : (retentionConfig?.quietHoursExcludedAccessories ?? []);
+  const savedExcluded = blobHasQh ? blobQhExcluded : (retentionConfig?.quietHoursExcludedAccessories ?? NO_EXCLUSIONS);
 
   // Writes branch on the user. Signed in: one grouped four-key write built from the values
   // on screen, so "turn on, then change Start" keeps enabled: true (QH-08).
@@ -95,19 +98,20 @@ export default function QuietHoursGroup({ setup }) {
     return saveRetention({ quietHoursEnd: localHourToUtc(v) });
   });
 
-  const removeExcluded = (id) => {
-    const next = excluded.filter((a) => a !== id);
+  // Optimistic, so each removal filters the list on screen: two quick removals inside the
+  // saver's 300ms window merge into one patch that carries both.
+  const [excluded, changeExcluded] = useSetting(savedExcluded, async (next) => {
     if (user) {
       writeBlob({ excluded: next });
-      queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
-      return;
+    } else {
+      // saveRetentionMutation's own onSuccess writes the result into ['setup', 'retention'].
+      await saveRetention({ quietHoursExcludedAccessories: next });
     }
-    saveRetention({ quietHoursExcludedAccessories: next })
-      .then((result) => {
-        queryClient.setQueryData(['setup', 'retention'], result);
-        queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
-      })
-      .catch(ignore);
+    queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
+  });
+
+  const removeExcluded = (id) => {
+    changeExcluded(excluded.filter((a) => a !== id)).catch(ignore);
   };
 
   return (

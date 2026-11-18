@@ -317,6 +317,44 @@ describe('QuietHoursGroup', () => {
     expect(mockSetPrefsBlob).not.toHaveBeenCalled();
   });
 
+  it('signed out: removing two chips quickly saves one patch with both removed', async () => {
+    const setup = makeSetup({
+      retentionConfig: makeRetentionConfig({ quietHoursEnabled: true, quietHoursExcludedAccessories: ['acc-1', 'acc-2'] }),
+    });
+    renderGroup(setup);
+
+    // No timer advance between the clicks: both land inside the saver's 300ms window.
+    await user.click(screen.getByTitle('Restore acc-1 to quiet hours'));
+    await user.click(screen.getByTitle('Restore acc-2 to quiet hours'));
+    await act(() => vi.advanceTimersByTimeAsync(300));
+
+    expect(setup.saveRetentionMutation.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(setup.saveRetentionMutation.mutateAsync).toHaveBeenCalledWith({ quietHoursExcludedAccessories: [] });
+    expect(screen.queryByTitle('Restore acc-1 to quiet hours')).toBeNull();
+    expect(screen.queryByTitle('Restore acc-2 to quiet hours')).toBeNull();
+  });
+
+  it('signed out: a failed chip removal brings the chips back', async () => {
+    const setup = makeSetup({
+      retentionConfig: makeRetentionConfig({ quietHoursEnabled: true, quietHoursExcludedAccessories: ['acc-1', 'acc-2'] }),
+    });
+    setup.saveRetentionMutation.mutateAsync.mockRejectedValue(new Error('500'));
+    renderGroup(setup);
+
+    await user.click(screen.getByTitle('Restore acc-1 to quiet hours'));
+    await user.click(screen.getByTitle('Restore acc-2 to quiet hours'));
+    // Gone while the save is pending...
+    expect(screen.queryByTitle('Restore acc-1 to quiet hours')).toBeNull();
+    expect(screen.queryByTitle('Restore acc-2 to quiet hours')).toBeNull();
+    // ...and back once it fails.
+    await act(() => vi.advanceTimersByTimeAsync(300));
+
+    expect(setup.saveRetentionMutation.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(screen.getByTitle('Restore acc-1 to quiet hours')).toBeInTheDocument();
+    expect(screen.getByTitle('Restore acc-2 to quiet hours')).toBeInTheDocument();
+    expect(screen.getByText('Failed to save setting')).toBeInTheDocument();
+  });
+
   it('signed out: disables the switch and shows it off until the household config loads', () => {
     renderGroup(makeSetup({ retentionConfig: undefined }));
     expect(quietSwitch()).toBeDisabled();
