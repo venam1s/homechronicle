@@ -4,9 +4,12 @@ All notable changes to homechronicle are documented in this file.
 
 While a version is in beta, its section is headed `## [X.Y.Z] — Unreleased` and grows as changes land on `main`. Every beta tag publishes that section as it stands, behind a generated header, so beta notes are cumulative since the last stable release. Its `### Beta notes` subsection records what each beta changed and what to know before going back; it is dropped at GA, when the heading gets its date.
 
-## [0.6.1] — Unreleased
+## [0.7.0] — Unreleased
 
-The dashboard and the device pages count days in your time zone, and the date in the top bar can be hidden.
+Settings is reorganised into **You** and **This home** with one row layout throughout, the dashboard and the device pages count days in your time zone, and the date in the top bar can be hidden.
+
+### Beta notes
+- **beta.1:** first beta of 0.7.0. Settings is reorganised and every setting saves through one path; daily counts follow your time zone. No stored setting was renamed or moved and there is no database change, so going back to 0.6.0 is safe.
 
 ### Upgrade notes
 - **No database migrations** and no required `.env` changes.
@@ -30,6 +33,7 @@ The dashboard and the device pages count days in your time zone, and the date in
 - Changing two settings in quick succession could save only the second.
 - A setting changed just before leaving the page could be lost. It is now saved.
 - **Live Toasts** on Devices › Manage Accessories did nothing when signed in; it now follows your own notification preference, and the per-accessory watch bells follow it too.
+- The monthly heatmap drew smaller cells than the weekday heatmap beside it. Both now use the same grid.
 
 ### Internal
 - GitHub Actions is the CI of record: tests, boot smoke, the docs site, the beta deploy and releases run from `.github/workflows` on the homelab runner, and `.gitlab-ci.yml` is retired. Every release is still mirrored to GitLab for installs up to v0.5.0, which only check there for updates.
