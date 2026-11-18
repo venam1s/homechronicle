@@ -212,4 +212,19 @@ describe('B. Anon path — toast toggle routes to saveRetentionMutation', () => 
     expect(callArgs).toMatchObject({ liveEventToastsEnabled: true });
     expect(setterCalled('liveEventToastsEnabled')).toBe(false);
   });
+
+  it('applies the saved toast config before the confirmation toast (onSaved -> configure)', async () => {
+    const setup = makeSetup();
+    setup.saveRetentionMutation.mutateAsync.mockResolvedValue({ ...setup.retentionConfig, toastPosition: 'top-left' });
+    renderGroup(setup);
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Toast position' }), 'top-left');
+    await act(() => vi.advanceTimersByTimeAsync(300));
+
+    expect(setup.saveRetentionMutation.mutateAsync).toHaveBeenCalledWith({ toastPosition: 'top-left' });
+    const container = screen.getByText('Setting saved').closest('.fixed');
+    expect(container).toHaveClass('top-20');
+    expect(container).toHaveClass('left-0');
+    expect(setterCalled('toastPosition')).toBe(false);
+  });
 });
