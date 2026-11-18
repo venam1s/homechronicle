@@ -58,9 +58,8 @@ describe('AboutSection', () => {
         .toHaveAttribute('href', 'https://homechronicle.net/guide/#/');
     });
 
-    // GitLab, not GitHub: the GitHub account was lost to a suspension and
-    // `havuq` no longer resolves there, so a GitHub link would 404. This is
-    // the same target as the existing links in ChangelogModal and SettingsTab.
+    // Issues live on GitHub (venam1s/homechronicle); the GitLab project is a
+    // mirror. This is the same target as the issue link in ChangelogModal.
     it('links to the issue tracker that actually exists', () => {
       renderAbout();
       expect(screen.getByRole('link', { name: 'Report an issue' }))

@@ -25,8 +25,8 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
   const { addToast } = useToast();
 
   // M-9: since Phase 25, stats-router resolves quiet hours from user_preferences whenever
-  // the blob carries quietHoursEnabled — mirrors SettingsTab.jsx:81's blobHasQh predicate so
-  // the presence check stays coherent between the two write sites.
+  // the blob carries quietHoursEnabled — mirrors the blobHasQh predicate in
+  // settings/QuietHoursGroup.jsx so the presence check stays coherent between the two write sites.
   const blobHasQh = !!user && prefs != null && 'quietHoursEnabled' in prefs;
 
   const excludeMutation = useMutation({
@@ -63,8 +63,8 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
     },
     onSuccess: (next) => {
       if (next) queryClient.setQueryData(['setup', 'retention'], next);
-      // Invalidate in both branches so the excluded row disappears either way (mirrors
-      // SettingsTab.jsx:757-766).
+      // Invalidate in both branches so the excluded row disappears either way (as
+      // settings/QuietHoursGroup.jsx does when a chip is removed).
       queryClient.invalidateQueries({ queryKey: ['stats', 'quiet-hours'] });
     },
     // setPrefsBlob's promise always resolves (never rejects), so the blob branch will not

@@ -112,8 +112,8 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
   const quietEnd = utcHourToLocal(quietData?.quietHoursEnd ?? 6);
 
   // M-8: read grouping values from the per-user blob when present, retention otherwise.
-  // Keys/defaults/localStorage keys mirror SettingsTab.jsx:61-63 exactly so the same blob
-  // key is read here that SettingsTab writes. Timeline never writes these — read-only.
+  // Keys/defaults/localStorage keys mirror settings/TimelineGroup.jsx exactly so the same blob
+  // key is read here that TimelineGroup writes. Timeline never writes these — read-only.
   const { user } = useAuth();
   const { prefs } = useUserPreferences();
   const [blobEpisodeWindowMinutes] = usePreference('episodeWindowMinutes', 3, {
@@ -126,7 +126,7 @@ export default function Timeline({ initialFilters, onSelectAccessory }) {
     localStorageKey: 'hc_pref_episodeMinEventCount',
   });
 
-  // Per-key presence predicate (mirrors SettingsTab's blobHasQh convention, D-25-03) rather
+  // Per-key presence predicate (mirrors the blobHasQh convention in settings/QuietHoursGroup.jsx, D-25-03) rather
   // than a blanket `user ? blob : retention` — App.jsx:93-102 seeds these three keys from
   // retention on first login, so an authed user with no grouping key in the blob is a narrow
   // upgrade cohort that the retention fallback below still covers. The retention fallback is
