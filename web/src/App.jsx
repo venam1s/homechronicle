@@ -29,6 +29,9 @@ export default function App() {
   // Which Settings section to show. Owned here rather than inside SettingsPage
   // so navigation can address it — see the account menu's Appearance shortcut.
   const [settingsSection, setSettingsSection] = useState('appearance');
+  // Which Devices tab to show, owned here for the same reason: Settings links
+  // straight to Manage Accessories.
+  const [devicesTab, setDevicesTab] = useState('browse');
   const [selectedAccessoryId, setSelectedAccessoryId] = useState(null);
   const [timelineFilters, setTimelineFilters] = useState(null);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -129,6 +132,8 @@ export default function App() {
     setSelectedAccessoryId(null);
     // Optional deep link into a Settings section, e.g. navigate('settings', { section: 'appearance' }).
     if (page === 'settings' && options?.section) setSettingsSection(options.section);
+    // Devices opens on the tab asked for, else Browse, e.g. navigate('devices', { tab: 'devices' }).
+    if (page === 'devices') setDevicesTab(options?.tab ?? 'browse');
     setActivePage(page);
   };
 
@@ -155,9 +160,9 @@ export default function App() {
           ) : (
             <ErrorBoundary key={activePage}>
               {activePage === 'dashboard' && <DashboardPage onSelectAccessory={handleSelectAccessory} onSelectRoom={handleSelectRoom} onNavigateToAccessory={handleToastNav} onViewDeviceRepair={() => setActivePage('devices')} />}
-              {activePage === 'devices' && <DevicesPage onSelectAccessory={handleSelectAccessory} />}
+              {activePage === 'devices' && <DevicesPage onSelectAccessory={handleSelectAccessory} onNavigate={navigate} tab={devicesTab} onTabChange={setDevicesTab} />}
               {activePage === 'timeline' && <TimelinePage initialFilters={timelineFilters} onSelectAccessory={handleSelectAccessory} />}
-              {activePage === 'alerts' && <AlertsPage />}
+              {activePage === 'alerts' && <AlertsPage onNavigate={navigate} />}
               {activePage === 'settings' && (
                 <SettingsPage
                   buildVersion={__BUILD_VERSION__}

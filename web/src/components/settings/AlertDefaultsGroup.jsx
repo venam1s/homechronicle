@@ -1,12 +1,13 @@
 import SettingsGroup from './SettingsGroup.jsx';
 import SettingsRow from './SettingsRow.jsx';
 import NumberField from './NumberField.jsx';
+import { FOCUS_RING } from './fieldStyles.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
 
 // Shown in place of a number field until its config loads: never an invented value.
 const LOADING = <span className="text-xs text-hc-muted">Loading…</span>;
 
-// onNavigate is accepted now and used once the Alerts link lands.
+// onNavigate, when given, adds a link to the Alerts page, where rules are managed.
 export default function AlertDefaultsGroup({ setup, onNavigate }) {
   const { retentionConfig, alertsConfig, saveAlertsMutation } = setup;
   const saveAlerts = useSettingSaver(saveAlertsMutation, {
@@ -49,6 +50,17 @@ export default function AlertDefaultsGroup({ setup, onNavigate }) {
           />
         ) : LOADING}
       />
+      {onNavigate && (
+        <div className="px-4 py-3">
+          <button
+            type="button"
+            onClick={() => onNavigate('alerts')}
+            className={`text-xs text-hc-accent-strong hover:underline ${FOCUS_RING}`}
+          >
+            Manage rules on the Alerts page
+          </button>
+        </div>
+      )}
     </SettingsGroup>
   );
 }

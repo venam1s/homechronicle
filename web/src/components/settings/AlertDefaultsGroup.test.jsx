@@ -13,12 +13,12 @@ function makeSetup(alertsOverrides = {}) {
   };
 }
 
-function renderGroup(setup) {
+function renderGroup(setup, props = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <AlertDefaultsGroup setup={setup} />
+        <AlertDefaultsGroup setup={setup} {...props} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -92,5 +92,18 @@ describe('AlertDefaultsGroup', () => {
     expect(quietInput()).toHaveValue(45);
     expect(timeoutInput()).toHaveValue(7000);
     expect(screen.queryByText('Loading…')).toBeNull();
+  });
+
+  it('links to the Alerts page', async () => {
+    const onNavigate = vi.fn();
+    renderGroup(makeSetup(), { onNavigate });
+    await user.click(screen.getByRole('button', { name: 'Manage rules on the Alerts page' }));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenCalledWith('alerts');
+  });
+
+  it('shows no Alerts link without onNavigate', () => {
+    renderGroup(makeSetup());
+    expect(screen.queryByRole('button', { name: 'Manage rules on the Alerts page' })).toBeNull();
   });
 });

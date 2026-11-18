@@ -29,6 +29,12 @@ vi.mock('../../hooks/useAuth.js', () => ({
   useAuth: vi.fn(),
 }));
 
+// Auth on. Mocked so its query never resolves mid-test and re-renders the
+// group, which would replace the setters recorded in prefSetters below.
+vi.mock('../../hooks/useAuthConfig.js', () => ({
+  useAuthConfig: () => ({ authEnabled: true, isLoading: false }),
+}));
+
 // Mock usePreference so we can spy on blob setters without needing a real server.
 // The factory receives (key, defaultValue, opts) and returns [defaultValue, setter].
 // We expose the setters via a module-level registry so tests can assert on them.

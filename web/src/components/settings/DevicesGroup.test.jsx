@@ -22,21 +22,21 @@ function makeSetup(overrides = {}) {
   };
 }
 
-function tree(setup, qc) {
+function tree(setup, qc, props) {
   return (
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <DevicesGroup setup={setup} />
+        <DevicesGroup setup={setup} {...props} />
       </ToastProvider>
     </QueryClientProvider>
   );
 }
 
 // Returns the render result plus update(setup), which re-renders with new props.
-function renderGroup(setup) {
+function renderGroup(setup, props = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const utils = render(tree(setup, qc));
-  return { ...utils, update: (next) => utils.rerender(tree(next, qc)) };
+  const utils = render(tree(setup, qc, props));
+  return { ...utils, update: (next) => utils.rerender(tree(next, qc, props)) };
 }
 
 // Fake timers with user-event under Vitest: household saves debounce 300ms, so
@@ -162,5 +162,20 @@ describe('DevicesGroup: before the config loads', () => {
     expect(screen.getByRole('switch', { name: 'HomeKit auto-scan' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('switch', { name: 'Scheduled Repair' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('combobox', { name: 'Repair hour' })).toBeEnabled();
+  });
+});
+
+describe('DevicesGroup: link to Manage Accessories', () => {
+  it('links to Manage Accessories', async () => {
+    const onNavigate = vi.fn();
+    renderGroup(makeSetup(), { onNavigate });
+    await user.click(screen.getByRole('button', { name: 'Manage accessories' }));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenCalledWith('devices', { tab: 'devices' });
+  });
+
+  it('shows no link without onNavigate', () => {
+    renderGroup(makeSetup());
+    expect(screen.queryByRole('button', { name: 'Manage accessories' })).toBeNull();
   });
 });

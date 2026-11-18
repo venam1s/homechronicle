@@ -8,6 +8,9 @@ import BridgeChildrenRow from './BridgeChildrenRow.jsx';
 import { useToast } from '../Toast.jsx';
 import PairingHealthBanner from '../PairingHealthBanner.jsx';
 import RepairFlow from './RepairFlow.jsx';
+import { FOCUS_RING } from '../settings/fieldStyles.js';
+import { useCanManageHome } from '../../hooks/useCanManageHome.js';
+import { useToastPrefs } from '../../hooks/useToastPrefs.js';
 
 function RoomAutocomplete({ value, onChange, onBlur, onKeyDown, rooms, placeholder, className }) {
   const [open, setOpen] = useState(false);
@@ -59,7 +62,7 @@ function summarizeMatterError(raw) {
   return firstLine.length > 140 ? `${firstLine.slice(0, 140)}...` : firstLine;
 }
 
-export default function MyDevicesTab({ setup, canChangeSplit = false }) {
+export default function MyDevicesTab({ setup, canChangeSplit = false, onNavigate }) {
   const {
     paired,
     matterPairings,
@@ -83,6 +86,13 @@ export default function MyDevicesTab({ setup, canChangeSplit = false }) {
 
   const { addToast } = useToast();
   const queryClient = useQueryClient();
+  const canManageHome = useCanManageHome();
+  // Live toasts follow the viewer's own preference when signed in, the household
+  // setting when signed out; the watch bells below follow the same value.
+  const toastPrefs = useToastPrefs(setup);
+  const liveToastsOn = toastPrefs.liveEventToastsEnabled;
+  // The watch list is a household setting the server lets only an admin change.
+  const showWatchBells = liveToastsOn && canManageHome;
 
   const [expandedBridges, setExpandedBridges] = useState(new Set());
   const [expandedMatterEndpoints, setExpandedMatterEndpoints] = useState(new Set());
@@ -286,24 +296,36 @@ export default function MyDevicesTab({ setup, canChangeSplit = false }) {
           </div>
         )}
 
+        {/* The schedule lives in Settings › General, which only an admin may change. */}
+        {canManageHome && onNavigate && (
+          <button
+            type="button"
+            onClick={() => onNavigate('settings', { section: 'general' })}
+            className={`text-xs text-hc-accent-strong hover:underline ${FOCUS_RING}`}
+          >
+            Auto-scan and repair schedule
+          </button>
+        )}
+
         {/* Live Toasts toggle */}
         <button
           onClick={() => {
-            const next = !(retentionConfig?.liveEventToastsEnabled ?? false);
-            saveRetentionMutation.mutate({ liveEventToastsEnabled: next });
-            if (retentionConfig?.toastsEnabled !== false) {
+            const next = !liveToastsOn;
+            // The signed-out save reports its own failure with a toast and reverts.
+            toastPrefs.set('liveEventToastsEnabled', next)?.catch(() => {});
+            if (toastPrefs.toastsEnabled) {
               addToast(next ? 'Live toasts enabled' : 'Live toasts disabled', 'success');
             }
           }}
           className={clsx(
             'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',
-            retentionConfig?.liveEventToastsEnabled
+            liveToastsOn
               ? 'bg-hc-accent-soft text-hc-accent-stronger  border-hc-panel-border hover:bg-hc-accent-soft '
               : 'bg-hc-panel-soft text-hc-muted border-hc-panel-border hover:bg-hc-panel-mid',
           )}
         >
-          {retentionConfig?.liveEventToastsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
-          Live Toasts {retentionConfig?.liveEventToastsEnabled ? 'On' : 'Off'}
+          {liveToastsOn ? <Bell size={13} /> : <BellOff size={13} />}
+          Live Toasts {liveToastsOn ? 'On' : 'Off'}
         </button>
       </div>
 
@@ -417,7 +439,7 @@ export default function MyDevicesTab({ setup, canChangeSplit = false }) {
                     >
                       <Wrench size={14} />
                     </button>
-                    {retentionConfig?.liveEventToastsEnabled && (
+                    {showWatchBells && (
                       <button
                         type="button"
                         onClick={() => toggleToastAccessory(acc.id)}
@@ -606,7 +628,7 @@ export default function MyDevicesTab({ setup, canChangeSplit = false }) {
                         <span className="text-xs bg-hc-success-bg text-hc-success-text border border-hc-success-border px-2 py-0.5 rounded-full">Logging</span>
                       );
                     })()}
-                    {retentionConfig?.liveEventToastsEnabled && (
+                    {showWatchBells && (
                       <button
                         type="button"
                         onClick={() => toggleToastAccessory(nodeId)}

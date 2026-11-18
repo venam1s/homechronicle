@@ -16,8 +16,19 @@ const DEVICE_TABS = [
   { id: 'devices', label: 'Manage Accessories' },
 ];
 
-export default function DevicesPage({ onSelectAccessory }) {
-  const [activeTab, setActiveTab] = useState('browse');
+/**
+ * DevicesPage.
+ *
+ * `tab` / `onTabChange` make the active tab CONTROLLED, so a caller can
+ * deep-link into one, as Settings' "Manage accessories" link does. Rendered
+ * without them it falls back to owning the state. `onNavigate(page, options)`
+ * lets a tab link elsewhere in the app.
+ */
+export default function DevicesPage({ onSelectAccessory, onNavigate, tab: controlledTab, onTabChange }) {
+  const [ownTab, setOwnTab] = useState('browse');
+  const isControlled = controlledTab != null && typeof onTabChange === 'function';
+  const activeTab = isControlled ? controlledTab : ownTab;
+  const setActiveTab = isControlled ? onTabChange : setOwnTab;
   const setup = useSetup();
   const { user } = useAuth();
   const { authEnabled } = useAuthConfig();
@@ -63,7 +74,7 @@ export default function DevicesPage({ onSelectAccessory }) {
       {activeTab === 'devices' && (
         <Card>
           <Card.Body>
-            <MyDevicesTab setup={setup} canChangeSplit={canChangeSplit} />
+            <MyDevicesTab setup={setup} canChangeSplit={canChangeSplit} onNavigate={onNavigate} />
           </Card.Body>
         </Card>
       )}

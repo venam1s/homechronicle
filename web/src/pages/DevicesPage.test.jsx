@@ -48,3 +48,31 @@ describe('DevicesPage legend', () => {
     expect(screen.queryByRole('dialog', { name: 'Legend' })).not.toBeInTheDocument();
   });
 });
+
+describe('DevicesPage tab', () => {
+  const tabButton = (name) => screen.getByRole('button', { name });
+  const isSelected = (name) => tabButton(name).classList.contains('border-hc-accent-strong');
+
+  it('opens the tab given by the tab prop and reports changes', () => {
+    const onTabChange = vi.fn();
+    render(<DevicesPage tab="devices" onTabChange={onTabChange} />);
+    expect(isSelected('Manage Accessories')).toBe(true);
+    expect(isSelected('Browse')).toBe(false);
+    expect(screen.getByText('my devices')).toBeInTheDocument();
+
+    fireEvent.click(tabButton('Browse'));
+    expect(onTabChange).toHaveBeenCalledWith('browse');
+    // Controlled: the page shows what the caller holds until the caller changes it.
+    expect(screen.getByText('my devices')).toBeInTheDocument();
+  });
+
+  it('owns its tab when rendered without tab/onTabChange', () => {
+    render(<DevicesPage />);
+    expect(isSelected('Browse')).toBe(true);
+    expect(screen.getByText('accessory list')).toBeInTheDocument();
+
+    fireEvent.click(tabButton('Manage Accessories'));
+    expect(isSelected('Manage Accessories')).toBe(true);
+    expect(screen.getByText('my devices')).toBeInTheDocument();
+  });
+});

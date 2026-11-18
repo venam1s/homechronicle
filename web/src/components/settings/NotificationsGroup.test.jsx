@@ -4,12 +4,16 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '../Toast.jsx';
 import NotificationsGroup from './NotificationsGroup.jsx';
+import { useCanManageHome } from '../../hooks/useCanManageHome.js';
 
 vi.mock('../../lib/api.js', () => ({
   fetchJson: vi.fn().mockResolvedValue({}),
   API_BASE: '',
   withApiAuthHeaders: () => ({}),
 }));
+
+// Who may choose watched accessories; set per test (admin by default).
+vi.mock('../../hooks/useCanManageHome.js', () => ({ useCanManageHome: vi.fn(() => true) }));
 
 function makeSetup(overrides = {}) {
   return {
@@ -39,12 +43,12 @@ function makeSetup(overrides = {}) {
   };
 }
 
-function renderGroup(setup) {
+function renderGroup(setup, props = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <NotificationsGroup setup={setup} />
+        <NotificationsGroup setup={setup} {...props} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -83,6 +87,7 @@ describe('Test toast button', () => {
 describe('NotificationsGroup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useCanManageHome.mockReturnValue(true);
   });
 
   it('dims the four dependent rows when Toast notifications is off', () => {
@@ -115,7 +120,8 @@ describe('NotificationsGroup', () => {
   });
 
   it('warns to pick accessories when live event toasts are on and none are watched', () => {
-    const warning = 'Select accessories to watch on the Manage Accessories tab.';
+    // Without onNavigate there is nothing to link to: the admin hint is plain text.
+    const warning = 'Select accessories to watch in Manage Accessories.';
     const { unmount } = renderGroup(makeSetup({
       retentionConfig: { ...makeSetup().retentionConfig, liveEventToastsEnabled: true, toastAccessories: [] },
     }));
@@ -126,6 +132,29 @@ describe('NotificationsGroup', () => {
       retentionConfig: { ...makeSetup().retentionConfig, liveEventToastsEnabled: true, toastAccessories: ['acc-1'] },
     }));
     expect(screen.queryByText(warning)).toBeNull();
+  });
+
+  const liveOnNoneWatched = () => makeSetup({
+    retentionConfig: { ...makeSetup().retentionConfig, liveEventToastsEnabled: true, toastAccessories: [] },
+  });
+
+  it('admin: the watch-list hint is a link to Manage Accessories', async () => {
+    useCanManageHome.mockReturnValue(true);
+    const onNavigate = vi.fn();
+    renderGroup(liveOnNoneWatched(), { onNavigate });
+    await userEvent.click(screen.getByRole('button', { name: 'Select accessories to watch in Manage Accessories' }));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenCalledWith('devices', { tab: 'devices' });
+    expect(screen.queryByText('An admin chooses which accessories are watched.')).toBeNull();
+  });
+
+  it('member: the watch-list hint is plain text naming an admin', () => {
+    useCanManageHome.mockReturnValue(false);
+    const onNavigate = vi.fn();
+    renderGroup(liveOnNoneWatched(), { onNavigate });
+    expect(screen.getByText('An admin chooses which accessories are watched.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Select accessories to watch in Manage Accessories' })).toBeNull();
+    expect(screen.queryByText(/Select accessories to watch/)).toBeNull();
   });
 
   it('shows no value and disables every control until the household config loads', () => {

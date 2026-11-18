@@ -2,10 +2,11 @@ import { Bell } from 'lucide-react';
 import SettingsGroup from './SettingsGroup.jsx';
 import SettingsRow from './SettingsRow.jsx';
 import Toggle from './Toggle.jsx';
-import { SELECT_CLASS } from './fieldStyles.js';
+import { FOCUS_RING, SELECT_CLASS } from './fieldStyles.js';
 import { useToast } from '../Toast.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToastPrefs } from '../../hooks/useToastPrefs.js';
+import { useCanManageHome } from '../../hooks/useCanManageHome.js';
 
 const POSITION_OPTIONS = [
   { value: 'bottom-right', label: 'Bottom Right' },
@@ -46,10 +47,30 @@ function PrefSelect({ ariaLabel, value, options, loaded, disabled, onChange }) {
   );
 }
 
-// onNavigate is accepted now and used once the watched-accessories link lands.
+// Where to choose watched accessories. Only an admin (or the sole operator)
+// may choose them; given onNavigate, the hint links to Manage Accessories.
+function WatchListHint({ canManageHome, onNavigate }) {
+  if (!canManageHome) {
+    return <p className="text-xs text-hc-warning-text">An admin chooses which accessories are watched.</p>;
+  }
+  if (!onNavigate) {
+    return <p className="text-xs text-hc-warning-text">Select accessories to watch in Manage Accessories.</p>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onNavigate('devices', { tab: 'devices' })}
+      className={`text-xs text-hc-accent-strong hover:underline ${FOCUS_RING}`}
+    >
+      Select accessories to watch in Manage Accessories
+    </button>
+  );
+}
+
 export default function NotificationsGroup({ setup, onNavigate }) {
   const { retentionConfig } = setup;
   const { user } = useAuth();
+  const canManageHome = useCanManageHome();
   const { addToast, configure: configureToasts } = useToast();
   const prefs = useToastPrefs(setup);
 
@@ -102,9 +123,7 @@ export default function NotificationsGroup({ setup, onNavigate }) {
         )}
       >
         {liveOn && !(retentionConfig?.toastAccessories?.length > 0) && (
-          <p className="text-xs text-hc-warning-text">
-            Select accessories to watch on the Manage Accessories tab.
-          </p>
+          <WatchListHint canManageHome={canManageHome} onNavigate={onNavigate} />
         )}
       </SettingsRow>
       <SettingsRow
