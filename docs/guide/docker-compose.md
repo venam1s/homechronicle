@@ -117,7 +117,7 @@ cd web && npm test
 
 The published images support both `linux/amd64` and `linux/arm64`. Docker pulls the correct variant automatically for your host architecture — no extra configuration needed.
 
-Images are built with Docker Buildx by GitLab CI on every release tag and pushed to Docker Hub as `havuq/homechronicle-listener` and `havuq/homechronicle-web` (plus `havuq/homechronicle-standalone` for stable releases). Image tags drop the leading `v` of the release tag:
+Images are built with Docker Buildx by GitHub Actions on every release tag and pushed to Docker Hub as `havuq/homechronicle-listener` and `havuq/homechronicle-web` (plus `havuq/homechronicle-standalone` for stable releases). Image tags drop the leading `v` of the release tag:
 
 | Release | Image tags |
 |---------|------------|

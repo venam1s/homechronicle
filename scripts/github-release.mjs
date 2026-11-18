@@ -1,12 +1,10 @@
 #!/usr/bin/env node
-// Creates the GitHub release for a version tag that GitLab CI has just released.
+// Creates the GitHub release for a version tag from a release-notes file.
 //
-// Releases are cut by GitLab CI on the homelab runner (no GitHub Actions — they
-// stay disabled on the GitHub repo), so this is how a release reaches GitHub,
-// where the in-app update check (listener/src/updates-router.js) also looks.
-//
-// Runs as the `github-release` job in .gitlab-ci.yml. Inputs (env):
-//   GITHUB_RELEASE_TOKEN  fine-grained PAT, venam1s/homechronicle, Contents: read & write
+// Runs as the `release` job of .github/workflows/release.yml (it was written for
+// the GitLab CI mirror job and kept its env interface). The in-app update check
+// (listener/src/updates-router.js) reads these releases. Inputs (env):
+//   GITHUB_RELEASE_TOKEN  a token with Contents: read & write — in Actions, GITHUB_TOKEN
 //   CI_COMMIT_TAG         the tag being released, e.g. v0.6.0 or v0.6.0-beta.2
 //   IS_PRERELEASE         "true" for betas (from the validate-release job)
 //   NOTES_FILE            release notes; default release-notes.md (create-release artifact)
@@ -32,7 +30,7 @@ const headers = {
   ...(token ? { authorization: `Bearer ${token}` } : {}),
   accept: 'application/vnd.github+json',
   'x-github-api-version': '2022-11-28',
-  'user-agent': 'homechronicle-gitlab-ci',
+  'user-agent': 'homechronicle-release-ci',
 };
 
 function fail(message) {

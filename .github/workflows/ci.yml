@@ -150,15 +150,46 @@ jobs:
         if: always()
         run: kill "$(cat /tmp/boot.pid)" 2>/dev/null || true
 
+  docs:
+    name: Publish docs site
+    # homechronicle.net is a Cloudflare Pages project (direct upload) fed from
+    # docs/ on main. Independent of the test jobs on purpose: a docs fix
+    # publishes even while a test is red, as it did when the site was built
+    # from the GitLab mirror. A manual run on main republishes too.
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, nuc]
+    timeout-minutes: 15
+    container:
+      image: node:20-alpine
+      options: --cpus 1 --memory 1g
+    steps:
+      - name: Install git
+        run: apk add --no-cache git
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Upload docs/ to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo 'CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets are not set'; exit 1; }
+          npx --yes wrangler@4 pages deploy docs \
+            --project-name homechronicle-docs \
+            --branch main \
+            --commit-hash "$GITHUB_SHA" \
+            --commit-dirty=false
+
   deploy-beta:
     name: Deploy beta
     needs: [test, boot-smoke]
-    # Gated on the repository variable BETA_DEPLOY_FROM_GITHUB=true so that, while
-    # GitLab CI still owns the beta deploy, a push to main does not trigger two
-    # Dockhand builds (the second has been seen to no-op, 2026-11-14). Flip the
-    # variable when GitHub becomes the CI of record and remove deploy-beta from
-    # .gitlab-ci.yml in the same change.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.BETA_DEPLOY_FROM_GITHUB == 'true'
+    # The repository variable BETA_DEPLOY_FROM_GITHUB=true is the kill switch
+    # (it was the gate while GitLab CI still owned the beta deploy, until
+    # 2026-11-18). Only one CI may trigger Dockhand per push: two builds a few
+    # minutes apart have been seen to no-op the second (2026-11-14). A manual
+    # run on main redeploys beta too.
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && vars.BETA_DEPLOY_FROM_GITHUB == 'true'
     runs-on: [self-hosted, nuc]
     timeout-minutes: 5
     # Best-effort async trigger: the build runs inside Dockhand afterwards, so a

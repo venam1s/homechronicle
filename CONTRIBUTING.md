@@ -3,7 +3,7 @@
 
 HomeChronicle is an AGPL-3.0 project. Contributions are welcome — bug reports, feature requests, documentation fixes, and code changes alike.
 
-The repository is at [github.com/venam1s/homechronicle](https://github.com/venam1s/homechronicle), with issues and pull requests there. It is mirrored to [gitlab.com/havuq/homechronicle](https://gitlab.com/havuq/homechronicle), where CI runs.
+The repository is at [github.com/venam1s/homechronicle](https://github.com/venam1s/homechronicle), with issues, pull requests and CI (GitHub Actions on the maintainer's self-hosted runner) there. [gitlab.com/havuq/homechronicle](https://gitlab.com/havuq/homechronicle) is a read-only mirror that still receives releases for older installs.
 
 ## Reporting Bugs
 
@@ -107,7 +107,7 @@ Do not add `Co-Authored-By` trailers to commits.
 3. Make your changes with appropriately scoped commits.
 4. Ensure both test suites pass locally (`cd listener && npm test`, `cd web && npm test`).
 5. Open a pull request against `main`. The description should explain the motivation and link any related issue.
-6. CI does not run on GitHub pull requests (it runs on the maintainer's GitLab pipeline), so step 4 is the check — say in the description that both suites pass.
+6. CI runs on pull requests, but on a self-hosted runner, so a first pull request from outside the project waits for a maintainer to approve the run. Step 4 is still the quickest check — say in the description that both suites pass.
 
 ## License
 

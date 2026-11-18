@@ -32,36 +32,47 @@ The GitLab pipeline is unchanged and remains the CI of record. The GitHub
 workflows cannot deploy or publish anything until the two variables are set, so
 enabling Actions only adds a second, parallel test run on the same host.
 
-## Cutover steps
+## Cutover (done 2026-11-18, except the secrets)
 
-1. **Enable Actions** on the repo with fork-PR approval required for all
-   outside collaborators (done 2026-11-18):
-   ```
-   gh api -X PUT repos/venam1s/homechronicle/actions/permissions -F enabled=true -f allowed_actions=all
-   gh api -X PUT repos/venam1s/homechronicle/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors
-   ```
-   The runner shows **Idle** in Settings › Actions › Runners once it can take
-   jobs. Run `gh workflow run ci.yml` and compare with the GitLab run.
-2. **Soak** for a release cycle: every push to `main` runs tests on both CIs.
-   Fix any divergence in the GitHub port before going further.
-3. **Secrets**: `gh secret set DOCKER_HUB_USER`, `DOCKER_HUB_TOKEN`,
-   `DOCKHAND_TOKEN` (paste from the clipboard: `pbpaste | gh secret set NAME`;
-   never type a token on the command line).
-4. **Beta deploy**: set `gh variable set BETA_DEPLOY_FROM_GITHUB --body true`
-   and, in the same change, delete `deploy-beta` from `.gitlab-ci.yml` so a push
-   does not trigger two Dockhand builds (the second has no-op'd before). Repoint
-   Dockhand git stack 10 at the GitHub repo URL.
-5. **Releases**: set `gh variable set RELEASES_FROM_GITHUB --body true`, delete
-   `validate-release`, `build-*`, `create-release` and `github-release` from
-   `.gitlab-ci.yml`, and test with the next beta tag before a GA. Update the
-   `release`, `beta-release` and `beta-release-git` skills and `CONTRIBUTING.md`
-   (which says GitHub PRs get no CI run).
-6. **Docs site**: relink the Cloudflare Pages project `homechronicle` to the
-   GitHub repo, branch `main`.
-7. **Retire GitLab CI**: remove `.gitlab-ci.yml`, drop GitLab from `origin`'s
-   push URLs, keep the GitLab project as a read-only mirror (installs up to
-   v0.5.0 only check GitLab for updates; the listener's update check already
-   asks GitHub first). Remove the `hc-git-runner` stack from the NUC last.
+GitHub Actions is the CI of record. `.gitlab-ci.yml` is deleted and the GitLab
+runner stack on the NUC is stopped. What changed, in order:
+
+1. **Actions enabled** with `allowed_actions=all` and fork-PR approval
+   `all_external_contributors`. Two `ci.yml` runs passed on the `nuc` runner
+   (the first attempt failed until the runner's `externals/` were on the host).
+2. **Variables** `BETA_DEPLOY_FROM_GITHUB=true` and `RELEASES_FROM_GITHUB=true`
+   set; they remain as kill switches.
+3. **Secrets** the workflows need, set with `pbpaste | gh secret set NAME -R venam1s/homechronicle`
+   or from `~/.config/homelab/tokens.env` in the user's own shell (Claude's
+   session is not allowed to copy secrets between stores):
+   `DOCKER_HUB_USER`, `DOCKER_HUB_TOKEN` (values in the GitLab CI variables of
+   the same name), `DOCKHAND_TOKEN` (= `DOCKHAND_API_TOKEN`),
+   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and optionally
+   `GITLAB_RELEASE_TOKEN` (a GitLab project access token, scope `api`, for the
+   release mirror step).
+4. **Beta deploy** moved to `ci.yml` (`deploy-beta`). Dockhand repository 4,
+   which git stack 10 builds from, now points at
+   `https://github.com/venam1s/homechronicle.git` with no credential (public
+   repo); a sync confirmed it pulls `main`.
+5. **Releases** moved to `release.yml`. The `release` job also mirrors each
+   release to GitLab via `scripts/gitlab-release.mjs`, so installs up to
+   v0.5.0 (which only check GitLab) keep seeing updates. The first real test is
+   the next `vX.Y.Z-beta.N` tag; rebuild a tag by hand with
+   `gh workflow run release.yml -f tag=...`.
+6. **Docs site**: a direct-upload Cloudflare Pages project `homechronicle-docs`
+   receives `docs/` from the `docs` job of `ci.yml` on every push to main
+   (wrangler). The custom domain `homechronicle.net` moves from the old
+   GitLab-sourced project `homechronicle` to it once the first upload has been
+   checked at `homechronicle-docs.pages.dev` (domain and DNS CNAME change). Until
+   then the old project still publishes from the GitLab mirror, which the dual
+   push keeps current.
+7. **Skills and docs** rewritten: `release`, `beta-release`, `beta-release-git`
+   skills, `CONTRIBUTING.md`, `docs/guide/testing.md` (CI section),
+   `docs/guide/docker-compose.md`.
+
+Still GitLab-dependent on purpose: the mirror receives `main`, tags and
+releases; issue images copied from GitLab issues live on GitLab uploads. The
+GitLab project stays public and read-only.
 
 ## Runner operations
 

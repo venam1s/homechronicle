@@ -378,19 +378,27 @@ This produces screenshots named `test-results/theme-audit/dark-dashboard.png`, `
 
 ## CI integration
 
-CI runs on GitLab and is defined in `.gitlab-ci.yml`, on a self-hosted runner. The repository's home is GitHub, where Actions are disabled; the files under `.github/workflows/` are kept but not used. GitHub pull requests therefore get no CI run — run both suites locally.
+CI is GitHub Actions, defined in `.github/workflows/`, and every job runs on the maintainer's self-hosted runner (label `nuc`) rather than on GitHub-hosted runners. Jobs run inside the images named in the workflow (`node:20-alpine`, `docker:27`) with a 2 CPU / 2 GB cap each. A pull request from outside the project waits for a maintainer to approve the run before it starts.
 
-**Runs on:** merge requests, every push to `main`, and version tags (`v*`). Node.js 20 (`node:20-alpine`).
+**`ci.yml`** runs on pull requests, every push to `main`, by hand (`workflow_dispatch`) and as the test gate of the release workflow.
 
-| Job | Stage | What it does |
-|-----|-------|--------------|
-| `test` | test | `npm ci` + `npm test` in `listener/`, then `npm ci` + `npm test -- --maxWorkers=2` in `web/`. The worker cap keeps vitest from oversubscribing the CPU-limited runner. |
-| `boot-smoke` | test | Starts a PostgreSQL 16 service, runs `node src/index.js` in production mode, and waits up to 60 s for `GET /api/health` to answer. Fails if the listener exits, logs a fatal error, or the Matter controller does not start. |
-| `sast` | test | GitLab's SAST template. |
-| `validate-release` | prepare | Tags only. Checks the tag is `vX.Y.Z` or `vX.Y.Z-beta.N`. |
-| `build-listener`, `build-web`, `build-standalone` | build | Tags only, and only after `test` passes. Multi-arch (`linux/amd64`, `linux/arm64`) builds pushed to Docker Hub, with a Trivy scan. The standalone image is built for stable tags only. |
-| `create-release` | release | Tags only. Creates the GitLab release from the matching `CHANGELOG.md` section. |
-| `github-release` | release | Tags only, when the `GITHUB_RELEASE_TOKEN` variable is set. Publishes the same notes as a release on GitHub via `scripts/github-release.mjs`; betas become prereleases. Allowed to fail. |
+| Job | What it does |
+|-----|--------------|
+| `test` | `npm ci` + `npm test` in `listener/`, then `npm ci` + `npm test -- --maxWorkers=2` in `web/`. The worker cap keeps vitest from oversubscribing the CPU-limited job container. |
+| `boot-smoke` | Starts a PostgreSQL 16 service container, runs `node src/index.js` in production mode, and waits up to 60 s for `GET /api/health` to answer. Fails if the listener exits, logs a fatal error, or the Matter controller does not start. |
+| `docs` | Pushes to `main` only. Uploads `docs/` to the Cloudflare Pages project behind homechronicle.net. Independent of the test jobs, so a docs fix publishes even while a test is red. |
+| `deploy-beta` | Pushes to `main` only, after `test` and `boot-smoke`. Asks Dockhand to rebuild the beta stack from source. Allowed to fail; the real build runs inside Dockhand afterwards. |
+
+**`release.yml`** runs on version tags (`v*`) and by hand for an existing tag.
+
+| Job | What it does |
+|-----|--------------|
+| `validate` | Checks the tag is `vX.Y.Z` or `vX.Y.Z-beta.N` and decides which images to build. |
+| `test` | Runs `ci.yml` as a reusable workflow: a tag that fails tests or the boot smoke builds nothing. |
+| `build` | One job per image (`listener`, `web`, and `standalone` for stable tags only). Multi-arch (`linux/amd64`, `linux/arm64`) builds pushed to Docker Hub, with a Trivy scan. Stable tags get `X.Y.Z`, `X.Y`, `X` and `latest`; betas get `X.Y.Z-beta.N` and `beta`. |
+| `release` | Creates the GitHub release from the matching `## [X.Y.Z]` section of `CHANGELOG.md` (`scripts/github-release.mjs`; betas become prereleases), then mirrors it to GitLab (`scripts/gitlab-release.mjs`) so installs that still check GitLab for updates see it. |
+
+`codeql.yml` runs CodeQL weekly on a GitHub-hosted runner; it is the only hosted job.
 
 E2E tests and the [HomeKit address check](#homekit-address-check-real-accessory) are **not** included in CI. They need a live application or a real network stack and are run manually.
 
