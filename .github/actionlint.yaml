@@ -1,0 +1,6 @@
+# actionlint config: custom labels of the homelab self-hosted runner
+# (hc-github-runner stack on the NUC) so `runs-on: [self-hosted, nuc]` lints clean.
+self-hosted-runner:
+  labels:
+    - nuc
+    - homelab

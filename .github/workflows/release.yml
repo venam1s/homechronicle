@@ -1,0 +1,230 @@
+name: Release
+
+# Port of the `validate-release`, `build-*` and `create-release` jobs in
+# .gitlab-ci.yml. A pushed `vX.Y.Z` or `vX.Y.Z-beta.N` tag is the whole release:
+# validate the tag, run the test gate, build and push the multi-arch images to
+# Docker Hub, then create the GitHub release from the matching CHANGELOG.md
+# section (CHANGELOG.md IS the release notes).
+#
+# GATE: nothing here runs unless the repository variable RELEASES_FROM_GITHUB is
+# "true". Until then GitLab CI builds and publishes every release (and mirrors it
+# to GitHub); running both would push the same image tags twice. Flip the variable
+# when GitHub becomes the CI of record, and retire the GitLab jobs in the same
+# change. Secrets needed by then: DOCKER_HUB_USER, DOCKER_HUB_TOKEN.
+#
+# Every job runs on the homelab runner (label `nuc`), inside the same images the
+# GitLab jobs use, with the same 2 CPU / 2 GB caps.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to (re)build, e.g. v0.6.1 or v0.6.1-beta.1
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  DOCKER_HUB_NAMESPACE: havuq
+
+jobs:
+  validate:
+    name: Validate tag
+    if: vars.RELEASES_FROM_GITHUB == 'true'
+    runs-on: [self-hosted, nuc]
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+      version: ${{ steps.check.outputs.version }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
+      services: ${{ steps.check.outputs.services }}
+    steps:
+      - name: Check the tag against vX.Y.Z or vX.Y.Z-beta.N
+        id: check
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          BETA_RE='^v([0-9]+)\.([0-9]+)\.([0-9]+)-beta\.([0-9]+)$'
+          STABLE_RE='^v([0-9]+)\.([0-9]+)\.([0-9]+)$'
+          if echo "$TAG" | grep -qE "$BETA_RE"; then
+            kind=beta; prerelease=true
+            # The standalone image is built for stable releases only.
+            services='["listener","web"]'
+          elif echo "$TAG" | grep -qE "$STABLE_RE"; then
+            kind=stable; prerelease=false
+            services='["listener","web","standalone"]'
+          else
+            echo "ERROR: Tag '$TAG' does not match vX.Y.Z or vX.Y.Z-beta.N"; exit 1
+          fi
+          {
+            echo "tag=$TAG"
+            echo "version=${TAG#v}"
+            echo "prerelease=$prerelease"
+            echo "services=$services"
+          } >> "$GITHUB_OUTPUT"
+          echo "Release tag $TAG validated ($kind)"
+
+  # The test gate. Non-optional on purpose (M-11): a tag that fails tests or the
+  # boot smoke must not reach a build job.
+  test:
+    name: Test gate
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  build:
+    name: Build ${{ matrix.service }}
+    needs: [validate, test]
+    runs-on: [self-hosted, nuc]
+    # The standalone image (PostgreSQL + listener + nginx, arm64 under QEMU) is
+    # the slow one; GitLab gives it 3 hours.
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.validate.outputs.services) }}
+    container:
+      image: docker:27
+      options: --cpus 2 --memory 2g
+    env:
+      # The runner mounts the host Docker socket into the job container; no DinD.
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKER_TLS_CERTDIR: ''
+      BUILD_PLATFORMS: linux/amd64,linux/arm64
+      TAG: ${{ needs.validate.outputs.tag }}
+      VERSION: ${{ needs.validate.outputs.version }}
+      IS_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+      SERVICE: ${{ matrix.service }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache curl git bash
+
+      - name: Checkout the tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Log in to Docker Hub
+        env:
+          DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+        run: |
+          [ -n "$DOCKER_HUB_USER" ] && [ -n "$DOCKER_HUB_TOKEN" ] || { echo 'DOCKER_HUB_USER / DOCKER_HUB_TOKEN secrets are not set'; exit 1; }
+          echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USER" --password-stdin
+
+      - name: Set up QEMU and a buildx builder
+        run: |
+          # Register emulators for the cross-platform build (arm64 on the amd64 NUC).
+          docker run --rm --privileged tonistiigi/binfmt --install all
+          # Named apart from the GitLab runner's `multiarch` builder: both CIs
+          # share the NUC's Docker daemon, and a docker-container builder is a
+          # container on the host. The buildkit container persists between jobs
+          # (layer cache); `create` reuses it when it already exists.
+          docker buildx create --name gh-multiarch --driver docker-container --use
+          docker buildx inspect --bootstrap
+
+      - name: Install Trivy
+        run: |
+          TRIVY_VERSION="0.69.3"
+          curl -sSfL -o /tmp/trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy
+
+      - name: Build, scan and push
+        run: |
+          case "$SERVICE" in
+            listener)   CONTEXT=./listener; DOCKERFILE=./listener/Dockerfile ;;
+            web)        CONTEXT=./web;      DOCKERFILE=./web/Dockerfile ;;
+            standalone) CONTEXT=.;          DOCKERFILE=./Dockerfile.standalone ;;
+            *) echo "unknown service $SERVICE"; exit 1 ;;
+          esac
+          IMAGE="${DOCKER_HUB_NAMESPACE}/homechronicle-${SERVICE}"
+
+          # Single-platform image for Trivy, built with buildx so the layer cache
+          # is shared with the multi-platform build that follows.
+          echo "Building ${IMAGE}:${VERSION} (native arch) for scanning..."
+          docker buildx build \
+            --load \
+            --build-arg VITE_BUILD_VERSION="${TAG}" \
+            -f "${DOCKERFILE}" \
+            -t "${IMAGE}:scan" \
+            "${CONTEXT}"
+
+          echo "Running Trivy vulnerability scan..."
+          trivy image --format table --severity CRITICAL,HIGH --ignore-unfixed "${IMAGE}:scan" || true
+
+          # Image tags: stable -> version, major.minor, major, latest; beta -> version, beta.
+          TAGS="-t ${IMAGE}:${VERSION}"
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            TAGS="${TAGS} -t ${IMAGE}:beta"
+          else
+            MAJOR_MINOR=$(echo "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+)\..*/\1/')
+            MAJOR=$(echo "$VERSION" | sed -E 's/^([0-9]+)\..*/\1/')
+            TAGS="${TAGS} -t ${IMAGE}:${MAJOR_MINOR} -t ${IMAGE}:${MAJOR} -t ${IMAGE}:latest"
+          fi
+
+          echo "Building and pushing ${IMAGE}:${VERSION} (${BUILD_PLATFORMS})..."
+          # shellcheck disable=SC2086  # TAGS is a list of -t flags; splitting is intended
+          docker buildx build \
+            --platform "${BUILD_PLATFORMS}" \
+            --build-arg VITE_BUILD_VERSION="${TAG}" \
+            -f "${DOCKERFILE}" \
+            ${TAGS} \
+            --push \
+            "${CONTEXT}"
+          echo "Pushed ${IMAGE}:${VERSION} (${BUILD_PLATFORMS})"
+
+  release:
+    name: GitHub release
+    needs: [validate, test, build]
+    runs-on: [self-hosted, nuc]
+    timeout-minutes: 10
+    container:
+      image: node:20-alpine
+      options: --cpus 1 --memory 1g
+    steps:
+      - name: Install git
+        run: apk add --no-cache git
+
+      - name: Checkout the tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+
+      - name: Extract this version's CHANGELOG section
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          TAG: ${{ needs.validate.outputs.tag }}
+        run: |
+          # Everything between `## [VERSION]` and the next `## [` heading. The
+          # heading must match the tag minus its leading v, or the release falls
+          # back to a bare title.
+          NOTES=$(sed -n "/^## \\[${VERSION}\\]/,/^## \\[/{ /^## \\[${VERSION}\\]/d; /^## \\[/d; p; }" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            echo "WARNING: no '## [${VERSION}]' section in CHANGELOG.md; using a bare title"
+            NOTES="Release ${TAG}"
+          fi
+          printf '%s\n' "$NOTES" > release-notes.md
+          echo "──────── release notes ────────"; cat release-notes.md
+
+      - name: Create the GitHub release
+        # scripts/github-release.mjs was written for the GitLab mirror job and is
+        # reused as is: it creates the release for CI_COMMIT_TAG from NOTES_FILE,
+        # marks betas prerelease (and keeps them off Latest), and leaves an
+        # existing release alone, so re-running is safe.
+        env:
+          GITHUB_RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_COMMIT_TAG: ${{ needs.validate.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+          NOTES_FILE: release-notes.md
+          GITHUB_REPO: ${{ github.repository }}
+        run: node scripts/github-release.mjs

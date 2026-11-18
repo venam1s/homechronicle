@@ -1,5 +1,8 @@
-# GitLab CI — mirrors the GitHub Actions workflows in .github/workflows/
-# Keep both configs in the repo so switching back to GitHub is a one-line remote change.
+# GitLab CI — the CI of record while the move to GitHub Actions is in progress.
+# .github/workflows/ci.yml and release.yml are ports of these jobs that run on
+# the same homelab host (self-hosted runner `nuc`). Their deploy and release
+# jobs stay gated behind repository variables until GitHub takes over; see
+# docs/project/ci-move-to-github.md for the cutover steps.
 
 stages:
   - test
@@ -346,8 +349,9 @@ create-release:
 # The tag must already be on GitHub; the dual push (`git push origin <tag>`) puts it
 # there. Re-running is safe: an existing GitHub release is left alone.
 #
-# If GitHub Actions are ever re-enabled, .github/workflows/docker.yml fires on
-# GitHub release events and would build/push the images a second time.
+# .github/workflows/release.yml can take this over: it is gated behind the
+# RELEASES_FROM_GITHUB repository variable so the two never publish the same
+# tag twice. When it is enabled, remove this job and the build jobs above.
 github-release:
   stage: release
   image: node:${NODE_VERSION}-alpine

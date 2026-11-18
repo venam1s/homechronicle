@@ -1,51 +1,81 @@
 name: CI
 
+# Port of the `test`, `boot-smoke` and `deploy-beta` jobs in .gitlab-ci.yml.
+#
+# Every job runs on the homelab runner (label `nuc`, the hc-github-runner stack
+# on the NUC) — never on GitHub-hosted runners. Jobs that need a toolchain run
+# inside the same images GitLab uses (node:20-alpine), with the same 2 CPU / 2 GB
+# caps the GitLab runner applies, so the two CIs stay comparable while both run.
+#
+# Fork pull requests: a self-hosted runner executes whatever a PR contains, so
+# the repository's Actions settings must keep "Require approval for all outside
+# collaborators" on. First-party pushes and PRs run unprompted.
+#
+# `workflow_call` lets release.yml reuse the test jobs as its gate (M-11: a tag
+# that fails tests must not build).
+
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  tests:
+  test:
     name: Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, nuc]
+    timeout-minutes: 45
+    container:
+      image: node:20-alpine
+      # Same caps as the GitLab runner's [runners.docker] section. vitest's
+      # worker count below assumes them (os.availableParallelism() is not
+      # cgroup-aware and would otherwise spawn 7 jsdom workers onto 2 cores).
+      options: --cpus 2 --memory 2g
     steps:
+      - name: Install build tools
+        # Native addons (hap-controller's dns-sd, argon2) compile from source on
+        # Alpine. git lets actions/checkout clone instead of downloading a tarball.
+        run: apk add --no-cache python3 make g++ linux-headers git
+
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - name: Cache npm downloads
+        uses: actions/cache@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: |
-            listener/package-lock.json
-            web/package-lock.json
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('listener/package-lock.json', 'web/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
 
-      - name: Install listener dependencies
-        run: npm ci --prefix listener
+      # Subshells keep each line self-contained: a failure inside listener/
+      # leaves the cwd where it was, so the web line still reports its own result.
+      - name: Listener tests
+        run: (cd listener && npm ci && npm test)
 
-      - name: Run listener tests
-        run: npm test --prefix listener
-
-      - name: Install web dependencies
-        run: npm ci --prefix web
-
-      - name: Run web tests
-        run: npm test --prefix web
+      - name: Web tests
+        run: (cd web && npm ci && npm test -- --maxWorkers=2)
 
   boot-smoke:
     name: Boot smoke
-    runs-on: ubuntu-latest
-    # Mirrors the boot-smoke job in .gitlab-ci.yml — see the rationale there.
-    # In short: on 2026-08-31 a matter.js bump crash-looped the listener while
-    # every unit test stayed green, because nothing ever ran the boot path.
+    runs-on: [self-hosted, nuc]
+    timeout-minutes: 30
+    # Starts the listener for real and waits for /api/health. Exists because on
+    # 2026-08-31 a matter.js bump crash-looped beta while all unit tests stayed
+    # green: a unit suite proves the parts work; only starting the process
+    # proves it starts. deploy-beta needs this job, so a commit that cannot
+    # boot cannot deploy.
+    container:
+      image: node:20-alpine
+      options: --cpus 2 --memory 2g
     services:
       postgres:
         image: postgres:16-alpine
@@ -53,42 +83,52 @@ jobs:
           POSTGRES_USER: homekit
           POSTGRES_PASSWORD: bootsmoke
           POSTGRES_DB: homekit_events
-        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U homekit"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: postgres://homekit:bootsmoke@127.0.0.1:5432/homekit_events
+      # The job runs in a container on the same Docker network as the service,
+      # so the service id is its hostname.
+      DATABASE_URL: postgres://homekit:bootsmoke@postgres:5432/homekit_events
+      # AUTH_ENABLED=false keeps this a boot check, not an auth fixture. API_TOKEN
+      # is still required in production mode, so it is set to a throwaway value.
       AUTH_ENABLED: 'false'
       API_TOKEN: ci-boot-smoke-not-a-real-token
       NODE_ENV: production
       PORT: '3001'
       MATTER_STORAGE_PATH: /tmp/matter-storage
     steps:
+      - name: Install build tools
+        run: apk add --no-cache python3 make g++ linux-headers git curl
+
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - name: Cache npm downloads
+        uses: actions/cache@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: listener/package-lock.json
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('listener/package-lock.json', 'web/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
 
       - name: Install listener dependencies
-        run: npm ci --prefix listener
+        run: cd listener && npm ci
 
       - name: Boot the listener and wait for /api/health
         working-directory: listener
         run: |
-          # NODE_ENV=production points every JsonObjectStore at /app/data.
-          sudo mkdir -p /app/data && sudo chmod 777 /app/data
-          mkdir -p /tmp/matter-storage
+          # NODE_ENV=production points every JsonObjectStore at /app/data, which
+          # does not exist in a CI container. Production mode is kept because it
+          # is how the service actually runs; the directory is just created.
+          mkdir -p /app/data /tmp/matter-storage
+          # Run the entry point directly: `npm start` passes --env-file=../.env,
+          # which does not exist in CI.
           node src/index.js > /tmp/boot.log 2>&1 &
           echo $! > /tmp/boot.pid
           ok=0
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             if curl -fsS --max-time 3 http://127.0.0.1:3001/api/health >/dev/null 2>&1; then ok=1; break; fi
+            # A process that has already exited will never become healthy.
             if ! kill -0 "$(cat /tmp/boot.pid)" 2>/dev/null; then echo "LISTENER EXITED DURING BOOT"; break; fi
             sleep 1
           done
@@ -96,12 +136,49 @@ jobs:
           cat /tmp/boot.log
           echo '─────────────────────────────────'
           [ "$ok" = "1" ] || { echo 'FAIL: /api/health never answered'; exit 1; }
+          # Still running a moment later: catches a process that answers once and
+          # then dies, which is what a crash loop looks like from outside.
           sleep 5
           kill -0 "$(cat /tmp/boot.pid)" 2>/dev/null || { echo 'FAIL: listener exited after becoming healthy'; exit 1; }
           if grep -qiE 'FATAL|Uncaught exception' /tmp/boot.log; then echo 'FAIL: fatal error during boot'; exit 1; fi
+          # The Matter controller is what broke in 2026-08, and it initialises
+          # unconditionally — its start line is the evidence that class is covered.
           grep -q 'Controller started' /tmp/boot.log || { echo 'FAIL: Matter controller did not start'; exit 1; }
           echo 'boot smoke passed'
 
       - name: Stop the listener
         if: always()
         run: kill "$(cat /tmp/boot.pid)" 2>/dev/null || true
+
+  deploy-beta:
+    name: Deploy beta
+    needs: [test, boot-smoke]
+    # Gated on the repository variable BETA_DEPLOY_FROM_GITHUB=true so that, while
+    # GitLab CI still owns the beta deploy, a push to main does not trigger two
+    # Dockhand builds (the second has been seen to no-op, 2026-11-14). Flip the
+    # variable when GitHub becomes the CI of record and remove deploy-beta from
+    # .gitlab-ci.yml in the same change.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.BETA_DEPLOY_FROM_GITHUB == 'true'
+    runs-on: [self-hosted, nuc]
+    timeout-minutes: 5
+    # Best-effort async trigger: the build runs inside Dockhand afterwards, so a
+    # green job only means Dockhand accepted the request. Verify by fetching the
+    # served bundle (docs/guide/development.md).
+    continue-on-error: true
+    steps:
+      - name: Trigger Dockhand git-stack deploy for beta stack 10
+        env:
+          DOCKHAND_TOKEN: ${{ secrets.DOCKHAND_TOKEN }}
+        run: |
+          [ -n "$DOCKHAND_TOKEN" ] || { echo 'DOCKHAND_TOKEN secret is not set'; exit 1; }
+          # /deploy (not /sync): /sync only refreshes Dockhand's copy of the repo
+          # and never builds or recreates anything. /deploy pulls, builds from
+          # source and recreates, returning a jobId immediately. The runner is on
+          # the LAN, so Dockhand is reached by its LAN address.
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $DOCKHAND_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{}' \
+            http://10.0.0.50:30328/api/git/stacks/10/deploy
+          echo
+          echo 'Triggered Dockhand git-stack deploy (build + recreate) for beta stack 10'
