@@ -22,7 +22,7 @@ the runner is never given a `pull_request_target` workflow.
 
 | Piece | State |
 |---|---|
-| Runner | `hc-github-runner` stack on the NUC (`/data/stacks/hc-github-runner/compose.yaml`, image `myoung34/github-runner`, labels `self-hosted, nuc, homelab`, state and work dirs bind-mounted at identical host paths so job containers can share the workspace). Registered to the repo; idle until Actions is enabled. |
+| Runner | `hc-github-runner` stack on the NUC (`/data/stacks/hc-github-runner/compose.yaml`, image `myoung34/github-runner`, labels `self-hosted, nuc, homelab`). Its state and work dirs, and the runner's `externals/` (the bundled Node that actions run with), are bind-mounted at identical host paths: job containers are created through the host Docker socket and the runner hands them host paths, so a path that exists only inside the runner container mounts as empty. Registered to the repo. |
 | `.github/workflows/ci.yml` | Port of `test`, `boot-smoke`, `deploy-beta`. Runs on push to `main`, pull requests, `workflow_dispatch`, and as a reusable workflow (`workflow_call`) for the release gate. Jobs run in `node:20-alpine` with `--cpus 2 --memory 2g`, matching the GitLab runner's caps. `deploy-beta` is gated on the repository variable `BETA_DEPLOY_FROM_GITHUB=true`. |
 | `.github/workflows/release.yml` | Port of `validate-release`, `build-*`, `create-release`. Runs on `v*` tag pushes and `workflow_dispatch` (rebuild an existing tag). Builds `listener`, `web` and, for stable tags, `standalone` to Docker Hub with the same tag set (`version`, `major.minor`, `major`, `latest`; betas get `version`, `beta`), then creates the GitHub release from the `## [version]` section of `CHANGELOG.md` via `scripts/github-release.mjs`. Every job is gated on the repository variable `RELEASES_FROM_GITHUB=true`. |
 | `.github/actionlint.yaml` | Declares the custom runner labels so `actionlint` passes. |
@@ -35,9 +35,9 @@ enabling Actions only adds a second, parallel test run on the same host.
 ## Cutover steps
 
 1. **Enable Actions** on the repo with fork-PR approval required for all
-   outside collaborators:
+   outside collaborators (done 2026-11-18):
    ```
-   gh api -X PUT repos/venam1s/homechronicle/actions/permissions -f enabled=true -f allowed_actions=all
+   gh api -X PUT repos/venam1s/homechronicle/actions/permissions -F enabled=true -f allowed_actions=all
    gh api -X PUT repos/venam1s/homechronicle/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors
    ```
    The runner shows **Idle** in Settings › Actions › Runners once it can take
