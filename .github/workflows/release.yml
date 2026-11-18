@@ -4,7 +4,9 @@ name: Release
 # .gitlab-ci.yml. A pushed `vX.Y.Z` or `vX.Y.Z-beta.N` tag is the whole release:
 # validate the tag, run the test gate, build and push the multi-arch images to
 # Docker Hub, then create the GitHub release from the matching CHANGELOG.md
-# section (CHANGELOG.md IS the release notes).
+# section (CHANGELOG.md IS the release notes; a beta publishes the in-progress
+# `## [X.Y.Z] — Unreleased` section behind a generated header, so its notes are
+# cumulative since the last stable release).
 #
 # The repository variable RELEASES_FROM_GITHUB must be "true" (it is: GitHub
 # Actions became the CI of record on 2026-11-18 and .gitlab-ci.yml is gone). It
@@ -199,20 +201,17 @@ jobs:
         with:
           ref: ${{ needs.validate.outputs.tag }}
 
-      - name: Extract this version's CHANGELOG section
+      - name: Build the release notes from CHANGELOG.md
         env:
-          VERSION: ${{ needs.validate.outputs.version }}
           TAG: ${{ needs.validate.outputs.tag }}
         run: |
-          # Everything between `## [VERSION]` and the next `## [` heading. The
-          # heading must match the tag minus its leading v, or the release falls
-          # back to a bare title.
-          NOTES=$(sed -n "/^## \\[${VERSION}\\]/,/^## \\[/{ /^## \\[${VERSION}\\]/d; /^## \\[/d; p; }" CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
-            echo "WARNING: no '## [${VERSION}]' section in CHANGELOG.md; using a bare title"
-            NOTES="Release ${TAG}"
-          fi
-          printf '%s\n' "$NOTES" > release-notes.md
+          # scripts/release-notes.mjs: the body of the `## [X.Y.Z]` section for
+          # the tag minus `v` and `-beta.N`. A beta gets a generated header
+          # (beta number, image tags, how to try it) and keeps the section's
+          # `### Beta notes` subsection; the stable release drops it. A missing
+          # section is a warning and a bare title, not a failure: the images are
+          # already pushed by this point.
+          node scripts/release-notes.mjs "$TAG" CHANGELOG.md > release-notes.md
           echo "──────── release notes ────────"; cat release-notes.md
 
       - name: Create the GitHub release

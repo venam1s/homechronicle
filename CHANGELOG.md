@@ -2,6 +2,27 @@
 
 All notable changes to homechronicle are documented in this file.
 
+While a version is in beta, its section is headed `## [X.Y.Z] — Unreleased` and grows as changes land on `main`. Every beta tag publishes that section as it stands, behind a generated header, so beta notes are cumulative since the last stable release. Its `### Beta notes` subsection records what each beta changed and what to know before going back; it is dropped at GA, when the heading gets its date.
+
+## [0.6.1] — Unreleased
+
+The dashboard and the device pages count days in your time zone, and the date in the top bar can be hidden.
+
+### Upgrade notes
+- **No database migrations** and no required `.env` changes.
+- **API:** `GET /api/stats/daily` and `GET /api/accessories/:id/detail` take an optional `tz` query parameter (an IANA zone such as `America/New_York`; unknown zones fall back to UTC, the previous behaviour) and return each `day` as a `YYYY-MM-DD` string instead of a timestamp.
+
+### Added
+- **Top-bar date:** **Settings › Appearance › Date** shows or hides today's date in the masthead. Like theme and units, it is a per-member setting that syncs to the account when signed in.
+
+### Fixed
+- The house summary ("N events so far today") and the TODAY card disagreed every evening: the server bucketed days in UTC, so from 7 PM Eastern the summary restarted from zero while the card kept the closed UTC day. Both now count in the browser's time zone, as do the trend chart, week-over-week and the monthly heatmap.
+- A device's daily activity chart and its active-days total used UTC days too, so a device could report more active days than it had been paired for.
+
+### Internal
+- GitHub Actions is the CI of record: tests, boot smoke, the docs site, the beta deploy and releases run from `.github/workflows` on the homelab runner, and `.gitlab-ci.yml` is retired. Every release is still mirrored to GitLab for installs up to v0.5.0, which only check there for updates.
+- Beta release notes are built by CI from the `## [X.Y.Z] — Unreleased` section of this file (see above) instead of being written by hand per beta; `scripts/release-notes.mjs`, tested in CI.
+
 ## [0.6.0] — 2026-11-17
 
 Temperatures in °C or °F, each outlet of a bridged multi-outlet plug logged as its own device (with a **Keep together** switch for devices you'd rather see as one), Settings in the account menu, and a security pass over the member-writable settings and the public sign-in endpoints.
