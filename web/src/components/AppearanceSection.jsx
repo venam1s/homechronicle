@@ -1,9 +1,10 @@
-import { Sun, Moon, SunMoon, Check, Thermometer } from 'lucide-react';
+import { Sun, Moon, SunMoon, Check, Thermometer, CalendarDays, CalendarOff } from 'lucide-react';
 import clsx from 'clsx';
 import Card from './Card.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { usePalette } from '../hooks/usePalette.js';
 import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
+import { useMastheadDate } from '../hooks/useMastheadDate.js';
 import { PALETTE_IDS, PALETTES, rampFor } from '../lib/palettes.js';
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2';
@@ -17,6 +18,11 @@ const THEME_OPTIONS = [
 const UNIT_OPTIONS = [
   { id: 'c', label: 'Celsius (°C)' },
   { id: 'f', label: 'Fahrenheit (°F)' },
+];
+
+const DATE_OPTIONS = [
+  { id: 'show', label: 'Show', icon: CalendarDays },
+  { id: 'hide', label: 'Hide', icon: CalendarOff },
 ];
 
 /**
@@ -46,9 +52,10 @@ function SwatchRow({ paletteId, mode }) {
 }
 
 /**
- * Appearance settings — theme (Light / Dark / System) and palette selection.
+ * Appearance settings — theme (Light / Dark / System), units, the date in the
+ * top bar, and palette selection.
  *
- * Both are per-user preferences: they sync to the account when signed in and
+ * All are per-user preferences: they sync to the account when signed in and
  * fall back to localStorage when not (PAL-03 / PAL-04). Selection applies
  * immediately, with no save step and no reload (PAL-01).
  */
@@ -56,6 +63,7 @@ export default function AppearanceSection() {
   const { preference, resolvedTheme, setPreference } = useTheme();
   const { palette, setPalette } = usePalette();
   const { unit, setUnit } = useTemperatureUnit();
+  const { showDate, setShowDate } = useMastheadDate();
 
   const activeTheme = THEME_OPTIONS.find((o) => o.id === preference) ?? THEME_OPTIONS[2];
 
@@ -137,6 +145,45 @@ export default function AppearanceSection() {
           <p className="mt-3 text-hc-caption text-hc-muted">
             Applies everywhere you read or type a temperature, including alert rules, alert emails
             and exports. Readings are stored in °C.
+          </p>
+        </Card.Body>
+      </Card>
+
+      <Card>
+        <Card.Header title="Date" headingLevel={2} />
+        <Card.Body>
+          <div
+            role="radiogroup"
+            aria-label="Date in the top bar"
+            className="inline-flex gap-1 p-1 rounded-lg bg-hc-panel-mid"
+          >
+            {DATE_OPTIONS.map(({ id, label, icon: Icon }) => {
+              const selected = (id === 'show') === showDate;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setShowDate(id === 'show')}
+                  className={clsx(
+                    'flex items-center gap-2 px-4 py-2 rounded-md text-hc-label font-semibold transition-colors',
+                    FOCUS_RING,
+                    selected
+                      ? 'bg-hc-panel text-hc-fg-strong border border-hc-panel-border'
+                      : 'text-hc-muted hover:text-hc-fg',
+                  )}
+                >
+                  <Icon size={16} aria-hidden="true" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-3 text-hc-caption text-hc-muted">
+            Today's date at the right of the top bar, above the Dashboard and every other
+            page on wide screens. Hiding it changes nothing else.
           </p>
         </Card.Body>
       </Card>

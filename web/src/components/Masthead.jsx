@@ -3,6 +3,7 @@ import { Sun, Moon, SunMoon, ArrowUpCircle, LogOut, Palette, ChevronDown, Settin
 import clsx from 'clsx';
 import BrandLogo from './BrandLogo.jsx';
 import { useTheme } from '../hooks/useTheme.js';
+import { useMastheadDate } from '../hooks/useMastheadDate.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useAuthConfig } from '../hooks/useAuthConfig.js';
 import { useSignOut } from '../hooks/useSignOut.js';
@@ -84,6 +85,7 @@ export default function Masthead({
   availableUpdate,
 }) {
   const { preference, setPreference } = useTheme();
+  const { showDate } = useMastheadDate();
   const { user } = useAuth();
   const { authEnabled } = useAuthConfig();
   const { signOut, isPending: signingOut } = useSignOut();
@@ -167,9 +169,12 @@ export default function Masthead({
 
         {/* Date, build, account */}
         <div className="shrink-0 flex items-center gap-3">
-          <span className="hidden xl:inline text-hc-caption uppercase tracking-[0.14em] text-hc-muted">
-            {formatToday()}
-          </span>
+          {/* Settings -> Appearance -> Date can switch this off. */}
+          {showDate && (
+            <span className="hidden xl:inline text-hc-caption uppercase tracking-[0.14em] text-hc-muted">
+              {formatToday()}
+            </span>
+          )}
 
           {availableUpdate && (
             <a

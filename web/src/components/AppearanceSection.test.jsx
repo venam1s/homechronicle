@@ -21,6 +21,12 @@ vi.mock('../hooks/useTemperatureUnit.js', () => ({
   useTemperatureUnit: () => ({ ...unitState, setUnit }),
 }));
 
+const setShowDate = vi.fn();
+const dateState = { showDate: true };
+vi.mock('../hooks/useMastheadDate.js', () => ({
+  useMastheadDate: () => ({ ...dateState, setShowDate }),
+}));
+
 const { default: AppearanceSection } = await import('./AppearanceSection.jsx');
 const { PALETTE_IDS, PALETTES } = await import('../lib/palettes.js');
 
@@ -150,5 +156,38 @@ describe('AppearanceSection units', () => {
   it('explains where the unit applies', () => {
     render(<AppearanceSection />);
     expect(screen.getByText(/Readings are stored in °C/)).toBeInTheDocument();
+  });
+});
+
+describe('AppearanceSection date', () => {
+  beforeEach(() => {
+    setShowDate.mockClear();
+    dateState.showDate = true;
+  });
+
+  it('offers Show and Hide for the top-bar date, Show checked by default', () => {
+    render(<AppearanceSection />);
+    const group = screen.getByRole('radiogroup', { name: 'Date in the top bar' });
+    const options = within(group).getAllByRole('radio');
+    expect(options.map((o) => o.textContent)).toEqual(['Show', 'Hide']);
+    expect(within(group).getByRole('radio', { name: 'Show' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'Hide' })).not.toBeChecked();
+  });
+
+  it('marks Hide as checked when the date is hidden', () => {
+    dateState.showDate = false;
+    render(<AppearanceSection />);
+    const group = screen.getByRole('radiogroup', { name: 'Date in the top bar' });
+    expect(within(group).getByRole('radio', { name: 'Hide' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'Show' })).not.toBeChecked();
+  });
+
+  it('hides and shows the date on click', async () => {
+    const user = userEvent.setup();
+    render(<AppearanceSection />);
+    await user.click(screen.getByRole('radio', { name: 'Hide' }));
+    expect(setShowDate).toHaveBeenCalledWith(false);
+    await user.click(screen.getByRole('radio', { name: 'Show' }));
+    expect(setShowDate).toHaveBeenCalledWith(true);
   });
 });

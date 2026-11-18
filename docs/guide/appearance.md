@@ -1,6 +1,6 @@
 # Appearance
 
-homechronicle has three appearance settings: a **theme** (light, dark, or follow your system), a **palette** (one of twelve colour schemes) and a **temperature unit** (Celsius or Fahrenheit). All live in **Settings › Appearance** and apply immediately — there is no save button and no reload.
+homechronicle has four appearance settings: a **theme** (light, dark, or follow your system), a **palette** (one of twelve colour schemes), a **temperature unit** (Celsius or Fahrenheit) and whether the **date** is shown in the top bar. All live in **Settings › Appearance** and apply immediately — there is no save button and no reload.
 
 ![Settings › Appearance with the Theme switch and the grid of twelve palettes](../screenshots/settings-appearance.png)
 
@@ -28,6 +28,10 @@ On phones and tablets there is no theme button in the floating navigation — ch
 - the Timeline export (`old_value` / `new_value` of temperature rows)
 
 Readings are stored in °C regardless of the setting, so changing it never alters your data, and each household member sees temperatures in their own unit. Webhook payloads stay in °C. Thermostat setpoints are not logged today, so the setting only affects sensor readings.
+
+## Date
+
+On wide screens the top bar shows today's date at the right, above the Dashboard and every other page. **Settings › Appearance › Date** switches it between **Show** (the default) and **Hide**. Nothing else in the bar moves; the update link and account menu stay where they are. Phones and tablets use the floating navigation, which has no date, so the setting has no effect there.
 
 ## Palettes
 
@@ -77,8 +81,9 @@ Browser keys:
 | `hc_theme_preference` | `system` (default), `light`, `dark` |
 | `hc_palette` | `gallery`, `ember`, `almanac`, `harvest`, `ink`, `fern`, `porcelain` (default), `tide`, `atlas`, `iris`, `dusk`, `graphite` |
 | `hc_temperature_unit` | `c` (default), `f` |
+| `hc_show_masthead_date` | `true` (default), `false` |
 
-Clearing site data resets this browser to System, Porcelain and Celsius (when signed in, your account's choice is restored on the next load).
+Clearing site data resets this browser to System, Porcelain, Celsius and the date shown (when signed in, your account's choice is restored on the next load).
 
 ## Upgrading from an earlier version
 

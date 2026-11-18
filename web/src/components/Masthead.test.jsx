@@ -24,6 +24,10 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../hooks/useUserPreferences.js', () => ({
   useUserPreferences: () => ({ flushNow }),
 }));
+const dateState = { showDate: true };
+vi.mock('../hooks/useMastheadDate.js', () => ({
+  useMastheadDate: () => ({ ...dateState, setShowDate: vi.fn() }),
+}));
 
 const { default: Masthead } = await import('./Masthead.jsx');
 
@@ -53,6 +57,7 @@ describe('Masthead', () => {
     themeState.preference = 'system';
     authState.user = { email: 'admin@example.com', role: 'admin' };
     configState.authEnabled = true;
+    dateState.showDate = true;
   });
 
   // NAV-01
@@ -126,6 +131,20 @@ describe('Masthead', () => {
     const link = screen.getByRole('link', { name: /v0\.5\.0 available/ });
     expect(link).toHaveAttribute('href', 'https://example.test/rel');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  // Settings -> Appearance -> Date.
+  it('shows today\'s date unless the preference hides it', () => {
+    const today = new Date().toLocaleDateString(undefined, {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+    const { unmount } = renderMasthead();
+    expect(screen.getByText(today)).toBeInTheDocument();
+    unmount();
+
+    dateState.showDate = false;
+    renderMasthead();
+    expect(screen.queryByText(today)).not.toBeInTheDocument();
   });
 
   it('cycles the theme preference', () => {
