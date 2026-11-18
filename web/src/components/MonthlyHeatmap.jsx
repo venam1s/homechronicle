@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { useDailyStats } from '../hooks/useEvents.js';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
 
-const CELL = 11;
+// Match WeekdayHeatmap: fluid columns, cells capped at CELL px squares.
+const CELL = 18;
 const GAP = 2;
-const LABEL_W = 40;
+const LABEL_W = 30;
+const COLUMNS = `${LABEL_W}px repeat(31, minmax(0, 1fr))`;
 const AXIS_DAYS = [1, 8, 15, 22, 29];
 
 function monthLabel(date) {
@@ -74,85 +76,96 @@ export default function MonthlyHeatmap() {
   }
 
   const maxCount = Math.max(1, ...rows.flatMap((r) => r.cells.map((c) => c?.count ?? 0)));
-  const totalWidth = LABEL_W + 31 * (CELL + GAP);
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-2">
+      <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-sm font-semibold text-hc-fg">Monthly Heatmap</h3>
         <span className="text-xs text-hc-muted">last 12 months</span>
       </div>
-      <p className="text-xs text-hc-muted mb-2 min-h-4">
+      <p className="text-xs text-hc-muted mb-3 min-h-4">
         {hovered ? `${hovered.label} · ${hovered.count} event${hovered.count !== 1 ? 's' : ''}` : 'Hover a day for details'}
       </p>
 
-      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ minWidth: totalWidth }}>
-          {rows.map((row) => (
-            <div key={row.id} style={{ display: 'flex', alignItems: 'center', marginBottom: GAP }}>
-              <div
-                style={{
-                  width: LABEL_W,
-                  flexShrink: 0,
-                  fontSize: 10,
-                  color: 'var(--hc-chart-label)',
-                  textAlign: 'right',
-                  paddingRight: 6,
-                  lineHeight: `${CELL}px`,
-                }}
-              >
-                {row.label}
-              </div>
-              {row.cells.map((cell, idx) => (
-                <div
-                  key={idx}
-                  title={cell ? `${cell.label} — ${cell.count} event${cell.count !== 1 ? 's' : ''}` : ''}
-                  style={{
-                    width: CELL,
-                    height: CELL,
-                    marginRight: GAP,
-                    flexShrink: 0,
-                    borderRadius: 2,
-                    backgroundColor: cell
-                      ? cell.count / maxCount <= 0
-                        ? 'var(--hc-panel-mid)'
-                        : `rgba(${accent[0]},${accent[1]},${accent[2]},${0.15 + (cell.count / maxCount) * 0.85})`
-                      : 'transparent',
-                    border: cell ? 'none' : '1px solid transparent',
-                    transition: 'transform 0.12s, background-color 0.15s',
-                    cursor: cell ? 'default' : 'inherit',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!cell) return;
-                    e.currentTarget.style.transform = 'scale(1.1)';
-                    setHovered(cell);
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = '';
-                    setHovered(null);
-                  }}
-                />
-              ))}
-            </div>
-          ))}
-
-          <div style={{ display: 'flex', marginLeft: LABEL_W, marginTop: 3 }}>
-            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-              <div
-                key={d}
-                style={{
-                  width: CELL + GAP,
-                  flexShrink: 0,
-                  fontSize: 9,
-                  color: 'var(--hc-chart-sublabel)',
-                  textAlign: 'left',
-                }}
-              >
-                {AXIS_DAYS.includes(d) ? d : ''}
-              </div>
-            ))}
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          data-testid="monthly-heatmap-row"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: COLUMNS,
+            columnGap: GAP,
+            alignItems: 'center',
+            marginBottom: GAP,
+          }}
+        >
+          <div
+            style={{
+              width: LABEL_W,
+              fontSize: 10,
+              color: 'var(--hc-chart-label)',
+              textAlign: 'right',
+              paddingRight: 6,
+              lineHeight: `${CELL}px`,
+            }}
+          >
+            {row.label}
           </div>
+          {row.cells.map((cell, idx) => (
+            <div
+              key={idx}
+              title={cell ? `${cell.label} — ${cell.count} event${cell.count !== 1 ? 's' : ''}` : ''}
+              style={{
+                width: '100%',
+                maxWidth: CELL,
+                aspectRatio: '1 / 1',
+                justifySelf: 'center',
+                borderRadius: 3,
+                backgroundColor: cell
+                  ? cell.count / maxCount <= 0
+                    ? 'var(--hc-panel-mid)'
+                    : `rgba(${accent[0]},${accent[1]},${accent[2]},${0.15 + (cell.count / maxCount) * 0.85})`
+                  : 'transparent',
+                transition: 'transform 0.12s, background-color 0.15s',
+                cursor: cell ? 'default' : 'inherit',
+              }}
+              onMouseEnter={(e) => {
+                if (!cell) return;
+                e.currentTarget.style.transform = 'scale(1.08)';
+                setHovered(cell);
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = '';
+                setHovered(null);
+              }}
+            />
+          ))}
         </div>
+      ))}
+
+      {/* Day-of-month axis */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: COLUMNS,
+          columnGap: GAP,
+          marginTop: 4,
+        }}
+      >
+        <div />
+        {AXIS_DAYS.map((d) => (
+          <div
+            key={d}
+            style={{
+              gridColumn: `${d + 1} / ${Math.min(d + 8, 33)}`,
+              whiteSpace: 'nowrap',
+              fontSize: 10,
+              color: 'var(--hc-chart-tick)',
+            }}
+          >
+            {d}
+          </div>
+        ))}
       </div>
     </div>
   );
