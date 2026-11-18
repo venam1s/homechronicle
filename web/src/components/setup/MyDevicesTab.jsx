@@ -8,7 +8,7 @@ import BridgeChildrenRow from './BridgeChildrenRow.jsx';
 import { useToast } from '../Toast.jsx';
 import PairingHealthBanner from '../PairingHealthBanner.jsx';
 import RepairFlow from './RepairFlow.jsx';
-import { FOCUS_RING } from '../settings/fieldStyles.js';
+import { LINK_CLASS } from '../settings/fieldStyles.js';
 import { useCanManageHome } from '../../hooks/useCanManageHome.js';
 import { useToastPrefs } from '../../hooks/useToastPrefs.js';
 
@@ -301,7 +301,7 @@ export default function MyDevicesTab({ setup, canChangeSplit = false, onNavigate
           <button
             type="button"
             onClick={() => onNavigate('settings', { section: 'general' })}
-            className={`text-xs text-hc-accent-strong hover:underline ${FOCUS_RING}`}
+            className={LINK_CLASS}
           >
             Auto-scan and repair schedule
           </button>
@@ -310,12 +310,9 @@ export default function MyDevicesTab({ setup, canChangeSplit = false, onNavigate
         {/* Live Toasts toggle */}
         <button
           onClick={() => {
-            const next = !liveToastsOn;
-            // The signed-out save reports its own failure with a toast and reverts.
-            toastPrefs.set('liveEventToastsEnabled', next)?.catch(() => {});
-            if (toastPrefs.toastsEnabled) {
-              addToast(next ? 'Live toasts enabled' : 'Live toasts disabled', 'success');
-            }
+            // Feedback is the button's own On/Off state, plus the household saver's
+            // "Setting saved" (or failure toast and revert) when signed out.
+            toastPrefs.set('liveEventToastsEnabled', !liveToastsOn)?.catch(() => {});
           }}
           className={clsx(
             'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors',

@@ -2,7 +2,7 @@ import { Bell } from 'lucide-react';
 import SettingsGroup from './SettingsGroup.jsx';
 import SettingsRow from './SettingsRow.jsx';
 import Toggle from './Toggle.jsx';
-import { FOCUS_RING, SELECT_CLASS } from './fieldStyles.js';
+import { LINK_CLASS, SELECT_CLASS } from './fieldStyles.js';
 import { useToast } from '../Toast.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToastPrefs } from '../../hooks/useToastPrefs.js';
@@ -60,7 +60,7 @@ function WatchListHint({ canManageHome, onNavigate }) {
     <button
       type="button"
       onClick={() => onNavigate('devices', { tab: 'devices' })}
-      className={`text-xs text-hc-accent-strong hover:underline ${FOCUS_RING}`}
+      className={LINK_CLASS}
     >
       Select accessories to watch in Manage Accessories
     </button>

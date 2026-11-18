@@ -2,7 +2,7 @@ import { formatDistanceToNow } from 'date-fns';
 import SettingsGroup from './SettingsGroup.jsx';
 import SettingsRow from './SettingsRow.jsx';
 import Toggle from './Toggle.jsx';
-import { FOCUS_RING, SELECT_CLASS } from './fieldStyles.js';
+import { LINK_CLASS, SELECT_CLASS } from './fieldStyles.js';
 import { HOURS_OPTIONS } from './hourOptions.js';
 import { localHourToUtc, utcHourToLocal } from '../../lib/hours.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
@@ -100,7 +100,7 @@ export default function DevicesGroup({ setup, onNavigate }) {
           <button
             type="button"
             onClick={() => onNavigate('devices', { tab: 'devices' })}
-            className={`text-xs text-hc-accent-strong hover:underline ${FOCUS_RING}`}
+            className={LINK_CLASS}
           >
             Manage accessories
           </button>

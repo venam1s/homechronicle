@@ -1,7 +1,7 @@
 import SettingsGroup from './SettingsGroup.jsx';
 import SettingsRow from './SettingsRow.jsx';
 import NumberField from './NumberField.jsx';
-import { FOCUS_RING } from './fieldStyles.js';
+import { LINK_CLASS } from './fieldStyles.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
 
 // Shown in place of a number field until its config loads: never an invented value.
@@ -55,7 +55,7 @@ export default function AlertDefaultsGroup({ setup, onNavigate }) {
           <button
             type="button"
             onClick={() => onNavigate('alerts')}
-            className={`text-xs text-hc-accent-strong hover:underline ${FOCUS_RING}`}
+            className={LINK_CLASS}
           >
             Manage rules on the Alerts page
           </button>

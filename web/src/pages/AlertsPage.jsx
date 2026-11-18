@@ -1,6 +1,6 @@
 import Alerts from '../components/Alerts.jsx';
 import PageContainer from '../components/PageContainer.jsx';
-import { FOCUS_RING } from '../components/settings/fieldStyles.js';
+import { LINK_CLASS } from '../components/settings/fieldStyles.js';
 import { useCanManageHome } from '../hooks/useCanManageHome.js';
 
 export default function AlertsPage({ onNavigate }) {
@@ -15,7 +15,7 @@ export default function AlertsPage({ onNavigate }) {
           <button
             type="button"
             onClick={() => onNavigate('settings', { section: 'general' })}
-            className={`text-xs text-hc-accent-strong hover:underline ${FOCUS_RING}`}
+            className={LINK_CLASS}
           >
             Alert defaults
           </button>

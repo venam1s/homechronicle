@@ -77,14 +77,19 @@ function makeSetup(overrides = {}) {
 
 function renderTab(setup, props = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const tree = () => (
     <QueryClientProvider client={qc}>
       <ToastProvider>
         <MyDevicesTab setup={setup} {...props} />
       </ToastProvider>
     </QueryClientProvider>
   );
+  const utils = render(tree());
+  // Re-render with the same props, e.g. after a mocked preference changes.
+  return { ...utils, update: () => utils.rerender(tree()) };
 }
+
+const shownToasts = () => [...document.querySelectorAll('.hc-toast')].map((t) => t.textContent);
 
 describe('MyDevicesTab toolbar', () => {
   beforeEach(() => {
@@ -200,7 +205,9 @@ describe('Live Toasts toggle', () => {
       expect(setup.saveRetentionMutation.mutate).not.toHaveBeenCalled();
       expect(prefSetters.liveEventToastsEnabled).not.toHaveBeenCalled();
       expect(btn).toHaveTextContent('Live Toasts On');
-      expect(screen.getByText('Live toasts enabled')).toBeInTheDocument();
+      // One confirmation, from the household saver; the button adds none of its own.
+      expect(shownToasts()).toEqual(['Setting saved']);
+      expect(screen.queryByText('Live toasts enabled')).toBeNull();
     });
 
     it('signed in: Live Toasts reads and writes the personal preference, not the household setting', async () => {
@@ -210,20 +217,27 @@ describe('Live Toasts toggle', () => {
       const setup = makeSetup({
         retentionConfig: { toastsEnabled: true, liveEventToastsEnabled: true, toastAccessories: [] },
       });
-      renderTab(setup);
-      const btn = screen.getByRole('button', { name: /live toasts/i });
-      expect(btn).toHaveTextContent('Live Toasts Off');
+      const { update } = renderTab(setup);
+      const btn = () => screen.getByRole('button', { name: /live toasts/i });
+      expect(btn()).toHaveTextContent('Live Toasts Off');
       // The watch bells follow the same value as the button.
       expect(screen.queryByTitle('Enable live event toasts')).toBeNull();
 
-      await user.click(btn);
+      await user.click(btn());
       await act(() => vi.advanceTimersByTimeAsync(300));
 
       expect(prefSetters.liveEventToastsEnabled).toHaveBeenCalledTimes(1);
       expect(prefSetters.liveEventToastsEnabled).toHaveBeenCalledWith(true);
       expect(setup.saveRetentionMutation.mutate).not.toHaveBeenCalled();
       expect(setup.saveRetentionMutation.mutateAsync).not.toHaveBeenCalled();
-      expect(screen.getByText('Live toasts enabled')).toBeInTheDocument();
+      // A personal preference saves silently.
+      expect(shownToasts()).toEqual([]);
+
+      // The preference now holds the new value; the button shows it.
+      prefValues.liveEventToastsEnabled = true;
+      update();
+      expect(btn()).toHaveTextContent('Live Toasts On');
+      expect(shownToasts()).toEqual([]);
     });
   });
 
