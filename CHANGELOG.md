@@ -20,11 +20,13 @@ The dashboard and the device pages count days in your time zone, and the date in
 - **Settings reorganised:** Settings is grouped into **You** (Appearance, Preferences, Account) and **This home** (General, Users & email, Advanced). Configuration and its inner tabs are gone: toasts, timeline grouping and quiet hours are under **Preferences**; device, data and alert defaults are under **General**. Every setting now uses the same row layout.
 - **Number settings apply on the row:** retention, thresholds and timeouts show an **Apply** button beside the field in place of the floating Save button. Lowering retention says what the next sweep will remove before you apply it.
 - **Members no longer see household settings** they could not change.
+- **Quiet hours:** the start and end times and the excluded accessories show only while Quiet hours is on.
+- **Watch bells** on Devices › Manage Accessories follow your own Live Toasts setting, and are shown to admins only, since only an admin can change which accessories are watched.
 
 ### Fixed
 - The house summary ("N events so far today") and the TODAY card disagreed every evening: the server bucketed days in UTC, so from 7 PM Eastern the summary restarted from zero while the card kept the closed UTC day. Both now count in the browser's time zone, as do the trend chart, week-over-week and the monthly heatmap.
 - A device's daily activity chart and its active-days total used UTC days too, so a device could report more active days than it had been paired for.
-- A setting whose save failed could keep showing the new value. It now returns to the saved value and says so. Scheduled Repair changes used to fail without any message.
+- A household setting whose save failed could keep showing the new value. It now returns to the saved value and says so. Scheduled Repair changes used to fail without any message.
 - Changing two settings in quick succession could save only the second.
 - A setting changed just before leaving the page could be lost. It is now saved.
 - **Live Toasts** on Devices › Manage Accessories did nothing when signed in; it now follows your own notification preference, and the per-accessory watch bells follow it too.
