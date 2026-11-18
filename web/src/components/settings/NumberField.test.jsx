@@ -38,6 +38,14 @@ describe('NumberField', () => {
     expect(onApply).toHaveBeenCalledWith(30);
     await waitFor(() => expect(input).toBeEnabled());
   });
+  it('does nothing on Enter when the field is unchanged', async () => {
+    const { input, onApply } = setup();
+    await userEvent.click(input);
+    await userEvent.keyboard('{Enter}');
+    expect(onApply).not.toHaveBeenCalled();
+    await userEvent.clear(input); await userEvent.type(input, '365{Enter}');
+    expect(onApply).not.toHaveBeenCalled();
+  });
   it('Escape and Cancel restore the saved value', async () => {
     const { input } = setup();
     await userEvent.clear(input); await userEvent.type(input, '30{Escape}');

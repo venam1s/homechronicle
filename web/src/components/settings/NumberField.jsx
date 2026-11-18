@@ -39,7 +39,7 @@ export default function NumberField({
   const reset = () => setDraft(String(value));
 
   const apply = async () => {
-    if (!valid || pending || disabled) return;
+    if (!dirty || !valid || pending || disabled) return;
     setPending(true);
     try {
       await onApply(parsed);
