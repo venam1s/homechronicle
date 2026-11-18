@@ -1,6 +1,6 @@
 # Settings
 
-Open **Settings** from the top navigation bar (or the floating navigation button on phones and tablets). Settings is split into up to five sections, listed down the left side on wider screens and in a drop-down menu on phones:
+Open **Settings** from the account menu at the right of the top navigation bar — the avatar when sign-in is on, or a cog that opens Settings directly when it is off — or from the floating navigation button on phones and tablets. Settings is split into up to five sections, listed down the left side on wider screens and in a drop-down menu on phones:
 
 | Section | Shown | Contains |
 |---------|-------|----------|
@@ -24,7 +24,7 @@ All settings save automatically unless noted otherwise.
 | **Documentation** | Opens this guide |
 | **Report an issue** | Opens the project's issue tracker on GitHub |
 
-On desktop, a dot on **Settings** in the navigation bar means there are changelog notes you haven't read, and an "*version* available" link appears in the top bar when an update is out.
+On desktop, a dot on the avatar (or the cog) at the right of the navigation bar means there are changelog notes you haven't read, and the **Settings** item in the account menu says **New version**. An "*version* available" link appears in the top bar when an update is out.
 
 ### Update check
 

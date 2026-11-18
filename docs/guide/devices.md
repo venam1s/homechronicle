@@ -12,7 +12,7 @@ homechronicle supports two protocols: **HomeKit** (HAP) and **Matter**. Everythi
 
 ![Devices › Browse with per-room tables of devices](../screenshots/devices-browse.png)
 
-**Browse** groups your devices into one table per room, each marked with the room's colour. Devices without a room are listed last under **No room**. Each row shows the device's status, how many events it has logged, and its heartbeat — when a device goes offline or stale, the row says for how long and how many heartbeats it has missed. Open **Legend** for what the icons and activity dots mean.
+**Browse** groups your devices into one table per room, each marked with the room's colour. Devices without a room are listed last under **No room**. Each row shows the device's status, how many events it has logged, and its heartbeat — when a device goes offline or stale, the row says for how long and how many heartbeats it has missed. The **Legend** button at the right of the tab bar opens a popover explaining the icons and activity dots.
 
 Select a device to open its detail page.
 

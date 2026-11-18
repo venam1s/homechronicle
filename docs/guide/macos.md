@@ -47,7 +47,7 @@ cd homechronicle
 
 # Use the latest release rather than the development branch
 git checkout $(git tag --list 'v*' --sort=-v:refname | grep -v -- -beta | head -1)
-git describe --tags   # shows the version you're on, e.g. v0.4.3
+git describe --tags   # shows the version you're on, e.g. v0.6.0
 
 cd listener
 npm ci --omit=dev
@@ -95,7 +95,7 @@ Then add these lines at the end. They tell the listener, which now runs outside 
 DATABASE_URL=postgresql://homekit:<POSTGRES_PASSWORD>@127.0.0.1:5432/homekit_events
 TRUST_PROXY=1
 DISCOVER_IFACE=en0
-WEB_IMAGE=havuq/homechronicle-web:0.4.3
+WEB_IMAGE=havuq/homechronicle-web:0.6.0
 ```
 
 - Replace `<POSTGRES_PASSWORD>` with the same password you set above. If you changed `POSTGRES_USER` or `POSTGRES_DB`, change them in the URL too.
@@ -211,11 +211,11 @@ The listener starts at boot whether or not anyone signs in. Until PostgreSQL is 
 ```bash
 cd ~/homechronicle
 git fetch --tags
-git checkout v0.5.0          # the new release
+git checkout v0.6.0          # the new release
 cd listener && npm ci --omit=dev && cd ..
 ```
 
-Change `WEB_IMAGE` in `.env` to the same version (`havuq/homechronicle-web:0.5.0`), then:
+Change `WEB_IMAGE` in `.env` to the same version (`havuq/homechronicle-web:0.6.0`), then:
 
 ```bash
 docker compose up -d postgres web

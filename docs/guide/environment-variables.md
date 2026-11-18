@@ -81,6 +81,8 @@ Keep `API_PORT` and `LISTENER_PORT` aligned (default `3001`) or `/api` requests 
 | `ARGON2_TIME_COST` | `2` | argon2id iteration count. Accepted range `1`–`10`. |
 | `AUTH_RATE_LIMIT_WINDOW_MS` | `900000` | Auth rate limit window (15 min). Applies to login and claim-admin endpoints. |
 | `AUTH_RATE_LIMIT_MAX` | `10` | Max auth attempts per window per client IP. |
+| `PUBLIC_READ_RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window for the public sign-in reads (`GET /api/auth/csrf-token`, `/user-count`, `/config`, `/invite-status`). |
+| `PUBLIC_READ_RATE_LIMIT_MAX` | `120` | Max requests per window per client IP, counted separately for each of those routes, so one of them being drained cannot block the login page. |
 
 ## Email (SMTP)
 

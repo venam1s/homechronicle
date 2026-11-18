@@ -2,6 +2,48 @@
 
 All notable changes to homechronicle are documented in this file.
 
+## [0.6.0] — 2026-11-17
+
+Temperatures in °C or °F, each outlet of a bridged multi-outlet plug logged as its own device (with a **Keep together** switch for devices you'd rather see as one), Settings in the account menu, and a security pass over the member-writable settings and the public sign-in endpoints.
+
+### Upgrade notes
+- **No database migrations** and no required `.env` changes.
+- **Split bridged accessories (#4):** a bridged HomeKit accessory with two or more watched services of the same type — a two-outlet plug, a robot vacuum with **Clean** and **Go Charge** switches, a weather plugin with several sensors — is now logged as one device per service, named `<device> <service>`. The next time the listener connects to the bridge, the accessory's past events move to the right service, so the Timeline, Top Devices and the heatmap show the services instead of the one device. A room, category, quiet-hours exclusion or accessory-scoped alert rule set on the device covers its services until a service gets its own. To see a device as one entry again, click **Keep together** under **Devices › Manage Accessories**; the events move back. Directly paired devices and accessories with one service of each type are unchanged.
+- **Settings moved:** on desktop, Settings is in the account menu (the avatar at the right of the top bar), or behind a cog in the same place when sign-in is off. Phones and tablets are unchanged.
+- **Stricter settings writes:** `PATCH /api/setup/room`, `/display-name`, `/note` and `/category` reject an accessory id over 200 characters, a room or display name over 200, a note over 2000, and more than 5000 entries per store. Existing entries can still be updated and cleared.
+- **Update check:** `GET /api/updates/latest` reports `sources` (the hosts that answered) in place of `source`.
+- **New optional settings:** `KEEP_TOGETHER_FILE` (default `/app/data/keep-together.json`), `PUBLIC_READ_RATE_LIMIT_WINDOW_MS` and `PUBLIC_READ_RATE_LIMIT_MAX` (default 120 per minute).
+
+### Added
+- **Temperature unit (#3):** **Settings › Appearance › Units** switches between Celsius and Fahrenheit. It applies to the Timeline, the device page, the Activity Feed and Sensor Environment panels, live toasts, alert thresholds (typed and shown in your unit, stored in °C), alert emails and the Timeline export (`unit=f`). Each household member has their own setting; the database and webhook payloads stay in °C.
+- **Multi-outlet plugs (#4):** each outlet of a bridged multi-outlet plug (for example a two-outlet Kasa plug through homebridge-kasa-python) is logged as its own device, with its own name, room, note, category and alerts. The same applies to any bridged accessory with several switches, lights or sensors of one kind.
+- **Keep together:** an admin can keep any such accessory as one device from **Devices › Manage Accessories** and split it again later. The events follow either way.
+- **Update check asks GitHub and GitLab** and merges the two release lists, so an install keeps seeing new releases wherever they are published.
+
+### Changed
+- **Settings** moved from the top bar into the account menu, or behind a cog when sign-in is off. The new-version dot moves with it, and screen readers announce it.
+- **Legend** on the Devices page is a button at the right of the tab bar that opens a popover, instead of a card above the device list. The activity-dot labels no longer name colours, which were wrong in most palettes.
+- Split services are named after their device (`Deebot Go Charge`, `Neakasa Status`), using its display name when it has one. A live reading that some plugins put in a sensor's name (`Wind Speed: 11.5 mph`) is left out, so the name stays stable.
+- Issues and project links point at GitHub (`github.com/venam1s/homechronicle`); each release is mirrored there from GitLab CI.
+
+### Fixed
+- The Sensor Environment panel divided Matter temperature and humidity readings recorded since 0.4.0 by 100.
+- Editing a temperature threshold rule as a Celsius user no longer rounds the threshold.
+- A run-cycle switch (such as Neakasa's **Run Clean Cycle**) kept together with its accessory logged its OFF at once instead of when the cycle should be done.
+
+### Security
+- Settings writes open to any signed-in member (room, display name, note, category) took the accessory id as a storage key with no type or length check, so a member could grow the settings files without bound. Keys, names and notes are now capped (see Upgrade notes), and a non-string value answers 400 instead of 500.
+- The public sign-in endpoints (`/api/auth/csrf-token`, `/user-count`, `/config`, `/invite-status`) get their own rate limit of 120 per minute per route, separate from the 10-per-15-minutes limit on login, so the login page can't lock itself out.
+- Concurrent calls to the update check while its cache was cold each reached GitHub and GitLab; one in-flight check is now shared, and only `https` release links are accepted.
+- Device names in the setup audit log are JSON-quoted, so a newline can't forge a log line.
+- Dependency overrides for glob and minimatch take `npm audit` to zero.
+
+### Docs
+- Security audit 2026-11-14 in `docs/project/`. Guide: multi-outlet plugs and **Keep together** (Devices), Units (Appearance), keep-together endpoints and update-check `sources` (API reference), 0.6.0 upgrade notes. A record of the 2026-11-09 history rewrite maps old commit IDs to new ones.
+
+### Internal
+- GitLab CI mirrors each release to GitHub. The commit hook strips session trailers as well as attribution trailers.
+
 ## [0.5.0] — 2026-11-08
 
 Threshold and goes-quiet alerts, Timeline export, device categories, display names that apply everywhere, and a steadier HomeKit listener: bridges with several addresses, quiet devices that stay connected, and fewer retries for devices that have left the network.

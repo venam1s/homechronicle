@@ -819,6 +819,8 @@ List HomeKit pairings (`id`, `protocol`, `name`, `address`, `port`, `category`, 
 
 Assign a room to an accessory.
 
+`PATCH /api/setup/room`, `/display-name`, `/note` and `/category` share these limits: `accessoryId` must be a string of 200 characters or fewer, a room or display name 200 or fewer, a note 2000 or fewer, and each store holds at most 5000 entries. The limits bind new entries only — an existing entry can always be updated or cleared — and a value that breaks one answers `400`.
+
 **Body:**
 ```json
 {
@@ -1437,6 +1439,7 @@ Limits are counted per client IP address. Behind a reverse proxy, set `TRUST_PRO
 | Setup writes and data deletes | 60 / 60 s | `API_WRITE_RATE_LIMIT_WINDOW_MS`, `API_WRITE_RATE_LIMIT_MAX` |
 | Sign-in routes (login, claim-admin, accept-invite, forgot-password, reset-confirm) | 10 / 15 min | `AUTH_RATE_LIMIT_WINDOW_MS`, `AUTH_RATE_LIMIT_MAX` |
 | Change password | 10 / 15 min (separate count) | `AUTH_RATE_LIMIT_WINDOW_MS`, `AUTH_RATE_LIMIT_MAX` |
+| Public sign-in reads (`GET /api/auth/csrf-token`, `/user-count`, `/config`, `/invite-status`) | 120 / 60 s, counted per route | `PUBLIC_READ_RATE_LIMIT_WINDOW_MS`, `PUBLIC_READ_RATE_LIMIT_MAX` |
 
 **Fixed:**
 

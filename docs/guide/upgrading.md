@@ -1,6 +1,36 @@
 # Upgrading
 
-This page covers upgrading to **0.5.0** and **0.4**, then the general steps for any upgrade. The full list of changes in each release is in the [CHANGELOG](https://github.com/venam1s/homechronicle/blob/main/CHANGELOG.md).
+This page covers upgrading to **0.6.0**, **0.5.0** and **0.4**, then the general steps for any upgrade. The full list of changes in each release is in the [CHANGELOG](https://github.com/venam1s/homechronicle/blob/main/CHANGELOG.md).
+
+## Upgrading to 0.6.0
+
+0.6.0 adds a temperature unit setting, logs each outlet of a bridged multi-outlet plug as its own device, moves Settings into the account menu and tightens the settings endpoints. There are no new database migrations and no required `.env` changes. Read the notes below before upgrading; most matter only if you rely on the behaviour they describe.
+
+### Bridged accessories are split per service
+
+A bridged HomeKit accessory with two or more watched services of the same type — a two-outlet plug, a robot vacuum with **Clean** and **Go Charge** switches, a weather plugin with several sensors — is now logged as one device per service, named `<device> <service>` (`Deebot Go Charge`). The next time the listener connects to the bridge, the accessory's past events move to the right service, so the Timeline, **Top Devices** and the heatmap show the services instead of the one device. Settings on the device — room, category, quiet-hours exclusion and accessory-scoped alert rules — cover its services until a service gets its own.
+
+If you'd rather see a device as one entry, expand the bridge under **Devices › Manage Accessories** and click **Keep together**; the bridge reconnects and the events move back onto the device. Directly paired devices and accessories with one service of each type are unchanged. See [Multi-outlet plugs and power strips](devices.md#multi-outlet-plugs-and-power-strips).
+
+### Settings has moved
+
+On desktop, **Settings** is now in the account menu — the avatar at the right of the top bar — or behind a cog in the same place when sign-in is off. The dot that marks unread release notes moves there too. Phones and tablets are unchanged. See [Settings](settings.md).
+
+### Temperatures in your unit
+
+**Settings › Appearance › Units** switches between Celsius (the default) and Fahrenheit for everything you read or type, including alert thresholds, alert emails and the Timeline export. Readings are stored in °C regardless, so nothing changes in the database or in webhook payloads. See [Appearance](appearance.md#units).
+
+### Stricter settings writes
+
+`PATCH /api/setup/room`, `/display-name`, `/note` and `/category` now reject an accessory id over 200 characters, a room or display name over 200, a note over 2000, and more than 5000 entries per store. Existing entries can still be updated and cleared. A script that posts longer values gets a `400` instead of succeeding.
+
+### Update check
+
+`GET /api/updates/latest` now asks both GitHub and GitLab and merges the lists. Its response reports `sources` (the hosts that answered) in place of `source`. See [API reference](api-reference.md#get-apiupdateslatest).
+
+### Optional new settings
+
+`KEEP_TOGETHER_FILE`, `PUBLIC_READ_RATE_LIMIT_WINDOW_MS` and `PUBLIC_READ_RATE_LIMIT_MAX` — all have sensible defaults; see [Environment Variables](environment-variables.md).
 
 ## Upgrading to 0.5.0
 

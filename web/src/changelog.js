@@ -10,6 +10,19 @@
  */
 const CHANGELOG = [
   {
+    version: 'v0.6.0',
+    title: 'Temperatures in \u00b0C or \u00b0F, each outlet of a multi-outlet plug as its own device, and Settings in the account menu',
+    items: [
+      'Settings \u203a Appearance \u203a Units switches every temperature between Celsius and Fahrenheit: Timeline, device page, dashboard panels, toasts, alert thresholds, alert emails and the Timeline export. Each household member has their own setting; readings stay in \u00b0C in the database.',
+      'Each outlet of a bridged multi-outlet plug (for example a two-outlet Kasa plug through Homebridge) is now logged as its own device with its own name, room, note, category and alerts. The same applies to any bridged accessory with several switches, lights or sensors of one kind, and past events move to the right one.',
+      'Rather see such a device as one entry? Click Keep together next to it under Devices \u203a Manage Accessories; the events move back. Log separately splits it again.',
+      'Settings moved from the top bar into the account menu (or behind a cog when sign-in is off), and the Legend on the Devices page is a button on the tab bar that opens a popover.',
+      'The update check now looks at both GitHub and GitLab. Issues and project links point at github.com/venam1s/homechronicle.',
+      'Fixed the Sensor Environment panel dividing recent Matter temperature and humidity readings by 100, and editing a temperature threshold rounding the value for Celsius users.',
+      'Security: settings any member can change (room, display name, note, category) now have length and count limits, and the public sign-in endpoints have their own rate limit so the login page can\'t lock itself out.',
+    ],
+  },
+  {
     version: 'v0.5.0',
     title: 'Threshold and goes-quiet alerts, Timeline export, device categories, and a steadier HomeKit listener',
     items: [
