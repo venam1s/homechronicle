@@ -3,12 +3,18 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '../Toast.jsx';
+import { useAuth } from '../../hooks/useAuth.js';
 import AdminAdvancedSection from './AdminAdvancedSection.jsx';
 
 vi.mock('../../lib/api.js', () => ({
   fetchJson: vi.fn().mockResolvedValue({}),
   API_BASE: '',
   withApiAuthHeaders: () => ({}),
+}));
+
+// Signed out unless a test says otherwise.
+vi.mock('../../hooks/useAuth.js', () => ({
+  useAuth: vi.fn(),
 }));
 
 function makeSetup(overrides = {}) {
@@ -40,7 +46,10 @@ function renderSection(setup) {
 describe('AdminAdvancedSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    useAuth.mockReturnValue({ user: null });
   });
+  afterEach(() => { localStorage.clear(); });
 
   it('renders the Log level select with the current value', () => {
     renderSection(makeSetup({ logLevelConfig: { level: 'debug' } }));
@@ -202,5 +211,47 @@ describe('AdminAdvancedSection', () => {
     // Confirm state cleared — row reverts to the plain "Delete history" button, not stuck confirming
     expect(screen.getByText('Delete history')).toBeInTheDocument();
     expect(screen.queryByText('Delete history? This cannot be undone.')).not.toBeInTheDocument();
+  });
+
+  describe('the "Accessory deleted" toast', () => {
+    const deletable = () => makeSetup({
+      dbAccessories: [
+        {
+          accessory_id: 'acc-1',
+          accessory_name: 'Hall Sensor',
+          service_type: 'Sensor',
+          event_count: 3,
+          last_seen: '2026-08-01T00:00:00Z',
+          paired_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+      deleteAccessoryMutation: {
+        mutate: vi.fn((_id, { onSuccess }) => onSuccess()),
+        isPending: false,
+      },
+      retentionConfig: { toastsEnabled: true },
+    });
+
+    const deleteHistory = async () => {
+      await userEvent.click(screen.getByText('Danger Zone'));
+      await userEvent.click(screen.getByText('Delete history'));
+      await userEvent.click(screen.getByText('Yes, delete'));
+    };
+
+    it('signed in, follows the viewer\'s own toast preference rather than the household flag', async () => {
+      useAuth.mockReturnValue({ user: { id: 1, role: 'admin' } });
+      localStorage.setItem('hc_pref_toastsEnabled', 'false');
+      const setup = deletable();
+      renderSection(setup);
+      await deleteHistory();
+      expect(setup.deleteAccessoryMutation.mutate).toHaveBeenCalledWith('acc-1', expect.anything());
+      expect(screen.queryByText('Accessory deleted')).toBeNull();
+    });
+
+    it('signed out, shows when the household flag is on', async () => {
+      renderSection(deletable());
+      await deleteHistory();
+      expect(await screen.findByText('Accessory deleted')).toBeInTheDocument();
+    });
   });
 });

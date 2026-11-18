@@ -27,7 +27,6 @@ export default function AdminAdvancedSection({ setup }) {
     matterPairings,
     deletePairingMutation,
     deleteMatterPairingMutation,
-    retentionConfig,
   } = setup;
 
   const { addToast } = useToast();
@@ -433,7 +432,7 @@ export default function AdminAdvancedSection({ setup }) {
                             onClick={() => deleteAccessoryMutation.mutate(acc.accessory_id, {
                               onSuccess: () => {
                                 setConfirmDeleteAccessory(null);
-                                if (retentionConfig?.toastsEnabled !== false) {
+                                if (toastsEnabled) {
                                   addToast('Accessory deleted', 'success');
                                 }
                               },

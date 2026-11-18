@@ -4,6 +4,7 @@ import NumberField from './NumberField.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { usePreference } from '../../hooks/usePreference.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
+import { useToastsEnabled } from '../../hooks/useToastsEnabled.js';
 
 // Shown in place of a number field until its config loads: never an invented value.
 const LOADING = <span className="text-xs text-hc-muted">Loading…</span>;
@@ -39,9 +40,8 @@ const FIELDS = [
 export default function TimelineGroup({ setup }) {
   const { retentionConfig, saveRetentionMutation } = setup;
   const { user } = useAuth();
-  const saveRetention = useSettingSaver(saveRetentionMutation, {
-    toastsEnabled: retentionConfig?.toastsEnabled ?? true,
-  });
+  const toastsEnabled = useToastsEnabled(setup);
+  const saveRetention = useSettingSaver(saveRetentionMutation, { toastsEnabled });
 
   const [blobEpisodeWindowMinutes, setBlobEpisodeWindowMinutes] = usePreference('episodeWindowMinutes', 3, { localStorageKey: 'hc_pref_episodeWindowMinutes' });
   const [blobSceneWindowSeconds, setBlobSceneWindowSeconds] = usePreference('sceneWindowSeconds', 5, { localStorageKey: 'hc_pref_sceneWindowSeconds' });

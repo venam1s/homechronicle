@@ -11,6 +11,7 @@ import { usePreference } from '../../hooks/usePreference.js';
 import { useUserPreferences } from '../../hooks/useUserPreferences.js';
 import { useSettingSaver } from '../../hooks/useSettingSaver.js';
 import { useSetting } from '../../hooks/useSetting.js';
+import { useToastsEnabled } from '../../hooks/useToastsEnabled.js';
 
 // The saver has already reported a failure with a toast; useSetting has reverted the value.
 const ignore = () => {};
@@ -41,9 +42,8 @@ export default function QuietHoursGroup({ setup }) {
   const { user } = useAuth();
   const { prefs, setPrefsBlob } = useUserPreferences();
   const queryClient = useQueryClient();
-  const saveRetention = useSettingSaver(saveRetentionMutation, {
-    toastsEnabled: retentionConfig?.toastsEnabled ?? true,
-  });
+  const toastsEnabled = useToastsEnabled(setup);
+  const saveRetention = useSettingSaver(saveRetentionMutation, { toastsEnabled });
 
   // QH-06/QH-07/QH-08: per-user quiet-hours blob fields.
   // Value read path — hooks reconcile from blob when present (D-18 type guard in usePreference).
