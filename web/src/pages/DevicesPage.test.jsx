@@ -66,6 +66,14 @@ describe('DevicesPage tab', () => {
     expect(screen.getByText('my devices')).toBeInTheDocument();
   });
 
+  it('falls back to Browse when the tab prop is not a known tab', () => {
+    render(<DevicesPage tab="nope" onTabChange={vi.fn()} />);
+    expect(isSelected('Browse')).toBe(true);
+    expect(isSelected('Add Accessories')).toBe(false);
+    expect(isSelected('Manage Accessories')).toBe(false);
+    expect(screen.getByText('accessory list')).toBeInTheDocument();
+  });
+
   it('owns its tab when rendered without tab/onTabChange', () => {
     render(<DevicesPage />);
     expect(isSelected('Browse')).toBe(true);

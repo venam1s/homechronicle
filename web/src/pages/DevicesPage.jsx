@@ -27,7 +27,9 @@ const DEVICE_TABS = [
 export default function DevicesPage({ onSelectAccessory, onNavigate, tab: controlledTab, onTabChange }) {
   const [ownTab, setOwnTab] = useState('browse');
   const isControlled = controlledTab != null && typeof onTabChange === 'function';
-  const activeTab = isControlled ? controlledTab : ownTab;
+  const requestedTab = isControlled ? controlledTab : ownTab;
+  // An unknown tab id (a bad deep link) lands on Browse, never a blank page.
+  const activeTab = DEVICE_TABS.some((t) => t.id === requestedTab) ? requestedTab : 'browse';
   const setActiveTab = isControlled ? onTabChange : setOwnTab;
   const setup = useSetup();
   const { user } = useAuth();
