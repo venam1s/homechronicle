@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { ToastProvider } from '../components/Toast.jsx';
@@ -79,5 +80,59 @@ describe('useSettingSaver', () => {
       </ToastProvider>,
     );
     expect(save).toBe(first);
+  });
+
+  it('merges two saves into one send and one success toast', async () => {
+    const mutation = { mutateAsync: vi.fn().mockResolvedValue({}) };
+    const onSaved = vi.fn();
+    mount(mutation, { onSaved });
+    await act(async () => {
+      const a = save({ a: 1 });
+      const b = save({ b: 2 });
+      await vi.advanceTimersByTimeAsync(300);
+      await Promise.all([a, b]);
+    });
+    expect(mutation.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onSaved).toHaveBeenCalledWith({}, { a: 1, b: 2 });
+    expect(screen.getAllByText('Setting saved')).toHaveLength(1);
+  });
+
+  it('shows one failure toast for a merged batch and rejects every save', async () => {
+    const mutation = { mutateAsync: vi.fn().mockRejectedValue(new Error('403')) };
+    mount(mutation, {});
+    let results;
+    await act(async () => {
+      const a = save({ a: 1 }).catch((e) => e.message);
+      const b = save({ b: 2 }).catch((e) => e.message);
+      await vi.advanceTimersByTimeAsync(300);
+      results = await Promise.all([a, b]);
+    });
+    expect(results).toEqual(['403', '403']);
+    expect(screen.getAllByText('Failed to save setting')).toHaveLength(1);
+  });
+
+  it('still saves after a StrictMode mount/cleanup/mount cycle', async () => {
+    const mutation = { mutateAsync: vi.fn().mockResolvedValue({}) };
+    render(
+      <StrictMode>
+        <ToastProvider>
+          <Harness mutation={mutation} options={{}} />
+        </ToastProvider>
+      </StrictMode>,
+    );
+    await saveAndFlush({ a: 1 });
+    expect(mutation.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(mutation.mutateAsync).toHaveBeenCalledWith({ a: 1 });
+  });
+
+  it('saves a pending change when the component unmounts before the delay', async () => {
+    const mutation = { mutateAsync: vi.fn().mockResolvedValue({}) };
+    const { unmount } = mount(mutation, {});
+    save({ a: 1 }).catch(() => {});
+    unmount();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(mutation.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(mutation.mutateAsync).toHaveBeenCalledWith({ a: 1 });
   });
 });

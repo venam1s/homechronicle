@@ -39,4 +39,21 @@ describe('useSetting', () => {
     await act(async () => { await result.current[1]('b').catch(() => {}); });
     expect(result.current[0]).toBe('a');
   });
+
+  it('keeps the newer value when an older change fails while it is pending', async () => {
+    let failA;
+    let finishB;
+    const commit = vi.fn()
+      .mockImplementationOnce(() => new Promise((_, rej) => { failA = rej; }))
+      .mockImplementationOnce(() => new Promise((res) => { finishB = res; }));
+    const { result } = renderHook(() => useSetting('saved', commit));
+    let pa;
+    let pb;
+    act(() => { pa = result.current[1]('a').catch(() => {}); });
+    act(() => { pb = result.current[1]('b'); });
+    await act(async () => { failA(new Error('nope')); await pa; });
+    expect(result.current[0]).toBe('b');
+    await act(async () => { finishB({}); await pb; });
+    expect(result.current[0]).toBe('b');
+  });
 });
