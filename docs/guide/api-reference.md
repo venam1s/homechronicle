@@ -455,6 +455,7 @@ Detailed view for a single accessory including activity history.
 | `days` | integer | `30` | Activity window (7-365) |
 | `page` | integer | `1` | Event history page |
 | `limit` | integer | `100` | Events per page (1-500) |
+| `tz` | string | `UTC` | IANA time zone for the daily activity counts and active-day total (e.g. `America/New_York`); the web UI sends the browser's zone. Unknown zones fall back to UTC. |
 
 **Response includes:** accessory metadata, uptime stats, current state per characteristic, daily activity counts, and paginated event history.
 

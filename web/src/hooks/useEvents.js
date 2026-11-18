@@ -2,6 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { API_BASE as BASE, fetchJson } from '../lib/api.js';
 import { queryKeys } from '../lib/queryKeys.js';
 
+// The browser's IANA zone, so calendar-day buckets line up with the viewer's day.
+const LOCAL_TZ = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+})();
+
 function buildQueryString(params) {
   const qs = new URLSearchParams();
   for (const [key, val] of Object.entries(params)) {
@@ -35,9 +40,9 @@ export function useAccessories() {
 
 export function useAccessoryDetail(accessoryId, { days = 30, page = 1, limit = 100 } = {}) {
   return useQuery({
-    queryKey: queryKeys.accessoryDetail(accessoryId, days, page, limit),
+    queryKey: queryKeys.accessoryDetail(accessoryId, days, page, limit, LOCAL_TZ),
     queryFn: () => fetchJson(
-      `${BASE}/accessories/${encodeURIComponent(accessoryId)}/detail?days=${days}&page=${page}&limit=${limit}`
+      `${BASE}/accessories/${encodeURIComponent(accessoryId)}/detail?days=${days}&page=${page}&limit=${limit}&tz=${encodeURIComponent(LOCAL_TZ)}`
     ),
     enabled: Boolean(accessoryId),
     refetchInterval: page === 1 ? 15_000 : false,
@@ -53,11 +58,6 @@ export function useHourlyStats() {
     refetchInterval: 60_000,
   });
 }
-
-// The browser's IANA zone, so daily buckets line up with the viewer's calendar.
-const LOCAL_TZ = (() => {
-  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
-})();
 
 export function useDailyStats(days = 30) {
   return useQuery({

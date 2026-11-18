@@ -1,7 +1,7 @@
 export const queryKeys = {
   events: (filters, page, limit) => ['events', filters, page, limit],
   accessories: () => ['accessories'],
-  accessoryDetail: (id, days, page, limit) => ['accessory-detail', id, days, page, limit],
+  accessoryDetail: (id, days, page, limit, tz) => ['accessory-detail', id, days, page, limit, tz],
   accessoryAnomalies: (id) => ['accessory-anomalies', id],
   characteristicTrend: (id, char, days) => ['characteristic-trend', id, char, days],
   accessoryHeatmap: (id, days) => ['accessory-heatmap', id, days],

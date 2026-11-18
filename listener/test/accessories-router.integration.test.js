@@ -190,6 +190,53 @@ test('GET /accessories/:accessoryId/detail — returns accessory detail with eve
   assert.ok(jsonBody.current_state, 'Response should have current_state');
 });
 
+test('GET /accessories/:accessoryId/detail — buckets daily activity and active days in the requested zone', async () => {
+  const dayQueries = [];
+  const router = makeRouter({
+    pool: {
+      async query(sql, params) {
+        if (/AS day\b/.test(sql) || /active_days/.test(sql)) dayQueries.push({ sql, params });
+        if (/active_days/.test(sql)) return { rows: [{ active_days: 2 }] };
+        if (/AS day\b/.test(sql)) return { rows: [{ day: '2026-11-17', count: 451 }] };
+        if (/event_count/.test(sql)) return { rows: [{ event_count: 10, first_seen: '2026-01-01T00:00:00Z', last_seen: '2026-11-17T00:00:00Z' }] };
+        if (/heartbeat/.test(sql)) return { rows: [{ heartbeat_seconds: 60, heartbeat_samples: 5 }] };
+        return { rows: [] };
+      },
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories/:accessoryId/detail');
+  const { statusCode } = await invoke(handler, {
+    params: { accessoryId: 'aa:bb:cc' },
+    query: { tz: 'America/New_York' },
+  });
+
+  assert.equal(statusCode, 200);
+  assert.equal(dayQueries.length, 2, 'daily activity and active-days queries should both run');
+  for (const { sql, params } of dayQueries) {
+    assert.ok(!/AT TIME ZONE 'UTC'/.test(sql), 'day boundary must not be hardcoded to UTC');
+    assert.ok(params.includes('America/New_York'), `zone should be bound as a query param: ${JSON.stringify(params)}`);
+  }
+  assert.ok(/::text AS day/.test(dayQueries[0].sql), 'day should be returned as text');
+});
+
+test('GET /accessories/:accessoryId/detail — bogus tz falls back to UTC', async () => {
+  const seen = [];
+  const router = makeRouter({
+    pool: {
+      async query(sql, params) {
+        if (/AS day\b/.test(sql) || /active_days/.test(sql)) seen.push(params);
+        if (/event_count/.test(sql)) return { rows: [{ event_count: 1, first_seen: null, last_seen: null }] };
+        if (/active_days/.test(sql)) return { rows: [{ active_days: 0 }] };
+        return { rows: [] };
+      },
+    },
+  });
+  const handler = getRouteHandler(router, 'GET', '/accessories/:accessoryId/detail');
+  await invoke(handler, { params: { accessoryId: 'aa:bb:cc' }, query: { tz: 'Nowhere/Nope' } });
+  assert.equal(seen.length, 2);
+  for (const params of seen) assert.ok(params.includes('UTC'), `expected UTC fallback, got ${JSON.stringify(params)}`);
+});
+
 test('GET /accessories/:accessoryId/detail — missing accessoryId returns 400', async () => {
   const router = makeRouter();
   const handler = getRouteHandler(router, 'GET', '/accessories/:accessoryId/detail');

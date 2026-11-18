@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
-import { parseIntInRange as _parseIntInRange, parentAccessoryId, parentBridgeId, roomFor, withTimeout } from './utils.js';
+import { parseIntInRange as _parseIntInRange, parseTimeZone, parentAccessoryId, parentBridgeId, roomFor, withTimeout } from './utils.js';
 import { isHomeKitPairing, mapReliabilityStats } from './setup-helpers.js';
 import { deriveDeviceHealth } from './device-health.js';
 import { CATEGORY_WINDOW_DAYS, resolveCategory } from './categories.js';
@@ -373,6 +373,9 @@ export function createAccessoriesRouter({
     const days = _parseIntInRange(req.query.days, 30, 7, 365);
     const page = _parseIntInRange(req.query.page, 1, 1, 1_000_000);
     const limit = _parseIntInRange(req.query.limit, 100, 1, 500);
+    // Calendar days for the activity chart and active-day count are bucketed
+    // in the caller's zone (the web UI sends the browser's); see /stats/daily.
+    const tz = parseTimeZone(req.query.tz);
     const offset = (page - 1) * limit;
 
     try {
@@ -490,20 +493,20 @@ export function createAccessoriesRouter({
       );
 
       const activityResult = await pool.query(
-        `SELECT DATE(timestamp AT TIME ZONE 'UTC') AS day, COUNT(*)::int AS count
+        `SELECT DATE(timestamp AT TIME ZONE $3)::text AS day, COUNT(*)::int AS count
          FROM event_logs
          WHERE accessory_id = $1
            AND timestamp >= NOW() - ($2::int * INTERVAL '1 day')
          GROUP BY day
          ORDER BY day`,
-        [accessoryId, days]
+        [accessoryId, days, tz]
       );
 
       const distinctActiveDaysResult = await pool.query(
-        `SELECT COUNT(DISTINCT DATE(timestamp AT TIME ZONE 'UTC'))::int AS active_days
+        `SELECT COUNT(DISTINCT DATE(timestamp AT TIME ZONE $2))::int AS active_days
          FROM event_logs
          WHERE accessory_id = $1`,
-        [accessoryId]
+        [accessoryId, tz]
       );
       const activeDays = Number.parseInt(distinctActiveDaysResult.rows[0]?.active_days ?? '0', 10);
       const firstSeenTs = summary.first_seen ? new Date(summary.first_seen).getTime() : null;
