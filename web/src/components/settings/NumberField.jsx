@@ -64,7 +64,7 @@ export default function NumberField({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <input
           type="number"
           inputMode="numeric"
@@ -78,7 +78,8 @@ export default function NumberField({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
         />
-        {unit && <span className="text-xs text-hc-muted">{unit}</span>}
+        {/* Fixed width (fits "events") so inputs in one group line up whatever their unit. */}
+        {unit && <span className="w-11 text-left text-xs text-hc-muted">{unit}</span>}
         {dirty && (
           <>
             <button type="button" className={APPLY_CLASS} disabled={!valid || busy} onClick={apply}>
