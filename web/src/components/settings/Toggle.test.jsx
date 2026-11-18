@@ -19,4 +19,17 @@ describe('Toggle', () => {
     await userEvent.click(screen.getByRole('switch'));
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it('shows a muted knob when off and an on-accent knob when on', () => {
+    const { rerender } = render(<Toggle checked={false} onChange={() => {}} ariaLabel="X" />);
+    let knob = screen.getByTestId('toggle-knob');
+    expect(knob).toHaveClass('bg-hc-muted');
+    expect(knob).not.toHaveClass('bg-hc-on-accent');
+    expect(knob).not.toHaveClass('bg-hc-panel');
+    rerender(<Toggle checked onChange={() => {}} ariaLabel="X" />);
+    knob = screen.getByTestId('toggle-knob');
+    expect(knob).toHaveClass('bg-hc-on-accent');
+    expect(knob).not.toHaveClass('bg-hc-muted');
+    expect(knob).not.toHaveClass('bg-hc-panel');
+  });
 });

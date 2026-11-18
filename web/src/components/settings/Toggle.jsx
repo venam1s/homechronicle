@@ -21,9 +21,10 @@ export default function Toggle({ checked, onChange, ariaLabel, disabled }) {
     >
       <span
         aria-hidden="true"
+        data-testid="toggle-knob"
         className={clsx(
-          'inline-block h-4 w-4 rounded-full bg-hc-panel shadow-sm transition-transform',
-          checked ? 'translate-x-6' : 'translate-x-1',
+          'inline-block h-4 w-4 rounded-full shadow-sm transition-transform',
+          checked ? 'translate-x-6 bg-hc-on-accent' : 'translate-x-1 bg-hc-muted',
         )}
       />
     </button>
