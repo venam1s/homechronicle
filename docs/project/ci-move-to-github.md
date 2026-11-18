@@ -32,7 +32,7 @@ The GitLab pipeline is unchanged and remains the CI of record. The GitHub
 workflows cannot deploy or publish anything until the two variables are set, so
 enabling Actions only adds a second, parallel test run on the same host.
 
-## Cutover (done 2026-11-18, except the secrets)
+## Cutover (done 2026-11-18)
 
 GitHub Actions is the CI of record. `.gitlab-ci.yml` is deleted and the GitLab
 runner stack on the NUC is stopped. What changed, in order:
@@ -42,7 +42,7 @@ runner stack on the NUC is stopped. What changed, in order:
    (the first attempt failed until the runner's `externals/` were on the host).
 2. **Variables** `BETA_DEPLOY_FROM_GITHUB=true` and `RELEASES_FROM_GITHUB=true`
    set; they remain as kill switches.
-3. **Secrets** the workflows need, set with `pbpaste | gh secret set NAME -R venam1s/homechronicle`
+3. **Secrets** (all six set on 2026-11-18 by the user) with `pbpaste | gh secret set NAME -R venam1s/homechronicle`
    or from `~/.config/homelab/tokens.env` in the user's own shell (Claude's
    session is not allowed to copy secrets between stores):
    `DOCKER_HUB_USER`, `DOCKER_HUB_TOKEN` (values in the GitLab CI variables of
@@ -61,11 +61,12 @@ runner stack on the NUC is stopped. What changed, in order:
    `gh workflow run release.yml -f tag=...`.
 6. **Docs site**: a direct-upload Cloudflare Pages project `homechronicle-docs`
    receives `docs/` from the `docs` job of `ci.yml` on every push to main
-   (wrangler). The custom domain `homechronicle.net` moves from the old
-   GitLab-sourced project `homechronicle` to it once the first upload has been
-   checked at `homechronicle-docs.pages.dev` (domain and DNS CNAME change). Until
-   then the old project still publishes from the GitLab mirror, which the dual
-   push keeps current.
+   (wrangler). On 2026-11-18 the custom domain `homechronicle.net` and its DNS
+   CNAME were moved to it from the old GitLab-sourced project `homechronicle`
+   (about a minute of 522 while the certificate came up). The old project is
+   kept, detached, as a rollback: re-attach the domain and point the CNAME back
+   at `homechronicle.pages.dev`. `www.homechronicle.net` still points at a
+   GitHub Pages leftover and was not touched.
 7. **Skills and docs** rewritten: `release`, `beta-release`, `beta-release-git`
    skills, `CONTRIBUTING.md`, `docs/guide/testing.md` (CI section),
    `docs/guide/docker-compose.md`.
