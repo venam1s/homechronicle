@@ -117,7 +117,7 @@ export default function SettingsPage({
         )}
 
         {/* Content area */}
-        <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex-1 min-w-0 max-w-[720px] space-y-4">
           {/* Admin section: Users + SMTP only; shown when auth is on and user is admin.
               Advanced (Log level + Danger Zone) is an inner tab inside SettingsTab,
               gated by showAdvanced — visible to admins and the auth-off sole operator. */}

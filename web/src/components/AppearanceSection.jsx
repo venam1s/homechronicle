@@ -1,13 +1,15 @@
-import { Sun, Moon, SunMoon, Check, Thermometer, CalendarDays, CalendarOff } from 'lucide-react';
+import { Sun, Moon, SunMoon, Check, CalendarDays, CalendarOff } from 'lucide-react';
 import clsx from 'clsx';
 import Card from './Card.jsx';
+import SettingsGroup from './settings/SettingsGroup.jsx';
+import SettingsRow from './settings/SettingsRow.jsx';
+import Segmented from './settings/Segmented.jsx';
+import { FOCUS_RING } from './settings/fieldStyles.js';
 import { useTheme } from '../hooks/useTheme.js';
 import { usePalette } from '../hooks/usePalette.js';
 import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
 import { useMastheadDate } from '../hooks/useMastheadDate.js';
 import { PALETTE_IDS, PALETTES, rampFor } from '../lib/palettes.js';
-
-const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-hc-focus-ring focus-visible:outline-offset-2';
 
 const THEME_OPTIONS = [
   { id: 'light', label: 'Light', icon: Sun, hint: 'Always the light palette.' },
@@ -16,8 +18,8 @@ const THEME_OPTIONS = [
 ];
 
 const UNIT_OPTIONS = [
-  { id: 'c', label: 'Celsius (°C)' },
-  { id: 'f', label: 'Fahrenheit (°F)' },
+  { id: 'c', label: '°C' },
+  { id: 'f', label: '°F' },
 ];
 
 const DATE_OPTIONS = [
@@ -69,124 +71,51 @@ export default function AppearanceSection() {
 
   return (
     <>
-      <Card>
-        <Card.Header title="Theme" headingLevel={2} />
-        <Card.Body>
-          <div
-            role="radiogroup"
-            aria-label="Theme"
-            className="inline-flex gap-1 p-1 rounded-lg bg-hc-panel-mid"
-          >
-            {THEME_OPTIONS.map(({ id, label, icon: Icon }) => {
-              const selected = preference === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setPreference(id)}
-                  className={clsx(
-                    'flex items-center gap-2 px-4 py-2 rounded-md text-hc-label font-semibold transition-colors',
-                    FOCUS_RING,
-                    selected
-                      ? 'bg-hc-panel text-hc-fg-strong border border-hc-panel-border'
-                      : 'text-hc-muted hover:text-hc-fg',
-                  )}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          <p className="mt-3 text-hc-caption text-hc-muted">
-            {activeTheme.hint}
-            {preference === 'system' && (
-              <> Currently showing the <strong className="font-semibold">{resolvedTheme}</strong> palette.</>
-            )}
-          </p>
-        </Card.Body>
-      </Card>
-
-      <Card>
-        <Card.Header title="Units" headingLevel={2} />
-        <Card.Body>
-          <div
-            role="radiogroup"
-            aria-label="Temperature unit"
-            className="inline-flex gap-1 p-1 rounded-lg bg-hc-panel-mid"
-          >
-            {UNIT_OPTIONS.map(({ id, label }) => {
-              const selected = unit === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setUnit(id)}
-                  className={clsx(
-                    'flex items-center gap-2 px-4 py-2 rounded-md text-hc-label font-semibold transition-colors',
-                    FOCUS_RING,
-                    selected
-                      ? 'bg-hc-panel text-hc-fg-strong border border-hc-panel-border'
-                      : 'text-hc-muted hover:text-hc-fg',
-                  )}
-                >
-                  <Thermometer size={16} aria-hidden="true" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          <p className="mt-3 text-hc-caption text-hc-muted">
-            Applies everywhere you read or type a temperature, including alert rules, alert emails
-            and exports. Readings are stored in °C.
-          </p>
-        </Card.Body>
-      </Card>
-
-      <Card>
-        <Card.Header title="Date" headingLevel={2} />
-        <Card.Body>
-          <div
-            role="radiogroup"
-            aria-label="Date in the top bar"
-            className="inline-flex gap-1 p-1 rounded-lg bg-hc-panel-mid"
-          >
-            {DATE_OPTIONS.map(({ id, label, icon: Icon }) => {
-              const selected = (id === 'show') === showDate;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setShowDate(id === 'show')}
-                  className={clsx(
-                    'flex items-center gap-2 px-4 py-2 rounded-md text-hc-label font-semibold transition-colors',
-                    FOCUS_RING,
-                    selected
-                      ? 'bg-hc-panel text-hc-fg-strong border border-hc-panel-border'
-                      : 'text-hc-muted hover:text-hc-fg',
-                  )}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          <p className="mt-3 text-hc-caption text-hc-muted">
-            Today's date at the right of the top bar, above the Dashboard and every other
-            page on wide screens. Hiding it changes nothing else.
-          </p>
-        </Card.Body>
-      </Card>
+      <SettingsGroup title="Appearance">
+        <SettingsRow
+          label="Theme"
+          description={(
+            <>
+              {activeTheme.hint}
+              {preference === 'system' && (
+                <> Currently showing the <strong className="font-semibold">{resolvedTheme}</strong> palette.</>
+              )}
+            </>
+          )}
+          control={(
+            <Segmented
+              ariaLabel="Theme"
+              options={THEME_OPTIONS}
+              value={preference}
+              onChange={setPreference}
+            />
+          )}
+        />
+        <SettingsRow
+          label="Temperature"
+          description="Applies everywhere you read or type a temperature, including alert rules, alert emails and exports. Readings are stored in °C."
+          control={(
+            <Segmented
+              ariaLabel="Temperature unit"
+              options={UNIT_OPTIONS}
+              value={unit}
+              onChange={setUnit}
+            />
+          )}
+        />
+        <SettingsRow
+          label="Date in top bar"
+          description="Today's date at the right of the top bar on wide screens. Hiding it changes nothing else."
+          control={(
+            <Segmented
+              ariaLabel="Date in the top bar"
+              options={DATE_OPTIONS}
+              value={showDate ? 'show' : 'hide'}
+              onChange={(id) => setShowDate(id === 'show')}
+            />
+          )}
+        />
+      </SettingsGroup>
 
       <Card>
         <Card.Header title="Palette" headingLevel={2} />
@@ -221,8 +150,8 @@ export default function AppearanceSection() {
                   </span>
                   <span className="flex items-center justify-between gap-2 px-3 py-2 bg-hc-panel">
                     <span className="min-w-0">
-                      <span className="block text-hc-label font-semibold text-hc-fg-strong truncate">{name}</span>
-                      <span className="block text-hc-caption text-hc-muted truncate">{tagline}</span>
+                      <span className="block text-sm font-semibold text-hc-fg-strong truncate">{name}</span>
+                      <span className="block text-xs text-hc-muted truncate">{tagline}</span>
                     </span>
                     {selected && (
                       <Check size={16} className="shrink-0 text-hc-accent-strong" aria-hidden="true" />
@@ -233,7 +162,7 @@ export default function AppearanceSection() {
             })}
           </div>
 
-          <p className="mt-3 text-hc-caption text-hc-muted">
+          <p className="mt-3 text-xs text-hc-muted">
             Your palette follows your account across devices. Room colours, charts and the
             wordmark all follow it, and each palette has its own dark mode rather than a
             dimmed version of the light one.

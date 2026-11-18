@@ -39,6 +39,13 @@ describe('AppearanceSection', () => {
     paletteState.palette = 'porcelain';
   });
 
+  it('shows Theme, Temperature and Date as rows of one card, plus Palette', () => {
+    render(<AppearanceSection />);
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent))
+      .toEqual(['Appearance', 'Palette']);
+    expect(screen.getAllByTestId('settings-row')).toHaveLength(3);
+  });
+
   it('offers exactly the three theme choices', () => {
     render(<AppearanceSection />);
     const group = screen.getByRole('radiogroup', { name: 'Theme' });
@@ -134,7 +141,7 @@ describe('AppearanceSection units', () => {
     render(<AppearanceSection />);
     const group = screen.getByRole('radiogroup', { name: 'Temperature unit' });
     const options = within(group).getAllByRole('radio');
-    expect(options.map((o) => o.textContent)).toEqual(['Celsius (°C)', 'Fahrenheit (°F)']);
+    expect(options.map((o) => o.textContent)).toEqual(['°C', '°F']);
   });
 
   it('marks the stored unit as checked', () => {
@@ -142,14 +149,14 @@ describe('AppearanceSection units', () => {
     unitState.symbol = '°F';
     render(<AppearanceSection />);
     const group = screen.getByRole('radiogroup', { name: 'Temperature unit' });
-    expect(within(group).getByRole('radio', { name: 'Fahrenheit (°F)' })).toBeChecked();
-    expect(within(group).getByRole('radio', { name: 'Celsius (°C)' })).not.toBeChecked();
+    expect(within(group).getByRole('radio', { name: '°F' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: '°C' })).not.toBeChecked();
   });
 
   it('sets the unit on click', async () => {
     const user = userEvent.setup();
     render(<AppearanceSection />);
-    await user.click(screen.getByRole('radio', { name: 'Fahrenheit (°F)' }));
+    await user.click(screen.getByRole('radio', { name: '°F' }));
     expect(setUnit).toHaveBeenCalledWith('f');
   });
 
