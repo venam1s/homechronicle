@@ -83,6 +83,59 @@ test('GET /stats/daily — respects days param', async () => {
   assert.ok(capturedParams.includes(14), 'parsed days=14 should be in query params');
 });
 
+test('GET /stats/daily — buckets days in the requested IANA zone', async () => {
+  let capturedSql = null;
+  let capturedParams = null;
+  const cacheKeys = [];
+  const pool = {
+    async query(sql, params) {
+      capturedSql = sql;
+      capturedParams = params;
+      return { rows: [] };
+    },
+  };
+
+  const router = createStatsRouter({
+    pool,
+    cached: (key, fn) => { cacheKeys.push(key); return fn(); },
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({}),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/daily');
+  const { statusCode } = await invoke(handler, { query: { days: '7', tz: 'America/New_York' } });
+
+  assert.equal(statusCode, 200);
+  assert.ok(capturedParams.includes('America/New_York'), 'zone should be bound as a query param');
+  assert.ok(!/AT TIME ZONE 'UTC'/.test(capturedSql), 'zone must not be hardcoded to UTC');
+  assert.ok(/::text/.test(capturedSql), 'day should be returned as text, not a server-local Date');
+  assert.ok(cacheKeys[0].includes('America/New_York'), 'cache key must include the zone');
+});
+
+test('GET /stats/daily — falls back to UTC for a missing or bogus tz', async () => {
+  const seen = [];
+  const pool = {
+    async query(_sql, params) {
+      seen.push(params);
+      return { rows: [] };
+    },
+  };
+
+  const router = createStatsRouter({
+    pool,
+    cached: (_key, fn) => fn(),
+    getRooms: () => ({}),
+    getRetentionSettings: () => ({}),
+  });
+  const handler = getRouteHandler(router, 'GET', '/stats/daily');
+  await invoke(handler, { query: {} });
+  await invoke(handler, { query: { tz: "Mars/Olympus'; DROP TABLE event_logs; --" } });
+  await invoke(handler, { query: { tz: ['America/New_York'] } });
+
+  for (const params of seen) {
+    assert.ok(params.includes('UTC'), `expected UTC fallback, got ${JSON.stringify(params)}`);
+  }
+});
+
 // -- GET /stats/top-devices --
 
 test('GET /stats/top-devices — applies room overrides', async () => {

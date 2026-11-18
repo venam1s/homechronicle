@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { log } from './logger.js';
 import { rateLimitKeyGenerator } from './security.js';
-import { parseIntInRange, roomFor } from './utils.js';
+import { parseIntInRange, parseTimeZone, roomFor } from './utils.js';
 import { normalizeRetentionSettings } from './retention-router.js';
 import { detectOutliers } from './anomaly-detection.js';
 import { CATEGORIES, resolveCategory } from './categories.js';
@@ -51,13 +51,19 @@ export function createStatsRouter({ pool, cached, getRooms, getRetentionSettings
 
   router.get('/stats/daily', statsReadLimiter, async (req, res) => {
     const days = parseIntInRange(req.query.days, 30, 7, 365);
+    // Calendar days are bucketed in the caller's zone (the web UI sends the
+    // browser's), so "today" means the viewer's today rather than UTC's.
+    // `day` goes out as text: pg would otherwise parse a DATE into a JS Date
+    // at the listener's local midnight, which serialises to the wrong day on
+    // a host east of UTC.
+    const tz = parseTimeZone(req.query.tz);
     try {
-      const rows = await cached(`stats:daily:${days}`, async () => {
+      const rows = await cached(`stats:daily:${days}:${tz}`, async () => {
         const result = await pool.query(`
-          SELECT DATE(timestamp AT TIME ZONE 'UTC') AS day, COUNT(*) AS count
+          SELECT DATE(timestamp AT TIME ZONE $2)::text AS day, COUNT(*) AS count
           FROM event_logs WHERE timestamp >= NOW() - ($1::int * INTERVAL '1 day')
           GROUP BY day ORDER BY day
-        `, [days]);
+        `, [days, tz]);
         return result.rows;
       }, 60_000);
       res.json(rows);

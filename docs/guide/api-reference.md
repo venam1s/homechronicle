@@ -586,11 +586,12 @@ Event counts by hour of day (last 30 days).
 
 ### `GET /api/stats/daily`
 
-Event counts by day.
+Event counts by calendar day.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `days` | integer | `30` | Number of days (7-365) |
+| `tz` | string | `UTC` | IANA time zone the days are bucketed in (e.g. `America/New_York`); the web UI sends the browser's zone. Unknown zones fall back to UTC. |
 
 **Response:** `[{ "day": "2026-10-11", "count": 234 }, ...]`
 

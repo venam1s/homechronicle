@@ -9,7 +9,7 @@ export const queryKeys = {
   accessoryCharSummary: (id, days) => ['accessory-char-summary', id, days],
   stats: {
     hourly: () => ['stats', 'hourly'],
-    daily: (days) => ['stats', 'daily', days],
+    daily: (days, tz) => ['stats', 'daily', days, tz],
     topDevices: (days) => ['stats', 'top-devices', days],
     rooms: (days) => ['stats', 'rooms', days],
     weekday: (days) => ['stats', 'weekday', days],

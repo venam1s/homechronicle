@@ -41,6 +41,21 @@ export function parseIntInRange(value, fallback, min, max) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+/**
+ * Validate an IANA time zone name from a query string. Anything the runtime's
+ * Intl data does not recognise (or that is not a plain string) falls back,
+ * so the value is safe to bind as a query parameter for AT TIME ZONE.
+ */
+export function parseTimeZone(value, fallback = 'UTC') {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 64) return fallback;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return value;
+  } catch {
+    return fallback;
+  }
+}
+
 export function parentBridgeId(id) {
   const str = String(id ?? '');
   const parts = str.split(':');

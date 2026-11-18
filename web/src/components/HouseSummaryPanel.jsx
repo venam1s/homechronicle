@@ -1,11 +1,15 @@
+import { format, subDays } from 'date-fns';
 import { useDailyStats, useRoomStats, useQuietHours } from '../hooks/useEvents.js';
 import { formatHour12, utcHourToLocal } from '../lib/hours.js';
 
-const dayKey = (d) => d.toISOString().slice(0, 10);
-
-/** Count for a given date from the daily-stats series. */
+/**
+ * Count for a given date from the daily-stats series, keyed by the local
+ * calendar day. The series is bucketed in the browser's zone, and the Today
+ * card keys the same way; a UTC key here used to reset this sentence to zero
+ * at 7 PM Eastern while the card kept counting.
+ */
 function countFor(daily, date) {
-  const key = dayKey(date);
+  const key = format(date, 'yyyy-MM-dd');
   return Number(daily?.find((d) => String(d.day ?? '').startsWith(key))?.count ?? 0);
 }
 
@@ -53,7 +57,7 @@ export default function HouseSummaryPanel() {
 
   const now = new Date();
   const today = countFor(daily, now);
-  const yesterday = countFor(daily, new Date(now.getTime() - 864e5));
+  const yesterday = countFor(daily, subDays(now, 1));
 
   const topRoom = Array.isArray(rooms) && rooms.length > 0
     ? [...rooms].sort((a, b) => Number(b.count ?? b.event_count ?? 0) - Number(a.count ?? a.event_count ?? 0))[0]

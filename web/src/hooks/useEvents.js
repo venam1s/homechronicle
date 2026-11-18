@@ -54,10 +54,15 @@ export function useHourlyStats() {
   });
 }
 
+// The browser's IANA zone, so daily buckets line up with the viewer's calendar.
+const LOCAL_TZ = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+})();
+
 export function useDailyStats(days = 30) {
   return useQuery({
-    queryKey: queryKeys.stats.daily(days),
-    queryFn: () => fetchJson(`${BASE}/stats/daily?days=${days}`),
+    queryKey: queryKeys.stats.daily(days, LOCAL_TZ),
+    queryFn: () => fetchJson(`${BASE}/stats/daily?days=${days}&tz=${encodeURIComponent(LOCAL_TZ)}`),
     staleTime: 60_000,
     refetchInterval: 60_000,
   });
