@@ -110,4 +110,22 @@ describe('DataGroup', () => {
     await act(() => vi.advanceTimersByTimeAsync(0));
     expect(screen.getByRole('button', { name: /Download archive \(1,234 events\)/ })).toBeInTheDocument();
   });
+
+  it('shows no number and a disabled switch until retentionConfig loads, then the saved values', () => {
+    const { unmount } = renderGroup({ ...makeSetup(), retentionConfig: undefined });
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+    expect(screen.queryByDisplayValue('365')).toBeNull();
+    expect(screen.queryByDisplayValue('24')).toBeNull();
+    expect(screen.getAllByText('Loading…')).toHaveLength(2);
+    expect(screen.getByText('Retention cutoff')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Archive before delete' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Archive before delete' })).toHaveAttribute('aria-checked', 'false');
+    unmount();
+
+    renderGroup(makeSetup({ retentionDays: 30, staleThresholdHours: 48 }));
+    expect(screen.getByRole('spinbutton', { name: 'Retention cutoff' })).toHaveValue(30);
+    expect(screen.getByRole('spinbutton', { name: 'Stale accessory threshold' })).toHaveValue(48);
+    expect(screen.getByRole('switch', { name: 'Archive before delete' })).toBeEnabled();
+    expect(screen.queryByText('Loading…')).toBeNull();
+  });
 });

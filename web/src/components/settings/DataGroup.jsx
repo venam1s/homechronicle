@@ -13,16 +13,20 @@ import { useSetting } from '../../hooks/useSetting.js';
 // The saver has already reported a failure with a toast; useSetting has reverted the value.
 const ignore = () => {};
 
+// Shown in place of a number field until its config loads: never an invented value.
+const LOADING = <span className="text-xs text-hc-muted">Loading…</span>;
+
 export default function DataGroup({ setup }) {
   const { retentionConfig, saveRetentionMutation } = setup;
   const saveRetention = useSettingSaver(saveRetentionMutation, {
     toastsEnabled: retentionConfig?.toastsEnabled ?? true,
   });
 
-  const retentionDays = retentionConfig?.retentionDays ?? 365;
-  const staleThresholdHours = retentionConfig?.staleThresholdHours ?? 24;
+  const loaded = retentionConfig != null;
+  const retentionDays = retentionConfig?.retentionDays;
+  const staleThresholdHours = retentionConfig?.staleThresholdHours;
   const [archiveBeforeDelete, changeArchiveBeforeDelete] = useSetting(
-    Boolean(retentionConfig?.archiveBeforeDelete ?? true),
+    loaded && Boolean(retentionConfig.archiveBeforeDelete ?? true),
     (v) => saveRetention({ archiveBeforeDelete: v }),
   );
 
@@ -59,7 +63,7 @@ export default function DataGroup({ setup }) {
       <SettingsRow
         label="Retention cutoff"
         description="Keep timeline data in the main table for this many days. Changes apply without restart. Sweep interval is every 24 hours by default."
-        control={(
+        control={loaded ? (
           <NumberField
             value={retentionDays}
             min={1}
@@ -69,7 +73,7 @@ export default function DataGroup({ setup }) {
             warning={retentionWarning}
             onApply={(n) => saveRetention({ retentionDays: n })}
           />
-        )}
+        ) : LOADING}
       />
       <SettingsRow
         label="Archive before delete"
@@ -78,6 +82,7 @@ export default function DataGroup({ setup }) {
           <Toggle
             checked={archiveBeforeDelete}
             ariaLabel="Archive before delete"
+            disabled={!loaded}
             onChange={(v) => changeArchiveBeforeDelete(v).catch(ignore)}
           />
         )}
@@ -96,7 +101,7 @@ export default function DataGroup({ setup }) {
       <SettingsRow
         label="Stale accessory threshold"
         description="An accessory is marked stale after this many hours with no events."
-        control={(
+        control={loaded ? (
           <NumberField
             value={staleThresholdHours}
             min={1}
@@ -105,7 +110,7 @@ export default function DataGroup({ setup }) {
             ariaLabel="Stale accessory threshold"
             onApply={(n) => saveRetention({ staleThresholdHours: n })}
           />
-        )}
+        ) : LOADING}
       />
     </SettingsGroup>
   );

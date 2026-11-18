@@ -35,12 +35,15 @@ export default function DevicesGroup({ setup, onNavigate }) {
   const saveRetention = useSettingSaver(saveRetentionMutation, { toastsEnabled });
   const saveRepair = useSettingSaver(saveRepairMutation, { toastsEnabled });
 
+  // Until a config loads its switches are off and inert: never an invented value.
+  const retentionLoaded = retentionConfig != null;
+  const repairLoaded = repairConfig != null;
   const [autoScan, changeAutoScan] = useSetting(
-    Boolean(retentionConfig?.autoScanHomeKit ?? true),
+    retentionLoaded && Boolean(retentionConfig.autoScanHomeKit ?? true),
     (v) => saveRetention({ autoScanHomeKit: v }),
   );
   const [repairEnabled, changeRepairEnabled] = useSetting(
-    Boolean(repairConfig?.enabled ?? false),
+    repairLoaded && Boolean(repairConfig.enabled ?? false),
     (v) => saveRepair({ enabled: v }),
   );
   const [repairHour, changeRepairHour] = useSetting(
@@ -57,6 +60,7 @@ export default function DevicesGroup({ setup, onNavigate }) {
           <Toggle
             checked={autoScan}
             ariaLabel="HomeKit auto-scan"
+            disabled={!retentionLoaded}
             onChange={(v) => changeAutoScan(v).catch(ignore)}
           />
         )}
@@ -68,6 +72,7 @@ export default function DevicesGroup({ setup, onNavigate }) {
           <Toggle
             checked={repairEnabled}
             ariaLabel="Scheduled Repair"
+            disabled={!repairLoaded}
             onChange={(v) => changeRepairEnabled(v).catch(ignore)}
           />
         )}

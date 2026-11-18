@@ -22,28 +22,38 @@ function makeSetup(overrides = {}) {
   };
 }
 
-function renderGroup(setup) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+function tree(setup, qc) {
+  return (
     <QueryClientProvider client={qc}>
       <ToastProvider>
         <DevicesGroup setup={setup} />
       </ToastProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 }
 
+// Returns the render result plus update(setup), which re-renders with new props.
+function renderGroup(setup) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const utils = render(tree(setup, qc));
+  return { ...utils, update: (next) => utils.rerender(tree(next, qc)) };
+}
+
+// Fake timers with user-event under Vitest: household saves debounce 300ms, so
+// tests advance fake time. Both options are needed:
+// - shouldAdvanceTime: Testing Library wraps each user-event call in a real
+//   setTimeout(0) that it only advances under Jest; without this, clicks hang.
+// - advanceTimers: lets user-event's own delays move the fake clock.
+// After an action that saves, run `await act(() => vi.advanceTimersByTimeAsync(300))`.
 let user;
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+});
+afterEach(() => { vi.useRealTimers(); });
 
 describe('DevicesGroup: Scheduled Repair', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // shouldAdvanceTime: RTL wraps user-event in a real setTimeout(0) it only advances under Jest.
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-  });
-  afterEach(() => { vi.useRealTimers(); });
-
   const repairSwitch = () => screen.getByRole('switch', { name: 'Scheduled Repair' });
 
   it('renders "Scheduled Repair" as a row label when repairConfig is provided', () => {
@@ -127,14 +137,6 @@ describe('DevicesGroup: Scheduled Repair', () => {
 });
 
 describe('DevicesGroup: HomeKit auto-scan', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // shouldAdvanceTime: RTL wraps user-event in a real setTimeout(0) it only advances under Jest.
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-  });
-  afterEach(() => { vi.useRealTimers(); });
-
   it('saves autoScanHomeKit through the retention mutation', async () => {
     const setup = makeSetup();
     renderGroup(setup);
@@ -143,5 +145,22 @@ describe('DevicesGroup: HomeKit auto-scan', () => {
     await user.click(screen.getByRole('switch', { name: 'HomeKit auto-scan' }));
     await act(() => vi.advanceTimersByTimeAsync(300));
     expect(setup.saveRetentionMutation.mutateAsync).toHaveBeenCalledWith({ autoScanHomeKit: false });
+  });
+});
+
+describe('DevicesGroup: before the config loads', () => {
+  it('renders both switches disabled and off, with no hour picker, until the configs arrive', () => {
+    const { update } = renderGroup(makeSetup({ retentionConfig: undefined, repairConfig: undefined }));
+    for (const name of ['HomeKit auto-scan', 'Scheduled Repair']) {
+      expect(screen.getByRole('switch', { name })).toBeDisabled();
+      expect(screen.getByRole('switch', { name })).toHaveAttribute('aria-checked', 'false');
+    }
+    expect(screen.queryByRole('combobox', { name: 'Repair hour' })).toBeNull();
+
+    update(makeSetup({ repairConfig: { enabled: true, hour: 3, lastRunAt: null, lastRunResult: null } }));
+    expect(screen.getByRole('switch', { name: 'HomeKit auto-scan' })).toBeEnabled();
+    expect(screen.getByRole('switch', { name: 'HomeKit auto-scan' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'Scheduled Repair' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('combobox', { name: 'Repair hour' })).toBeEnabled();
   });
 });

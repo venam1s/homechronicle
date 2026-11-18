@@ -78,4 +78,19 @@ describe('AlertDefaultsGroup', () => {
     await act(() => vi.advanceTimersByTimeAsync(300));
     expect(setup.saveAlertsMutation.mutateAsync).toHaveBeenCalledWith({ defaultQuietMinutes: 0 });
   });
+
+  it('shows no number until alertsConfig loads, then the saved values', () => {
+    const { unmount } = renderGroup({ ...makeSetup(), alertsConfig: undefined });
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+    expect(screen.queryByDisplayValue('5000')).toBeNull();
+    expect(screen.queryByDisplayValue('0')).toBeNull();
+    expect(screen.getAllByText('Loading…')).toHaveLength(2);
+    expect(screen.getByText('Webhook timeout')).toBeInTheDocument();
+    unmount();
+
+    renderGroup(makeSetup({ defaultQuietMinutes: 45, webhookTimeoutMs: 7000 }));
+    expect(quietInput()).toHaveValue(45);
+    expect(timeoutInput()).toHaveValue(7000);
+    expect(screen.queryByText('Loading…')).toBeNull();
+  });
 });
