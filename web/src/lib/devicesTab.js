@@ -1,7 +1,8 @@
 // Which Devices tab navigating to Devices should show: the tab asked for if any;
-// otherwise the current tab when already on Devices (the top-bar link leaves it
-// alone), else Browse.
-export function nextDevicesTab({ activePage, currentTab, requestedTab }) {
+// otherwise the current tab when the Devices page itself is on screen (the
+// top-bar link leaves it alone), else Browse. An open accessory detail covers
+// the Devices page, so from there Devices opens on Browse.
+export function nextDevicesTab({ activePage, currentTab, requestedTab, detailOpen = false }) {
   if (requestedTab) return requestedTab;
-  return activePage === 'devices' ? currentTab : 'browse';
+  return activePage === 'devices' && !detailOpen ? currentTab : 'browse';
 }

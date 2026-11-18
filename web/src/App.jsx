@@ -136,7 +136,12 @@ export default function App() {
     // Devices opens on the tab asked for, e.g. navigate('devices', { tab: 'devices' });
     // else keeps its tab if already open, else Browse.
     if (page === 'devices') {
-      setDevicesTab(nextDevicesTab({ activePage, currentTab: devicesTab, requestedTab: options?.tab }));
+      setDevicesTab(nextDevicesTab({
+        activePage,
+        currentTab: devicesTab,
+        requestedTab: options?.tab,
+        detailOpen: selectedAccessoryId != null,
+      }));
     }
     setActivePage(page);
   };
