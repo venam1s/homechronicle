@@ -5,6 +5,7 @@ import { useAuth } from './hooks/useAuth.js';
 import { useSignOut } from './hooks/useSignOut.js';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from './lib/api.js';
+import { nextDevicesTab } from './lib/devicesTab.js';
 import { useMediaQuery } from './hooks/useMediaQuery.js';
 import { useUpdateCheck } from './hooks/useUpdateCheck.js';
 import { useLiveEventToasts } from './hooks/useLiveEventToasts.js';
@@ -132,8 +133,11 @@ export default function App() {
     setSelectedAccessoryId(null);
     // Optional deep link into a Settings section, e.g. navigate('settings', { section: 'appearance' }).
     if (page === 'settings' && options?.section) setSettingsSection(options.section);
-    // Devices opens on the tab asked for, else Browse, e.g. navigate('devices', { tab: 'devices' }).
-    if (page === 'devices') setDevicesTab(options?.tab ?? 'browse');
+    // Devices opens on the tab asked for, e.g. navigate('devices', { tab: 'devices' });
+    // else keeps its tab if already open, else Browse.
+    if (page === 'devices') {
+      setDevicesTab(nextDevicesTab({ activePage, currentTab: devicesTab, requestedTab: options?.tab }));
+    }
     setActivePage(page);
   };
 
@@ -159,7 +163,7 @@ export default function App() {
             <ErrorBoundary key={selectedAccessoryId}><AccessoryDetail accessoryId={selectedAccessoryId} onBack={handleAccessoryBack} /></ErrorBoundary>
           ) : (
             <ErrorBoundary key={activePage}>
-              {activePage === 'dashboard' && <DashboardPage onSelectAccessory={handleSelectAccessory} onSelectRoom={handleSelectRoom} onNavigateToAccessory={handleToastNav} onViewDeviceRepair={() => setActivePage('devices')} />}
+              {activePage === 'dashboard' && <DashboardPage onSelectAccessory={handleSelectAccessory} onSelectRoom={handleSelectRoom} onNavigateToAccessory={handleToastNav} onViewDeviceRepair={() => navigate('devices')} />}
               {activePage === 'devices' && <DevicesPage onSelectAccessory={handleSelectAccessory} onNavigate={navigate} tab={devicesTab} onTabChange={setDevicesTab} />}
               {activePage === 'timeline' && <TimelinePage initialFilters={timelineFilters} onSelectAccessory={handleSelectAccessory} />}
               {activePage === 'alerts' && <AlertsPage onNavigate={navigate} />}
