@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { AlertTriangle, ChevronDown, Loader, Loader2, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import Card from '../Card.jsx';
 import { useToast } from '../Toast.jsx';
+import SettingsGroup from '../settings/SettingsGroup.jsx';
+import SettingsRow from '../settings/SettingsRow.jsx';
+import { SELECT_CLASS } from '../settings/fieldStyles.js';
+import { useSettingSaver } from '../../hooks/useSettingSaver.js';
+import { useSetting } from '../../hooks/useSetting.js';
 
 const LOG_LEVELS = [
   { value: 'error', label: 'Error', desc: 'Only errors' },
@@ -28,7 +32,21 @@ export default function AdminAdvancedSection({ setup }) {
   const { addToast } = useToast();
   const queryClient = useQueryClient();
 
-  const [logLevelInput, setLogLevelInput] = useState('info');
+  // The saver merges object patches; the mutation takes the bare level string.
+  const logLevelSaveTarget = useMemo(() => ({
+    mutateAsync: ({ level }) => saveLogLevelMutation.mutateAsync(level),
+  }), [saveLogLevelMutation]);
+  // Same rule as before the saver: confirm unless toasts are explicitly off.
+  // The saver shows its own failure toast whatever this says.
+  const saveLogLevel = useSettingSaver(logLevelSaveTarget, {
+    toastsEnabled: retentionConfig?.toastsEnabled !== false,
+  });
+  const logLevelLoaded = logLevelConfig != null;
+  const [logLevel, changeLogLevel] = useSetting(
+    logLevelConfig?.level,
+    (level) => saveLogLevel({ level }),
+  );
+
   const [dangerOpen, setDangerOpen] = useState(false);
   const [dangerPairFilter, setDangerPairFilter] = useState('all');
   const [confirmDeleteAccessory, setConfirmDeleteAccessory] = useState(null);
@@ -38,8 +56,6 @@ export default function AdminAdvancedSection({ setup }) {
   const [removeAllState, setRemoveAllState] = useState({ phase: 'idle' });
   const [removeAllConfirmText, setRemoveAllConfirmText] = useState('');
   const [matterDeleteError, setMatterDeleteError] = useState({});
-
-  const logLevelCurrent = logLevelConfig?.level ?? 'info';
 
   // GET /api/accessories returns one row per (accessory_id, service_type) pair — an
   // accessory_id can carry more than one service_type (e.g. a firmware-revision-change
@@ -79,21 +95,12 @@ export default function AdminAdvancedSection({ setup }) {
     return true;
   });
 
-  useEffect(() => {
-    setLogLevelInput(logLevelCurrent);
-  }, [logLevelCurrent]);
-
-  async function handleLogLevelChange(v) {
-    setLogLevelInput(v);
-    try {
-      await saveLogLevelMutation.mutateAsync(v);
-      if (retentionConfig?.toastsEnabled !== false) {
-        addToast('Setting saved', 'success');
-      }
-    } catch {
-      addToast('Failed to save setting', 'error');
+  // On failure the saver has toasted and useSetting has reverted the select;
+  // refetch so it shows what the listener actually runs at.
+  function handleLogLevelChange(level) {
+    changeLogLevel(level).catch(() => {
       queryClient.invalidateQueries({ queryKey: ['setup', 'log-level'] });
-    }
+    });
   }
 
   const handleRemoveAll = useCallback(async () => {
@@ -169,37 +176,34 @@ export default function AdminAdvancedSection({ setup }) {
     <div className="space-y-4">
 
       {/* — Advanced — */}
-      <Card>
-        <Card.Header title="Advanced" />
-        <Card.Body>
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p className="text-sm font-medium text-hc-fg">Log level</p>
-              <p className="text-xs text-hc-muted mt-0.5">
-                Controls how much the listener logs to Docker output. Changes apply instantly — no restart needed.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={logLevelInput}
-                onChange={(e) => handleLogLevelChange(e.target.value)}
-                className="text-sm border border-hc-border-strong rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-hc-focus-ring bg-hc-panel text-hc-fg-strong"
-              >
-                {LOG_LEVELS.map(({ value, label, desc }) => (
-                  <option key={value} value={value}>
-                    {label} — {desc}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {saveLogLevelMutation.isError && (
-            <p className="text-xs text-hc-danger-text mt-2">
-              Could not update log level: {saveLogLevelMutation.error?.message}
-            </p>
+      <SettingsGroup title="Advanced">
+        <SettingsRow
+          label="Log level"
+          description="Controls how much the listener logs to Docker output. Changes apply instantly — no restart needed."
+          control={(
+            // Disabled, showing no level, until the config loads: never an invented value.
+            <select
+              aria-label="Log level"
+              value={logLevelLoaded ? logLevel : ''}
+              disabled={!logLevelLoaded}
+              onChange={(e) => handleLogLevelChange(e.target.value)}
+              className={SELECT_CLASS}
+            >
+              {!logLevelLoaded && <option value="" />}
+              {LOG_LEVELS.map(({ value, label, desc }) => (
+                <option key={value} value={value}>
+                  {label} — {desc}
+                </option>
+              ))}
+            </select>
           )}
-        </Card.Body>
-      </Card>
+          footnote={saveLogLevelMutation.isError && (
+            <span className="text-hc-danger-text">
+              Could not update log level: {saveLogLevelMutation.error?.message}
+            </span>
+          )}
+        />
+      </SettingsGroup>
 
       {/* Danger Zone */}
       <section className="border border-hc-danger-border rounded-xl overflow-hidden">

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '../Toast.jsx';
@@ -45,32 +45,56 @@ describe('AdminAdvancedSection', () => {
   it('renders the Log level select with the current value', () => {
     renderSection(makeSetup({ logLevelConfig: { level: 'debug' } }));
     expect(screen.getByText('Log level')).toBeInTheDocument();
-    const select = screen.getByRole('combobox');
+    const select = screen.getByRole('combobox', { name: 'Log level' });
     expect(select.value).toBe('debug');
   });
 
-  it('calls saveLogLevelMutation.mutateAsync with the chosen level string when changed', async () => {
-    const saveLogLevelMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isError: false, error: null };
-    renderSection(makeSetup({ saveLogLevelMutation }));
-    const select = screen.getByRole('combobox');
-    await userEvent.selectOptions(select, 'warn');
-    expect(saveLogLevelMutation.mutateAsync).toHaveBeenCalledWith('warn');
+  it('renders the Log level select disabled with no value until the config loads', () => {
+    renderSection(makeSetup({ logLevelConfig: undefined }));
+    const select = screen.getByRole('combobox', { name: 'Log level' });
+    expect(select).toBeDisabled();
+    expect(select.value).toBe('');
   });
 
-  it('invalidates the log-level query when the save fails', async () => {
-    const saveLogLevelMutation = { mutateAsync: vi.fn().mockRejectedValue(new Error('boom')), isError: false, error: null };
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
-    render(
-      <QueryClientProvider client={qc}>
-        <ToastProvider>
-          <AdminAdvancedSection setup={makeSetup({ saveLogLevelMutation })} />
-        </ToastProvider>
-      </QueryClientProvider>
-    );
-    const select = screen.getByRole('combobox');
-    await userEvent.selectOptions(select, 'error');
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['setup', 'log-level'] });
+  // The log level saves through useSettingSaver, which debounces 300ms. Fake
+  // timers are scoped to these tests so the Danger Zone tests below keep using
+  // the plain userEvent API; see DevicesGroup.test.jsx for why both options are needed.
+  describe('saving the log level', () => {
+    let user;
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('calls saveLogLevelMutation.mutateAsync with the chosen level string when changed', async () => {
+      const saveLogLevelMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isError: false, error: null };
+      renderSection(makeSetup({ saveLogLevelMutation }));
+      const select = screen.getByRole('combobox', { name: 'Log level' });
+      await user.selectOptions(select, 'warn');
+      await act(() => vi.advanceTimersByTimeAsync(300));
+      expect(saveLogLevelMutation.mutateAsync).toHaveBeenCalledTimes(1);
+      expect(saveLogLevelMutation.mutateAsync).toHaveBeenCalledWith('warn');
+    });
+
+    it('invalidates the log-level query when the save fails', async () => {
+      const saveLogLevelMutation = { mutateAsync: vi.fn().mockRejectedValue(new Error('boom')), isError: false, error: null };
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+      render(
+        <QueryClientProvider client={qc}>
+          <ToastProvider>
+            <AdminAdvancedSection setup={makeSetup({ saveLogLevelMutation })} />
+          </ToastProvider>
+        </QueryClientProvider>
+      );
+      const select = screen.getByRole('combobox', { name: 'Log level' });
+      await user.selectOptions(select, 'error');
+      await act(() => vi.advanceTimersByTimeAsync(300));
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['setup', 'log-level'] });
+      // The failed choice does not stick.
+      expect(select.value).toBe('info');
+    });
   });
 
   it('shows Danger Zone heading and expands on click, revealing empty states', async () => {

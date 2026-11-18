@@ -1,8 +1,7 @@
 /**
  * NotificationsGroup.blob.test.jsx
  *
- * PREF-10/PREF-11 routing of the toast preferences, ported from SettingsTab.blob.test.jsx
- * (suites A and B):
+ * PREF-10/PREF-11: where toast preference changes are written, by sign-in state:
  *
  * A. Signed in: a toast change writes the blob setter (via usePreference), NOT
  *    saveRetentionMutation.

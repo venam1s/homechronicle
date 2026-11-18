@@ -1,7 +1,7 @@
 /**
  * QuietHoursGroup.blob.test.jsx
  *
- * Quiet-hours routing, ported from SettingsTab.blob.test.jsx (suites D, E, F):
+ * Where quiet-hours changes are written, by sign-in state:
  *
  * D. Signed out: changes go to saveRetentionMutation, not setPrefsBlob.
  * E. Signed in: every change writes all four QH keys together via setPrefsBlob (QH-08).

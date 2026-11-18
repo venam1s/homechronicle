@@ -28,7 +28,7 @@ export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
   // Which Settings section to show. Owned here rather than inside SettingsPage
   // so navigation can address it — see the account menu's Appearance shortcut.
-  const [settingsSection, setSettingsSection] = useState('configuration');
+  const [settingsSection, setSettingsSection] = useState('appearance');
   const [selectedAccessoryId, setSelectedAccessoryId] = useState(null);
   const [timelineFilters, setTimelineFilters] = useState(null);
   const [showChangelog, setShowChangelog] = useState(false);
@@ -167,6 +167,7 @@ export default function App() {
                   updateStatus={updateStatus}
                   section={settingsSection}
                   onSectionChange={setSettingsSection}
+                  onNavigate={navigate}
                 />
               )}
             </ErrorBoundary>
