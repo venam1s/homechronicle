@@ -5,9 +5,15 @@ import clsx from 'clsx';
 import { useAccentRgb } from '../hooks/useAccentRgb.js';
 import { usePreference } from '../hooks/usePreference.js';
 
-const CELL = 18; // px
+const CELL = 18; // px — column cap, matches MonthlyHeatmap's squares
 const GAP  = 2;  // px
 const LABEL_W = 30; // px for day name
+// Rows stretch to fill the panel so this 7-row grid reads as tall as the
+// 12-row MonthlyHeatmap beside it. A cell grows up to MAX_CELL_ASPECT times
+// its width before the row leaves slack instead, so narrow panels (mobile)
+// never degrade into thin bars.
+const MAX_CELL_ASPECT = 1.5;
+const ROW_COLUMNS = `${LABEL_W}px repeat(24, minmax(0, 1fr))`;
 const WINDOWS = [
   { label: '7d', days: 7 },
   { label: '30d', days: 30 },
@@ -69,8 +75,8 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
   const maxCount = Math.max(...grid.flat(), 1);
 
   return (
-    <div>
-      <div className="flex items-baseline justify-between mb-3">
+    <div className="h-full flex flex-col min-h-0">
+      <div className="flex items-baseline justify-between mb-3 shrink-0">
         <h3 className="text-sm font-semibold text-hc-fg">Weekday Heatmap</h3>
         <div className="flex items-center gap-2">
           <span className="text-xs text-hc-muted">last {days} days · local time</span>
@@ -92,22 +98,33 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
           </div>
         </div>
       </div>
-      <p className="text-xs text-hc-muted mb-3 min-h-4">
+      <p className="text-xs text-hc-muted mb-3 min-h-4 shrink-0">
         {hoveredCell
           ? `${hoveredCell.day} · ${hoveredCell.hourLabel} · ${hoveredCell.count} event${hoveredCell.count !== 1 ? 's' : ''}`
           : 'Hover a cell for details'}
       </p>
 
-      {/* Day rows */}
+      {/* Day rows: seven equal tracks that share whatever height the panel
+          gives us, never shorter than a CELL square per row. */}
+      <div
+        data-testid="weekday-heatmap-rows"
+        className="flex-1 min-h-0"
+        style={{
+          display: 'grid',
+          gridTemplateRows: `repeat(7, minmax(${CELL}px, 1fr))`,
+          rowGap: GAP,
+        }}
+      >
       {DAY_LABELS.map((day, dow) => (
         <div
           key={day}
+          data-testid="weekday-heatmap-row"
           style={{
             display: 'grid',
-            gridTemplateColumns: `${LABEL_W}px repeat(24, minmax(0, 1fr))`,
+            gridTemplateColumns: ROW_COLUMNS,
             columnGap: GAP,
             alignItems: 'center',
-            marginBottom: GAP,
+            minHeight: 0,
           }}
         >
           {/* Day label */}
@@ -118,7 +135,7 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
               color:      'var(--hc-muted)',
               textAlign:  'right',
               paddingRight: 6,
-              lineHeight: `${CELL}px`,
+              lineHeight: 1,
             }}
           >
             {day}
@@ -142,7 +159,10 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
                 style={{
                   width:           '100%',
                   maxWidth:        CELL,
-                  aspectRatio:     '1 / 1',
+                  // Height follows the width up to MAX_CELL_ASPECT, clamped to
+                  // the row so the grid fills the panel without overflowing it.
+                  aspectRatio:     `1 / ${MAX_CELL_ASPECT}`,
+                  maxHeight:       '100%',
                   justifySelf:     'center',
                   borderRadius:    3,
                   backgroundColor: bg,
@@ -161,12 +181,14 @@ export default function WeekdayHeatmap({ forcedDays = null, onDaysChange = null 
           })}
         </div>
       ))}
+      </div>
 
       {/* Bottom axis */}
       <div
+        className="shrink-0"
         style={{
           display: 'grid',
-          gridTemplateColumns: `${LABEL_W}px repeat(24, minmax(0, 1fr))`,
+          gridTemplateColumns: ROW_COLUMNS,
           columnGap: GAP,
           marginTop: 4,
         }}
