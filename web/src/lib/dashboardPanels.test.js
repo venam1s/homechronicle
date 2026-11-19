@@ -5,8 +5,11 @@ import {
   PANEL_TITLES,
   OPTIONAL_PANEL_IDS,
   GRID_COLS,
+  PANEL_BY_ID,
   defaultLayouts,
   defaultLayoutItem,
+  applyCompactHeights,
+  restoreCompactHeights,
 } from './dashboardPanels.js';
 
 describe('dashboardPanels registry', () => {
@@ -243,5 +246,65 @@ describe('house summary lede sizing', () => {
       }
     }
     expect([...new Set(overlaps)]).toEqual([]);
+  });
+});
+
+describe('content-driven compact heights', () => {
+  const stored = {
+    lg: [
+      { i: 'quietHours', x: 0, y: 17, w: 12, h: 4, minW: 4, minH: 2 },
+      { i: 'activityFeed', x: 0, y: 21, w: 6, h: 6, minW: 3, minH: 4 },
+    ],
+    sm: [
+      { i: 'quietHours', x: 0, y: 17, w: 1, h: 2, minW: 1, minH: 2 },
+      { i: 'activityFeed', x: 0, y: 19, w: 1, h: 6, minW: 1, minH: 4 },
+    ],
+  };
+
+  it('quiet hours declares a one-row desktop box for when there is nothing to report', () => {
+    expect(PANEL_BY_ID.quietHours.compactH).toEqual({ lg: 1, sm: 2 });
+  });
+
+  it('applyCompactHeights shrinks a compact panel to its compactH and pins it there', () => {
+    const out = applyCompactHeights(stored, new Set(['quietHours']));
+    const qh = out.lg.find((it) => it.i === 'quietHours');
+    expect(qh).toMatchObject({ h: 1, minH: 1, maxH: 1 });
+    // Everything else is untouched (same reference, so RGL sees no churn).
+    expect(out.lg.find((it) => it.i === 'activityFeed')).toBe(stored.lg[1]);
+  });
+
+  it('applyCompactHeights never grows a box that is already at or below compactH', () => {
+    const out = applyCompactHeights(stored, new Set(['quietHours']));
+    expect(out.sm.find((it) => it.i === 'quietHours')).toBe(stored.sm[0]);
+  });
+
+  it('applyCompactHeights is a no-op without compact ids or for panels without compactH', () => {
+    expect(applyCompactHeights(stored, new Set())).toBe(stored);
+    const out = applyCompactHeights(stored, new Set(['activityFeed']));
+    expect(out.lg.find((it) => it.i === 'activityFeed')).toBe(stored.lg[1]);
+  });
+
+  it('restoreCompactHeights puts the stored height back so the collapse is never persisted', () => {
+    const fromGrid = {
+      lg: [
+        { i: 'quietHours', x: 0, y: 17, w: 12, h: 1, minW: 4, minH: 1, maxH: 1 },
+        // RGL re-compacted the panel below into the freed rows.
+        { i: 'activityFeed', x: 0, y: 18, w: 6, h: 6, minW: 3, minH: 4 },
+      ],
+      sm: stored.sm,
+    };
+    const out = restoreCompactHeights(fromGrid, stored, new Set(['quietHours']));
+    const qh = out.lg.find((it) => it.i === 'quietHours');
+    expect(qh.h).toBe(4);
+    expect(qh.minH).toBe(2);
+    expect('maxH' in qh).toBe(false);
+    // Positions RGL chose for the other panels are kept as-is.
+    expect(out.lg.find((it) => it.i === 'activityFeed')).toBe(fromGrid.lg[1]);
+  });
+
+  it('restoreCompactHeights leaves a panel alone when it has no stored geometry', () => {
+    const fromGrid = { lg: [{ i: 'quietHours', x: 0, y: 0, w: 12, h: 1 }], sm: [] };
+    const out = restoreCompactHeights(fromGrid, { lg: [], sm: [] }, new Set(['quietHours']));
+    expect(out.lg[0]).toBe(fromGrid.lg[0]);
   });
 });

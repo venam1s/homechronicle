@@ -34,6 +34,7 @@ Settings is reorganised into **You** and **This home** with one row layout throu
 - A setting changed just before leaving the page could be lost. It is now saved.
 - **Live Toasts** on Devices › Manage Accessories did nothing when signed in; it now follows your own notification preference, and the per-accessory watch bells follow it too.
 - The monthly heatmap drew smaller cells than the weekday heatmap beside it. Both now use the same grid.
+- The **Quiet Hours** panel kept its full height on a quiet night, leaving a blank card under one line of text. It now collapses to a single row whenever there is nothing to report and grows back to its saved size when there is. Customize mode shows the saved size, so resizing it there still works.
 
 ### Internal
 - GitHub Actions is the CI of record: tests, boot smoke, the docs site, the beta deploy and releases run from `.github/workflows` on the homelab runner, and `.gitlab-ci.yml` is retired. Every release is still mirrored to GitLab for installs up to v0.5.0, which only check there for updates.

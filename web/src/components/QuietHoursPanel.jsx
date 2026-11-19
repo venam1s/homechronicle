@@ -16,6 +16,17 @@ function formatLastSeen(ts) {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+/**
+ * True when the panel has an event list to show: quiet hours are enabled and
+ * at least one accessory was active in the window. Everything else (loading,
+ * error, disabled, a quiet night) renders as a single row, and DashboardGrid
+ * uses this same predicate to collapse the grid box to match (compactH in
+ * lib/dashboardPanels.js), so keep the two in step.
+ */
+export function quietHoursHasActivity(data) {
+  return data?.enabled !== false && Array.isArray(data?.events) && data.events.length > 0;
+}
+
 export default function QuietHoursPanel({ onNavigateToAccessory, embedded = false }) {
   const { data, isLoading, isError } = useQuietHours();
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === '1');
@@ -96,47 +107,48 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
 
   // When embedded as a grid panel, fill the cell (like ActivityFeed/RoomBreakdown)
   // so the unused bottom of the panel's row span doesn't show through as a gap.
-  const card = `bg-hc-panel rounded-xl border border-hc-panel-border p-4 sm:p-5${embedded ? ' h-full flex flex-col' : ''}`;
+  const card = `bg-hc-panel rounded-xl border border-hc-panel-border${embedded ? ' h-full flex flex-col' : ''}`;
+  const fullCard = `${card} p-4 sm:p-5`;
+  // The quiet states are one row: title and message side by side. On desktop
+  // the grid draws that in a single 64px row (compactH), so the row stays
+  // single-line (truncating rather than wrapping) and sits in 46px of
+  // chrome: py-3 + a 20px line + the border. Below md the message is allowed
+  // to wrap under the title and the box is two rows.
+  const compactCard = `${card} px-4 sm:px-5 py-3 justify-center`;
 
-  const header = (
-    <div className="flex items-center gap-2 mb-3">
-      <Moon size={14} className="text-hc-quiet-text" />
-      <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours</h3>
+  const compactRow = (message, { icon = null, action = null } = {}) => (
+    <div className={compactCard}>
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-1">
+        <div className="flex items-center gap-2 shrink-0">
+          <Moon size={14} className="text-hc-quiet-text" />
+          <h3 className="text-sm font-semibold text-hc-fg whitespace-nowrap">Quiet Hours</h3>
+        </div>
+        <div className="flex items-center gap-2 min-w-0 flex-1 text-sm text-hc-muted">
+          {icon}
+          <span className="min-w-0 md:truncate">{message}</span>
+        </div>
+        {action}
+      </div>
     </div>
   );
 
   if (isLoading) {
-    return <div className={card}>{header}<p className="text-sm text-hc-muted">Checking quiet hours…</p></div>;
+    return compactRow('Checking quiet hours…');
   }
   if (isError || (!isLoading && !data)) {
-    return (
-      <div className={card}>
-        {header}
-        <p className="text-sm text-hc-muted">
-          No quiet hours data yet. Events will appear here once activity is recorded.
-        </p>
-      </div>
-    );
+    return compactRow('No quiet hours data yet. Events will appear here once activity is recorded.');
   }
 
   if (data?.enabled === false) {
-    return (
-      <div className={card}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Moon size={14} className="text-hc-quiet-text" />
-            <h3 className="text-sm font-semibold text-hc-fg">Quiet Hours</h3>
-          </div>
-          {!embedded && (
-            <button onClick={dismiss} className="text-hc-muted hover:text-hc-fg p-0.5 rounded" title="Dismiss">
-              <X size={14} />
-            </button>
-          )}
-        </div>
-        <p className="text-sm text-hc-muted">
-          Configure quiet hours in Settings to flag unexpected nighttime activity.
-        </p>
-      </div>
+    return compactRow(
+      'Configure quiet hours in Settings to flag unexpected nighttime activity.',
+      {
+        action: !embedded && (
+          <button onClick={dismiss} className="ml-auto shrink-0 text-hc-muted hover:text-hc-fg p-0.5 rounded" title="Dismiss">
+            <X size={14} />
+          </button>
+        ),
+      },
     );
   }
 
@@ -145,19 +157,14 @@ export default function QuietHoursPanel({ onNavigateToAccessory, embedded = fals
   const events = data?.events ?? [];
 
   if (!events.length) {
-    return (
-      <div className={card}>
-        {header}
-        <div className="flex items-center gap-2 text-sm text-hc-muted">
-          <CheckCircle2 size={14} className="text-hc-success-text flex-shrink-0" />
-          <span>No unexpected activity during quiet hours ({startLocal} – {endLocal})</span>
-        </div>
-      </div>
+    return compactRow(
+      `No unexpected activity during quiet hours (${startLocal} – ${endLocal})`,
+      { icon: <CheckCircle2 size={14} className="text-hc-success-text shrink-0" /> },
     );
   }
 
   return (
-    <div className={card}>
+    <div className={fullCard}>
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <Moon size={14} className="text-hc-quiet-text" />
