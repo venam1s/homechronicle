@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import BrandLogo from './BrandLogo.jsx';
 import { useTheme } from '../hooks/useTheme.js';
 import { useMastheadDate } from '../hooks/useMastheadDate.js';
+import { useAlertsNav } from '../hooks/useAlertsNav.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useAuthConfig } from '../hooks/useAuthConfig.js';
 import { useSignOut } from '../hooks/useSignOut.js';
@@ -15,6 +16,7 @@ import { useSignOut } from '../hooks/useSignOut.js';
 // centre of the masthead is only the places you browse. FloatingNav keeps
 // Settings in its own list — on phones a bottom-menu item is easier to reach.
 // The masthead is text-only: at desktop widths labels read faster than icons.
+// Alerts is the one item a viewer can hide (Settings -> Appearance -> Alerts in menu).
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'devices', label: 'Devices' },
@@ -86,6 +88,8 @@ export default function Masthead({
 }) {
   const { preference, setPreference } = useTheme();
   const { showDate } = useMastheadDate();
+  const { showAlerts } = useAlertsNav();
+  const navItems = showAlerts ? NAV_ITEMS : NAV_ITEMS.filter((item) => item.id !== 'alerts');
   const { user } = useAuth();
   const { authEnabled } = useAuthConfig();
   const { signOut, isPending: signingOut } = useSignOut();
@@ -145,7 +149,7 @@ export default function Masthead({
           aria-label="Main navigation"
           className="flex-1 flex items-center justify-center gap-1 sm:gap-2"
         >
-          {NAV_ITEMS.map(({ id, label }) => {
+          {navItems.map(({ id, label }) => {
             const isActive = activePage === id;
             return (
               <button

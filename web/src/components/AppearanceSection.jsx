@@ -1,4 +1,4 @@
-import { Sun, Moon, SunMoon, Check, CalendarDays, CalendarOff } from 'lucide-react';
+import { Sun, Moon, SunMoon, Check, CalendarDays, CalendarOff, Bell, BellOff } from 'lucide-react';
 import clsx from 'clsx';
 import Card from './Card.jsx';
 import SettingsGroup from './settings/SettingsGroup.jsx';
@@ -9,6 +9,7 @@ import { useTheme } from '../hooks/useTheme.js';
 import { usePalette } from '../hooks/usePalette.js';
 import { useTemperatureUnit } from '../hooks/useTemperatureUnit.js';
 import { useMastheadDate } from '../hooks/useMastheadDate.js';
+import { useAlertsNav } from '../hooks/useAlertsNav.js';
 import { PALETTE_IDS, PALETTES, rampFor } from '../lib/palettes.js';
 
 const THEME_OPTIONS = [
@@ -25,6 +26,11 @@ const UNIT_OPTIONS = [
 const DATE_OPTIONS = [
   { id: 'show', label: 'Show', icon: CalendarDays },
   { id: 'hide', label: 'Hide', icon: CalendarOff },
+];
+
+const ALERTS_NAV_OPTIONS = [
+  { id: 'show', label: 'Show', icon: Bell },
+  { id: 'hide', label: 'Hide', icon: BellOff },
 ];
 
 /**
@@ -66,6 +72,7 @@ export default function AppearanceSection() {
   const { palette, setPalette } = usePalette();
   const { unit, setUnit } = useTemperatureUnit();
   const { showDate, setShowDate } = useMastheadDate();
+  const { showAlerts, setShowAlerts } = useAlertsNav();
 
   const activeTheme = THEME_OPTIONS.find((o) => o.id === preference) ?? THEME_OPTIONS[2];
 
@@ -112,6 +119,18 @@ export default function AppearanceSection() {
               options={DATE_OPTIONS}
               value={showDate ? 'show' : 'hide'}
               onChange={(id) => setShowDate(id === 'show')}
+            />
+          )}
+        />
+        <SettingsRow
+          label="Alerts in menu"
+          description="The Alerts link in the top bar and in the menu on phones. Hiding it only removes the link: your alert rules keep running."
+          control={(
+            <Segmented
+              ariaLabel="Alerts in the menu"
+              options={ALERTS_NAV_OPTIONS}
+              value={showAlerts ? 'show' : 'hide'}
+              onChange={(id) => setShowAlerts(id === 'show')}
             />
           )}
         />

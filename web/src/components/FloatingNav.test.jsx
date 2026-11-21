@@ -1,6 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import FloatingNav from './FloatingNav.jsx';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, within, fireEvent } from '@testing-library/react';
+
+const alertsNavState = { showAlerts: true };
+vi.mock('../hooks/useAlertsNav.js', () => ({
+  useAlertsNav: () => ({ ...alertsNavState, setShowAlerts: vi.fn() }),
+}));
+
+const { default: FloatingNav } = await import('./FloatingNav.jsx');
 
 function setup(props = {}) {
   const onNavigate = vi.fn();
@@ -18,6 +24,17 @@ function openMenu() {
 }
 
 describe('FloatingNav', () => {
+  beforeEach(() => { alertsNavState.showAlerts = true; });
+
+  it('drops only the Alerts link when the viewer has hidden it', () => {
+    alertsNavState.showAlerts = false;
+    setup();
+    openMenu();
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['Dashboard', 'Devices', 'Timeline', 'Settings']);
+  });
+
   it('renders a collapsed FAB and hides the page links by default', () => {
     setup();
     const fab = screen.getByRole('button', { name: 'Open navigation menu' });

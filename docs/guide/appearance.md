@@ -1,6 +1,6 @@
 # Appearance
 
-homechronicle has four appearance settings: a **theme** (light, dark, or follow your system), a **palette** (one of twelve colour schemes), a **temperature unit** (Celsius or Fahrenheit) and whether the **date** is shown in the top bar. All live in **Settings › Appearance** and apply immediately — there is no save button and no reload.
+homechronicle has five appearance settings: a **theme** (light, dark, or follow your system), a **palette** (one of twelve colour schemes), a **temperature unit** (Celsius or Fahrenheit), whether the **date** is shown in the top bar and whether the **Alerts link** is shown in the menu. All live in **Settings › Appearance** and apply immediately — there is no save button and no reload.
 
 ![Settings › Appearance with the Theme switch and the grid of twelve palettes](../screenshots/settings-appearance.png)
 
@@ -32,6 +32,12 @@ Readings are stored in °C regardless of the setting, so changing it never alter
 ## Date
 
 On wide screens the top bar shows today's date at the right, above the Dashboard and every other page. **Settings › Appearance › Date** switches it between **Show** (the default) and **Hide**. Nothing else in the bar moves; the update link and account menu stay where they are. Phones and tablets use the floating navigation, which has no date, so the setting has no effect there.
+
+## Alerts in the menu
+
+**Settings › Appearance › Alerts in menu** switches the Alerts link between **Show** (the default) and **Hide**. Hiding it removes the link from the top bar on desktop and from the floating navigation on phones and tablets, for you only; other household members keep their own setting.
+
+Hiding the link stops nothing. Your alert rules keep running and keep sending. To manage them, switch the setting back to **Show**; an admin can also open the Alerts page from **Settings › General › Manage rules on the Alerts page**.
 
 ## Palettes
 
@@ -82,8 +88,9 @@ Browser keys:
 | `hc_palette` | `gallery`, `ember`, `almanac`, `harvest`, `ink`, `fern`, `porcelain` (default), `tide`, `atlas`, `iris`, `dusk`, `graphite` |
 | `hc_temperature_unit` | `c` (default), `f` |
 | `hc_show_masthead_date` | `true` (default), `false` |
+| `hc_pref_showAlertsNav` | `true` (default), `false`. Removed from the browser when you sign out. |
 
-Clearing site data resets this browser to System, Porcelain, Celsius and the date shown (when signed in, your account's choice is restored on the next load).
+Clearing site data resets this browser to System, Porcelain, Celsius, the date shown and the Alerts link shown (when signed in, your account's choice is restored on the next load).
 
 ## Upgrading from an earlier version
 

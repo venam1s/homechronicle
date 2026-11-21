@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BarChart2, Monitor, LayoutList, Bell, Settings, LayoutGrid, X, LogOut } from 'lucide-react';
 import clsx from 'clsx';
+import { useAlertsNav } from '../hooks/useAlertsNav.js';
 
 // -- Constants --
 
@@ -33,6 +34,9 @@ export const FLOATING_NAV_CLEARANCE = 'calc(env(safe-area-inset-bottom) + 88px)'
 
 export default function FloatingNav({ activePage, onNavigate, scrollRef, onSignOut, signingOut = false }) {
   const [open, setOpen] = useState(false);
+  // Settings -> Appearance -> Alerts in menu: the viewer's own choice to drop the link.
+  const { showAlerts } = useAlertsNav();
+  const navItems = showAlerts ? NAV_ITEMS : NAV_ITEMS.filter((item) => item.id !== 'alerts');
   const firstItemRef = useRef(null);
   const fabRef = useRef(null);
 
@@ -99,7 +103,7 @@ export default function FloatingNav({ activePage, onNavigate, scrollRef, onSignO
             aria-label="Main navigation"
             className="flex flex-col gap-1 rounded-2xl bg-hc-panel border border-hc-panel-border shadow-xl p-2 min-w-[180px]"
           >
-            {NAV_ITEMS.map(({ id, label, icon: Icon }, i) => {
+            {navItems.map(({ id, label, icon: Icon }, i) => {
               const isActive = activePage === id;
               return (
                 <button

@@ -133,4 +133,20 @@ describe('App smoke', () => {
     // Reset mock
     mockUseMediaQuery.mockImplementation(() => false);
   });
+
+  // The stored "Alerts in menu" choice reaches the real floating nav.
+  it('leaves Alerts out of the floating nav when this browser has hidden it', () => {
+    window.localStorage.setItem('hc_pref_showAlertsNav', 'false');
+    mockUseMediaQuery.mockImplementation((query) => query === '(max-width: 767px)');
+
+    try {
+      renderApp();
+      fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }));
+      expect(screen.getByText('Timeline')).toBeInTheDocument();
+      expect(screen.queryByText('Alerts')).not.toBeInTheDocument();
+    } finally {
+      window.localStorage.removeItem('hc_pref_showAlertsNav');
+      mockUseMediaQuery.mockImplementation(() => false);
+    }
+  });
 });

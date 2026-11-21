@@ -29,6 +29,11 @@ vi.mock('../hooks/useMastheadDate.js', () => ({
   useMastheadDate: () => ({ ...dateState, setShowDate: vi.fn() }),
 }));
 
+const alertsNavState = { showAlerts: true };
+vi.mock('../hooks/useAlertsNav.js', () => ({
+  useAlertsNav: () => ({ ...alertsNavState, setShowAlerts: vi.fn() }),
+}));
+
 const { default: Masthead } = await import('./Masthead.jsx');
 
 // Settings is not a section: it lives in the account menu (or a cog when auth is off).
@@ -58,6 +63,7 @@ describe('Masthead', () => {
     authState.user = { email: 'admin@example.com', role: 'admin' };
     configState.authEnabled = true;
     dateState.showDate = true;
+    alertsNavState.showAlerts = true;
   });
 
   // NAV-01
@@ -83,10 +89,19 @@ describe('Masthead', () => {
     expect(onNavigate).toHaveBeenCalledWith('devices');
   });
 
-  // MALERT-07 — carried over from the sidebar: Alerts is never gated.
-  it('always shows Alerts, with no enablement prop', () => {
+  // MALERT-07 — carried over from the sidebar: Alerts is never gated by the
+  // household. Only the viewer's own "Alerts in menu" setting can drop the link.
+  it('shows Alerts by default, with no enablement prop', () => {
     renderMasthead();
     expect(screen.getByRole('button', { name: 'Alerts' })).toBeInTheDocument();
+  });
+
+  it('drops only the Alerts link when the viewer has hidden it', () => {
+    alertsNavState.showAlerts = false;
+    renderMasthead();
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['Dashboard', 'Devices', 'Timeline']);
   });
 
   // NAV-03

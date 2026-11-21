@@ -60,6 +60,7 @@ export const KNOWN_PREF_LS_KEYS = [
   'quietHoursStart',
   'quietHoursEnd',
   'quietHoursExcludedAccessories',
+  'showAlertsNav',
 ].map((k) => `${PREF_LS_PREFIX}${k}`);
 
 /**

@@ -19,6 +19,7 @@ Settings is reorganised into **You** and **This home** with one row layout throu
 
 ### Added
 - **Top-bar date:** **Settings › Appearance › Date** shows or hides today's date in the masthead. Like theme and units, it is a per-member setting that syncs to the account when signed in.
+- **Alerts in menu:** **Settings › Appearance › Alerts in menu** shows or hides the Alerts link in the top bar and in the menu on phones. It is a per-member setting that syncs to the account when signed in, and it only removes the link: alert rules keep running for everyone, including the member who hid it.
 
 ### Changed
 - **Settings reorganised:** Settings is grouped into **You** (Appearance, Preferences, Account) and **This home** (General, Users & email, Advanced). Configuration and its inner tabs are gone: toasts, timeline grouping and quiet hours are under **Preferences**; device, data and alert defaults are under **General**. Every setting now uses the same row layout.

@@ -27,6 +27,12 @@ vi.mock('../hooks/useMastheadDate.js', () => ({
   useMastheadDate: () => ({ ...dateState, setShowDate }),
 }));
 
+const setShowAlerts = vi.fn();
+const alertsNavState = { showAlerts: true };
+vi.mock('../hooks/useAlertsNav.js', () => ({
+  useAlertsNav: () => ({ ...alertsNavState, setShowAlerts }),
+}));
+
 const { default: AppearanceSection } = await import('./AppearanceSection.jsx');
 const { PALETTE_IDS, PALETTES } = await import('../lib/palettes.js');
 
@@ -39,11 +45,11 @@ describe('AppearanceSection', () => {
     paletteState.palette = 'porcelain';
   });
 
-  it('shows Theme, Temperature and Date as rows of one card, plus Palette', () => {
+  it('shows Theme, Temperature, Date and Alerts as rows of one card, plus Palette', () => {
     render(<AppearanceSection />);
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent))
       .toEqual(['Appearance', 'Palette']);
-    expect(screen.getAllByTestId('settings-row')).toHaveLength(3);
+    expect(screen.getAllByTestId('settings-row')).toHaveLength(4);
   });
 
   it('offers exactly the three theme choices', () => {
@@ -192,9 +198,51 @@ describe('AppearanceSection date', () => {
   it('hides and shows the date on click', async () => {
     const user = userEvent.setup();
     render(<AppearanceSection />);
-    await user.click(screen.getByRole('radio', { name: 'Hide' }));
+    const group = screen.getByRole('radiogroup', { name: 'Date in the top bar' });
+    await user.click(within(group).getByRole('radio', { name: 'Hide' }));
     expect(setShowDate).toHaveBeenCalledWith(false);
-    await user.click(screen.getByRole('radio', { name: 'Show' }));
+    await user.click(within(group).getByRole('radio', { name: 'Show' }));
     expect(setShowDate).toHaveBeenCalledWith(true);
+  });
+});
+
+describe('AppearanceSection alerts in menu', () => {
+  beforeEach(() => {
+    setShowAlerts.mockClear();
+    setShowDate.mockClear();
+    alertsNavState.showAlerts = true;
+  });
+
+  it('offers Show and Hide for the Alerts link, Show checked by default', () => {
+    render(<AppearanceSection />);
+    const group = screen.getByRole('radiogroup', { name: 'Alerts in the menu' });
+    const options = within(group).getAllByRole('radio');
+    expect(options.map((o) => o.textContent)).toEqual(['Show', 'Hide']);
+    expect(within(group).getByRole('radio', { name: 'Show' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'Hide' })).not.toBeChecked();
+  });
+
+  it('marks Hide as checked when the Alerts link is hidden', () => {
+    alertsNavState.showAlerts = false;
+    render(<AppearanceSection />);
+    const group = screen.getByRole('radiogroup', { name: 'Alerts in the menu' });
+    expect(within(group).getByRole('radio', { name: 'Hide' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'Show' })).not.toBeChecked();
+  });
+
+  it('hides and shows the Alerts link on click, leaving the date alone', async () => {
+    const user = userEvent.setup();
+    render(<AppearanceSection />);
+    const group = screen.getByRole('radiogroup', { name: 'Alerts in the menu' });
+    await user.click(within(group).getByRole('radio', { name: 'Hide' }));
+    expect(setShowAlerts).toHaveBeenCalledWith(false);
+    await user.click(within(group).getByRole('radio', { name: 'Show' }));
+    expect(setShowAlerts).toHaveBeenCalledWith(true);
+    expect(setShowDate).not.toHaveBeenCalled();
+  });
+
+  it('says that hiding the link leaves alert rules running', () => {
+    render(<AppearanceSection />);
+    expect(screen.getByText(/your alert rules keep running/i)).toBeInTheDocument();
   });
 });
