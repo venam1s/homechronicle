@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import QuietHoursPanel, { quietHoursHasActivity } from './QuietHoursPanel.jsx';
+import QuietHoursPanel, { quietHoursHasActivity, quietHoursContentHeight } from './QuietHoursPanel.jsx';
 
 // M-9 regression: exclude writes the blob when the blob carries quietHoursEnabled, still
 // PATCHes retention otherwise, and toasts on failure.
@@ -124,6 +124,28 @@ describe('quietHoursHasActivity', () => {
     expect(quietHoursHasActivity({ ...quietHoursData, enabled: false })).toBe(false);
     expect(quietHoursHasActivity({ ...quietHoursData, events: [] })).toBe(false);
     expect(quietHoursHasActivity({ enabled: true })).toBe(false);
+  });
+});
+
+// The grid grows the panel's box to this many pixels' worth of rows, so the
+// number has to track the card's real layout: 75px of chrome (border, p-5,
+// header) plus 52px per event row and 8px between rows.
+describe('quietHoursContentHeight', () => {
+  const withEvents = (n) => ({
+    ...quietHoursData,
+    events: Array.from({ length: n }, (_, i) => ({ ...quietHoursData.events[0], accessoryId: `AA:${i}` })),
+  });
+
+  it('adds one row pitch per event on top of the card chrome', () => {
+    expect(quietHoursContentHeight(withEvents(1))).toBe(127);
+    expect(quietHoursContentHeight(withEvents(2))).toBe(187);
+    expect(quietHoursContentHeight(withEvents(3))).toBe(247);
+  });
+
+  it('is null when there is no list to size for', () => {
+    expect(quietHoursContentHeight(undefined)).toBeNull();
+    expect(quietHoursContentHeight({ ...quietHoursData, enabled: false })).toBeNull();
+    expect(quietHoursContentHeight(withEvents(0))).toBeNull();
   });
 });
 

@@ -8,8 +8,9 @@ import {
   PANEL_BY_ID,
   defaultLayouts,
   defaultLayoutItem,
-  applyCompactHeights,
-  restoreCompactHeights,
+  rowsForHeight,
+  applyContentHeights,
+  restoreContentHeights,
 } from './dashboardPanels.js';
 
 describe('dashboardPanels registry', () => {
@@ -249,7 +250,7 @@ describe('house summary lede sizing', () => {
   });
 });
 
-describe('content-driven compact heights', () => {
+describe('content-driven heights', () => {
   const stored = {
     lg: [
       { i: 'quietHours', x: 0, y: 17, w: 12, h: 4, minW: 4, minH: 2 },
@@ -260,31 +261,69 @@ describe('content-driven compact heights', () => {
       { i: 'activityFeed', x: 0, y: 19, w: 1, h: 6, minW: 1, minH: 4 },
     ],
   };
+  const compact = new Map([['quietHours', { compact: true }]]);
+  const fit = (rows) => new Map([['quietHours', { rows }]]);
 
   it('quiet hours declares a one-row desktop box for when there is nothing to report', () => {
     expect(PANEL_BY_ID.quietHours.compactH).toEqual({ lg: 1, sm: 2 });
   });
 
-  it('applyCompactHeights shrinks a compact panel to its compactH and pins it there', () => {
-    const out = applyCompactHeights(stored, new Set(['quietHours']));
+  it('rowsForHeight is the smallest row span whose box holds the content', () => {
+    // A span of h rows is 64h + 16(h - 1) px tall: 64, 144, 224, 304.
+    expect(rowsForHeight(1)).toBe(1);
+    expect(rowsForHeight(64)).toBe(1);
+    expect(rowsForHeight(65)).toBe(2);
+    expect(rowsForHeight(144)).toBe(2);
+    expect(rowsForHeight(145)).toBe(3);
+    expect(rowsForHeight(224)).toBe(3);
+    expect(rowsForHeight(225)).toBe(4);
+  });
+
+  it('applyContentHeights shrinks a compact panel to its compactH and pins it there', () => {
+    const out = applyContentHeights(stored, compact);
     const qh = out.lg.find((it) => it.i === 'quietHours');
     expect(qh).toMatchObject({ h: 1, minH: 1, maxH: 1 });
     // Everything else is untouched (same reference, so RGL sees no churn).
     expect(out.lg.find((it) => it.i === 'activityFeed')).toBe(stored.lg[1]);
   });
 
-  it('applyCompactHeights never grows a box that is already at or below compactH', () => {
-    const out = applyCompactHeights(stored, new Set(['quietHours']));
+  it('applyContentHeights never grows a compact box that is already at or below compactH', () => {
+    const out = applyContentHeights(stored, compact);
     expect(out.sm.find((it) => it.i === 'quietHours')).toBe(stored.sm[0]);
   });
 
-  it('applyCompactHeights is a no-op without compact ids or for panels without compactH', () => {
-    expect(applyCompactHeights(stored, new Set())).toBe(stored);
-    const out = applyCompactHeights(stored, new Set(['activityFeed']));
-    expect(out.lg.find((it) => it.i === 'activityFeed')).toBe(stored.lg[1]);
+  it('applyContentHeights grows a box that is too short for its content and pins it there', () => {
+    // Two rows stored on mobile, the list needs three.
+    const out = applyContentHeights(stored, fit(3));
+    expect(out.sm.find((it) => it.i === 'quietHours')).toMatchObject({ h: 3, minH: 3, maxH: 3 });
+    expect(out.sm.find((it) => it.i === 'activityFeed')).toBe(stored.sm[1]);
   });
 
-  it('restoreCompactHeights puts the stored height back so the collapse is never persisted', () => {
+  it('applyContentHeights never shrinks a box the user made taller than its content', () => {
+    // Four rows stored on desktop, the list needs three: the saved box stands.
+    const out = applyContentHeights(stored, fit(3));
+    expect(out.lg.find((it) => it.i === 'quietHours')).toBe(stored.lg[0]);
+  });
+
+  it('applyContentHeights stops growing at the panel fitMaxH so a busy night scrolls instead', () => {
+    const cap = PANEL_BY_ID.quietHours.fitMaxH;
+    expect(cap).toBeGreaterThan(PANEL_BY_ID.quietHours.lg.h);
+    const out = applyContentHeights(stored, fit(40));
+    expect(out.lg.find((it) => it.i === 'quietHours').h).toBe(cap);
+    expect(out.sm.find((it) => it.i === 'quietHours').h).toBe(cap);
+  });
+
+  it('applyContentHeights is a no-op with nothing to apply or for panels that did not opt in', () => {
+    expect(applyContentHeights(stored, new Map())).toBe(stored);
+    const out = applyContentHeights(stored, new Map([
+      ['activityFeed', { compact: true }],
+    ]));
+    expect(out.lg.find((it) => it.i === 'activityFeed')).toBe(stored.lg[1]);
+    const grown = applyContentHeights(stored, new Map([['activityFeed', { rows: 12 }]]));
+    expect(grown.lg.find((it) => it.i === 'activityFeed')).toBe(stored.lg[1]);
+  });
+
+  it('restoreContentHeights puts the stored height back so the collapse is never persisted', () => {
     const fromGrid = {
       lg: [
         { i: 'quietHours', x: 0, y: 17, w: 12, h: 1, minW: 4, minH: 1, maxH: 1 },
@@ -293,7 +332,7 @@ describe('content-driven compact heights', () => {
       ],
       sm: stored.sm,
     };
-    const out = restoreCompactHeights(fromGrid, stored, new Set(['quietHours']));
+    const out = restoreContentHeights(fromGrid, stored, compact);
     const qh = out.lg.find((it) => it.i === 'quietHours');
     expect(qh.h).toBe(4);
     expect(qh.minH).toBe(2);
@@ -302,9 +341,26 @@ describe('content-driven compact heights', () => {
     expect(out.lg.find((it) => it.i === 'activityFeed')).toBe(fromGrid.lg[1]);
   });
 
-  it('restoreCompactHeights leaves a panel alone when it has no stored geometry', () => {
+  it('restoreContentHeights puts the stored height back so the growth is never persisted', () => {
+    const fromGrid = {
+      lg: stored.lg,
+      sm: [
+        { i: 'quietHours', x: 0, y: 17, w: 1, h: 3, minW: 1, minH: 3, maxH: 3 },
+        // RGL pushed the panel below down a row.
+        { i: 'activityFeed', x: 0, y: 20, w: 1, h: 6, minW: 1, minH: 4 },
+      ],
+    };
+    const out = restoreContentHeights(fromGrid, stored, fit(3));
+    const qh = out.sm.find((it) => it.i === 'quietHours');
+    expect(qh.h).toBe(2);
+    expect(qh.minH).toBe(2);
+    expect('maxH' in qh).toBe(false);
+    expect(out.sm.find((it) => it.i === 'activityFeed')).toBe(fromGrid.sm[1]);
+  });
+
+  it('restoreContentHeights leaves a panel alone when it has no stored geometry', () => {
     const fromGrid = { lg: [{ i: 'quietHours', x: 0, y: 0, w: 12, h: 1 }], sm: [] };
-    const out = restoreCompactHeights(fromGrid, { lg: [], sm: [] }, new Set(['quietHours']));
+    const out = restoreContentHeights(fromGrid, { lg: [], sm: [] }, compact);
     expect(out.lg[0]).toBe(fromGrid.lg[0]);
   });
 });

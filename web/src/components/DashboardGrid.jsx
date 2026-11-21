@@ -10,8 +10,9 @@ import {
   GRID_COLS,
   GRID_ROW_HEIGHT,
   GRID_MARGIN,
-  applyCompactHeights,
-  restoreCompactHeights,
+  rowsForHeight,
+  applyContentHeights,
+  restoreContentHeights,
 } from '../lib/dashboardPanels.js';
 import { useQuietHours } from '../hooks/useEvents.js';
 
@@ -29,7 +30,7 @@ import ActivityFeed from './ActivityFeed.jsx';
 import RoomBreakdown from './RoomBreakdown.jsx';
 import AnomalyPanel from './AnomalyPanel.jsx';
 import StaleDevicesPanel from './StaleDevicesPanel.jsx';
-import QuietHoursPanel, { quietHoursHasActivity } from './QuietHoursPanel.jsx';
+import QuietHoursPanel, { quietHoursContentHeight } from './QuietHoursPanel.jsx';
 import WeekOverWeekPanel from './WeekOverWeekPanel.jsx';
 import HealthDonutPanel from './HealthDonutPanel.jsx';
 import AlertsSummaryPanel from './AlertsSummaryPanel.jsx';
@@ -142,23 +143,28 @@ export default function DashboardGrid({
     [hidden],
   );
 
-  // Content-driven collapse. Quiet Hours is sized for a list of nighttime
-  // events, but on a quiet night (most nights) it has one line to say, so in
-  // view mode the grid draws it in its `compactH` box instead of the stored
-  // one. The stored height is left untouched: restoreCompactHeights swaps it
-  // back into whatever RGL reports, so the collapse never persists, and
+  // Content-driven height. Quiet Hours has one line to say on a quiet night
+  // (most nights) and a list of unknown length on a busy one, so in view mode
+  // the grid sizes its box to the content: collapsed to `compactH` when there
+  // is nothing to report, grown to fit the event list when the stored box
+  // would clip it. The stored height is left untouched: restoreContentHeights
+  // swaps it back into whatever RGL reports, so neither change persists, and
   // Customize mode shows the real box so a resize there means something.
   // This subscribes to the same query the panel reads (one cache entry, no
   // extra request) and is switched off while the panel is hidden.
   const quietHoursVisible = !hidden.has('quietHours');
   const { data: quietHoursData } = useQuietHours({ enabled: quietHoursVisible });
-  const compactIds = useMemo(() => {
-    const ids = new Set();
-    if (!editing && quietHoursVisible && !quietHoursHasActivity(quietHoursData)) {
-      ids.add('quietHours');
+  // Reduced to a row count first so a refetch that only moves a "last seen"
+  // time does not hand RGL a new layouts object.
+  const quietHoursPx = quietHoursContentHeight(quietHoursData);
+  const quietHoursRows = quietHoursPx == null ? 0 : rowsForHeight(quietHoursPx);
+  const contentHeights = useMemo(() => {
+    const heights = new Map();
+    if (!editing && quietHoursVisible) {
+      heights.set('quietHours', quietHoursRows > 0 ? { rows: quietHoursRows } : { compact: true });
     }
-    return ids;
-  }, [editing, quietHoursVisible, quietHoursData]);
+    return heights;
+  }, [editing, quietHoursVisible, quietHoursRows]);
 
   // RGL should only know about visible items; hidden geometry stays in state.
   const visibleLayouts = useMemo(() => {
@@ -166,12 +172,12 @@ export default function DashboardGrid({
     for (const bp of Object.keys(layouts)) {
       out[bp] = layouts[bp].filter((it) => !hidden.has(it.i));
     }
-    return applyCompactHeights(out, compactIds);
-  }, [layouts, hidden, compactIds]);
+    return applyContentHeights(out, contentHeights);
+  }, [layouts, hidden, contentHeights]);
 
   const handleLayoutChange = useCallback((current, allLayouts) => {
-    onLayoutChange?.(current, restoreCompactHeights(allLayouts, layouts, compactIds));
-  }, [onLayoutChange, layouts, compactIds]);
+    onLayoutChange?.(current, restoreContentHeights(allLayouts, layouts, contentHeights));
+  }, [onLayoutChange, layouts, contentHeights]);
 
   const hiddenPanels = PANELS.filter((p) => hidden.has(p.id));
 

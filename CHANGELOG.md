@@ -37,6 +37,7 @@ Settings is reorganised into **You** and **This home** with one row layout throu
 - The monthly heatmap drew smaller cells than the weekday heatmap beside it. Both now use the same grid.
 - The weekday heatmap stopped halfway down its panel when it sat beside the monthly one. Its rows now share the panel's height.
 - The **Quiet Hours** panel kept its full height on a quiet night, leaving a blank card under one line of text. It now collapses to a single row whenever there is nothing to report and grows back to its saved size when there is. Customize mode shows the saved size, so resizing it there still works.
+- The **Quiet Hours** panel cut off its list when more than one accessory was active overnight, with the second row clipped at the bottom of the card. It now grows to fit the list, up to six accessories; a busier night scrolls inside the panel. The saved size is not changed and is still the smallest the panel gets when there is activity.
 
 ### Internal
 - GitHub Actions is the CI of record: tests, boot smoke, the docs site, the beta deploy and releases run from `.github/workflows` on the homelab runner, and `.gitlab-ci.yml` is retired. Every release is still mirrored to GitLab for installs up to v0.5.0, which only check there for updates.

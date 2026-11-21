@@ -97,12 +97,16 @@ export const PANELS = [
   { id: 'trend',          title: 'Daily Activity',      lg: { x: 0, y: 8,  w: 12, h: 5 }, minW: 4, minH: 3 },
   { id: 'hourly',         title: 'Events by Hour',      lg: { x: 0, y: 13, w: 6,  h: 4 }, minW: 3, minH: 3 },
   { id: 'rooms',          title: 'Events by Room',      lg: { x: 6, y: 13, w: 6,  h: 4 }, minW: 3, minH: 3 },
-  // `compactH` is the box the grid renders while the panel has nothing to
-  // report (most nights): one 64px row on desktop fits the single-line
-  // all-clear, two rows on mobile where that line wraps under the title. The
-  // stored height is what the panel grows back to when activity appears and is
-  // what Customize mode shows — see applyCompactHeights/restoreCompactHeights.
-  { id: 'quietHours',     title: 'Quiet Hours',         lg: { x: 0, y: 17, w: 12, h: 2 }, minW: 4, minH: 2, compactH: { lg: 1, sm: 2 }, bare: true },
+  // Quiet Hours is sized by its content in view mode (see "Content-driven
+  // heights" below). `compactH` is the box the grid renders while the panel
+  // has nothing to report (most nights): one 64px row on desktop fits the
+  // single-line all-clear, two rows on mobile where that line wraps under the
+  // title. With activity the box is the stored height, grown to fit the event
+  // list when the list needs more, up to `fitMaxH` rows (464px, six events);
+  // a busier night than that scrolls inside the panel instead of pushing the
+  // rest of the dashboard off screen. Customize mode always shows the stored
+  // box.
+  { id: 'quietHours',     title: 'Quiet Hours',         lg: { x: 0, y: 17, w: 12, h: 2 }, minW: 4, minH: 2, compactH: { lg: 1, sm: 2 }, fitMaxH: 6, bare: true },
   { id: 'activityFeed',   title: 'Live Activity',       lg: { x: 0, y: 19, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
   { id: 'roomBreakdown',  title: 'Rooms',               lg: { x: 6, y: 19, w: 6,  h: 6 }, minW: 3, minH: 4, bare: true },
   { id: 'topDevices',     title: 'Most Active Devices', lg: { x: 0, y: 25, w: 6,  h: 5 }, minW: 3, minH: 3 },
@@ -204,29 +208,53 @@ export function defaultLayoutItem(panelId, breakpoint = 'lg') {
   return smLayoutItem(panel, y);
 }
 
-// -- Content-driven compact heights --
+// -- Content-driven heights --
 //
-// A panel with `compactH: { lg, sm }` in the registry can ask the grid to draw
-// it in a smaller box while its content is "quiet" (nothing to show), without
-// touching the height the user chose. Quiet Hours is the first: a tall box
-// sized for a list of nighttime events is dead space on a quiet night, which
-// is most nights. Both helpers are pure so DashboardGrid can apply the
-// override on the way INTO react-grid-layout and undo it on the way OUT.
+// A panel can ask the grid to draw it in a box sized for what it currently
+// has to show, without touching the height the user chose. Quiet Hours is the
+// first: a box sized for a list of nighttime events is dead space on a quiet
+// night (most nights), and a box sized for one event clips a list of three.
+// DashboardGrid passes a Map of panel id -> what the content wants:
+//
+//   { compact: true }  nothing to show: shrink to the registry `compactH`
+//   { rows: n }        the content needs n rows: grow to fit, up to `fitMaxH`
+//
+// Both helpers are pure so DashboardGrid can apply the override on the way
+// INTO react-grid-layout and undo it on the way OUT.
+
+/** Smallest row span whose box (rows plus the margins between them) holds `px`. */
+export function rowsForHeight(px) {
+  const pitch = GRID_ROW_HEIGHT + GRID_MARGIN[1];
+  return Math.max(1, Math.ceil((px + GRID_MARGIN[1]) / pitch));
+}
+
+// Compact only ever shrinks and fit only ever grows, so a box the user sized
+// generously for a busy night is never cut down to a shorter list.
+function contentHeight(item, want, bp) {
+  const panel = PANEL_BY_ID[item.i];
+  if (want.compact) {
+    const h = panel?.compactH?.[bp];
+    return h != null && h < item.h ? h : item.h;
+  }
+  if (panel?.fitMaxH == null || !(want.rows > item.h)) return item.h;
+  return Math.max(item.h, Math.min(want.rows, panel.fitMaxH));
+}
 
 /**
- * Shrink every panel in `compactIds` to its per-breakpoint `compactH`, pinned
- * there via minH/maxH so RGL cannot clamp it back up to the registry minH.
- * A box already at or below compactH is left alone (this never grows a panel),
- * as is every other item — same references, so RGL sees no churn.
+ * Resize every panel in `contentHeights` to the box its content wants, pinned
+ * there via minH/maxH so RGL cannot clamp it back into the registry window.
+ * A box that already suits its content is left alone, as is every other item:
+ * same references, so RGL sees no churn.
  */
-export function applyCompactHeights(layouts, compactIds) {
-  if (!compactIds || compactIds.size === 0) return layouts;
+export function applyContentHeights(layouts, contentHeights) {
+  if (!contentHeights || contentHeights.size === 0) return layouts;
   const out = {};
   for (const bp of Object.keys(layouts)) {
     out[bp] = (layouts[bp] ?? []).map((it) => {
-      if (!compactIds.has(it.i)) return it;
-      const h = PANEL_BY_ID[it.i]?.compactH?.[bp];
-      if (h == null || it.h <= h) return it;
+      const want = contentHeights.get(it.i);
+      if (!want) return it;
+      const h = contentHeight(it, want, bp);
+      if (h === it.h) return it;
       return { ...it, h, minH: h, maxH: h };
     });
   }
@@ -234,18 +262,19 @@ export function applyCompactHeights(layouts, compactIds) {
 }
 
 /**
- * Inverse of applyCompactHeights for the layouts RGL reports back through
- * onLayoutChange: compact panels get their stored height (and the stored
- * minH/maxH) back so the collapse is never written to the user's layout.
- * Positions of every other panel are kept as RGL compacted them.
+ * Inverse of applyContentHeights for the layouts RGL reports back through
+ * onLayoutChange: resized panels get their stored height (and the stored
+ * minH/maxH) back so neither the collapse nor the growth is ever written to
+ * the user's layout. Positions of every other panel are kept as RGL compacted
+ * them.
  */
-export function restoreCompactHeights(allLayouts, storedLayouts, compactIds) {
-  if (!compactIds || compactIds.size === 0) return allLayouts;
+export function restoreContentHeights(allLayouts, storedLayouts, contentHeights) {
+  if (!contentHeights || contentHeights.size === 0) return allLayouts;
   const out = {};
   for (const bp of Object.keys(allLayouts)) {
     const stored = new Map((storedLayouts?.[bp] ?? []).map((it) => [it.i, it]));
     out[bp] = (allLayouts[bp] ?? []).map((it) => {
-      if (!compactIds.has(it.i)) return it;
+      if (!contentHeights.has(it.i)) return it;
       const prev = stored.get(it.i);
       if (!prev) return it;
       const { minH: _minH, maxH: _maxH, ...rest } = it;

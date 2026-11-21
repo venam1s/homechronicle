@@ -20,11 +20,33 @@ function formatLastSeen(ts) {
  * True when the panel has an event list to show: quiet hours are enabled and
  * at least one accessory was active in the window. Everything else (loading,
  * error, disabled, a quiet night) renders as a single row, and DashboardGrid
- * uses this same predicate to collapse the grid box to match (compactH in
- * lib/dashboardPanels.js), so keep the two in step.
+ * collapses the grid box to match (compactH in lib/dashboardPanels.js)
+ * whenever quietHoursContentHeight() below says there is no list, so keep
+ * the two in step.
  */
 export function quietHoursHasActivity(data) {
   return data?.enabled !== false && Array.isArray(data?.events) && data.events.length > 0;
+}
+
+// Pixel budget of the activity card below, so the grid can size the box to
+// the list instead of clipping it. Keep in step with the card's classes:
+// chrome is the 1px border and p-5 on both sides plus the header (21px
+// measured, the baseline-aligned title and hours, and mb-3); each event row
+// is py-2 around two 16px lines (mt-0.5 between them) inside its own border;
+// space-y-2 separates rows. Phones use p-4, so they get 8px to spare.
+const CARD_CHROME_PX = 2 + 40 + 33;
+const EVENT_ROW_PX = 52;
+const EVENT_GAP_PX = 8;
+
+/**
+ * Height in px the activity card needs to show every event without
+ * scrolling, or null when there is no list (the single-row quiet states).
+ * DashboardGrid turns this into a row span via rowsForHeight().
+ */
+export function quietHoursContentHeight(data) {
+  if (!quietHoursHasActivity(data)) return null;
+  const n = data.events.length;
+  return CARD_CHROME_PX + n * EVENT_ROW_PX + (n - 1) * EVENT_GAP_PX;
 }
 
 export default function QuietHoursPanel({ onNavigateToAccessory, embedded = false }) {
