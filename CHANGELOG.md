@@ -9,6 +9,7 @@ While a version is in beta, its section is headed `## [X.Y.Z] — Unreleased` an
 Settings is reorganised into **You** and **This home** with one row layout throughout, the dashboard and the device pages count days in your time zone, and the date in the top bar can be hidden.
 
 ### Beta notes
+- **beta.3:** adds **Settings › Appearance › Alerts in menu**, a per-member setting that hides the Alerts link, and the Quiet Hours panel now grows to fit its list on a busy night. The new setting is stored with your other preferences and nothing existing changes; an earlier version ignores it, so going back is safe.
 - **beta.2:** dashboard layout fixes: the weekday heatmap fills its panel, and the Quiet Hours panel collapses to one row on a quiet night. Nothing stored changes; your saved dashboard layout is kept.
 - **beta.1:** first beta of 0.7.0. Settings is reorganised and every setting saves through one path; daily counts follow your time zone. No stored setting was renamed or moved and there is no database change, so going back to 0.6.0 is safe.
 
